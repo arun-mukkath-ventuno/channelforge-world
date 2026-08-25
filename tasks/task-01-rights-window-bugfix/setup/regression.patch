@@ -1,0 +1,10 @@
+--- a/app/services/rights.py
++++ b/app/services/rights.py
+@@ -18,6 +18,6 @@ def covers_window(asset: Asset, *, start: datetime, end: datetime) -> bool:
+     """True if the asset's rights window fully covers the [start, end] air window."""
+     if asset.rights_start is not None and as_utc(asset.rights_start) > start:
+         return False  # rights begin after the event would start
+-    if asset.rights_end is not None and as_utc(asset.rights_end) < end:
++    if asset.rights_end is not None and as_utc(asset.rights_end) < start:
+         return False  # rights lapse before the event would end
+     return True

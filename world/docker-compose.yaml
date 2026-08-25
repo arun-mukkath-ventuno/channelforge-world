@@ -1,0 +1,37 @@
+# channelforge-world — local dev / Harbor environment.
+# Build context is the repo root (../) so images can COPY from vendor/ and scripts/.
+
+services:
+  postgres:
+    build: { context: .., dockerfile: world/db/Dockerfile }
+    environment:
+      POSTGRES_DB: channelforge
+      POSTGRES_USER: channelforge
+      POSTGRES_PASSWORD: world
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U channelforge"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: { context: .., dockerfile: world/app/Dockerfile }
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://channelforge:world@postgres:5432/channelforge
+      REDIS_URL: redis://redis:6379/0
+      SESSION_SECRET: world-session-secret
+      ENCRYPTION_KEY: world-encryption-key-0000000000000000
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      - "8000:8000"

@@ -1,0 +1,23 @@
+# DRAFT — validate field names/shape against the actual `harbor` CLI/schema (v1.4) before the
+# first real `harbor run`. Written from documented Harbor conventions, not yet CLI-verified.
+
+[task]
+name = "rights-window-boundary-bugfix"
+version = "1.0.0"
+
+[task.resources]
+cpus = 2
+memory = "2GB"
+storage = "4GB"
+
+[task.network]
+mode = "no-network"
+
+[task.environment]
+compose_file = "environment/docker-compose.yaml"
+
+# Applied inside the `app` container before the agent's turn starts — the app image is
+# pristine/task-agnostic; this is what actually injects task-01's bug. Field name/mechanism
+# below is a guess pending Harbor CLI validation (see README "Known limitations").
+[task.setup]
+script = "setup/apply.sh"
