@@ -40,20 +40,26 @@ header so it's exact.
 
 ## 3. Lay out the task directory
 
+There is no Harbor-recognized "run this before the agent's turn" hook — a task's environment is
+fully defined by what its own Dockerfile (or docker-compose services) build. The regression gets
+baked in at *build* time, not applied at *container start*:
+
 ```
 tasks/<task-id>/
-  instruction.md              # bug report or feature request — no file/function names, no hints
-  task.toml                   # schema 1.4 + a [task.setup] hook pointing at setup/apply.sh
+  instruction.md               # bug report or feature request — no file/function names, no hints
+  task.toml                    # schema 1.4 (verify against a fresh `harbor init` scaffold, not
+                                # against an older task.toml you find lying around)
   environment/
-    docker-compose.yaml       # `include: [path: ../../../world/docker-compose.yaml]` unless this
-                               # task needs its own DB variant
+    Dockerfile                 # pristine vendored source + `RUN patch -p1 < .../regression.patch`
+    docker-compose.yaml        # service MUST be named `main` (Harbor's own overlays require it);
+                                # add postgres/redis here too unless the task needs its own variant
   setup/
-    regression.patch
-    apply.sh                  # `cd /app && patch -p1 < /task/setup/regression.patch`
+    regression.patch           # COPYed into the image and applied by Dockerfile's RUN step
   solution/
-    solve.sh                  # the Oracle — reference fix, never shown to the agent
+    solve.sh                   # the Oracle — reverses regression.patch at runtime, never shown to
+                                # the agent
   tests/
-    test.sh                   # verifier — runs the real test(s), writes /logs/verifier/reward.json
+    test.sh                    # verifier — runs the real test(s), writes reward.txt + reward.json
 ```
 
 `instruction.md` should read like something a real user or rights-holder would actually say —
@@ -63,34 +69,29 @@ text alone, it's too specific.
 ## 4. `tests/test.sh` contract
 
 - Runs the real, relevant test file(s) inside the container.
-- Writes `/logs/verifier/reward.json` with at least `task_success`, `correct_diagnosis`,
-  `policy_compliance`, `side_effect_safety`. If you haven't built real side-effect-safety scoring
-  yet (e.g. "did the agent touch only the files it should have"), say so with a fixed placeholder
-  and a comment — don't silently claim a check that doesn't exist.
-- Must fail on a no-op (agent makes no change) and on the unpatched-but-unfixed state.
+- Writes both `/logs/verifier/reward.txt` (bare `0`/`1`) and `/logs/verifier/reward.json` (richer:
+  `task_success`, `correct_diagnosis`, `policy_compliance`, `side_effect_safety`) — both are real,
+  supported Harbor outputs. If you haven't built real side-effect-safety scoring yet (e.g. "did the
+  agent touch only the files it should have"), say so with a fixed placeholder and a comment —
+  don't silently claim a check that doesn't exist.
+- Must fail on a no-op (agent makes no change).
 
 ## 5. Validate end to end before calling it done
 
+Prefer real Harbor commands over a hand-simulated substitute — they exercise the actual mechanism
+(image build from `environment/Dockerfile`, the `main` service name requirement, reward-file
+parsing) rather than something that merely resembles it:
+
 ```
 scripts/vendor-source.sh
-cd world && docker compose up -d --build
+harbor run -p tasks/<task-id> -a oracle -e docker -y --jobs-dir /tmp/jobs   # expect task_success: 1
+harbor run -p tasks/<task-id> -a nop -e docker -y --jobs-dir /tmp/jobs      # expect task_success: 0
 ```
 
-Then, in order, confirming each step:
-
-1. `curl localhost:8000/docs` → healthy.
-2. Copy in `setup/regression.patch`, apply it inside `app` → bug present.
-3. Copy in `tests/test.sh`, run it → verifier fails, `reward.json` shows `task_success: 0`.
-4. Make the fix by hand (or apply `solution/solve.sh`'s reverse patch), `restart-api` inside the
-   container.
-5. `curl localhost:8000/docs` again → still healthy (this is the step that catches a broken
-   `restart-api`/PID 1 lifecycle — it's happened once already, see `docs/setup.md`
-   Troubleshooting).
-6. Re-run `tests/test.sh` → passes, `reward.json` shows `task_success: 1`.
-
-Only once all six steps are green does `harbor run` wiring (still unconfirmed — see `task.toml`'s
-comments) become worth debugging; don't chase Harbor-specific failures before the mechanism itself
-is proven manually.
+If either doesn't come back as expected, `harbor task start-env -p tasks/<task-id> -i` drops you
+into a shell in the actual built environment to debug interactively. See
+[`docs/harbor-install.md`](harbor-install.md) for the full command reference and known gaps (in
+particular: `network_mode = "no-network"` isn't enforced yet under local Docker).
 
 ## 6. Update tracking
 

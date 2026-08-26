@@ -19,9 +19,10 @@ and [`docs/setup.md`](docs/setup.md) for local setup.
    `scripts/vendor-source.sh` at a moving branch. A task's `setup/regression.patch` must produce
    byte-identical starting state every time it's applied to pristine vendored source. If a change
    here would make two runs of the same task diverge, don't make it.
-4. **The app/db images stay pristine and task-agnostic.** No task-specific bug, fixture, or config
-   belongs baked into `world/app/Dockerfile` or `world/db/Dockerfile`. Task-specific state is
-   applied by that task's own `setup/apply.sh`, after the container is already running.
+4. **The shared `world/app/Dockerfile` and `world/db/Dockerfile` stay pristine and task-agnostic.**
+   No task-specific bug, fixture, or config belongs in them. A task's bug/gap belongs in that
+   task's own `environment/Dockerfile`, baked in at build time (`RUN patch -p1 < ...`) — Harbor has
+   no runtime "setup hook"; the environment a task gets is exactly what its own Dockerfile builds.
 5. **No live external network egress**, ever, from anything running inside the world. No real
    YouTube, no real RTMP/third-party ingest. If a task needs network-shaped behavior, it talks to a
    local stub inside the sealed world, never out to the internet.
@@ -32,32 +33,41 @@ and [`docs/setup.md`](docs/setup.md) for local setup.
 
 ## Architecture rules
 
-- Three images: `channelforge-world-app` (writable ChannelForge source, `pip install -e .` +
-  `restart-api`), `channelforge-world-db` (Postgres, currently a stock baseline), `redis:7` (stock,
-  unmodified). No `supervisord` — orchestration is `docker-compose`, not a single monolithic image.
+- Compose service naming is not cosmetic: the agent's primary container **must** be named `main`.
+  Harbor's own base/build/no-network compose overlays all target a service called `main`
+  (`harbor.constants.MAIN_SERVICE_NAME`) — a different name silently fails to wire the agent up
+  correctly. `world/docker-compose.yaml` and every task's `environment/docker-compose.yaml` use
+  `main` for this reason.
+- Three services: `main` (writable ChannelForge source, `pip install -e .` + `restart-api`),
+  `postgres` (currently a stock baseline), `redis:7` (stock, unmodified). No `supervisord` —
+  orchestration is `docker-compose`, not a single monolithic image.
 - Source is vendored, not committed: `scripts/vendor-source.sh` pulls `apps/api` + `packages` from
   the real ChannelForge repo at `PINNED_COMMIT` into `vendor/` (gitignored, regenerate on demand).
-- A task's variation is a source patch (`setup/regression.patch` + `setup/apply.sh`), not a
-  separate DB image tag — this is what lets one pristine app image serve arbitrarily many future
-  tasks without a rebuild per task. DB-state variation is provisioned (Alembic reachable, DDL
-  rights) but not required until a task actually needs it.
+- A task's variation is a source patch (`setup/regression.patch`) baked into that task's own
+  `environment/Dockerfile` at build time — not a shared app image, not a separate DB image tag.
+  DB-state variation is provisioned (Alembic reachable, DDL rights) but not required until a task
+  actually needs it.
+- **Known gap:** `network_mode = "no-network"` is not yet enforced under the local Docker
+  environment provider (it needs an egress-control sidecar not yet wired up) — see
+  `docs/harbor-install.md`. Don't claim network isolation as a guarantee until this is closed.
 
 ## Testing requirements — before a task counts as built
 
-- The setup patch applies cleanly, with no fuzz, to a freshly-vendored pristine checkout.
+- The regression patch applies cleanly, with no fuzz, to a freshly-vendored pristine checkout.
 - Applying it breaks exactly the intended test(s) — not more, not fewer than expected.
 - Reversing it (the Oracle) restores a byte-identical original, and the real test suite passes in
   full.
-- A no-op run (agent does nothing) fails the verifier.
-- The full loop has been run against a live `docker compose` world at least once: healthy → bug
-  injected → verifier fails → fix applied + `restart-api` → container survives the restart, service
-  healthy → verifier passes.
+- Validated through **real Harbor**, not a hand-simulated substitute:
+  `harbor run -a oracle` scores `task_success: 1`, and `harbor run -a nop` scores
+  `task_success: 0`. See `docs/harbor-install.md` for exact commands.
 
 ## Definition of done for a new task
 
 - `instruction.md` reads as a real bug report or feature request — no file names, function names,
   or hints at the fix.
-- `task.toml`, `setup/`, `solution/solve.sh`, `tests/test.sh`, and `environment/` all exist and
-  follow the shape in `docs/workflow.md`.
-- All items under "Testing requirements" above pass.
-- Anything not yet validated against the real `harbor` CLI is stated as such, not implied to work.
+- `task.toml` (verified against a fresh `harbor init` scaffold, not copied from an older task),
+  `setup/regression.patch`, `environment/Dockerfile`, `environment/docker-compose.yaml` (service
+  named `main`), `solution/solve.sh`, and `tests/test.sh` all exist and follow the shape in
+  `docs/workflow.md`.
+- All items under "Testing requirements" above pass — including the real `harbor run` checks, not
+  just a manual simulation.

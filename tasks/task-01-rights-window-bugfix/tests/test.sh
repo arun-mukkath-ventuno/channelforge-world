@@ -8,8 +8,10 @@ cd /app
 
 if pytest tests/test_rights_enforcement.py -q > /logs/verifier/pytest.log 2>&1; then
   success=1.0
+  success_int=1
 else
   success=0.0
+  success_int=0
 fi
 
 # NOTE: correct_diagnosis/policy_compliance/side_effect_safety are placeholders (fixed at 1.0)
@@ -23,5 +25,9 @@ cat > /logs/verifier/reward.json <<JSON
   "side_effect_safety": 1.0
 }
 JSON
+
+# reward.json alone was sufficient for `harbor run` to score this correctly in practice; writing
+# reward.txt too for parity with Harbor's own default task template convention.
+echo "$success_int" > /logs/verifier/reward.txt
 
 echo "verifier: task_success=$success (see pytest.log)"

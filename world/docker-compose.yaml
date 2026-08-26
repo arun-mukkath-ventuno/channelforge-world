@@ -22,7 +22,10 @@ services:
       timeout: 3s
       retries: 10
 
-  app:
+  # Named `main`, not `app`: Harbor's own base compose overlays (build/prebuilt/no-network)
+  # always target a service literally named `main` — this is the container the agent gets
+  # attached to. See harbor.constants.MAIN_SERVICE_NAME.
+  main:
     build: { context: .., dockerfile: world/app/Dockerfile }
     environment:
       APP_ENV: development

@@ -34,7 +34,7 @@ docker compose ps        # all three services should be healthy/running
 ## Working inside the world (what an agent's turn looks like)
 
 ```
-docker compose exec app bash
+docker compose exec main bash
 ```
 
 From inside:
@@ -45,15 +45,21 @@ From inside:
   change takes effect; there is no file-watcher.
 - `pytest tests/<file>.py` runs the real test suite from inside the container.
 
-## Running a task's setup patch manually (before Harbor wiring exists)
+## Trying a specific task (real Harbor, not the shared `world/` stack)
+
+`world/docker-compose.yaml` above is the bare, bug-free dev stack — useful for poking at
+ChannelForge itself, but no task's regression is baked into it. A task's own environment (with its
+bug baked in at build time) lives at `tasks/<task-id>/environment/`, and the right way to exercise
+it is through Harbor, not by hand-copying patches into the shared stack:
 
 ```
-docker cp tasks/task-01-rights-window-bugfix/setup/regression.patch <app-container>:/tmp/regression.patch
-docker compose -f world/docker-compose.yaml exec app bash -c "cd /app && patch -p1 < /tmp/regression.patch"
+harbor task start-env -p tasks/task-01-rights-window-bugfix -i   # build + drop into a shell
+harbor run -p tasks/task-01-rights-window-bugfix -a oracle -e docker -y --jobs-dir /tmp/jobs
+harbor run -p tasks/task-01-rights-window-bugfix -a nop -e docker -y --jobs-dir /tmp/jobs
 ```
 
-Then, as if you were the evaluated agent: edit the code, `restart-api`, and run that task's
-`tests/test.sh` (copy it in the same way) to check your fix.
+See [`docs/harbor-install.md`](harbor-install.md) for the full command reference and what each one
+proves.
 
 ## Tearing down / resetting
 
@@ -67,8 +73,8 @@ so this is the whole determinism story once `vendor/` and the images themselves 
 
 ## Troubleshooting
 
-- **`patch: command not found` inside `app`** — rebuild; `patch` is installed in
-  `world/app/Dockerfile`. If you're on an older image, `docker compose build app`.
+- **`patch: command not found` inside `main`** — rebuild; `patch` is installed in
+  `world/app/Dockerfile`. If you're on an older image, `docker compose build main`.
 - **Container exits right after an agent-triggered `restart-api`** — this was a real bug found
   during initial validation (PID 1 was `wait`-ing on the original `uvicorn` pid). If you see it
   again, check `scripts/restart-api.sh`'s foreground branch hasn't regressed back to a direct

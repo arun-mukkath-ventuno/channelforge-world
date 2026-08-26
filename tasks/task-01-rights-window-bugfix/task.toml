@@ -1,23 +1,38 @@
-# DRAFT — validate field names/shape against the actual `harbor` CLI/schema (v1.4) before the
-# first real `harbor run`. Written from documented Harbor conventions, not yet CLI-verified.
+# Verified against harbor 0.22.0's TaskConfig model (harbor/models/task/config.py) via
+# `harbor init` + source inspection — not a guess. See docs/harbor-install.md.
+schema_version = "1.4"
+artifacts = []
 
 [task]
-name = "rights-window-boundary-bugfix"
+name = "channelforge-world/rights-window-boundary-bugfix"
 version = "1.0.0"
+description = "Fix a regression where scheduled content can air after its rights window lapses mid-broadcast."
+authors = []
+keywords = ["bugfix", "channelforge"]
 
-[task.resources]
+[metadata]
+
+[verifier]
+timeout_sec = 300.0
+collect = []
+
+[verifier.env]
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+# TODO: "no-network" fails under the local docker provider as of harbor 0.22.0 — it requires an
+# egress-control sidecar (NET_ADMIN/NET_RAW) that isn't wired up. Using "public" until that's
+# set up; see docs/harbor-install.md "Known gaps". No task-01 code path makes outbound calls, so
+# this is a real but currently-inert gap, not an active leak.
+network_mode = "public"
+build_timeout_sec = 900.0
+os = "linux"
 cpus = 2
-memory = "2GB"
-storage = "4GB"
+memory_mb = 2048
+storage_mb = 4096
 
-[task.network]
-mode = "no-network"
+[environment.env]
 
-[task.environment]
-compose_file = "environment/docker-compose.yaml"
-
-# Applied inside the `app` container before the agent's turn starts — the app image is
-# pristine/task-agnostic; this is what actually injects task-01's bug. Field name/mechanism
-# below is a guess pending Harbor CLI validation (see README "Known limitations").
-[task.setup]
-script = "setup/apply.sh"
+[solution.env]

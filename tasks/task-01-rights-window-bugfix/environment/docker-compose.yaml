@@ -1,6 +1,40 @@
-# Task-specific environment. Identical to world/docker-compose.yaml for task-01, since this
-# task's variation is a source patch (setup/regression.patch), not a DB/image variant. A future
-# task that needs its own DB state/schema would override the `postgres` service's build/image
-# here instead of touching this file's siblings.
-include:
-  - path: ../../../world/docker-compose.yaml
+# Task-specific environment. `main` (required name — see harbor.constants.MAIN_SERVICE_NAME)
+# builds from this task's own Dockerfile (pristine source + this task's regression baked in at
+# build time). postgres/redis are unmodified copies of the shared world services.
+
+services:
+  main:
+    build:
+      context: ../../..
+      dockerfile: tasks/task-01-rights-window-bugfix/environment/Dockerfile
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://channelforge:world@postgres:5432/channelforge
+      REDIS_URL: redis://redis:6379/0
+      SESSION_SECRET: world-session-secret
+      ENCRYPTION_KEY: world-encryption-key-0000000000000000
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  postgres:
+    build:
+      context: ../../..
+      dockerfile: world/db/Dockerfile
+    environment:
+      POSTGRES_DB: channelforge
+      POSTGRES_USER: channelforge
+      POSTGRES_PASSWORD: world
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U channelforge"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
