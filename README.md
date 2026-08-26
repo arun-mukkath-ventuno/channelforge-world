@@ -9,6 +9,13 @@ deliberate service restart) actually fixes the behavior — verified against the
 See the Notion "Channel Forge World" hub for the full scope/plan docs. This repo is the
 implementation; Notion is the plan.
 
+- [`AGENTS.md`](AGENTS.md) — implementation guardrails for anyone (human or agent) building or
+  extending this repo. Read this first.
+- [`docs/setup.md`](docs/setup.md) — local setup, booting the world, working inside a container,
+  troubleshooting.
+- [`docs/workflow.md`](docs/workflow.md) — how to author a new task end to end, using task-01 as
+  the worked example.
+
 ## Architecture
 
 Three images, orchestrated by `world/docker-compose.yaml`:
@@ -47,20 +54,22 @@ pulls `apps/api` and `packages` from the local `../channelforge` checkout at tha
 
 ## Local dev loop
 
+See [`docs/setup.md`](docs/setup.md) for the full walkthrough (prerequisites, booting the world,
+working inside a container, troubleshooting). Short version:
+
 ```
 scripts/vendor-source.sh
 cd world && docker compose up -d --build
 docker compose exec app bash          # agent's shell, in miniature
 ```
 
-Inside the app container: edit files under `/app`, `pip install -e .` if dependencies changed, then
-`restart-api` to pick up the change.
-
 ## Tasks
 
 - [`tasks/task-01-rights-window-bugfix`](tasks/task-01-rights-window-bugfix/) — first task,
   end-to-end proof of the model (bugfix, real injected regression, real test suite as verifier).
   Build and validate this one before authoring more.
+
+See [`docs/workflow.md`](docs/workflow.md) for how to author the next one.
 
 ## Known limitations (POC)
 
