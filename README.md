@@ -25,16 +25,20 @@ implementation; Notion is the plan.
   (yes, verified — see `~/Work/ventuno-labs/horizon-test/`).
 - [`docs/harbor-commands.md`](docs/harbor-commands.md) — command cheatsheet (running `nop`/
   `oracle`/a real agent, browsing results, agent requirements/costs).
+- [`docs/fixture-and-scheduler.md`](docs/fixture-and-scheduler.md) — the Yoga & You synthetic
+  tenant, the scheduler-sweep live-vs-baked decision, and a real `docker commit`/`VOLUME` gotcha
+  that broke the first bake attempt.
 
 ## Architecture
 
-Three images, orchestrated by `world/docker-compose.yaml`:
+Four services, orchestrated by `world/docker-compose.yaml`:
 
-| Image | Role |
+| Service | Role |
 |---|---|
 | `main` (image `channelforge-world-app`) | ChannelForge API (`apps/api`) with a **writable** source tree. `pip install -e .` + an explicit `restart-api` verb — no `--reload` file-watcher, so a restart is a deliberate, observable action (matching the legacy `ventuno-world` PHP precedent: edit, then restart). Named `main`, not `app` — Harbor's own compose overlays require that exact service name (see `docs/harbor-install.md`). |
-| `channelforge-world-db` | Postgres. One baseline image for the POC — no per-task DB snapshots yet (not needed until a task requires DB state/schema changes as part of its fix; see Known limitations below). Alembic runs against it for real, so that capability is proven even though no POC task exercises it yet. |
+| `postgres` (image `channelforge-world-db`) | A blank baseline by default. A separate baked variant, `channelforge-world-db:yoga-and-you`, carries the seeded "Yoga & You" synthetic tenant — see `docs/fixture-and-scheduler.md`. Not per-task yet (not needed until a task requires DB state/schema changes as part of its fix). |
 | `redis` (stock `redis:7`) | Unmodified. |
+| `scheduler` | Same image as `main`, running `app.jobs.scheduler` instead of the API — ChannelForge's real background reconciliation loop, run live rather than faked. Safe by construction: its network-touching sweeps all require `channel.state == "running"`, which nothing in this world (no live playout-worker) ever reaches. See `docs/fixture-and-scheduler.md`. |
 
 **Task variation is a source patch, baked in at build time — not a shared image, not a DB
 snapshot.** Harbor has no runtime "setup hook"; each task has its own `environment/Dockerfile`
@@ -85,11 +89,12 @@ See [`docs/workflow.md`](docs/workflow.md) for how to author the next one.
 - task-01 is fully validated through real Harbor (0.22.0): `harbor run -a oracle` scores
   `task_success: 1.0`; `harbor run -a nop` scores `task_success: 0.0`. See
   [`docs/harbor-install.md`](docs/harbor-install.md) for exact commands.
-- No per-task DB fixture/anomaly baking yet — provisioned (Alembic reachable, DB user has DDL
-  rights) but not exercised. First task that actually needs it should be the forcing function for
-  building the fixture baker.
-- `channelforge-world-db` is not yet seeded with a synthetic tenant ("Yoga & You") — not required
-  for task-01, since its verifier is the existing pytest suite, not live Postgres state.
+- The "Yoga & You" synthetic tenant is built and baked (`channelforge-world-db:yoga-and-you`):
+  30 assets, 6 collections, 1 published schedule (113 events), 58 as-run entries — verified through
+  the real API, not just raw SQL. The scheduler now runs live (its own compose service) rather than
+  having its output faked. See `docs/fixture-and-scheduler.md`.
+- No per-task DB fixture/anomaly baking yet — the mechanism above is proven, just not required by
+  task-01 (its verifier is the existing pytest suite, not live Postgres state) or wired per-task.
 
 ## Known gaps
 

@@ -1,0 +1,10 @@
+# Override for world/docker-compose.yaml: swaps `postgres` to boot from the baked Yoga & You
+# fixture image instead of building a fresh, empty database. Usage:
+#
+#   docker compose -f world/docker-compose.yaml -f world/docker-compose.fixture.yaml up -d
+#
+# Requires channelforge-world-db:yoga-and-you to already exist locally (scripts/bake-fixture-db.sh).
+services:
+  postgres:
+    image: channelforge-world-db:yoga-and-you
+    build: !reset null

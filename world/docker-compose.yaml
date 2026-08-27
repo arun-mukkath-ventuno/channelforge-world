@@ -38,3 +38,21 @@ services:
       redis: { condition: service_healthy }
     ports:
       - "8000:8000"
+
+  # Decision: run live, not baked (see docs/how-it-works.md). Same image as `main`, different
+  # command -- app/jobs/scheduler.py only touches Postgres/Redis (already inside the sealed
+  # world); its two YouTube-reconciliation sweeps and the audience-metrics sweep all skip any
+  # channel that isn't state=="running", which nothing in this world ever becomes (no live
+  # playout-worker) -- so they're safe no-ops here, not something we had to guard in code.
+  scheduler:
+    build: { context: .., dockerfile: world/app/Dockerfile }
+    command: ["python", "-m", "app.jobs.scheduler"]
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://channelforge:world@postgres:5432/channelforge
+      REDIS_URL: redis://redis:6379/0
+      SESSION_SECRET: world-session-secret
+      ENCRYPTION_KEY: world-encryption-key-0000000000000000
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }

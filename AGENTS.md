@@ -44,9 +44,15 @@ and [`docs/setup.md`](docs/setup.md) for local setup.
   (`harbor.constants.MAIN_SERVICE_NAME`) — a different name silently fails to wire the agent up
   correctly. `world/docker-compose.yaml` and every task's `environment/docker-compose.yaml` use
   `main` for this reason.
-- Three services: `main` (writable ChannelForge source, `pip install -e .` + `restart-api`),
-  `postgres` (currently a stock baseline), `redis:7` (stock, unmodified). No `supervisord` —
-  orchestration is `docker-compose`, not a single monolithic image.
+- Four services: `main` (writable ChannelForge source, `pip install -e .` + `restart-api`),
+  `postgres`, `redis:7` (stock, unmodified), `scheduler` (same image as `main`, running
+  `app.jobs.scheduler` live — see `docs/fixture-and-scheduler.md` for why that's safe here). No
+  `supervisord` — orchestration is `docker-compose`, not a single monolithic image.
+- `world/db/Dockerfile` sets `ENV PGDATA=/var/lib/postgresql/cf-data` deliberately. The base
+  `postgres:16` image declares `/var/lib/postgresql/data` as a `VOLUME`, and `docker commit` never
+  captures data inside a declared volume — moving `PGDATA` off that path is what makes baking a
+  seeded Postgres image (`scripts/bake-fixture-db.sh`) actually work. Do not move `PGDATA` back
+  without re-verifying a baked image boots with data intact.
 - Source is vendored, not committed: `scripts/vendor-source.sh` pulls `apps/api` + `packages` from
   the real ChannelForge repo at `PINNED_COMMIT` into `vendor/` (gitignored, regenerate on demand).
 - A task's variation is a source patch (`setup/regression.patch`) baked into that task's own

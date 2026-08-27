@@ -12,12 +12,16 @@ channelforge-world/
 ├── PINNED_COMMIT             ← one line: the exact ChannelForge commit vendor-source.sh copies from
 ├── AGENTS.md                  ← rules for anyone (human or AI) working on this repo
 ├── README.md                  ← entry point
-├── docs/                      ← this file, plus setup/workflow/harbor-install/harbor-commands
+├── docs/                      ← this file, plus setup/workflow/harbor-install/harbor-commands/
+│                                 fixture-and-scheduler
 ├── scripts/
 │   ├── vendor-source.sh        ← pulls pinned ChannelForge source into vendor/ (see below)
-│   └── restart-api.sh           ← the "restart the API" command, installed inside every container
+│   ├── restart-api.sh           ← the "restart the API" command, installed inside every container
+│   ├── seed_fixture.py          ← builds the "Yoga & You" synthetic tenant against a live API
+│   └── bake-fixture-db.sh       ← seeds + docker-commits it into channelforge-world-db:yoga-and-you
 ├── world/                     ← the shared, generic ChannelForge sandbox — no bug baked in
-│   ├── docker-compose.yaml      wires together 3 services: main, postgres, redis
+│   ├── docker-compose.yaml      wires together 4 services: main, postgres, redis, scheduler
+│   ├── docker-compose.fixture.yaml  optional override: boot postgres from the baked fixture image
 │   ├── app/Dockerfile             recipe for the "main" (ChannelForge API) container
 │   └── db/Dockerfile              recipe for the "postgres" container
 └── tasks/                     ← one folder per Harbor task

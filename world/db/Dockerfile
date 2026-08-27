@@ -1,9 +1,9 @@
-# channelforge-world db image — currently a thin pass-through over stock Postgres.
+# channelforge-world db image.
 #
-# TODO (tracked in POC Task Tracker, not required by task-01): bake a synthetic tenant
-# ("Yoga & You") into this image's data directory at build time, once the fixture builder
-# exists, so reset = recreate the container rather than reseed at start. Per-task anomaly
-# variants (when a task actually needs DB state, not just a source patch) become tags of
-# this image built the same way.
-
+# PGDATA is deliberately moved off /var/lib/postgresql/data: the base postgres:16 image
+# declares that path as a VOLUME, and `docker commit` never captures data inside a declared
+# volume (a well-known Docker behavior, confirmed the hard way while baking the Yoga & You
+# fixture -- see scripts/bake-fixture-db.sh and docs/how-it-works.md). Moving PGDATA to a
+# plain, non-volume path is what makes the baked-fixture pattern actually work.
 FROM postgres:16
+ENV PGDATA=/var/lib/postgresql/cf-data
