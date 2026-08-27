@@ -17,6 +17,11 @@ implementation; Notion is the plan.
   the worked example.
 - [`docs/harbor-install.md`](docs/harbor-install.md) — installing Harbor, validating a task for
   real (`harbor run -a oracle`/`-a nop`), and what we learned that corrected earlier assumptions.
+- [`docs/how-it-works.md`](docs/how-it-works.md) — the conceptual walkthrough: what every piece of
+  this repo actually does, and the full pipeline Harbor runs through for a task, explained from
+  first principles.
+- [`docs/harbor-commands.md`](docs/harbor-commands.md) — command cheatsheet (running `nop`/
+  `oracle`/a real agent, browsing results, agent requirements/costs).
 
 ## Architecture
 
