@@ -20,6 +20,9 @@ implementation; Notion is the plan.
 - [`docs/how-it-works.md`](docs/how-it-works.md) — the conceptual walkthrough: what every piece of
   this repo actually does, and the full pipeline Harbor runs through for a task, explained from
   first principles.
+- [`docs/horizon-format-migration.md`](docs/horizon-format-migration.md) — whether a task built
+  for Bespoke Labs' separate "Horizon" platform can be migrated to run under plain Harbor
+  (yes, verified — see `~/Work/ventuno-labs/horizon-test/`).
 - [`docs/harbor-commands.md`](docs/harbor-commands.md) — command cheatsheet (running `nop`/
   `oracle`/a real agent, browsing results, agent requirements/costs).
 
