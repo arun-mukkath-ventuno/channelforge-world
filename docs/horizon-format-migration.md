@@ -67,6 +67,38 @@ One platform note carried over unchanged: the Dockerfile pins `--platform=linux/
 image genuinely only ships amd64 binaries (`docker image inspect` confirms `Architecture: amd64`)
 — not a Horizon-specific requirement, so it stays regardless of what runs the task.
 
+## A real agent run also surfaced an infra lesson worth carrying into ChannelForge World
+
+A follow-up run — `terminus-2` + `gpt-5.6-luna` against the migrated task — scored `0.0`, but the
+transcript shows this was **not a model failure**:
+
+- The agent wrote a genuinely independent, syntactically valid implementation (different method
+  names than the reference fix — its own design, not a copy), and `php -l` checked clean on all
+  four touched files.
+- To apply its change, it correctly tried `supervisorctl restart apache` first. That failed
+  (`unix:///var/run/supervisor.sock no such file` — supervisord wasn't running yet in the agent's
+  session), so it fell back to `service apache2 restart || true`, which started Apache **outside
+  supervisord's process management**.
+- When the verifier ran afterward, its own startup logic found supervisord not running and started
+  it fresh — and supervisord's own managed Apache then collided on the port with the rogue Apache
+  process the agent's fallback had left running, crash-looping until the readiness check timed out.
+
+Per this POC's own failure taxonomy (infra-failure vs. model-reasoning-failure — see POC Scope §5),
+this is an infra failure: the agent tried the right command, then a reasonable fallback, and had no
+way to know that fallback would conflict with the verifier's later canonical startup. It's the same
+category of fragility this task's own `tests/test.sh` already anticipates in a comment ("orphaned
+mysqld/memcached processes left behind when agents accidentally kill supervisord mid-session") —
+just a variant the existing healing logic didn't happen to cover.
+
+**The transferable lesson for ChannelForge World, already validated in practice:** give the agent
+exactly **one** canonical start/restart command, with no manual multi-step alternative for it to
+fall back to. This is precisely why `restart-api` (see `how-it-works.md`) is a single script that
+handles "start if not already running" internally, rather than the agent being expected to compose
+its own sequence of raw commands — there's no second code path for an agent's fallback attempt to
+diverge onto and leave the environment in a state the verifier's own startup can't reconcile with.
+This migration test is the first real evidence that choice matters, not just a theoretical
+guardrail.
+
 ## What this implies for the POC
 
 - **Task portability across formats is real, not theoretical** — a task built for a different

@@ -12,9 +12,15 @@ and [`docs/setup.md`](docs/setup.md) for local setup.
    such that it effectively gets) write access to `world/*/Dockerfile`, `world/docker-compose.yaml`,
    a task's `environment/`, `tests/`, or `solution/` — each is a reward-hacking vector (weaken the
    checks, or edit the test instead of fixing the bug, instead of editing the tests directory).
-2. **No auto-reload, ever.** Restarts happen only via the explicit `restart-api` verb. Do not
+2. **No auto-reload, ever, and exactly one restart command — never a multi-step alternative the
+   agent could fall back to.** Restarts happen only via the explicit `restart-api` verb. Do not
    reintroduce `uvicorn --reload` or any other file-watcher — the deliberate-restart step is part
-   of what's being evaluated, not an implementation inconvenience to smooth over.
+   of what's being evaluated, not an implementation inconvenience to smooth over. This is validated,
+   not just theoretical: a migrated Horizon task (`docs/horizon-format-migration.md`) failed a real
+   agent run because its environment offered no single canonical restart command — the agent's
+   reasonable fallback (`service apache2 restart`) started a process outside supervisord's control
+   that later collided with the verifier's own startup. `restart-api` existing as one script with
+   no second code path is exactly what prevents that class of failure here.
 3. **Determinism over convenience.** `PINNED_COMMIT` names an exact ChannelForge SHA — never point
    `scripts/vendor-source.sh` at a moving branch. A task's `setup/regression.patch` must produce
    byte-identical starting state every time it's applied to pristine vendored source. If a change
