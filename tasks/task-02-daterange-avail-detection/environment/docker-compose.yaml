@@ -1,0 +1,28 @@
+# Task-specific environment. `main` (required name — see harbor.constants.MAIN_SERVICE_NAME)
+# builds from this task's own Dockerfile (pristine ssaiadserver source; no injected regression —
+# see environment/Dockerfile). redis is the only real dependency: the data-plane's manifest path
+# has no DB dependency (packages/data-plane/src/server.ts: "No DB, no transcode on this path.").
+
+services:
+  main:
+    build:
+      context: ../../..
+      dockerfile: tasks/task-02-daterange-avail-detection/environment/Dockerfile
+    environment:
+      SSAI_SERVICE: data-plane
+      DATA_PLANE_PORT: "4010"
+      REDIS_URL: redis://redis:6379
+      CONTROL_PLANE_URL: http://localhost:4000
+      SESSION_SIGNING_SECRET: task-ssai-session-secret
+      CREATIVE_STORE_ROOT: /data/creatives
+      CHANNELFORGE_ORIGIN_URL: http://localhost:8080
+    depends_on:
+      redis: { condition: service_healthy }
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10

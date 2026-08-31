@@ -113,6 +113,32 @@ and the `next build` for fast-web — and the service comes back up serving afte
 the compose wiring, the two glue patches, and the restart-verb contract; it does **not** yet prove
 the live pipeline (see the object-storage/edge gap below).
 
+## First task built on this: task-02
+
+`tasks/task-02-daterange-avail-detection` fixes a real, confirmed defect found while writing
+this doc: ssaiadserver's `detectAvails` (`packages/data-plane/src/avails.ts`) only opens/closes
+an avail on `cue_out`/`cue_in` marker kinds — it silently ignores `daterange`-kind markers
+entirely (confirmed: pristine `avails.test.ts` has zero DATERANGE test cases). Since DATERANGE is
+ChannelForge's *only* real cue-signalling format (`worker/scte35.py` → `worker/cue_schedule.py` →
+`worker/origin_runner.py`, confirmed fully wired at current HEAD despite a stale docstring in
+`origin.py` claiming otherwise), **no avail is ever detected on any real ChannelForge channel** —
+every ad break plays through as pass-through slate, forever.
+
+The fix is single-repo (ssaiadserver only — ChannelForge's side is already correct), so this task
+uses the single-repo write-boundary model, not the colocated cross-repo one, even though it's
+cross-repo *verified*: `tests/test.sh` grades against a manifest fixture built from ChannelForge's
+actual `scte35.daterange_out`/`daterange_in` output (captured directly from the real functions,
+not hand-typed), not a synthetic one. There is no `setup/regression.patch` — the defect is already
+present in pristine vendored source, so the task is framed as a missing-behavior bug report (the
+README's own stated scope: "a bug report or feature request"), and `solution/solve.sh` applies a
+real forward fix rather than reversing a regression. Verified through real Harbor: `oracle` →
+`task_success: 1.0`, `nop` → `0.0`.
+
+A genuinely two-repo-writable task (the colocated-`main` model in `docs/workflow.md`) is still an
+open item — this defect didn't turn out to need one. See task-01 for the reversible-regression
+shape, task-02 for the missing-behavior shape; a future task should exercise the colocated model
+for a case that actually needs coordinated changes in two repos.
+
 ## Known gaps — real, not yet closed
 
 - **No `playout-worker` (or object storage / edge) in `world/docker-compose.yaml` yet.**
