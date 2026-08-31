@@ -8,10 +8,16 @@ and [`docs/setup.md`](docs/setup.md) for local setup.
 ## Prime directives
 
 1. **Write boundary is load-bearing, not incidental.** The evaluated agent's write access is
-   scoped to the vendored ChannelForge application source only. Never grant it (or wire a task
-   such that it effectively gets) write access to `world/*/Dockerfile`, `world/docker-compose.yaml`,
-   a task's `environment/`, `tests/`, or `solution/` — each is a reward-hacking vector (weaken the
-   checks, or edit the test instead of fixing the bug, instead of editing the tests directory).
+   scoped to exactly the vendored application source a task declares writable — never
+   `world/*/Dockerfile`, `world/docker-compose.yaml`, a task's `environment/`, `tests/`, or
+   `solution/` — each is a reward-hacking vector (weaken the checks, or edit the test instead of
+   fixing the bug, instead of editing the tests directory). This world now vendors three repos
+   (ChannelForge, ssaiadserver, fast-world-tv — see `docs/ecosystem.md`); most tasks are still
+   single-repo, but a genuinely cross-cutting bug may declare more than one repo's source
+   writable *within that one task's `main` container* (Harbor allows only one `main` service per
+   task — see `docs/workflow.md` "Cross-repo tasks"). "More than single-repo" must always be an
+   explicit, enumerated choice per task, never an accident of what happens to be copied into
+   `main`.
 2. **No auto-reload, ever, and exactly one restart command — never a multi-step alternative the
    agent could fall back to.** Restarts happen only via the explicit `restart-api` verb. Do not
    reintroduce `uvicorn --reload` or any other file-watcher — the deliberate-restart step is part
@@ -20,11 +26,16 @@ and [`docs/setup.md`](docs/setup.md) for local setup.
    agent run because its environment offered no single canonical restart command — the agent's
    reasonable fallback (`service apache2 restart`) started a process outside supervisord's control
    that later collided with the verifier's own startup. `restart-api` existing as one script with
-   no second code path is exactly what prevents that class of failure here.
-3. **Determinism over convenience.** `PINNED_COMMIT` names an exact ChannelForge SHA — never point
-   `scripts/vendor-source.sh` at a moving branch. A task's `setup/regression.patch` must produce
-   byte-identical starting state every time it's applied to pristine vendored source. If a change
-   here would make two runs of the same task diverge, don't make it.
+   no second code path is exactly what prevents that class of failure here. A colocated
+   cross-repo task (`docs/workflow.md`) gets one such script per affected service
+   (`restart-ssai-control`, `restart-ssai-data`, `restart-fast-web`, ...) — never one script that
+   guesses which service changed, and never a fallback if the named one fails.
+3. **Determinism over convenience.** Each repo's `PINNED_COMMIT_<SERVICE>` file
+   (`PINNED_COMMIT_CHANNELFORGE`, `PINNED_COMMIT_SSAIADSERVER`, `PINNED_COMMIT_FASTWORLDTV`) names
+   an exact SHA — never point `scripts/vendor-source.sh` at a moving branch for any of them. A
+   task's `setup/regression.patch` must produce byte-identical starting state every time it's
+   applied to pristine vendored source. If a change here would make two runs of the same task
+   diverge, don't make it.
 4. **The shared `world/app/Dockerfile` and `world/db/Dockerfile` stay pristine and task-agnostic.**
    No task-specific bug, fixture, or config belongs in them. A task's bug/gap belongs in that
    task's own `environment/Dockerfile`, baked in at build time (`RUN patch -p1 < ...`) — Harbor has
@@ -53,8 +64,9 @@ and [`docs/setup.md`](docs/setup.md) for local setup.
   captures data inside a declared volume — moving `PGDATA` off that path is what makes baking a
   seeded Postgres image (`scripts/bake-fixture-db.sh`) actually work. Do not move `PGDATA` back
   without re-verifying a baked image boots with data intact.
-- Source is vendored, not committed: `scripts/vendor-source.sh` pulls `apps/api` + `packages` from
-  the real ChannelForge repo at `PINNED_COMMIT` into `vendor/` (gitignored, regenerate on demand).
+- Source is vendored, not committed: `scripts/vendor-source.sh` pulls each of the three ecosystem
+  repos' source at its own pinned commit into `vendor/` (gitignored, regenerate on demand). See
+  `docs/ecosystem.md`.
 - A task's variation is a source patch (`setup/regression.patch`) baked into that task's own
   `environment/Dockerfile` at build time — not a shared app image, not a separate DB image tag.
   DB-state variation is provisioned (Alembic reachable, DDL rights) but not required until a task

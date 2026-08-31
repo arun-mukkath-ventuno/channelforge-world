@@ -3,10 +3,11 @@
 ## Prerequisites
 
 - Docker Desktop (or another local Docker daemon) with `docker compose` v2.
-- A local checkout of [`channelforge`](https://github.com/subbu-murugan/channelforge) as a sibling
-  directory (`../channelforge` relative to this repo), or set `CHANNELFORGE_REPO` to point
-  elsewhere. It must be a real git checkout — `scripts/vendor-source.sh` uses `git archive`, not a
-  plain file copy.
+- A local checkout of each of the three ecosystem repos as a sibling directory —
+  [`channelforge`](https://github.com/subbu-murugan/channelforge) (`../channelforge`),
+  `ssaiadserver` (`../ssaiadserver`), `fast-world-tv` (`../fast-world-tv`) — or set
+  `CHANNELFORGE_REPO` / `SSAIADSERVER_REPO` / `FASTWORLDTV_REPO` to point elsewhere. Each must be
+  a real git checkout — `scripts/vendor-source.sh` uses `git archive`, not a plain file copy.
 - Python 3.12+ locally only if you want to run `pytest` outside a container (optional — the
   container has everything it needs).
 
@@ -16,9 +17,11 @@
 scripts/vendor-source.sh
 ```
 
-This pulls `apps/api` and `packages` from `../channelforge` at the commit pinned in
-`PINNED_COMMIT` into `vendor/` (gitignored — it's a derived artifact, regenerate it, don't hand-edit
-it or commit it). Re-run this any time `PINNED_COMMIT` changes.
+This pulls each repo's source at its own pinned commit (`PINNED_COMMIT_CHANNELFORGE`,
+`PINNED_COMMIT_SSAIADSERVER`, `PINNED_COMMIT_FASTWORLDTV`) into `vendor/` (gitignored — it's a
+derived artifact, regenerate it, don't hand-edit it or commit it). Re-run this any time one of the
+`PINNED_COMMIT_*` files changes. See [`docs/ecosystem.md`](ecosystem.md) for how the three repos
+fit together.
 
 ## Boot the world
 

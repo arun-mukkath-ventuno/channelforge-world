@@ -30,7 +30,7 @@ patch --dry-run -p1 < ../../../tasks/<task-id>/setup/regression.patch
 patch -p1 < ../../../tasks/<task-id>/setup/regression.patch
 python3 -m pytest tests/<the_test_file>.py -q     # confirm it breaks exactly what you expect
 patch -p1 -R < ../../../tasks/<task-id>/setup/regression.patch
-diff <(cat app/<path>.py) <(git -C ../../../../channelforge show $(cat ../../../PINNED_COMMIT):apps/api/app/<path>.py)
+diff <(cat app/<path>.py) <(git -C ../../../../channelforge show $(cat ../../../PINNED_COMMIT_CHANNELFORGE):apps/api/app/<path>.py)
 # should be empty — the reversed patch must restore a byte-identical original
 ```
 
@@ -92,6 +92,34 @@ If either doesn't come back as expected, `harbor task start-env -p tasks/<task-i
 into a shell in the actual built environment to debug interactively. See
 [`docs/harbor-install.md`](harbor-install.md) for the full command reference and known gaps (in
 particular: `network_mode = "no-network"` isn't enforced yet under local Docker).
+
+## Cross-repo tasks
+
+This world now vendors three repos (see [`docs/ecosystem.md`](ecosystem.md) for the integration
+contracts between them). Most tasks are still single-repo — `main` is that one repo's runtime,
+every other service in the task's compose is a pristine dependency the agent's shell never
+touches. A task only needs the pattern below when the bug genuinely spans a repo boundary (e.g. a
+SCTE marker format drift that needs a coordinated fix in both ChannelForge's cue synthesis and
+ssaiadserver's marker parser).
+
+Harbor hard-requires the agent's shell to attach to a compose service literally named `main`
+(`harbor.constants.MAIN_SERVICE_NAME`) — there is exactly one per task. So a cross-repo task
+can't give the agent two containers; it has to put **both writable source trees inside the one
+`main` container**:
+
+- `main`'s `environment/Dockerfile` copies in both repos' source (e.g. ChannelForge under `/app`,
+  ssaiadserver under `/ssai`), installs both (`pip install -e` / `npm install`), and each
+  regression patch is baked into its own tree at build time exactly like a single-repo task.
+- Each affected service gets its **own discrete restart verb** in `main` — `restart-api` for
+  ChannelForge, `restart-ssai-control` / `restart-ssai-data` for ssaiadserver (see
+  `scripts/restart-ssai.sh`) — never a shared script that guesses which one changed. This is
+  still not supervisord: N independent foreground processes, restarted explicitly and
+  individually, one verb each, same shape as every other restart script in this world.
+- `instruction.md` should still describe only the symptom, but it's fine (and often necessary)
+  for it to make clear that more than one system is involved, since a real bug report about a
+  cross-system symptom would say so too.
+- `tests/test.sh` runs both repos' relevant real test file(s) — the fix isn't correct unless it
+  reconciles both sides, and the verifier should say so.
 
 ## 6. Update tracking
 

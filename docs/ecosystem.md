@@ -1,0 +1,133 @@
+# The ecosystem: ChannelForge + ssaiadserver + fast-world-tv
+
+This world grew from wrapping one service (ChannelForge) to wrapping the three repos that talk
+to each other in production. This doc is the integration-contract reference so a task author
+never has to re-derive it from source: what each repo actually expects from the others, the two
+places those contracts didn't line up out of the box (and the small patches that bridge them),
+and what's still missing before the pipeline is *live*, not just wired.
+
+## The pipeline
+
+```
+ChannelForge (schedule + playout-worker)
+  --HLS origin, SCTE markers-->  ssaiadserver data-plane (avail detect + ad stitch)
+  --stitched manifest-->         fast-world-tv (viewer)
+```
+
+## Repos and pins
+
+Same determinism model as ChannelForge alone had: one `PINNED_COMMIT_<SERVICE>` file per repo,
+pulled by `scripts/vendor-source.sh` via `git archive` (never a moving branch). Override the
+source checkout path with `CHANNELFORGE_REPO` / `SSAIADSERVER_REPO` / `FASTWORLDTV_REPO`.
+
+`PINNED_COMMIT_CHANNELFORGE` was bumped from task-01's original pin (`6ce2b1e`) to current HEAD
+(`b46733b`, 52 commits later) — the original pin predates all of PRD 3.0 (FAST/SCTE/SSAI/EPG),
+so none of that code existed in the old vendor snapshot. `task-01`'s regression patch was
+re-verified to still apply and reverse byte-identically at the new pin (`app/services/rights.py`
+is unchanged across those 52 commits), so this didn't require touching task-01.
+
+## Integration contracts (as they actually exist upstream)
+
+### ChannelForge → ssaiadserver
+
+`apps/api/app/adapters/ssai_adserver.py`'s `SsaiAdServerAdapter` calls ssaiadserver's real routes:
+
+```
+POST /v1/ad-decision   {channel_id, opportunity_id, duration, [session_id], [seed]} -> {pod_id, ...}
+GET  /v1/channels      (used as the preflight health check)
+```
+
+**Not wired into any live call path today** — `get_ssai_adapter`/the adapter is only constructed
+in tests and the registry; no service or job in ChannelForge actually invokes it. It exists as a
+tested contract for future §17 reconciliation-delivery-import wiring, not something this world's
+pipeline currently exercises end to end. Treat "ChannelForge calls out to ssaiadserver" as **not
+yet a real signal to verify a task against** — the live direction that *does* work is the next
+one.
+
+### ssaiadserver ← ChannelForge (the direction that's actually live)
+
+ssaiadserver's `packages/data-plane/src/origin.ts` `OriginClient` is the real, tested, working
+half: it polls `{CHANNELFORGE_ORIGIN_URL}/{channel}/{variant}.m3u8` on a TTL cache and serves
+last-good on failure. `packages/core/src/scte.ts`'s `parseMarkerLine` (called from
+`detectAvails`) accepts either marker style in the manifest:
+
+```
+#EXT-X-CUE-OUT[:DURATION=N]  ...  #EXT-X-CUE-OUT-CONT (ignored)  ...  #EXT-X-CUE-IN
+#EXT-X-DATERANGE:ID=...,DURATION=N,SCTE35-OUT=0x...
+```
+
+ChannelForge's actual cue synthesis is `services/playout-worker/worker/scte35.py`:
+`daterange_out`/`daterange_in` render real, CRC-valid MPEG-2 `splice_info_section`s (a
+`splice_insert` command) as `EXT-X-DATERANGE` tags with hex-encoded `SCTE35-OUT`/`SCTE35-IN` —
+this is the DATERANGE style above, and it's what a cross-repo SCTE-format task should exercise.
+
+### ChannelForge ↔ fast-world-tv
+
+Pull-based, per ADR-9 (`channelforge/docs/adr/0009-pilot-distributor-target.md`):
+
+| fast-world-tv side | ChannelForge side |
+|---|---|
+| per-channel `hlsUrl` | `{CF_ORIGIN_BASE_URL}/{output_id}/delivery_master.m3u8` (`apps/api/app/services/fast.py`) |
+| `/api/fast/guide` (JSON EPG) | `GET /organizations/{org_id}/fast/guide` |
+| `/api/fast/status` | `GET /organizations/{org_id}/fast/status` |
+
+fast-world-tv's actual code today only implements the first row for real integration
+(`FAST_HLS_101..105` env overrides in `src/lib/channels.ts`) — `/api/fast/guide` and
+`/api/fast/status` are still fully local synthetic data, not proxying ChannelForge's real
+endpoints. Wiring those up for real is a larger, separately-scoped follow-up (new fetch/cache
+layer, error handling) — not required to prove the schedule→origin→SSAI→playback pipeline, and
+deliberately deferred here.
+
+## The two gaps that needed patching (and one that just needed enabling)
+
+1. **Origin URL shape mismatch.** ChannelForge serves `{base}/{output_id}/delivery_master.m3u8`;
+   ssaiadserver's `OriginClient` default is `{base}/{channel}/{variant}.m3u8`. Bridged by
+   `world/patches/ssaiadserver-manifest-template.patch`, which adds an env-configurable
+   `CHANNELFORGE_MANIFEST_PATH_TEMPLATE` (placeholders `{channel}`/`{variant}`) to `origin.ts`,
+   applied at build time in `world/ssai/Dockerfile`. `world/docker-compose.yaml` sets it to
+   `"{channel}/delivery_master.m3u8"` on `ssai-data`.
+2. **No `SSAI_ADSERVER_BASE_URL` in ChannelForge.** `SsaiAdServerAdapter` needs a `base_url` +
+   `transport` injected by its caller; nothing in `apps/api/app/config.py`/`registry.py` did
+   that outside tests. Bridged by `world/patches/channelforge-ssai-base-url.patch`: adds
+   `ssai_adserver_base_url` (env `CF_SSAI_ADSERVER_BASE_URL`) to `Settings`, plus
+   `registry.get_configured_ssai_adapter()` wiring a real `httpx` transport (falls back to the
+   fake adapter when unset). Applied at build time in `world/app/Dockerfile`. Since (per above)
+   nothing calls `get_ssai_adapter` on any live path yet, this patch is forward-looking glue for
+   whichever task first needs it, not something the current smoke test exercises.
+3. **ChannelForge's FAST feature flags default off.** `CF_DELIVERY_ORIGIN` (delivery-grade HLS
+   origin packaging) and friends (`CF_OUTPUT_PROBES`, `CF_REDUNDANT_OUTPUTS`,
+   `CF_ASRUN_AUTHORITY`, `CF_OUTPUT_FAILOVER`) are plain `os.environ.get(...) == "1"` reads in
+   `services/playout-worker` / `apps/api/app/jobs/scheduler.py` — no patch needed, just set them
+   on whichever service needs live-pipeline behavior. Only turn on what a given task actually
+   needs; a single-output channel is byte-identical with all of them off.
+
+## Verified so far
+
+`docker compose -f world/docker-compose.yaml up -d` brings up all 9 services (ChannelForge
+`main`/`scheduler`/`postgres`/`redis`, ssaiadserver `ssai-control`/`ssai-data`/`ssai-postgres`/
+`ssai-redis`, and `fast-web`) cleanly; each of the four HTTP-facing services responds
+(`main:8000/docs`, `ssai-control:4000/v1/channels`, `ssai-data:4010`, `fast-web:3000/api/fast/
+channels`); and each of the four restart verbs (`restart-api`, `restart-ssai` on both ssai
+services, `restart-fast-web`) runs end to end — including the TypeScript rebuild for ssaiadserver
+and the `next build` for fast-web — and the service comes back up serving afterward. This proves
+the compose wiring, the two glue patches, and the restart-verb contract; it does **not** yet prove
+the live pipeline (see the object-storage/edge gap below).
+
+## Known gaps — real, not yet closed
+
+- **No `playout-worker` (or object storage / edge) in `world/docker-compose.yaml` yet.**
+  `CF_DELIVERY_ORIGIN`'s HLS-origin packaging is implemented in
+  `services/playout-worker/worker/run_channel.py`/`origin.py`, which writes segments/manifests
+  to object storage (MinIO/S3 in ChannelForge's own dev compose) served by an edge (nginx in
+  ChannelForge's own dev compose). None of that exists in this world yet — `CF_ORIGIN_BASE_URL`
+  currently points at `main` itself as a placeholder, and nothing serves
+  `delivery_master.m3u8` from there. **This means no schedule actually airs and no real SCTE
+  cue markers exist to detect yet** — `ssai-data`'s origin fetch will just fail/retry against
+  `main` until this is added. Standing up `playout-worker` + object storage + an edge route is
+  the next real milestone before the end-to-end pipeline smoke test (docs/workflow.md) can pass
+  for real, not a hand-simulation.
+- `network_mode = "no-network"` is still not enforced (pre-existing gap, unaffected by adding
+  two more services — see `docs/harbor-install.md`).
+- fast-world-tv's guide/status proxying (see above) — deferred.
+- Primary/backup redundancy flags — only enable per-task when a task specifically needs
+  failover behavior.

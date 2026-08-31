@@ -33,6 +33,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       SESSION_SECRET: world-session-secret
       ENCRYPTION_KEY: world-encryption-key-0000000000000000
+      # Ecosystem wiring (docs/ecosystem.md): this world has no playout-worker/object-storage
+      # edge yet, so CF_ORIGIN_BASE_URL points at `main` itself as a placeholder — no route
+      # currently serves delivery_master.m3u8 from here. Real live-playout wiring is tracked as
+      # a follow-up (see docs/ecosystem.md "Known gaps").
+      CF_ORIGIN_BASE_URL: http://main:8000
+      CF_SSAI_ADSERVER_BASE_URL: http://ssai-control:4000
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -56,3 +62,82 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+
+  # ── ssaiadserver (docs/ecosystem.md) ─────────────────────────────────────────────────────
+  # Its own Postgres/Redis: different schema/migrations from ChannelForge's, not shared.
+  ssai-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ssai
+      POSTGRES_PASSWORD: ssai
+      POSTGRES_DB: ssai
+    volumes:
+      - ../vendor/ssaiadserver/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssai"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  ssai-redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  ssai-control:
+    build: { context: .., dockerfile: world/ssai/Dockerfile }
+    environment:
+      SSAI_SERVICE: control-plane
+      CONTROL_PLANE_PORT: "4000"
+      DATABASE_URL: postgres://ssai:ssai@ssai-postgres:5432/ssai
+      REDIS_URL: redis://ssai-redis:6379
+      SESSION_SIGNING_SECRET: world-ssai-session-secret
+      DATA_PLANE_PUBLIC_URL: http://ssai-data:4010
+      # No S3_BUCKET: falls back to the filesystem ObjectStore (no MinIO in this world yet).
+      CREATIVE_STORE_ROOT: /data/creatives
+    depends_on:
+      ssai-postgres: { condition: service_healthy }
+      ssai-redis: { condition: service_healthy }
+    ports:
+      - "4000:4000"
+
+  ssai-data:
+    build: { context: .., dockerfile: world/ssai/Dockerfile }
+    environment:
+      SSAI_SERVICE: data-plane
+      DATA_PLANE_PORT: "4010"
+      REDIS_URL: redis://ssai-redis:6379
+      CONTROL_PLANE_URL: http://ssai-control:4000
+      SESSION_SIGNING_SECRET: world-ssai-session-secret
+      CREATIVE_STORE_ROOT: /data/creatives
+      # ChannelForge's real origin edge is `main` (see world/app + CF_ORIGIN_BASE_URL below);
+      # the path template bridges origin.ts's default {channel}/{variant}.m3u8 shape to
+      # ChannelForge's real {output_id}/delivery_master.m3u8 (world/patches/*.patch).
+      CHANNELFORGE_ORIGIN_URL: http://main:8000
+      CHANNELFORGE_MANIFEST_PATH_TEMPLATE: "{channel}/delivery_master.m3u8"
+    depends_on:
+      ssai-redis: { condition: service_healthy }
+      ssai-control: { condition: service_started }
+      main: { condition: service_started }
+    ports:
+      - "4010:4010"
+
+  # ── fast-world-tv (docs/ecosystem.md) ────────────────────────────────────────────────────
+  fast-web:
+    build: { context: .., dockerfile: world/fastweb/Dockerfile }
+    environment:
+      # Per-channel HLS override (fast-world-tv has no consolidated base-URL env of its own —
+      # see docs/ecosystem.md gap #3). Point at ssai-data's stitched playback path so viewers
+      # get ad-stitched manifests, not the raw ChannelForge origin.
+      FAST_HLS_101: http://ssai-data:4010/v1/hls/world/channel_101/index.m3u8
+      FAST_HLS_102: http://ssai-data:4010/v1/hls/world/channel_102/index.m3u8
+      FAST_HLS_103: http://ssai-data:4010/v1/hls/world/channel_103/index.m3u8
+      FAST_HLS_104: http://ssai-data:4010/v1/hls/world/channel_104/index.m3u8
+      FAST_HLS_105: http://ssai-data:4010/v1/hls/world/channel_105/index.m3u8
+    depends_on:
+      ssai-data: { condition: service_started }
+    ports:
+      - "3000:3000"
