@@ -9,8 +9,11 @@ deliberate service restart) actually fixes the behavior — verified against the
 See the Notion "Channel Forge World" hub for the full scope/plan docs. This repo is the
 implementation; Notion is the plan.
 
+- [`docs/PROJECT-SUMMARY.md`](docs/PROJECT-SUMMARY.md) — bootstrap doc for picking this project
+  back up with no prior context: current status, architecture, gotchas, and open threads. Start
+  here in a fresh session.
 - [`AGENTS.md`](AGENTS.md) — implementation guardrails for anyone (human or agent) building or
-  extending this repo. Read this first.
+  extending this repo. Read this first before making changes.
 - [`docs/setup.md`](docs/setup.md) — local setup, booting the world, working inside a container,
   troubleshooting.
 - [`docs/workflow.md`](docs/workflow.md) — how to author a new task end to end, using task-01 as
