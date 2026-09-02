@@ -136,8 +136,43 @@ real forward fix rather than reversing a regression. Verified through real Harbo
 
 A genuinely two-repo-writable task (the colocated-`main` model in `docs/workflow.md`) is still an
 open item — this defect didn't turn out to need one. See task-01 for the reversible-regression
-shape, task-02 for the missing-behavior shape; a future task should exercise the colocated model
-for a case that actually needs coordinated changes in two repos.
+shape, task-02 for the missing-behavior shape; task-03 below is that colocated-model task.
+
+## The two-repo-writable task: task-03
+
+`tasks/task-03-org-scoped-origin-drift` is the first task using the colocated-`main` model. The
+real cross-repo integration surface investigated for it (ChannelForge's dead/unwired
+ad-decision + reconciliation adapter, see `SsaiAdServerAdapter.import_delivery` vs.
+ssaiadserver's `GET /v1/analytics`) turned out to be genuinely mismatched but entirely unreached
+by any live ChannelForge call path — a real gap, but authoring a task around it would mean
+scaffolding a feature that doesn't exist yet, not fixing a regression. Given that, this task is a
+**synthetic two-sided regression** — deliberately not held to the "real, confirmed defect" bar
+task-01/02 used — built on the one integration surface that *is* genuinely live: the origin path
+both ChannelForge (`fast.py`'s `origin_urls`) and ssaiadserver (`origin.ts`'s `OriginClient`)
+must agree on byte-for-byte.
+
+The scenario: ChannelForge starts scoping origin delivery paths by organization
+(`{org_id}/{output_id}/delivery_master.m3u8`, for multi-tenant isolation on a shared origin
+edge) via a new optional `org_id` parameter on `origin_urls` — not yet wired into
+`build_status`/`build_guide`'s call sites, so this doesn't disturb any pristine test. Two
+independent bugs ship with it, one per repo:
+
+1. **ChannelForge**: `origin_urls`'s org-scoped branch puts `org_id` *after* `output_id`
+   instead of before it.
+2. **ssaiadserver**: `OriginClient`'s `CHANNELFORGE_MANIFEST_PATH_TEMPLATE` mechanism (our own
+   glue code, `world/patches/ssaiadserver-manifest-template.patch`) gained a `CHANNELFORGE_ORG_ID`
+   env var, but the org id is appended as a `?org=` query string instead of substituted into a
+   `{org}` template placeholder.
+
+Verified strictly two-sided by hand before trusting the Oracle: with only the ChannelForge fix
+applied, the task's verifier still fails (`ssaiadserver_ok=0`); with only the ssaiadserver fix
+applied, it still fails (`channelforge_ok=0`); both together pass. The verifier itself is
+code-level, not live-HTTP — a new pytest file asserting `origin_urls`'s exact org-scoped output,
+and a new vitest file asserting `OriginClient` requests the byte-identical URL for the same
+inputs, both written at verify time only, run alongside each repo's own pre-existing relevant
+test file. No live server is needed (no playout-worker origin exists to fetch from yet — see
+"Known gaps" below), so this task has no restart verb. Verified through real Harbor: `oracle` →
+`task_success: 1.0` (all four metrics), `nop` → `task_success: 0.0`.
 
 ## Known gaps — real, not yet closed
 

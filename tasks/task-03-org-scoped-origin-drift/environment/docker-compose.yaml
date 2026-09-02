@@ -1,0 +1,11 @@
+# Task-specific environment. `main` (required name — see harbor.constants.MAIN_SERVICE_NAME)
+# builds from this task's own Dockerfile: both ChannelForge (/app) and ssaiadserver (/ssai)
+# source, colocated per docs/workflow.md's cross-repo write-boundary model. No dependency
+# services needed — the code under test here (fast.py's origin_urls, origin.ts's OriginClient)
+# is pure and requires no database or cache.
+
+services:
+  main:
+    build:
+      context: ../../..
+      dockerfile: tasks/task-03-org-scoped-origin-drift/environment/Dockerfile

@@ -1,0 +1,25 @@
+--- a/app/services/fast.py
++++ b/app/services/fast.py
+@@ -24,12 +24,20 @@
+ _FRESH_SECONDS = 30.0
+ 
+ 
+-def origin_urls(output_id: str, *, base_url: str) -> dict[str, str] | None:
++def origin_urls(output_id: str, *, org_id: str | None = None, base_url: str) -> dict[str, str] | None:
+     """The delivery HLS URLs the origin serves for an output, or None if no origin is configured.
+-    A channel's primary output uses its channel id (ADR-3), so pass that for the channel feed."""
++    A channel's primary output uses its channel id (ADR-3), so pass that for the channel feed.
++
++    Multi-tenant origin scoping (in progress): when org_id is given, the origin path is scoped
++    under the organization so two orgs can never collide on a shared origin edge."""
+     if not base_url:
+         return None
+     base = base_url.rstrip("/")
++    if org_id:
++        return {
++            "master": f"{base}/{output_id}/{org_id}/delivery_master.m3u8",
++            "media": f"{base}/{output_id}/{org_id}/delivery.m3u8",
++        }
+     return {
+         "master": f"{base}/{output_id}/delivery_master.m3u8",
+         "media": f"{base}/{output_id}/delivery.m3u8",

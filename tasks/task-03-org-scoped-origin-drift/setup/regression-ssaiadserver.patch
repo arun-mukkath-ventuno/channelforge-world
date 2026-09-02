@@ -1,0 +1,24 @@
+--- a/packages/data-plane/src/origin.ts
++++ b/packages/data-plane/src/origin.ts
+@@ -41,13 +41,18 @@
+     // Ecosystem-world glue: ChannelForge's real origin serves a channel's master playlist at
+     // {base}/{output_id}/delivery_master.m3u8, not this client's original {channel}/{variant}.m3u8
+     // default — CHANNELFORGE_MANIFEST_PATH_TEMPLATE lets deployment config bridge that without
+-    // forking this client. Placeholders: {channel}, {variant}. Unset = unchanged default shape.
++    // forking this client. Placeholders: {channel}, {variant}, {org}. Unset template = unchanged
++    // default shape. CHANNELFORGE_ORG_ID: the org this deployment serves, once ChannelForge's
++    // origin paths are org-scoped for multi-tenant isolation.
+     const pathTemplate = process.env.CHANNELFORGE_MANIFEST_PATH_TEMPLATE;
++    const orgId = process.env.CHANNELFORGE_ORG_ID;
+     this.urlFor =
+       opts.urlFor ??
+       (pathTemplate
+-        ? (channel, variant) =>
+-            `${this.baseUrl}/${pathTemplate.replace("{channel}", channel).replace("{variant}", variant)}`
++        ? (channel, variant) => {
++            const path = pathTemplate.replace("{channel}", channel).replace("{variant}", variant);
++            return orgId ? `${this.baseUrl}/${path}?org=${orgId}` : `${this.baseUrl}/${path}`;
++          }
+         : (channel, variant) => `${this.baseUrl}/${channel}/${variant}.m3u8`);
+   }
+ 
