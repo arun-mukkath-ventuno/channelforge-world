@@ -83,3 +83,16 @@ and "actually good at this."
   often; list the current one with:
   `curl https://openrouter.ai/api/v1/models -H "Authorization: Bearer $OPENROUTER_API_KEY" | \
   python3 -c 'import json,sys; [print(m["id"]) for m in json.load(sys.stdin)["data"] if m["id"].endswith(":free")]'`
+
+  **task-03 against the same model** (`openrouter/minimax/minimax-m3:free`): `task_success: 1.0`
+  but the run hit `AgentTimeoutError` — it kept re-verifying its already-correct fix well past
+  the point of certainty (watched live: reached "all tests pass" around turn 50, kept going to
+  turn 75 re-checking things, running both repos' full suites twice, writing ad hoc manual
+  verification scripts). The fix was already in place in the environment when the 1800s agent
+  timeout hit, so the verifier (which runs independently of the agent process) still passed.
+  **75 turns / 112 tool calls** — by far the deepest real trajectory captured so far (previous
+  best: 24 turns on `openai/gpt-5.6-luna`), landing inside the 30-150 turn target
+  ([[task_turn_depth_target]]). Also much more token-hungry: 3.5M total prompt tokens for the
+  run (vs. tens of thousands for `gpt-5.6-luna`'s runs) — free open models can be significantly
+  slower and costlier in tokens per turn even when ultimately correct, worth factoring into
+  agent-timeout sizing if this becomes a regular comparison target.
