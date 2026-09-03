@@ -1,0 +1,10 @@
+# Task-specific environment. `main` (required name — see harbor.constants.MAIN_SERVICE_NAME)
+# builds from this task's own Dockerfile (pristine fast-world-tv source + this task's regression).
+# No dependency services: fast-world-tv's guide/schedule logic (src/lib/channels.ts) is a pure,
+# server-side, in-memory computation with no DB/cache dependency.
+
+services:
+  main:
+    build:
+      context: ../../..
+      dockerfile: tasks/task-04-schedule-page-boundary-duplication/environment/Dockerfile

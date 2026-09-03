@@ -174,6 +174,47 @@ test file. No live server is needed (no playout-worker origin exists to fetch fr
 "Known gaps" below), so this task has no restart verb. Verified through real Harbor: `oracle` →
 `task_success: 1.0` (all four metrics), `nop` → `task_success: 0.0`.
 
+**Instruction-wording iteration, measured with a real agent** (`terminus-2` /
+`openai/gpt-5.6-luna`, not oracle/nop). This is a live example of the turn-depth vs. task-design
+tension: naming the exact bug's location makes a task pass but shallow; leaving it genuinely
+findable is what actually produces both correctness and a real exploratory trajectory.
+
+| `instruction.md` version | `task_success` | Turns | Tool calls |
+|---|---|---|---|
+| Original — "since that change went out" (implies the org-scoping rollout is already fully live) | 0.0 | 15 | 49 |
+| Named the exact functions/files to fix | 1.0 | 6 | 16 |
+| States the scope boundary (opt-in, callers must not change) without naming where the bugs live | 1.0 | 24 | 92 |
+
+The middle version failed for a real reason worth keeping on record: the agent read "since that
+change went out" as the migration being fully wired, and reasonably (but wrongly) finished
+wiring `org_id` into `build_status`/`build_guide`'s call sites — which both left the actual
+swapped-order bug unfixed and broke two pristine tests. The final version is what's committed.
+
+## The second single-repo task: task-04
+
+`tasks/task-04-schedule-page-boundary-duplication` is fast-world-tv's first task — single-repo,
+same shape as task-01/02 but for the FAST viewer rather than ChannelForge or ssaiadserver.
+fast-world-tv ships with **no test tooling at all** upstream (no vitest devDependency, no test
+script), so this task adds `vitest` as an image-level devDependency in its own Dockerfile (not
+touching `vendor/fastworldtv`'s own lockfile).
+
+The bug: `channels.ts`'s guide/schedule builder decides which programmes fall inside a requested
+`[from, to)` time window with `end > from && start < to`. The regression flips that to
+`start <= to`, so a programme whose start lands exactly on a page boundary is included in *both*
+the page ending at that boundary and the page starting at it — a real, plausible off-by-one (the
+kind an engineer introduces "fixing" a perceived edge case without noticing the double-count it
+creates across paginated requests).
+
+One real build-environment issue surfaced and was fixed during validation: vitest's underlying
+Vite instance auto-loads `postcss.config.mjs` from the project root during config resolution
+(not lazily, and not gated by `test.css`), and that config's Tailwind v4 plugin isn't a shape
+Vite's PostCSS loader accepts standalone — unrelated to the pure `src/lib` logic under test. Fixed
+with an inline empty `css: { postcss: { plugins: [] } } }` in a task-level `vitest.config.ts`,
+which bypasses the file search entirely.
+
+Verified through real Harbor: `oracle` → `task_success: 1.0` (all four metrics), `nop` →
+`task_success: 0.0`.
+
 ## Known gaps — real, not yet closed
 
 - **No `playout-worker` (or object storage / edge) in `world/docker-compose.yaml` yet.**

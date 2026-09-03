@@ -1,0 +1,11 @@
+--- a/src/lib/channels.ts
++++ b/src/lib/channels.ts
+@@ -205,7 +205,7 @@
+     const p = ch.programs[i % ch.programs.length];
+     const start = t;
+     const end = t + p.mins * 60_000;
+-    if (end > from && start < to) {
++    if (end > from && start <= to) {
+       out.push({
+         id: "VT-" + ch.id + "-" + String(1000 + i * 7 + ci).slice(0, 4),
+         channelId: ch.id,
