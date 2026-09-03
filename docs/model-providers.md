@@ -74,4 +74,12 @@ and "actually good at this."
 - `openai/gpt-5.6-luna` — working, used for every real-agent run recorded in `docs/ecosystem.md`.
 - Groq (`gpt-oss-120b`, `qwen3.6-27b`) — key configured, but unusable for this workload right now
   (8,000 TPM account-wide cap, Dev Tier upgrade temporarily unavailable). See finding above.
-- OpenRouter — next to try (request-count-based free tier, no token cap).
+- **OpenRouter — working.** `openrouter/z-ai/glm-5.2:free` hit upstream 429s (shared free pool
+  congested on a popular model — a provider-side capacity issue, not our account's limit).
+  `openrouter/minimax/minimax-m3:free` ran cleanly: task-01, `task_success: 1.0` (all four
+  metrics), **13 turns / 14 tool calls**. Confirms the request-count-based free tier (not
+  token-based) is the right shape for `terminus-2`'s growing-context turns — this is the
+  provider to default to for open-model testing going forward. Free model catalog changes
+  often; list the current one with:
+  `curl https://openrouter.ai/api/v1/models -H "Authorization: Bearer $OPENROUTER_API_KEY" | \
+  python3 -c 'import json,sys; [print(m["id"]) for m in json.load(sys.stdin)["data"] if m["id"].endswith(":free")]'`
