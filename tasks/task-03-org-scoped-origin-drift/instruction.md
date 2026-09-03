@@ -1,30 +1,25 @@
-# Bug report: org-scoped origin helper drifted between ChannelForge and the SSAI data-plane
+# Bug report: org-scoped origin paths don't match between ChannelForge and the SSAI data-plane
 
 We're rolling out **optional** organization-scoped origin paths, so two orgs can eventually
-share an origin edge without colliding. This is still in progress and opt-in: it is implemented
-as a capability in two low-level helper functions, one on each side, and **nothing else in
-either codebase calls them with org scoping turned on yet**. Existing callers that don't pass an
-org must keep behaving exactly as they do today — do not change that behavior or touch those
-call sites.
+share an origin edge without colliding. This capability exists on both sides already but is
+still in progress and **strictly opt-in**: today, nothing in either codebase actually turns it
+on for a real request. Existing behavior — every call site and code path that doesn't request
+org scoping — must keep working exactly as it does today. Do not change that behavior, and do
+not add new callers that turn org scoping on somewhere it isn't already wired in — that rollout
+is a separate, later piece of work and is out of scope here.
 
-The two helpers were written against the same design doc, and their org-scoped output doesn't
-actually match each other. There are two independent, unrelated bugs to find — one in each
-helper's own logic — not a wiring/integration gap:
-
-- **ChannelForge, `/app/app/services/fast.py`, `origin_urls()`.** When `org_id` is given, look
-  only at what this function itself returns and compare it against what it returns when
-  `org_id` is omitted. Nothing outside this function needs to change.
-- **SSAI ad server, `/ssai/packages/data-plane/src/origin.ts`, the `OriginClient` URL-building
-  logic.** When an org id is configured, look only at the URL this class itself builds. Nothing
-  outside this file needs to change.
+This environment gives you write access to **two services**: ChannelForge's API (`/app`) and
+the SSAI ad server's data-plane (`/ssai`). Both sides implement org-scoped origin path building
+against the same design, but their outputs don't actually agree with each other — there are two
+independent bugs, one in each service's own org-scoping logic, not a wiring or integration gap
+between the services.
 
 What "correct" looks like: given the **same** organization id, channel/output id, and origin
-base URL, the path `origin_urls()` computes and the path `OriginClient` requests must be
-byte-identical, with the org id at the same position in both.
+base URL, the org-scoped origin path ChannelForge computes and the org-scoped origin path the
+SSAI data-plane requests must be byte-identical, with the org id at the same position in both.
+Behavior when no org is involved must be unaffected on both sides.
 
-Find the drift in each of these two helpers and fix it there. This task is graded by each
-service's own code directly (no live server needs to be running to verify your fix) — you do
-not need to restart anything, but you may if it helps you test manually. Do not modify anything
-under `tests/`, and do not modify any code outside the two helpers named above (in particular,
-do not wire org scoping into any caller of `origin_urls()` or into how `OriginClient` is
-constructed — that wiring is a separate, future change and is out of scope here).
+Find the drift in each service's own org-scoping logic and fix it there — you'll need to locate
+where each side builds these paths yourself. This task is graded by each service's own code
+directly (no live server needs to be running to verify your fix) — you do not need to restart
+anything, but you may if it helps you test manually. Do not modify anything under `tests/`.
