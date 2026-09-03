@@ -18,15 +18,28 @@ change often). Each row is one env var to add to `.env`, no other setup:
 
 | Provider | Env var | Model string example | Free tier (no card) |
 |---|---|---|---|
-| **Groq** | `GROQ_API_KEY` | `groq/moonshotai/kimi-k2-instruct-0905`, `groq/qwen/qwen3-32b`, `groq/llama-3.3-70b-versatile` | 30 req/min, 1,000/day |
-| **OpenRouter** | `OPENROUTER_API_KEY` | `openrouter/qwen/qwen3-coder:free`, `openrouter/deepseek/deepseek-chat:free` (check current `:free`-suffixed catalog at openrouter.ai/models) | 20 req/min, 50/day baseline |
-| **Cerebras** | `CEREBRAS_API_KEY` | `cerebras/llama-3.3-70b` | 30 req/min, ~1M tokens/day |
+| **Groq** | `GROQ_API_KEY` | `groq/openai/gpt-oss-120b`, `groq/qwen/qwen3.6-27b` (catalog changes often — `curl https://api.groq.com/openai/v1/models -H "Authorization: Bearer $GROQ_API_KEY"` for the live list) | **~8,000 TPM (tokens/min), account-wide, not per-model** — see "Real-world finding" below |
+| **OpenRouter** | `OPENROUTER_API_KEY` | `openrouter/qwen/qwen3-coder:free`, `openrouter/deepseek/deepseek-chat:free` (check current `:free`-suffixed catalog at openrouter.ai/models) | 20 req/min, 50/day (1,000/day after a one-time $10 credit purchase) — **capped by request count, not tokens**, so growing-context agent loops don't hit a wall the way Groq's TPM cap does |
+| **Cerebras** | `CEREBRAS_API_KEY` | `cerebras/gpt-oss-120b` | 5 req/min, ~30K TPM, 1M tokens/day (on `gpt-oss-120b`/GLM-4.7 specifically — varies by model, check the dashboard's Limits page) |
 | **Google AI Studio** | `GEMINI_API_KEY` | `gemini/gemini-2.5-flash` | up to 1,500/day (not open-weight, useful as a baseline) |
 | **Mistral** | `MISTRAL_API_KEY` | `mistral/codestral-latest` | ~1B tokens/month (opts into data training) |
 
 Groq and Cerebras run on dedicated inference hardware (LPU / wafer-scale) and are noticeably
-faster per-turn than a typical hosted endpoint — matters for a 30-150-turn trajectory, since each
-turn is a round trip.
+faster per-turn than a typical hosted endpoint when they work — matters for a 30-150-turn
+trajectory, since each turn is a round trip.
+
+### Real-world finding (2026-09-03): Groq's free tier doesn't work for `terminus-2`
+
+Tried against task-01 and task-03 with both `groq/qwen/qwen3.6-27b` and `groq/openai/gpt-oss-120b`
+— both hit `litellm.RateLimitError` (`tokens per minute (TPM): Limit 8000`) repeatedly, including
+on task-01 (the shortest task). The limit is **account-wide, not model-specific** (same 8,000
+number on both models) and applies **per request**, not just cumulatively: `terminus-2` resends
+the full growing conversation history each turn, so a single mid-trajectory request can exceed
+8,000 tokens outright — no amount of retry/backoff gets past that, since the request itself
+doesn't fit in the per-minute budget. Groq's own "Upgrade to Dev Tier" prompt was showing
+"Developer tier upgrades are temporarily unavailable due to high demand" as of this date — not
+something fixable on our end. **Conclusion: skip Groq for this workload until Dev Tier reopens;
+OpenRouter's request-count-based (not token-based) limit is a much better fit.**
 
 ## Which open-weight models are actually good at this
 
@@ -58,5 +71,7 @@ and "actually good at this."
 
 ## Status
 
-Not yet run against anything but `openai/gpt-5.6-luna`. Groq is next (key setup in progress as of
-2026-09-03) — results and turn counts to be added here or to `docs/ecosystem.md` once available.
+- `openai/gpt-5.6-luna` — working, used for every real-agent run recorded in `docs/ecosystem.md`.
+- Groq (`gpt-oss-120b`, `qwen3.6-27b`) — key configured, but unusable for this workload right now
+  (8,000 TPM account-wide cap, Dev Tier upgrade temporarily unavailable). See finding above.
+- OpenRouter — next to try (request-count-based free tier, no token cap).
