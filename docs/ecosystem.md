@@ -215,6 +215,13 @@ which bypasses the file search entirely.
 Verified through real Harbor: `oracle` → `task_success: 1.0` (all four metrics), `nop` →
 `task_success: 0.0`.
 
+**Real-agent run** (`terminus-2`/`openai/gpt-5.6-luna`): `task_success: 1.0`, **8 turns / 23 tool
+calls**. The instruction has no location pointers (same style as task-03's final version) — the
+shallowness here isn't an instruction problem, it's structural: fast-world-tv's schedule logic
+lives in one small file with a single call site, so there's little to explore. Confirms turn
+depth and instruction quality are separate axes (see [[task_turn_depth_target]]): a task this
+small needs a bug that spans more files/callers to reach 30+ turns, not a vaguer instruction.
+
 ## Known gaps — real, not yet closed
 
 - **No `playout-worker` (or object storage / edge) in `world/docker-compose.yaml` yet.**
