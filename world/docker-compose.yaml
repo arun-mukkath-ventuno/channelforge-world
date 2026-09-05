@@ -38,7 +38,12 @@ services:
       # currently serves delivery_master.m3u8 from here. Real live-playout wiring is tracked as
       # a follow-up (see docs/ecosystem.md "Known gaps").
       CF_ORIGIN_BASE_URL: http://main:8000
-      CF_SSAI_ADSERVER_BASE_URL: http://ssai-control:4000
+      # Real upstream wiring (ChannelForge's own services/ssai_analytics.py + ssai_delivery.py,
+      # not the retired world/patches glue): admin-cookie login against ssai-control, used for
+      # telemetry-dashboard analytics + break-delivery reconciliation.
+      CF_SSAI_BASE_URL: http://ssai-control:4000
+      CF_SSAI_ADMIN_USER: world-ssai-admin
+      CF_SSAI_ADMIN_PASSWORD: world-ssai-admin-secret
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -96,6 +101,8 @@ services:
       REDIS_URL: redis://ssai-redis:6379
       SESSION_SIGNING_SECRET: world-ssai-session-secret
       DATA_PLANE_PUBLIC_URL: http://ssai-data:4010
+      ADMIN_USER: world-ssai-admin
+      ADMIN_PASSWORD: world-ssai-admin-secret
       # No S3_BUCKET: falls back to the filesystem ObjectStore (no MinIO in this world yet).
       CREATIVE_STORE_ROOT: /data/creatives
     depends_on:
@@ -113,11 +120,13 @@ services:
       CONTROL_PLANE_URL: http://ssai-control:4000
       SESSION_SIGNING_SECRET: world-ssai-session-secret
       CREATIVE_STORE_ROOT: /data/creatives
-      # ChannelForge's real origin edge is `main` (see world/app + CF_ORIGIN_BASE_URL below);
-      # the path template bridges origin.ts's default {channel}/{variant}.m3u8 shape to
-      # ChannelForge's real {output_id}/delivery_master.m3u8 (world/patches/*.patch).
+      # ChannelForge's real origin edge is `main` (see world/app + CF_ORIGIN_BASE_URL below).
+      # ChannelForge serves delivery_master.m3u8 at {output_id}/delivery_master.m3u8, not this
+      # client's {channel}/{variant}.m3u8 default, and no route in this world serves that path
+      # yet (no playout-worker/object-storage edge — known gap, docs/ecosystem.md). Upstream now
+      # has its own CHANNELFORGE_ORIGIN_MAP (JSON channel->full-URL override, replacing the old
+      # world/patches path-template glue) for when a real per-channel output_id is available.
       CHANNELFORGE_ORIGIN_URL: http://main:8000
-      CHANNELFORGE_MANIFEST_PATH_TEMPLATE: "{channel}/delivery_master.m3u8"
     depends_on:
       ssai-redis: { condition: service_healthy }
       ssai-control: { condition: service_started }

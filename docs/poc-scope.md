@@ -220,13 +220,22 @@ the pilot finds.
 
 ## Status
 
-- [ ] Step 1 — world refresh to `3c5599a`/`3ce4632`/`6d09506` (not started; blocked on sample data
-      handoff for full completion, but re-pin/re-vendor/compose-bring-up can start independently)
-- [ ] Step 2 — 5 new tasks + archive old 4 (not started; FW-001 and FW-004 framing pending a read
-      of `e9d86a9` and `4c99050` respectively before authoring)
+- [x] Step 1 — world refreshed to ChannelForge `cdbf80b`/ssaiadserver `24c21d4`/fast-world-tv
+      `09193c2` (2026-09-05; repos had moved slightly past the `3c5599a`/`3ce4632`/`6d09506`
+      targets by run time, so pinned to their new HEADs instead per this doc's own "or later HEAD"
+      allowance). Re-vendored, compose rebuilt and verified healthy (all 9 services, admin-login
+      round trip confirmed — see `docs/ecosystem.md` "Verified so far"). Both `world/patches/*`
+      glue patches retired (superseded by upstream's own `CF_SSAI_BASE_URL` wiring and
+      `CHANNELFORGE_ORIGIN_MAP`, see `docs/ecosystem.md` "The two gaps that needed patching").
+      Sample-data handoff (item 4) still outstanding — not blocking, per this doc's original note.
+- [x] Step 2 (partial) — task-01..04 re-verified at the new pins and archived to
+      `archive/old/tasks/` (2026-09-05): task-01 still passes clean; task-02/03/04 each broke for a
+      genuine, diagnosed upstream-drift reason (real DATERANGE fixture drift, retired origin.ts
+      patch, fast-world-tv's async `channel-config-store` rebuild) — see each task's `docs/
+      ecosystem.md` section for detail. **Authoring the 5 new FW-00N tasks not started yet.**
 - [x] Step 3 — model roster locked: `gpt-6-astra`, `gpt-5.6-luna`, `minimax-m3:free`,
       `laguna-s-2.1:free` (2026-09-05)
-- [ ] Step 4 — pilot run (blocked on steps 1-3)
+- [ ] Step 4 — pilot run (blocked on Step 2's new-task authoring)
 
 ## Rescope log
 

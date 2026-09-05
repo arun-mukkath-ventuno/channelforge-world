@@ -10,16 +10,11 @@ ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ffmpeg curl patch \
+        ffmpeg curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY vendor/apps/api /app
 COPY vendor/packages /packages
-
-# Ecosystem-world glue (see docs/ecosystem.md): wires a CF_SSAI_ADSERVER_BASE_URL config field
-# and a real-adapter constructor into the registry. Pristine vendored source is untouched.
-COPY world/patches/channelforge-ssai-base-url.patch /opt/world-patches/
-RUN patch -p1 < /opt/world-patches/channelforge-ssai-base-url.patch
 
 RUN pip install --no-cache-dir -e /packages/media-engine \
     && pip install --no-cache-dir -e ".[dev]"

@@ -47,6 +47,19 @@ the next re-vendor:
 - ssaiadserver added a VAST ingestion slice (`3ce4632`) and a from-scratch admin console — real
   capability, not currently pulled into POC task scope.
 
+**2026-09-05 — re-vendored to current HEADs and re-verified.** Pins bumped to ChannelForge
+`cdbf80b` (VAST slice 4), ssaiadserver `24c21d4` (VAST slices 2-3 + real CF↔SSAI origin wiring +
+CORS fix), fast-world-tv `09193c2` (cue-out/cue-in player UI) — the exact `3c5599a`/`3ce4632`/
+`6d09506` targets above plus what landed on top by the time this ran. `scripts/vendor-source.sh`
+re-run clean; `docker compose -f world/docker-compose.yaml up -d --build` brings up all 9 services
+healthy (see "Verified so far" below, updated). Both glue patches (`world/patches/
+channelforge-ssai-base-url.patch` and `world/patches/ssaiadserver-manifest-template.patch`) are
+now **retired and deleted** — see "The two gaps that needed patching" below, rewritten to match.
+task-01..04 re-verified against the new pins before archiving (see each task's section) — task-01
+still passes clean; task-02/03/04 all broke, each for a genuine, diagnosed upstream-drift reason,
+not a harness or archiving-process bug. All four are now archived under `archive/old/tasks/`
+(`docs/poc-scope.md` Step 2).
+
 ## The pipeline
 
 ```
@@ -61,11 +74,16 @@ Same determinism model as ChannelForge alone had: one `PINNED_COMMIT_<SERVICE>` 
 pulled by `scripts/vendor-source.sh` via `git archive` (never a moving branch). Override the
 source checkout path with `CHANNELFORGE_REPO` / `SSAIADSERVER_REPO` / `FASTWORLDTV_REPO`.
 
-`PINNED_COMMIT_CHANNELFORGE` was bumped from task-01's original pin (`6ce2b1e`) to current HEAD
-(`b46733b`, 52 commits later) — the original pin predates all of PRD 3.0 (FAST/SCTE/SSAI/EPG),
-so none of that code existed in the old vendor snapshot. `task-01`'s regression patch was
-re-verified to still apply and reverse byte-identically at the new pin (`app/services/rights.py`
-is unchanged across those 52 commits), so this didn't require touching task-01.
+`PINNED_COMMIT_CHANNELFORGE` was bumped from task-01's original pin (`6ce2b1e`) to `b46733b` (52
+commits later) — the original pin predates all of PRD 3.0 (FAST/SCTE/SSAI/EPG), so none of that
+code existed in the old vendor snapshot. `task-01`'s regression patch was re-verified to still
+apply and reverse byte-identically at that pin (`app/services/rights.py` is unchanged across those
+52 commits), so this didn't require touching task-01.
+
+**2026-09-05: bumped again**, to ChannelForge `cdbf80b`, ssaiadserver `24c21d4`, fast-world-tv
+`09193c2`. `task-01` was re-verified once more (`harbor run -a oracle` → `task_success: 1.0`) —
+`app/services/rights.py` is still untouched. `task-02`/`03`/`04` were **not** carried forward
+clean — see their sections below for what broke and why.
 
 ## Integration contracts (as they actually exist upstream)
 
@@ -92,13 +110,16 @@ env `CF_SSAI_BASE_URL`/`CF_SSAI_ADMIN_USER`/`CF_SSAI_ADMIN_PASSWORD` — see
 `transport` shape `SsaiAdServerAdapter` itself takes. Best-effort: an empty leg when SSAI is
 unconfigured/unreachable, so reconciliation still runs on ChannelForge-owned records alone.
 
-**This supersedes glue patch #2 below** (`world/patches/channelforge-ssai-base-url.patch`,
+**This superseded glue patch #2 below** (`world/patches/channelforge-ssai-base-url.patch`,
 `CF_SSAI_ADSERVER_BASE_URL`/`ssai_adserver_base_url`) — upstream built its own real config field
 and live wiring using a different name and a different (analytics/reconciliation) mechanism, not
-the one our forward-looking patch guessed at. That patch is now dead weight pointed at code
-nothing calls; replacing it with the real `CF_SSAI_BASE_URL` + admin-login wiring is part of the
-replan, not done yet. Treat "ChannelForge reads SSAI's per-break reconciliation data" as a real,
-verifiable signal now; "ChannelForge requests an ad decision from SSAI" is still not.
+the one our forward-looking patch guessed at. **2026-09-05: that patch is now retired and
+deleted** — `world/docker-compose.yaml`'s `main` service sets the real `CF_SSAI_BASE_URL`/
+`CF_SSAI_ADMIN_USER`/`CF_SSAI_ADMIN_PASSWORD` env vars instead, and `ssai-control` sets matching
+`ADMIN_USER`/`ADMIN_PASSWORD`; verified end-to-end with a real login (`POST /admin/api/login`
+from inside `main`'s own env values returns `200` + a session cookie). Treat "ChannelForge reads
+SSAI's per-break reconciliation data" as a real, verifiable signal now; "ChannelForge requests an
+ad decision from SSAI" is still not.
 
 ### ssaiadserver ← ChannelForge (the direction that's actually live)
 
@@ -152,22 +173,33 @@ approach is the permanent design, since it's what shipped) is still an open ques
 replan — not required to prove the schedule→origin→SSAI→playback pipeline, and still deferred
 here.
 
-## The two gaps that needed patching (and one that just needed enabling)
+## The two gaps that needed patching — both now retired (2026-09-05)
 
-1. **Origin URL shape mismatch.** ChannelForge serves `{base}/{output_id}/delivery_master.m3u8`;
-   ssaiadserver's `OriginClient` default is `{base}/{channel}/{variant}.m3u8`. Bridged by
-   `world/patches/ssaiadserver-manifest-template.patch`, which adds an env-configurable
-   `CHANNELFORGE_MANIFEST_PATH_TEMPLATE` (placeholders `{channel}`/`{variant}`) to `origin.ts`,
-   applied at build time in `world/ssai/Dockerfile`. `world/docker-compose.yaml` sets it to
-   `"{channel}/delivery_master.m3u8"` on `ssai-data`.
-2. **No `SSAI_ADSERVER_BASE_URL` in ChannelForge.** `SsaiAdServerAdapter` needs a `base_url` +
-   `transport` injected by its caller; nothing in `apps/api/app/config.py`/`registry.py` did
-   that outside tests. Bridged by `world/patches/channelforge-ssai-base-url.patch`: adds
-   `ssai_adserver_base_url` (env `CF_SSAI_ADSERVER_BASE_URL`) to `Settings`, plus
-   `registry.get_configured_ssai_adapter()` wiring a real `httpx` transport (falls back to the
-   fake adapter when unset). Applied at build time in `world/app/Dockerfile`. Since (per above)
-   nothing calls `get_ssai_adapter` on any live path yet, this patch is forward-looking glue for
-   whichever task first needs it, not something the current smoke test exercises.
+Both of the world's original glue patches turned out to be superseded by upstream building the
+same bridge itself, for real, in its own code. Neither patch applies cleanly against the current
+pins any more, and both are now deleted from `world/patches/`.
+
+1. **Origin URL shape mismatch** (was: ChannelForge serves `{base}/{output_id}/delivery_master.
+   m3u8`; ssaiadserver's `OriginClient` default is `{base}/{channel}/{variant}.m3u8`). The old
+   bridge, `world/patches/ssaiadserver-manifest-template.patch`, added an env-configurable
+   `CHANNELFORGE_MANIFEST_PATH_TEMPLATE` to `origin.ts`. Upstream `origin.ts` has since grown its
+   own, more general mechanism: `originMap`/`CHANNELFORGE_ORIGIN_MAP` (a JSON channel→full-URL
+   override), which is what the old patch's single hunk now fails against (`Hunk #1 FAILED at
+   38`) — confirmed by reading the current file, not just the patch-apply error. Not currently
+   wired to a real value in `world/docker-compose.yaml`'s `ssai-data`, because **no route in this
+   world serves `delivery_master.m3u8` yet** (see "Known gaps" — no playout-worker/object-storage
+   edge), so there's no real per-channel URL to put in the map. When that gap closes, wire
+   `CHANNELFORGE_ORIGIN_MAP` directly — no local patch needed any more.
+2. **No `SSAI_ADSERVER_BASE_URL` in ChannelForge** (was: `SsaiAdServerAdapter` needs a `base_url`
+   + `transport` injected by its caller; nothing in `apps/api/app/config.py`/`registry.py` did
+   that outside tests). The old bridge, `world/patches/channelforge-ssai-base-url.patch`, added
+   `ssai_adserver_base_url`/`CF_SSAI_ADSERVER_BASE_URL` plus a `get_configured_ssai_adapter()`
+   factory — but nothing on any live ChannelForge call path ever invoked it; it was forward-looking
+   glue for a feature that never got wired that way. Upstream instead built the real thing under a
+   different name for a different purpose: `CF_SSAI_BASE_URL`/`CF_SSAI_ADMIN_USER`/
+   `CF_SSAI_ADMIN_PASSWORD` (`app/services/ssai_analytics.py`), used for admin-cookie-authenticated
+   telemetry analytics and break-delivery reconciliation (see "ChannelForge → ssaiadserver" above)
+   — now wired for real in `world/docker-compose.yaml` and verified end-to-end (see above).
 3. **ChannelForge's FAST feature flags default off.** `CF_DELIVERY_ORIGIN` (delivery-grade HLS
    origin packaging) and friends (`CF_OUTPUT_PROBES`, `CF_REDUNDANT_OUTPUTS`,
    `CF_ASRUN_AUTHORITY`, `CF_OUTPUT_FAILOVER`) are plain `os.environ.get(...) == "1"` reads in
@@ -187,7 +219,27 @@ and the `next build` for fast-web — and the service comes back up serving afte
 the compose wiring, the two glue patches, and the restart-verb contract; it does **not** yet prove
 the live pipeline (see the object-storage/edge gap below).
 
+**2026-09-05, re-verified at the new pins, glue patches retired**: `docker compose -f world/
+docker-compose.yaml up -d --build` again brings up all 9 services healthy from a clean build.
+`main:8000/health`, `ssai-control:4000/health`, `ssai-data:4010/health` all return `{"status":
+"ok", ...}`; `fast-web:3000/` returns a `307` (Next.js redirect, expected). The real SSAI admin
+wiring that replaced glue patch #2 was exercised directly: `POST http://localhost:4000/admin/api/
+login` with the `world-ssai-admin`/`world-ssai-admin-secret` credentials set in compose returns
+`200` + a session cookie, confirming `CF_SSAI_BASE_URL`/`ADMIN_USER`/`ADMIN_PASSWORD` line up
+end-to-end between `main` and `ssai-control`.
+
 ## First task built on this: task-02
+
+**Archived 2026-09-05** to `archive/old/tasks/task-02-daterange-avail-detection/` (`docs/
+poc-scope.md` Step 2) — no longer part of the default `tasks/` sweep. Re-verification at the
+`cdbf80b`/`24c21d4`/`09193c2` pins found genuine upstream drift: `harbor run -a oracle` now scores
+`task_success: 0.0` (build succeeds; `avails.test.ts`'s "detects an avail from real ChannelForge
+DATERANGE cues" case fails, `expected [] to have a length of 1 but got +0`). ChannelForge's real
+`worker/scte35.py` DATERANGE cue output has changed shape since this task's fixture was captured
+from it, and `detectAvails` no longer recognizes the new shape — a real, second-generation defect
+in the same area this task originally fixed, not a harness problem. Left as-is rather than
+re-fixed, since the task itself is being retired; a fresh task against current output would be the
+right way to pick this back up, not a patch to the archived one.
 
 `tasks/task-02-daterange-avail-detection` fixes a real, confirmed defect found while writing
 this doc: ssaiadserver's `detectAvails` (`packages/data-plane/src/avails.ts`) only opens/closes
@@ -213,6 +265,17 @@ open item — this defect didn't turn out to need one. See task-01 for the rever
 shape, task-02 for the missing-behavior shape; task-03 below is that colocated-model task.
 
 ## The two-repo-writable task: task-03
+
+**Archived 2026-09-05** to `archive/old/tasks/task-03-org-scoped-origin-drift/` (`docs/
+poc-scope.md` Step 2) — no longer part of the default `tasks/` sweep. Re-verification at the
+`cdbf80b`/`24c21d4`/`09193c2` pins found a genuine build-time break, not a verifier regression:
+this task's own `environment/Dockerfile` bakes in the (now-retired, see "The two gaps that needed
+patching" above) `world/patches/ssaiadserver-manifest-template.patch`, which no longer applies —
+`patch -p1` fails with `Hunk #1 FAILED at 38` against `origin.ts`'s new `originMap`/
+`CHANNELFORGE_ORIGIN_MAP` shape. `harbor run -a oracle` fails at the docker-compose build step
+(`RuntimeError`), before the agent/verifier ever run. Confirms the "gaps that needed patching"
+section's superseded-by-upstream finding independently — this is the same origin.ts drift, hit
+from the task side rather than the world side. Not re-fixed, since the task is being retired.
 
 `tasks/task-03-org-scoped-origin-drift` is the first task using the colocated-`main` model. The
 real cross-repo integration surface investigated for it (ChannelForge's dead/unwired
@@ -265,6 +328,18 @@ wiring `org_id` into `build_status`/`build_guide`'s call sites — which both le
 swapped-order bug unfixed and broke two pristine tests. The final version is what's committed.
 
 ## The second single-repo task: task-04
+
+**Archived 2026-09-05** to `archive/old/tasks/task-04-schedule-page-boundary-duplication/`
+(`docs/poc-scope.md` Step 2) — no longer part of the default `tasks/` sweep. Re-verification at the
+`cdbf80b`/`24c21d4`/`09193c2` pins found the exact drift `docs/poc-scope.md`'s 2026-09-05 rescope
+already anticipated: `harbor run -a oracle` scores `task_success: 0.0` with `TypeError:
+channelSchedule is not a function` in both test cases. fast-world-tv's `6d09506` "v2 app shell"
+rebuild replaced the old synchronous `channelSchedule`/`CHANNELS`-array shape this task's test
+file calls directly with the new async, store-backed `channel-config-store` API — the function
+this task's regression and fix both target no longer exists under that name/signature. Not
+re-fixed, since the task is being retired; any FW-00N task touching fast-world-tv's schedule logic
+needs to target the new async accessors from the start (see `docs/poc-scope.md` Step 2 template
+note).
 
 `tasks/task-04-schedule-page-boundary-duplication` is fast-world-tv's first task — single-repo,
 same shape as task-01/02 but for the FAST viewer rather than ChannelForge or ssaiadserver.
