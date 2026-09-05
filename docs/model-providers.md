@@ -1,5 +1,23 @@
 # Testing tasks against other models
 
+## POC model roster (locked 2026-09-05)
+
+Team direction: a 4-model mix — 1 frontline OpenAI model, 1 mid-level OpenAI model, 2 free
+OpenRouter models. Confirmed against each provider's live `/v1/models` list on this date.
+
+| Slot | Model | Why |
+|---|---|---|
+| Frontline (OpenAI) | `openai/gpt-6-astra` | Newest generation available on the account's key — ahead of the whole 5.x line. No prior trajectory data; first real run doubles as validation. |
+| Mid-level (OpenAI) | `openai/gpt-5.6-luna` | Already proven — every real-agent run recorded in `docs/ecosystem.md` used it (e.g. 24 turns on task-03, `task_success: 1.0`). One generation behind `gpt-6-astra`; unlabeled tier (no `-pro` suffix, unlike `gpt-5.5-pro`/`gpt-5.2-pro`), consistent with a mid-tier daily-driver model. Keeping it preserves comparability with existing task-01..04 data. |
+| Free #1 (OpenRouter) | `openrouter/minimax/minimax-m3:free` | Already validated twice — task-01 (13 turns, 1.0) and task-03 (75 turns, 1.0, hit the agent timeout but the independent verifier still passed). Lowest-risk free pick, real trajectory depth already inside the 30-150 turn target ([[task_turn_depth_target]]). |
+| Free #2 (OpenRouter) | `openrouter/poolside/laguna-s-2.1:free` | Best untested fit — purpose-built coding-agent model (70.2% Terminal-Bench 2.1, 40.4% DeepSWE per its OpenRouter listing), 262K context, still live in the current free catalog. |
+
+Dropped from the earlier shortlist: `cohere/north-mini-code:free` (a second untested free pick was
+redundant once minimax-m3 covers "proven free" and laguna-s-2.1 covers "best benchmark fit" — the
+team asked for exactly 2 free models) and the Nemotron Ultra stretch pick (no need for a 5th/backup
+slot now that the roster is locked at 4).
+
+
 `harbor run -a terminus-2 -m <model>` (the pattern used to validate task-02/03/04 against a real
 non-oracle agent, see `docs/ecosystem.md`) is not tied to one model or vendor. `terminus-2` runs
 on [LiteLLM](https://docs.litellm.ai/docs/providers) internally, so `-m` accepts any
@@ -71,6 +89,8 @@ and "actually good at this."
 
 ## Status
 
+- `openai/gpt-6-astra` — in POC roster, not yet run. Newest OpenAI generation on the account's key;
+  no trajectory data yet.
 - `openai/gpt-5.6-luna` — working, used for every real-agent run recorded in `docs/ecosystem.md`.
 - Groq (`gpt-oss-120b`, `qwen3.6-27b`) — key configured, but unusable for this workload right now
   (8,000 TPM account-wide cap, Dev Tier upgrade temporarily unavailable). See finding above.

@@ -137,9 +137,13 @@ about to be deprecated:
 | `liquid/lfm-2.5-2.6b:free`, `nvidia/nemotron-3.5-content-safety:free` | Skip | Liquid's own docs advise against agentic coding; the NVIDIA one is a content-moderation/guardrail model, not a coding agent. |
 | `z-ai/glm-5.2:free` | Already known-bad | Confirmed upstream 429 congestion earlier this session — don't retry. |
 
-**Proposed roster (pending final confirmation): 4 models** — `gpt-5.6-luna`, `minimax-m3:free`,
-`laguna-s-2.1:free`, `north-mini-code:free` — plus `nemotron-3-ultra-550b-a55b:free` as a stretch
-5th. All the OpenRouter picks run on the existing `OPENROUTER_API_KEY` — no new keys needed.
+**Locked 2026-09-05 — 4 models**, per the team's requested mix (1 frontline OpenAI, 1 mid-level
+OpenAI, 2 free OpenRouter): `openai/gpt-6-astra` (frontline — newest OpenAI generation on the
+account's key, confirmed live), `openai/gpt-5.6-luna` (mid-level — already proven across every
+prior real-agent run), `openrouter/minimax/minimax-m3:free` (proven free), `openrouter/poolside/
+laguna-s-2.1:free` (best untested benchmark fit). `cohere/north-mini-code:free` and the Nemotron
+stretch pick dropped — see `docs/model-providers.md` for the full rationale. All OpenRouter picks
+run on the existing `OPENROUTER_API_KEY` — no new keys needed.
 
 Given the free-tier request-count math, the pilot (step 4) should default to running each
 free-tier model as its own low-concurrency `harbor run` invocation, not mixed into one
@@ -220,7 +224,8 @@ the pilot finds.
       handoff for full completion, but re-pin/re-vendor/compose-bring-up can start independently)
 - [ ] Step 2 — 5 new tasks + archive old 4 (not started; FW-001 and FW-004 framing pending a read
       of `e9d86a9` and `4c99050` respectively before authoring)
-- [ ] Step 3 — model roster (narrowed to a shortlist above; final confirmation pending)
+- [x] Step 3 — model roster locked: `gpt-6-astra`, `gpt-5.6-luna`, `minimax-m3:free`,
+      `laguna-s-2.1:free` (2026-09-05)
 - [ ] Step 4 — pilot run (blocked on steps 1-3)
 
 ## Rescope log
