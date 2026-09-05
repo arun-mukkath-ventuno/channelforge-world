@@ -6,6 +6,47 @@ never has to re-derive it from source: what each repo actually expects from the 
 places those contracts didn't line up out of the box (and the small patches that bridge them),
 and what's still missing before the pipeline is *live*, not just wired.
 
+## Status note (2026-09-03) — upstream has moved well past our pins; this doc is being reconciled
+
+All three upstream repos shipped a burst of new work since the pins below were set:
+**ChannelForge is 43 commits ahead**, **ssaiadserver 10**, **fast-world-tv 11** (checked directly
+against each repo's own `git log`, not yet re-vendored into `vendor/`). The headline change is
+that a real, live, two-channel path now exists in production — ChannelForge → ssaiadserver →
+fast-world-tv genuinely airs for channels 101 (Home Cooking) and 102 (Yoga & You), with SSAI
+ad-stitched playback, ad/audience telemetry, and per-break reconciliation — not simulated. This
+supersedes some of what's written below; corrections are called out inline where a section is now
+known-stale rather than rewriting the whole doc. Two independent reviews converged on the same
+picture: an external readiness assessment (condensed into `docs/world-blueprint-assessment.md`)
+and a direct diff of the three repos' new commits.
+
+Known corrections so far:
+- **ChannelForge → ssaiadserver is no longer fully unwired** (see the section below) — a new read
+  path (`GET /v1/reconciliation/breaks`, per-break) is live as of ChannelForge's telemetry-blueprint
+  commits (#173–#176); the write path (`POST /v1/ad-decision`) is still unwired.
+- **fast-world-tv's ChannelForge integration is real for channels 101/102**, not the
+  guide/status-proxy shape this doc originally described — see the corrected section below.
+- fast-world-tv's own `README.md` still says its schedule data "stands in for ChannelForge...
+  remains simulated until Phase 3" — that's now doc drift on the *upstream* repo's side, not
+  something wrong in this doc; noted here so a task author doesn't trust that README claim as-is.
+- Re-vendoring (`scripts/vendor-source.sh` + bumping the three `PINNED_COMMIT_*` files) has not
+  happened yet — that's part of the replan, not done as part of this doc update.
+
+**2026-09-05 update**: the repos moved again — ChannelForge now 46 commits ahead, ssaiadserver 11,
+fast-world-tv 17 (current HEADs `3c5599a`/`3ce4632`/`6d09506`). Two changes worth flagging before
+the next re-vendor:
+- **All 5 channels are now real**, not 2 of 5 — fast-world-tv wired channels 103 (Art All The Way)
+  and 104 (Ventuno Mix, replacing the retired "Food Shorts TV") to live ChannelForge origins + SSAI
+  sessions, same pattern as 101/102. Closes the gap `docs/world-blueprint-assessment.md` flagged.
+- **fast-world-tv's channel API is now async and store-backed** (`6d09506`, the "v2 app shell"
+  rebuild) — `getChannel`/`listChannels`/`guide` read an admin-editable `channel-config-store` and
+  return Promises, where they used to read a static `CHANNELS` array synchronously. Any code that
+  vendors against the old sync shape needs updating.
+- ChannelForge shipped `e9d86a9` "globally-unique interval-break ids" (break-identity correctness)
+  and `4c99050` (real rights management — policies/assignments/takedowns) — both relevant to
+  `docs/poc-scope.md`'s task authoring (FW-001 and FW-004 respectively; see that doc's rescope log).
+- ssaiadserver added a VAST ingestion slice (`3ce4632`) and a from-scratch admin console — real
+  capability, not currently pulled into POC task scope.
+
 ## The pipeline
 
 ```
@@ -30,19 +71,34 @@ is unchanged across those 52 commits), so this didn't require touching task-01.
 
 ### ChannelForge → ssaiadserver
 
-`apps/api/app/adapters/ssai_adserver.py`'s `SsaiAdServerAdapter` calls ssaiadserver's real routes:
+`apps/api/app/adapters/ssai_adserver.py`'s `SsaiAdServerAdapter` implements two ssaiadserver
+routes:
 
 ```
-POST /v1/ad-decision   {channel_id, opportunity_id, duration, [session_id], [seed]} -> {pod_id, ...}
-GET  /v1/channels      (used as the preflight health check)
+POST /v1/ad-decision              {channel_id, opportunity_id, duration, [session_id], [seed]} -> {pod_id, ...}
+GET  /v1/reconciliation/breaks    per-break delivery rows, keyed by externalBreakId = break_id
 ```
 
-**Not wired into any live call path today** — `get_ssai_adapter`/the adapter is only constructed
-in tests and the registry; no service or job in ChannelForge actually invokes it. It exists as a
-tested contract for future §17 reconciliation-delivery-import wiring, not something this world's
-pipeline currently exercises end to end. Treat "ChannelForge calls out to ssaiadserver" as **not
-yet a real signal to verify a task against** — the live direction that *does* work is the next
-one.
+**Corrected 2026-09-03 — this is now half-live, not fully unwired.** The write path
+(`POST /v1/ad-decision`, driving a real-time ad decision) is still not called from any live
+ChannelForge path — `get_ssai_adapter` is still only constructed in tests/registry, same as
+before. But a **new read path is genuinely live**: ChannelForge's §17 reconciliation now fetches
+`GET /v1/reconciliation/breaks` for real (`apps/api/app/services/ssai_delivery.py`, wired from
+`reconciliation_wiring.assemble_inputs` with `include_ssai` on by default), matching ssaiadserver's
+own new `GET /v1/reconciliation/breaks` endpoint (`9a943c5`). This uses ChannelForge's own admin
+auth against ssaiadserver's console (`ssai_base_url`/`ssai_admin_user`/`ssai_admin_password`,
+env `CF_SSAI_BASE_URL`/`CF_SSAI_ADMIN_USER`/`CF_SSAI_ADMIN_PASSWORD` — see
+`apps/api/app/services/ssai_analytics.py`), **not** the `SSAI_ADSERVER_BASE_URL`/`base_url`+
+`transport` shape `SsaiAdServerAdapter` itself takes. Best-effort: an empty leg when SSAI is
+unconfigured/unreachable, so reconciliation still runs on ChannelForge-owned records alone.
+
+**This supersedes glue patch #2 below** (`world/patches/channelforge-ssai-base-url.patch`,
+`CF_SSAI_ADSERVER_BASE_URL`/`ssai_adserver_base_url`) — upstream built its own real config field
+and live wiring using a different name and a different (analytics/reconciliation) mechanism, not
+the one our forward-looking patch guessed at. That patch is now dead weight pointed at code
+nothing calls; replacing it with the real `CF_SSAI_BASE_URL` + admin-login wiring is part of the
+replan, not done yet. Treat "ChannelForge reads SSAI's per-break reconciliation data" as a real,
+verifiable signal now; "ChannelForge requests an ad decision from SSAI" is still not.
 
 ### ssaiadserver ← ChannelForge (the direction that's actually live)
 
@@ -63,7 +119,27 @@ this is the DATERANGE style above, and it's what a cross-repo SCTE-format task s
 
 ### ChannelForge ↔ fast-world-tv
 
-Pull-based, per ADR-9 (`channelforge/docs/adr/0009-pilot-distributor-target.md`):
+**Corrected 2026-09-03.** ADR-9's originally-planned `/api/fast/guide`/`/api/fast/status` proxy
+shape (below) was never built; instead, two of five channels were wired directly and concretely
+in `src/lib/channels.ts`, one field at a time, per real ChannelForge output:
+
+| Channel | `hlsUrl` | `epgUrl` | `ssaiChannel` |
+|---|---|---|---|
+| 101 Home Cooking | real ChannelForge origin (`forge.ventunotech.com/hls/<output_id>/delivery_master.m3u8`) | real ChannelForge public EPG URL | `channel_homecooking` — player plays the SSAI ad-stitched session, not `hlsUrl`, when set |
+| 102 Yoga & You | same shape, different `output_id`/EPG | same | `channel_yoga` |
+| 103–105 | public test streams | generated/local | unset |
+
+So the live signal for a task isn't a proxy endpoint to fetch through — it's per-channel config in
+`channels.ts` (`hlsUrl`, `epgUrl`, `ssaiChannel`) pointing at real ChannelForge/ssaiadserver
+outputs for exactly two of five channels, and the player (`FastPlayer`) branching on whether
+`ssaiChannel` is set to decide whether to request an SSAI session or play `hlsUrl` directly,
+firing playhead-based ad beacons when it does. The originally-planned `/api/fast/guide` /
+`/api/fast/status` proxy endpoints described below were never built this way and remain local
+synthetic data for all five channels regardless of `hlsUrl`/`epgUrl` wiring — guide/status data
+and playback data took two different, independent wiring paths upstream.
+
+Original ADR-9 design (pull-based, per `channelforge/docs/adr/0009-pilot-distributor-target.md`)
+for reference — **not what actually got built**:
 
 | fast-world-tv side | ChannelForge side |
 |---|---|
@@ -71,12 +147,10 @@ Pull-based, per ADR-9 (`channelforge/docs/adr/0009-pilot-distributor-target.md`)
 | `/api/fast/guide` (JSON EPG) | `GET /organizations/{org_id}/fast/guide` |
 | `/api/fast/status` | `GET /organizations/{org_id}/fast/status` |
 
-fast-world-tv's actual code today only implements the first row for real integration
-(`FAST_HLS_101..105` env overrides in `src/lib/channels.ts`) — `/api/fast/guide` and
-`/api/fast/status` are still fully local synthetic data, not proxying ChannelForge's real
-endpoints. Wiring those up for real is a larger, separately-scoped follow-up (new fetch/cache
-layer, error handling) — not required to prove the schedule→origin→SSAI→playback pipeline, and
-deliberately deferred here.
+Wiring `/api/fast/guide`/`/api/fast/status` as real proxies (or deciding the per-channel-field
+approach is the permanent design, since it's what shipped) is still an open question for the
+replan — not required to prove the schedule→origin→SSAI→playback pipeline, and still deferred
+here.
 
 ## The two gaps that needed patching (and one that just needed enabling)
 
@@ -221,6 +295,15 @@ shallowness here isn't an instruction problem, it's structural: fast-world-tv's 
 lives in one small file with a single call site, so there's little to explore. Confirms turn
 depth and instruction quality are separate axes (see [[task_turn_depth_target]]): a task this
 small needs a bug that spans more files/callers to reach 30+ turns, not a vaguer instruction.
+
+## External world-readiness assessment
+
+See `docs/world-blueprint-assessment.md` — a condensed, in-repo copy of an external review's
+findings: what's real vs. gap per repo, what a genuine "world" layer needs that this repo doesn't
+have yet (world-control service, virtualized time, deterministic reset, separate verifier images,
+selective rebuilds), a candidate FW-001..010 task portfolio, verifier-design principles, and
+release gates. Read before the POC-scope replan — several items in "Known gaps" below are also
+called out there as release blockers, not just nice-to-haves.
 
 ## Known gaps — real, not yet closed
 
