@@ -1,0 +1,48 @@
+# Task-specific environment. `main` (required name — see harbor.constants.MAIN_SERVICE_NAME)
+# builds from this task's own Dockerfile (pristine ssaiadserver source; no injected regression —
+# see environment/Dockerfile), running the control plane. Unlike task-05/06 (data-plane, Redis
+# only), the control plane's session/ad-decision routes are Postgres-backed, so this task needs a
+# real Postgres — same shape as the shared world's own `ssai-postgres`/`ssai-control` services
+# (world/docker-compose.yaml): plain postgres:16-alpine with the real migrations mounted as
+# init scripts, no custom Dockerfile needed.
+
+services:
+  main:
+    build:
+      context: ../../..
+      dockerfile: tasks/task-07-channel-switch-session-bleed/environment/Dockerfile
+    environment:
+      SSAI_SERVICE: control-plane
+      CONTROL_PLANE_PORT: "4000"
+      DATABASE_URL: postgres://ssai:ssai@postgres:5432/ssai
+      REDIS_URL: redis://redis:6379
+      SESSION_SIGNING_SECRET: task-ssai-session-secret
+      DATA_PLANE_PUBLIC_URL: http://localhost:4010
+      ADMIN_USER: task-ssai-admin
+      ADMIN_PASSWORD: task-ssai-admin-secret
+      CREATIVE_STORE_ROOT: /data/creatives
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ssai
+      POSTGRES_PASSWORD: ssai
+      POSTGRES_DB: ssai
+    volumes:
+      - ../../../vendor/ssaiadserver/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssai"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
