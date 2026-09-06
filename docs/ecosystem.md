@@ -371,6 +371,63 @@ lives in one small file with a single call site, so there's little to explore. C
 depth and instruction quality are separate axes (see [[task_turn_depth_target]]): a task this
 small needs a bug that spans more files/callers to reach 30+ turns, not a vaguer instruction.
 
+## The POC-2 model roster's first real task: task-05 (FW-001 revisited)
+
+`tasks/task-05-adjacent-break-id-bleed` is the first task authored against the 2026-09-05 refresh
+(`docs/poc-scope.md` Step 2), targeting FW-001's problem area ("alternate CUE-OUT syntax losing
+`break_id` correlation") — but not FW-001's literal seeded defect. Investigation found the
+blueprint's guessed defect (SSAI only accepting the scalar CUE-OUT form, or losing `break_id` on
+tag reordering) **no longer exists**: `packages/core/src/scte.ts`'s `parseMarkerLine` already
+handles both CUE-OUT forms and both DATERANGE/CUE-OUT orderings correctly.
+
+Reading the real code further (`ssaiadserver`'s `avails.ts` + ChannelForge's real
+`worker/scte35.py`/`cue_schedule.py`/`origin.py`) surfaced a **different, genuinely confirmed
+defect** in the same problem space: `detectAvails` doesn't distinguish a DATERANGE-OUT from a
+DATERANGE-IN (both parse as the same generic `kind: "daterange"`), and only fills an avail's
+`externalBreakId` when it's still undefined. When two ad breaks are scheduled back-to-back with
+zero gap, ChannelForge's real segment renderer packs both breaks' cue tags into one segment's tag
+block (confirmed by running the real `worker/scte35.py`/`cue_schedule.py` functions directly, not
+assumed) — the first break's closing DATERANGE-IN id leaks forward and gets stuck on the second
+break's avail, since the "only fill if undefined" guard blocks the second break's own DATERANGE-OUT
+from correcting it. Single-repo write boundary (ssaiadserver only); verified `oracle` →
+`task_success: 1.0` (repeated across 5 randomized attempts), `nop` → `0.0`.
+
+**Grader hardening, found and closed before any real-agent run:**
+- **Reward hack (confirmed via an actual harbor run, not assumed)**: a "solve" that never touches
+  the real defect — just drops a `vitest.config.mjs` + setup file in `/app` that monkey-patches
+  `expect.extend()` so every custom matcher reports `pass: true` — scored `task_success: 1.0`
+  against the original grader. Fixed by running vitest with an explicit `--config` pointing at a
+  trusted config the verifier writes outside `/app` (`/tmp/trusted.vitest.config.mjs`), which
+  vitest uses instead of auto-discovering anything left in the repo. Re-verified: same malicious
+  solve now scores `0.0`. This is a systemic gap in every `test.sh` in this repo (task-01..04
+  included), not task-05-specific — worth carrying forward as a template fix for FW-002+.
+- **Instruction over-reveal**: `instruction.md` originally called out "`#EXT-X-DATERANGE` with or
+  without a declared duration" as marker syntax not to weaken — this was guarding against the
+  author's own first (wrong) duration-based heuristic attempt, not a real requirement. Verified a
+  one-line alternative fix (no duration/OUT-IN distinction at all — just remove the "only fill if
+  undefined" guard) passes the full grader across repeated randomized runs, meaning the hint wasn't
+  load-bearing and only tipped the agent toward a specific failure mode. Removed from
+  `instruction.md`.
+- **Anti-gaming test**: after the above, added a randomized 3-5-chained-back-to-back-break case
+  (fresh ids/durations/DATERANGE-vs-CUE-OUT ordering via `Math.random()` each run) alongside the
+  original real-function-captured 2-break fixture. Confirmed it independently rejects two plausible
+  wrong fixes: (1) the duration-presence heuristic, caught by the pre-existing pristine "SCTE35-OUT
+  with no declared duration" test; (2) "clear the block id on every CUE-IN" (no OUT/IN distinction),
+  caught by the randomized case.
+
+**Real-agent results (`terminus-2`), both `task_success: 0.0` — a real discriminating task:**
+
+| Model | Turns | Tool calls | What happened |
+|---|---|---|---|
+| `openai/gpt-5.6-luna` | 12 | 34 | Found the right code area, made an incorrect fix (cleared `blockBreakId` right after consuming it into a newly-opened avail — doesn't touch the actual leak path), and self-verified against a fixture with a real segment gap between the two breaks — not the zero-gap case the bug report describes. Declared done without ever testing the actual back-to-back scenario. |
+| `openrouter/minimax/minimax-m3:free` | 41 | 52 | Correctly reproduced the real bug via manual testing at turn 17 (`externalBreakId` leaking exactly as expected). Applied the **same incomplete fix as gpt-5.6-luna independently arrived at from a different angle** — clearing `blockBreakId` on every `CUE-IN` — which the grader's randomized/reordered case catches (this is "wrong fix #2" from the grader-hardening pass above, confirmed here from a real model, not just adversarial testing). Spent ~20 more turns testing edge cases with an incorrect mental model of tag ordering and against a stale compiled `dist/avails.js`, never re-ran its own turn-17 repro against the final fix. |
+
+Both failures are genuine model limitations (incomplete root-cause fix + insufficient
+self-verification against the exact stated symptom), not task or grader defects — a good sign for
+task quality. Full evaluation matrix (more models/attempts) deferred to the pilot phase
+(`docs/poc-scope.md` Step 4); these two runs were exploratory confirmation that the task
+discriminates.
+
 ## External world-readiness assessment
 
 See `docs/world-blueprint-assessment.md` — a condensed, in-repo copy of an external review's

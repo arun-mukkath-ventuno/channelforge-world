@@ -91,6 +91,28 @@ both required adaptation mid-build.
   (`4c99050` — policies, assignments, takedowns). FW-004 can now hook into that actual feature
   instead of simulating rights state, which makes the verifier more credible — read `4c99050`
   before authoring to confirm the takedown → EPG/playout consistency path it enables.
+  **2026-09-06 scoping pass**: `4c99050` itself is frontend-only ("No backend change") — the real
+  ground is the pre-existing `rights_takedown.py`/`rights_engine.py`/`asset_eligibility.py`/
+  `schedules.py`. Traced every real call site (`schedules.py::_rights_issues` at publish-
+  validation, `asset_eligibility.py::evaluate_asset` at on-demand eligibility, both via
+  `rights_repo.active_takedown_for_asset`, plus series/asset scope resolution) — all correctly
+  wired, no drift found between them. The two natural "guide/playout consistency" bugs to test for
+  — does a takedown retroactively update an already-published EPG entry, and does it interrupt
+  something currently airing — are both **explicit, documented non-goals**, not hidden defects:
+  `rights_takedown.py`'s own docstring says placing one is "non-destructive... without rewriting
+  any immutable published schedule version" and calls out "the airing-now choice, and EPG deltas"
+  as follow-ups pending ADR-6; `affected_future_events`'s `planned_start > now` filter is coded to
+  match that same exclusion. Building a task around either would mean "not implemented, working as
+  designed" is the correct agent answer — a bad task, not just an ambiguous one (worse than the
+  task-03 lesson: this isn't underspecified, it's intentionally out of scope).
+  **Two live options, not yet decided**: (a) drop the takedown angle, go single-write-boundary,
+  ChannelForge-only, and look for a genuine defect in EPG/schedule *regeneration* state instead
+  (untested ground, no confirmed bug yet); (b) keep takedown but narrow the claim — investigate the
+  `planned_start > now` boundary edge case, or a possible drift between what `evaluate_asset`'s
+  on-demand API reports vs. what `_rights_issues` reports for the *same* asset+takedown (two
+  independent call sites computing overlapping-but-not-identical things — plausible, not yet
+  confirmed). Needs one more investigation pass before authoring; **do not build FW-004 on the
+  takedown-vs-EPG-retroactivity framing** — confirmed not a real bug.
 - **FW-001** (alternate CUE-OUT syntax losing `break_id` correlation): ChannelForge just shipped
   `e9d86a9` "globally-unique interval-break ids," a real fix in exactly this area. Read that commit
   before designing the seeded defect — if it already closes the bug the blueprint had in mind,
