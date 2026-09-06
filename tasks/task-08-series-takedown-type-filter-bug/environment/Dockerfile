@@ -23,7 +23,7 @@ RUN chmod +x /usr/local/bin/restart-api
 
 # The regression, baked in at build time. Kept at a fixed path so solution/solve.sh (the Oracle,
 # run outside this build) can reverse it at runtime.
-COPY tasks/task-08-series-takedown-scope-drop/setup/regression.patch /opt/task-setup/regression.patch
+COPY tasks/task-08-series-takedown-type-filter-bug/setup/regression.patch /opt/task-setup/regression.patch
 RUN patch -p1 < /opt/task-setup/regression.patch
 
 EXPOSE 8000

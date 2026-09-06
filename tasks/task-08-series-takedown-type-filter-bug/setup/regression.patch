@@ -1,0 +1,18 @@
+--- a/app/repositories/rights.py
++++ b/app/repositories/rights.py
+@@ -161,11 +161,12 @@ def active_takedown_for_asset(
+     db: Session, *, org_id: uuid.UUID, asset: Asset
+ ) -> RightsTakedown | None:
+-    """An active takedown covering this asset directly or via its series, if any."""
++    """An active takedown covering this asset, if any."""
+     scope_ids = [asset.id]
+     if asset.series_id is not None:
+         scope_ids.append(asset.series_id)
+     return db.scalar(
+         select(RightsTakedown).where(
+             RightsTakedown.organization_id == org_id,
+             RightsTakedown.status == "active",
++            RightsTakedown.scope_type == "asset",
+             RightsTakedown.scope_id.in_(scope_ids),
+         )
+     )
