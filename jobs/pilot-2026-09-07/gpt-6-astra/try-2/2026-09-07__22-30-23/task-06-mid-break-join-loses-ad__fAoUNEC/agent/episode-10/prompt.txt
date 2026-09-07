@@ -1,0 +1,189 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  5 passed (5)
+      Tests  29 passed (29)
+   Start at  17:03:27
+   Duration  674ms (transform 112ms, setup 0ms, collect 154ms, tests 20ms, environment 0ms, prepare 146ms)
+
+c3e0c565748c:/app# head -40 packages/data-plane/src/server.ts; cat packages/core/src/session-token.ts | head -80; cat packages/data-plane/tsconfig.json; cat tsc
+onfig.base.json; sed -n '65,100p' packages/data-plane/src/media.ts; ls /data
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+
+import Fastify from "fastify";
+import { verifySession, type PodItem } from "@ssai/core";
+import type { PodCache } from "@ssai/persistence";
+import type { ObjectStore } from "@ssai/storage";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider, type PodDecider } from "./decider.js";
+
+export interface DataPlaneDeps {
+  podCache: PodCache;
+  origin: OriginClient;
+  /** Object store holding prepared creative HLS (creatives/{id}/…). */
+  store: ObjectStore;
+  /** Optional: resolves a pod when none is cached. Omit → cache miss means slate. */
+  decider?: PodDecider;
+  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+  sessionSecret?: string;
+  logger?: boolean;
+}
+
+export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+
+// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+
+const CONTENT_TYPES: Record<string, string> = {
+  ts: "video/mp2t",
+// Signed playback session tokens (PRD §57). The control plane mints a token the
+// player uses in its playback URL; the data plane verifies it before serving a
+// manifest, so a viewer cannot forge or tamper with a session id (or watch a
+// channel the token wasn't issued for). HMAC-SHA256, constant-time compare.
+
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export interface SessionClaims {
+  /** The real session id (used as the pod-cache key). */
+  sid: string;
+  /** The channel the token is valid for. */
+  ch: string;
+  /** Optional expiry, unix seconds. */
+  exp?: number;
+}
+
+export interface SignOptions {
+  ttlSeconds?: number;
+  /** Injected clock (ms) for deterministic tests. */
+  now?: number;
+}
+
+const PREFIX = "v1";
+
+/** Produce `v1.<payload>.<sig>` — payload and signature are base64url. */
+export function signSession(sessionId: string, channelId: string, secret: string, opts: SignOptions = {}): string {
+  const claims: SessionClaims = { sid: sessionId, ch: channelId };
+  if (opts.ttlSeconds && opts.ttlSeconds > 0) {
+    claims.exp = Math.floor((opts.now ?? Date.now()) / 1000) + opts.ttlSeconds;
+  }
+  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+  const body = `${PREFIX}.${payload}`;
+  const sig = createHmac("sha256", secret).update(body).digest().toString("base64url");
+  return `${body}.${sig}`;
+}
+
+/** Verify a token; returns the claims or null if invalid/expired/tampered. */
+export function verifySession(token: string, secret: string, opts: { now?: number } = {}): SessionClaims | null {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== PREFIX) return null;
+  const [, payload, sig] = parts;
+  const body = `${PREFIX}.${payload}`;
+
+  const expected = createHmac("sha256", secret).update(body).digest();
+  let provided: Buffer;
+  try {
+    provided = Buffer.from(sig!, "base64url");
+  } catch {
+    return null;
+  }
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return null;
+
+  let claims: SessionClaims;
+  try {
+    claims = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as SessionClaims;
+  } catch {
+    return null;
+  }
+  if (!claims.sid || !claims.ch) return null;
+  if (claims.exp !== undefined && (opts.now ?? Date.now()) / 1000 > claims.exp) return null;
+  return claims;
+}
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [{ "path": "../core" }, { "path": "../persistence" }, { "path": "../storage" }],
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "dist"]
+}
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  }
+}
+
+export async function resolvePodSegments(
+  pod: PodItem[],
+  store: ObjectStore,
+  opts: ResolveOptions = {},
+): Promise<RenderedPodItem[]> {
+  const base = (opts.segmentBaseUrl ?? "/v1/segments").replace(/\/$/, "");
+  const slateBase = (opts.slateBaseUrl ?? "/v1/slate").replace(/\/$/, "");
+  const slateSegDur = opts.slateSegmentDuration ?? 6;
+  const slateIds = opts.slateFallbacks ?? [opts.channelId, "default"].filter((x): x is string => !!x);
+  const rendered: RenderedPodItem[] = [];
+
+  // Load the slate clip once per pod (reused across slate items).
+  const slateClip = await loadSlateVariant(slateIds, store, slateBase);
+
+  for (const item of pod) {
+    if (item.type === "ad" && item.creativeId) {
+      const segments = await loadCreativeSegments(item.creativeId, store, base);
+      if (segments.length > 0) {
+        rendered.push({
+          type: "ad",
+          creativeId: item.creativeId,
+          ...(item.campaignId ? { campaignId: item.campaignId } : {}),
+          duration: item.duration,
+          startOffset: item.startOffset,
+          segments,
+        });
+        continue;
+      }
+      // Creative not prepared/stored → degrade this slot to slate (PRD §42).
+    }
+
+    rendered.push({
+      type: "slate",
+      duration: item.duration,
+      startOffset: item.startOffset,
+ls: /data: No such file or directory
+c3e0c565748c:/app#

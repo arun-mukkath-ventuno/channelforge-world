@@ -1,0 +1,180 @@
+New Terminal Output:
+
+fe1dd2af1f8a:/app# printf '%s\n' '--- fast-client.ts'; nl -ba src/lib/fast-client.ts; printf '%s\n' '--- ssai.ts'; nl -ba src/lib/ssai.ts; printf '%s\n' '--- te
+lemetry-store.ts'; nl -ba src/lib/telemetry-store.ts
+--- fast-client.ts
+     1	"use client";
+     2	
+     3	// Shared client types (mirror the /api/fast/* shapes), formatting helpers, and
+     4	// anonymous viewer telemetry. The frontend never derives the schedule — it only
+     5	// formats and ticks against server-provided absolute timestamps.
+     6	
+     7	export type Program = {
+     8	  id: string;
+     9	  channelId: number;
+    10	  title: string;
+    11	  desc: string;
+    12	  genre: string;
+    13	  mins: number;
+    14	  start: number;
+    15	  end: number;
+    16	  thumb?: string;
+    17	};
+    18	
+    19	export type Channel = {
+    20	  id: number;
+    21	  channelNumber: number;
+    22	  name: string;
+    23	  genre: string;
+    24	  bug: string;
+    25	  hlsUrl: string;
+    26	  ssaiChannel?: string;
+    27	  poster?: string;
+    28	  logoCard?: string;
+    29	  description?: string;
+    30	  status: "live" | "degraded" | "off";
+    31	};
+    32	
+    33	export type GuideRow = { channel: Channel; programs: Program[] };
+    34	
+    35	// Real SCTE-35 ad-break state for a channel (from /api/fast/ads/current).
+    36	export type AdAvail = { id?: string; start: number; end: number; durationSec: number };
+    37	export type AdState = {
+    38	  channelId: number;
+    39	  serverNow: number;
+    40	  source: "scte" | "none";
+    41	  inBreak: boolean;
+    42	  breakStart: number | null;
+    43	  breakEnd: number | null;
+    44	  durationSec: number | null;
+    45	  nextBreakStart: number | null;
+    46	  avails: AdAvail[];
+    47	};
+    48	
+    49	export type Status = {
+    50	  serverNow: number;
+    51	  channelsLive: number;
+    52	  streamsHealthy: number;
+    53	  epgSynced: boolean;
+    54	  programsToday: number;
+    55	  avgSwitchSeconds: string;
+    56	  // Phase 2 real telemetry (optional — absent on older responses)
+    57	  sessions?: number;
+    58	  eventsToday?: number;
+    59	  switchSamples?: number;
+    60	  switchP50Ms?: number;
+    61	  switchP95Ms?: number;
+    62	  avgStartupMs?: number;
+    63	  storeBackend?: "redis" | "memory";
+    64	  channels: {
+    65	    channelId: number;
+    66	    name: string;
+    67	    status: "live" | "degraded" | "off";
+    68	    manifest: { available: boolean; responseMs: number };
+    69	    epg: { synced: boolean; agoSeconds: number };
+    70	    currentProgram: string | null;
+    71	    currentProgramId: string | null;
+    72	    scheduledStart: number | null;
+    73	    actualStartDeltaMs: number;
+    74	    programsToday: number;
+    75	    uptimePct: string;
+    76	    viewers: number;
+    77	    errors: number;
+    78	  }[];
+    79	};
+    80	
+    81	// --- time formatting (matches the design) ---------------------------------
+    82	export function fmt(ms: number, withSeconds = false): string {
+    83	  const d = new Date(ms);
+    84	  let h = d.getHours();
+    85	  const m = d.getMinutes();
+    86	  const ap = h >= 12 ? "PM" : "AM";
+    87	  h = h % 12 || 12;
+    88	  const sec = withSeconds ? ":" + String(d.getSeconds()).padStart(2, "0") : "";
+    89	  return `${h}:${String(m).padStart(2, "0")}${sec} ${ap}`;
+    90	}
+    91	
+    92	export function hms(ms: number): string {
+    93	  const d = new Date(ms);
+    94	  return [d.getHours(), d.getMinutes(), d.getSeconds()]
+    95	    .map((n) => String(n).padStart(2, "0"))
+    96	    .join(":");
+    97	}
+    98	
+    99	export function programAt(list: Program[], t: number): Program | undefined {
+   100	  return list.find((p) => t >= p.start && t < p.end);
+   101	}
+   102	
+   103	// --- anonymous telemetry ---------------------------------------------------
+   104	const SESSION_KEY = "fast_session_id";
+   105	
+   106	export function sessionId(): string {
+   107	  if (typeof window === "undefined") return "server";
+   108	  try {
+   109	    let id = sessionStorage.getItem(SESSION_KEY);
+   110	    if (!id) {
+   111	      id =
+   112	        "fs_" +
+   113	        Math.random().toString(36).slice(2, 10) +
+   114	        Date.now().toString(36);
+   115	      sessionStorage.setItem(SESSION_KEY, id);
+   116	    }
+   117	    return id;
+   118	  } catch {
+   119	    return "fs_ephemeral";
+   120	  }
+   121	}
+   122	
+   123	export type FastEvent = {
+   124	  event: string;
+   125	  channelId?: number;
+   126	  programId?: string;
+   127	  startupMs?: number;
+   128	  bufferMs?: number;
+   129	  latencyMs?: number;
+   130	  errorCode?: string;
+   131	};
+   132	
+   133	export function emit(e: FastEvent): void {
+   134	  if (typeof window === "undefined") return;
+   135	  const payload = { ...e, ts: Date.now(), sessionId: sessionId() };
+   136	  try {
+   137	    const body = JSON.stringify(payload);
+   138	    if (navigator.sendBeacon) {
+   139	      navigator.sendBeacon(
+   140	        "/api/fast/events",
+   141	     
+[... output limited to 10000 bytes; 73 interior bytes omitted ...]
+:n>=t&&n<t+1e3*r})};y&&(a.avails||[]).filter(e=>e.start<h.end&&e.end>h.start).forEach(e=>t(e.start,e.durationSec,"scte")),0===N.length&&t(c(h).sta
+rt,90,"expected");let r=N.map(e=>e.startMs).filter(e=>e>n).sort((e,t)=>e-t)[0]??(y&&a.nextBreakStart&&a.nextBreakStart>n?a.nextBreakStart:void 0);j||null==r||(C
+=Math.max(0,Math.round((r-n)/1e3)))}let I=18e5*Math.floor(n/18e5)+6e4*r,A=[],$=Math.round(4);for(let e=0;e<$;e++){let t=I+9e5*e;A.push({leftPct:e/$*100,label:0=
+==e&&0===r?"NOW · "+(0,s.fmt)(t):(0,s.fmt)(t)})}let R=i?.channels.find(e=>e.channelId===p?.id),L=e.map((e,t)=>{let r=(0,s.programAt)(e.programs,n)??e.programs[0
+];return{index:t,channel:e.channel,programs:e.programs,cur:r,pct:o(r,n),remain:d(r,n)}});return{now:n,channels:l,current:p,list:x,cur:h,next:u,later:f,pct:v,rem
+ain:m,inBreak:j,breakStart:b,breakEnd:S,breakRemain:w,nextBreak:k,breakSource:y?"scte":"estimate",segs:E,cues:N,nextBreakInSec:C,winStart:I,winEnd:I+36e5,ticks:
+A,posPct:e=>(e-I)/36e5*100,chStat:R,perChannel:L}}(l,u,v,w,h,B),eI=(e,t)=>{(0,s.emit)({event:"program_select",channelId:e.channelId,programId:e.id}),T({program:
+e,channelIndex:t})},eA=()=>{let e=eu.current;e&&(document.fullscreenElement?document.exitFullscreen():e.requestFullscreen?.())},e$=async()=>{let e=eg.current;if
+(e)try{document.pictureInPictureElement?await document.exitPictureInPicture():await e.requestPictureInPicture()}catch{}};if(!e)return(0,t.jsx)("div",{className:
+"fw-page",style:{minHeight:"100vh",background:"var(--bg)"}});let eR=eC.channels;return(0,t.jsxs)("div",{className:"fw-page",style:{background:"var(--bg)"},child
+ren:[W&&(0,t.jsxs)("div",{style:{position:"sticky",top:0,zIndex:50,background:"var(--accent)",color:"#fff",padding:"8px 28px",font:`700 11px/1 ${x}`,letterSpaci
+ng:".14em",display:"flex",alignItems:"center",gap:10},children:[(0,t.jsx)("span",{className:"fw-pulse",style:{width:7,height:7,background:"#fff",borderRadius:"5
+0%"}}),"NETWORK DISCONNECTED · RECONNECTING AUTOMATICALLY"]}),(0,t.jsx)("header",{style:{position:"sticky",top:0,zIndex:30,background:"var(--bg)",borderBottom:"
+2px solid var(--accent)"},children:(0,t.jsxs)("div",{style:{display:"flex",alignItems:"center",justifyContent:"space-between",gap:20,flexWrap:"wrap"},children:[
+(0,t.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:4,minWidth:0,flex:"1 1 auto"},children:[(0,t.jsxs)("div",{style:{display:"flex",alignItems:"cent
+er",gap:10,padding:"16px 22px 16px 28px",flexShrink:0},children:[(0,t.jsx)(r.default,{size:22}),(0,t.jsx)("div",{style:{fontWeight:700,fontSize:16,letterSpacing
+:".16em",whiteSpace:"nowrap"},children:"FAST WORLD TV"})]}),(0,t.jsx)("nav",{className:"fw2-nav",children:ec.map(([e,n])=>(0,t.jsx)("button",{className:"fw2-tab
+","data-active":F===e,onClick:()=>V(e),style:{flexShrink:0},children:n},e))})]}),(0,t.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:18,padding:"0 2
+8px"},children:[(0,t.jsxs)("div",{style:{display:"flex",alignItems:"center",gap:7,font:`600 11px/1 ${x}`,letterSpacing:".14em",color:"var(--accent)"},children:[
+(0,t.jsx)("span",{className:"fw-pulse",style:{width:8,height:8,background:"var(--accent)",borderRadius:"50%"}}),"LIVE"]}),(0,t.jsx)("div",{style:{font:`600 12px
+/1 ${x}`,color:"var(--text-60)",minWidth:74},children:(0,s.hms)(v)}),(0,t.jsxs)("div",{style:{display:"flex",border:"2px solid var(--rule-16)"},children:[(0,t.j
+sx)("button",{onClick:()=>q(!1),style:{padding:"9px 13px",font:`600 11px/1 ${x}`,letterSpacing:".1em",background:K?"transparent":"var(--text)",color:K?"var(--te
+xt-60)":"#0a0a09"},children:"VIEWER"}),(0,t.jsx)("button",{onClick:()=>q(!0),style:{padding:"9px 13px",font:`600 11px/1 ${x}`,letterSpacing:".1em",background:K?
+"var(--accent)":"transparent",color:K?"#fff":"var(--text-60)"},children:"OPERATOR"})]})]})]})}),(0,t.jsx)(D,{view:eC,ssaiSession:z,muted:y,paused:b,captionsOn:I
+,captionsAvail:$,reloadNonce:L,behind:et,osd:J,videoRef:eg,playerCellRef:eu,onStatus:C,onCaptionsAvailable:R,onTogglePlay:eE,onToggleMute:ek,onToggleCaptions:()
+=>A(e=>!e),onPip:e$,onFullscreen:eA,onGoLive:()=>{en(0),S(!1),O(e=>e+1),(0,s.emit)({event:"playback_resume",channelId:eT})},onChannel:e=>ew(u+e),onOpenInfo:()=>
+{let e=l[u];eC.cur?eI(eC.cur,u):e?.programs[0]&&eI(e.programs[0],u)},onGuide:()=>V("guide")}),K&&(0,t.jsx)(_,{view:eC,status:h,ssaiSession:z}),(0,t.jsx)(Y,{stat
+us:h}),"home"===F&&(0,t.jsx)(X,{view:eC,rows:l,ch:u,onTune:ew,onInfo:eI}),"guide"===F&&(0,t.jsx)(Z,{view:eC,rows:l,ch:u,cat:ei,epgFailed:M,onCat:ea,onPage:e=>{k
+(t=>t+e),(0,s.emit)({event:"epg_scroll"})},onNow:()=>k(0),onTune:ew,onInfo:eI}),"channels"===F&&(0,t.jsx)(ee,{view:eC,rows:l,ch:u,status:h,onTune:ew,onInfo:eI})
+,"agent"===F&&(0,t.jsx)(er,{activeChallenge:eo,runStart:ex,now:v,onSelect:e=>{ep(e),eh(Date.now())}}),"hood"===F&&(0,t.jsx)(el,{status:h,now:v}),(0,t.jsx)(ed,{o
+nSeeAgent:()=>V("agent")}),E&&(0,t.jsx)(es,{program:E.program,channel:eR[E.channelIndex],now:v,onClose:()=>T(null),onTune:()=>ew(E.channelIndex)})]})}],4493)}])
+;
+fe1dd2af1f8a:/app#

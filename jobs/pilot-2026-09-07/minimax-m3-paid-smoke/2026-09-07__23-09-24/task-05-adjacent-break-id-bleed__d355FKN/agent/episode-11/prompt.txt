@@ -1,0 +1,46 @@
+New Terminal Output:
+
+0b3ff8174f56:/app# cat > /app/test_bug.mjs << 'EOF'
+> import { detectAvails } from "./packages/data-plane/src/avails.ts";
+>
+> const m = `#EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-first"
+> #EXTINF:6.000,
+> seg1.ts
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-second"
+> #EXTINF:6.000,
+> seg2.ts
+> #EXT-X-CUE-IN`;
+>
+> const avails = detectAvails(m, "ch");
+> console.log(JSON.stringify(avails, null, 2));
+> EOF
+0b3ff8174f56:/app# npx tsx test_bug.mjs
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "channelId": "ch",
+    "externalBreakId": "BRK-first",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 6,
+    "startSequence": 0,
+    "startLine": 1,
+    "endLine": 5
+  },
+  {
+    "opportunityId": "opp_ch_1",
+    "channelId": "ch",
+    "externalBreakId": "BRK-second",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 6,
+    "startSequence": 1,
+    "startLine": 6,
+    "endLine": 10
+  }
+]
+0b3ff8174f56:/app#

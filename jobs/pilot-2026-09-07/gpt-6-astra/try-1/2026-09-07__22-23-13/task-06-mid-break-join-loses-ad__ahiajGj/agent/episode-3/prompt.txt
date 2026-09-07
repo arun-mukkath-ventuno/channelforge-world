@@ -1,0 +1,53 @@
+New Terminal Output:
+
+6f61bf7d2dec:/app# find packages/data-plane/src -type f; cat packages/data-plane/package.json; grep -rnE 'break|decision' packages/data-plane/src | head -130
+packages/data-plane/src/avails.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/stitch.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/segment.ts
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+packages/data-plane/src/avails.ts:6:// request and the decisioning path must agree on the same opportunity id for a
+packages/data-plane/src/avails.ts:7:// given break without coordinating, so the cached pod is found on the hot path.
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:15:   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+packages/data-plane/src/avails.ts:16:   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+packages/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/src/stitch.ts:56:function renderPod(pod: RenderedPodItem[], emitMeta: boolean, breakStart?: string): string[] {
+packages/data-plane/src/stitch.ts:62:      const start = breakStart
+packages/data-plane/src/stitch.ts:63:        ? new Date(new Date(breakStart).getTime() + item.startOffset * 1000).toISOString()
+packages/data-plane/src/decider.ts:3:// persists the decision and writes the pod to the cache, so subsequent playlist
+packages/data-plane/src/decider.ts:19:/** Posts to the control plane's /v1/ad-decision. */
+packages/data-plane/src/decider.ts:31:      const res = await this.fetchImpl(`${this.controlPlaneUrl}/v1/ad-decision`, {
+packages/data-plane/src/decider.ts:41:            : { external_break_id: avail.externalBreakId }),
+packages/data-plane/src/decider.ts:46:      const decision = (await res.json()) as { pod?: PodItem[] };
+packages/data-plane/src/decider.ts:47:      return decision.pod ?? null;
+packages/data-plane/src/avails.test.ts:108:  it("does not leak one break's id onto a later break that has none", () => {
+6f61bf7d2dec:/app#

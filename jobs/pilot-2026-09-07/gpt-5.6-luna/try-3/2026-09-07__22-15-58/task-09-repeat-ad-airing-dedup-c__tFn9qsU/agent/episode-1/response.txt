@@ -1,0 +1,22 @@
+{
+  "analysis": "This is a small Next.js/TypeScript application. The relevant code is likely under src/lib, especially ssai, fast-client/view, telemetry, and channel/EPG modules. No service is currently running inside the container (PID 1 is sleep), so after fixing we may need use the package scripts or start/restart the expected Next service. The external read-only ingestion source has not yet been located, so I will search the filesystem and repository for event/beacon terminology and inspect package scripts.",
+  "plan": "Read package.json and grep all application code plus likely mounted directories for telemetry, beacon, impression, quartile, completion, deduplication, occurrence, airing, and session identifiers. Locate any read-only ingestion implementation outside /app. Then inspect the relevant files and tests to determine the incorrect event key and the intended contract.",
+  "commands": [
+    {
+      "keystrokes": "cat package.json; printf '\\n--- source grep ---\\n'; grep -RInE 'beacon|impression|quartile|completion|creative|airing|session|dedup|telemetry|start' src --exclude='*.test.ts' | head -400\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '--- all likely files outside app ---'; find / -path /proc -prune -o -path /sys -prune -o -path /dev -prune -o -path /app/node_modules -prune -o -type f -print 2>/dev/null | grep -Ei 'ingest|analytics|telemetry|beacon|dedup|ad|creative|airing|source|read.?only' | head -300\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '--- src/lib/ssai.ts ---'; sed -n '1,260p' src/lib/ssai.ts; printf '%s\\n' '--- fast-client.ts ---'; sed -n '1,260p' src/lib/fast-client.ts; printf '%s\\n' '--- telemetry-store.ts ---'; sed -n '1,300p' src/lib/telemetry-store.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '--- tests mentioning analytics ---'; grep -RInE 'creative|airing|beacon|quartile|completion|impression|telemetry|session|dedup' src --include='*.test.ts' | head -400\n",
+      "duration": 0.2
+    }
+  ]
+}

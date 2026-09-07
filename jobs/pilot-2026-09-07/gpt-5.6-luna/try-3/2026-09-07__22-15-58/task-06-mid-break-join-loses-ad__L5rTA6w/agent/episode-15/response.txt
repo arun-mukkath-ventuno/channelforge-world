@@ -1,0 +1,18 @@
+{
+  "analysis": "The attempted continuation logic is present, but the generated TypeScript contains literal backslashes before quote characters (`\\\"`), causing syntax errors. No tests can evaluate the change until that line is corrected. I will replace the malformed line with valid TypeScript, then rerun typecheck and focused tests. I will not modify tests.",
+  "plan": "Use a Node script to replace only the malformed RegExp line with a valid expression. Then run typecheck and the avails/stitch/media tests. If those pass, inspect the continuation behavior with a direct TypeScript execution or add no test files, and then assess whether the implementation correctly handles the complete active-break window.",
+  "commands": [
+    {
+      "keystrokes": "node --input-type=module <<'NODE'\nimport { readFileSync, writeFileSync } from 'node:fs';\nconst file = 'packages/data-plane/src/avails.ts';\nlet s = readFileSync(file, 'utf8');\ns = s.replace(/    const match = value\\.match\\(new RegExp\\(name \\+ .*\\n/, '    const match = value.match(new RegExp(name + \"=\\\\\\\\s*(\\\\\\\\d+(?:\\\\\\\\.\\\\\\\\d+)?)\", \"i\"));\\n');\nwriteFileSync(file, s);\nNODE\nsed -n '37,45p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm run typecheck\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts packages/data-plane/src/media.test.ts\n",
+      "duration": 3.0
+    }
+  ]
+}

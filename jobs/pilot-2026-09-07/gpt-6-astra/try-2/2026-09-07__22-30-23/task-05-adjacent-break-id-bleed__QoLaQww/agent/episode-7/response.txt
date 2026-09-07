@@ -1,0 +1,18 @@
+{
+  "analysis": "The original reproduction confirmed that both breaks received 'first'. The detector now excludes closing DATERANGEs from ID association while leaving the core parser unchanged. The existing tests are still running.",
+  "plan": "Run in-memory regression checks covering adjacent breaks, both opening-marker orders, closing markers on either side of CUE-IN, generic DATERANGEs, quoted/bare IDs, and a second break with no ID. Then start the data-plane directly from updated TypeScript source, avoiding changes to generated files or configuration.",
+  "commands": [
+    {
+      "keystrokes": "node --import tsx --input-type=module <<'JS'\nimport assert from 'node:assert/strict';\nimport { detectAvails } from './packages/data-plane/src/avails.ts';\nlet count = 0;\nfor (const closing of ['SCTE35-IN=0xFC', 'END-DATE=\"2026-09-07T12:00:06Z\"', 'scte35-in=\"0xFC\"']) {\n for (const closeFirst of [true, false]) {\n  for (const before of [true, false]) {\n   for (const id of ['\"second\"', 'second', '\"second,END-DATE=not-an-attribute\"']) {\n    for (const suffix of ['', ',SCTE35-OUT=0xFC', ',PLANNED-DURATION=6']) {\n     for (const missing of [true, false]) {\n      const end = `#EXT-X-DATERANGE:ID=\"first\",${closing}`;\n      const next = `#EXT-X-DATERANGE:ID=${id}${suffix}`;\n      const opening = missing ? ['#EXT-X-CUE-OUT:DURATION=6'] : before ? [next, '#EXT-X-CUE-OUT:DURATION=6'] : ['#EXT-X-CUE-OUT:DURATION=6', next];\n      const lines = ['#EXTM3U','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID=\"first\",SCTE35-OUT=0xFC','#EXTINF:6,','a.ts', ...(closeFirst ? [end, '#EXT-X-CUE-IN'] : ['#EXT-X-CUE-IN', end]), ...opening, '#EXTINF:6,','b.ts','#EXT-X-CUE-IN'];\n      const avails = detectAvails(lines.join('\\n'), 'ch');\n      assert.deepEqual(avails.map(a => a.externalBreakId), ['first', missing ? undefined : id.replaceAll('\"', '')]);\n      assert.deepEqual(avails.map(a => a.opportunityId), ['opp_ch_0','opp_ch_1']);\n      assert.deepEqual(avails.map(a => a.duration), [6, 6]);\n      count++;\n     }\n    }\n   }\n  }\n }\n}\nconsole.log(`${count} adjacent-break regression cases passed`);\nJS\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "nohup node --import tsx /app/packages/data-plane/src/server.ts >/dev/null 2>&1 &\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "wget -qO- http://localhost:4010/health; printf '\\n'; ps aux | grep '[s]erver.ts'; sed -n '73,94p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

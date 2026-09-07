@@ -1,0 +1,94 @@
+New Terminal Output:
+
+0b3ff8174f56:/app# cat > /app/test_bug.mjs << 'EOF'
+> import { detectAvails } from "./packages/data-plane/src/avails.ts";
+>
+> // Scenario: second break's DATERANGE comes BEFORE its CUE-OUT (unusual order)
+> const m1 = `#EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-first"
+> #EXTINF:6.000,
+> seg1.ts
+> #EXT-X-CUE-IN
+> #EXT-X-DATERANGE:ID="BRK-second"
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg2.ts
+> #EXT-X-CUE-IN`;
+>
+> console.log("=== Scenario 1: DATERANGE before second CUE-OUT ===");
+> const avails1 = detectAvails(m1, "ch");
+> console.log(JSON.stringify(avails1.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId})), null, 2));
+>
+> // Scenario: no segment between CUE-IN of break 1 and the cue_out/daterange of break 2
+> // i.e., break 2 starts with a daterange right after the CUE-IN
+> const m2 = `#EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-first"
+> #EXTINF:6.000,
+> seg1.ts
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-second"
+> #EXTINF:6.000,
+> seg2.ts
+> #EXT-X-CUE-IN`;
+>
+> console.log("\n=== Scenario 2: normal back-to-back ===");
+> const avails2 = detectAvails(m2, "ch");
+> console.log(JSON.stringify(avails2.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId})), null, 2));
+>
+> // Scenario: what if the daterange for second break comes RIGHT after cue_in, before its cue_out?
+> const m3 = `#EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-first"
+> #EXTINF:6.000,
+> seg1.ts
+> #EXT-X-CUE-IN
+> #EXT-X-DATERANGE:ID="BRK-second"
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg2.ts
+> #EXT-X-CUE-IN`;
+>
+> console.log("\n=== Scenario 3: daterange before second cue_out ===");
+> const avails3 = detectAvails(m3, "ch");
+> console.log(JSON.stringify(avails3.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId})), null, 2));
+> EOF
+0b3ff8174f56:/app# npx tsx test_bug.mjs
+=== Scenario 1: DATERANGE before second CUE-OUT ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first"
+  },
+  {
+    "opportunityId": "opp_ch_1",
+    "externalBreakId": "BRK-second"
+  }
+]
+
+=== Scenario 2: normal back-to-back ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first"
+  },
+  {
+    "opportunityId": "opp_ch_1",
+    "externalBreakId": "BRK-second"
+  }
+]
+
+=== Scenario 3: daterange before second cue_out ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first"
+  },
+  {
+    "opportunityId": "opp_ch_1",
+    "externalBreakId": "BRK-second"
+  }
+]
+0b3ff8174f56:/app#

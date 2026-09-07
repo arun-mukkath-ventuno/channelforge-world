@@ -1,0 +1,10 @@
+{
+  "analysis": "The detector requires a CUE-OUT followed by CUE-IN; the stitcher replaces only those detected regions. I will inspect continuation marker semantics and existing tests to determine the narrowest supported late-entry recovery.",
+  "plan": "Read the marker parser and locate continuation-related code and tests.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/core/src/scte.ts; tail -25 packages/data-plane/src/avails.ts; grep -RInE 'CONT|late|elapsed|mid.break' packages/data-plane/src packages/core/src packages/control-plane/src | head -90\n",
+      "duration": 0.1
+    }
+  ]
+}

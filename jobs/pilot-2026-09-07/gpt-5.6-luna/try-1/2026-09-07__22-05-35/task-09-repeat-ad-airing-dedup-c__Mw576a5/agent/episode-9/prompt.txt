@@ -1,0 +1,86 @@
+New Terminal Output:
+
+S http://127.0.0.1:3000/api/fast/status; else echo 'no HTTP client available'; fi
+{"serverNow":1788799146783,"channelsLive":4,"streamsHealthy":2,"epgSynced":true,"programsToday":1171,"avgSwitchSeconds":"1.4","sessions":0,"eventsToday":0,"swit
+chSamples":0,"switchP50Ms":0,"switchP95Ms":0,"avgStartupMs":0,"storeBackend":"memory","channels":[{"channelId":101,"name":"Home Cooking TV","status":"degraded",
+"manifest":{"available":false,"responseMs":14},"epg":{"synced":true,"agoSeconds":23},"currentProgram":"Mutton Donne Biryani Recipe","currentProgramId":"CF-101-1
+270","scheduledStart":1788798766000,"actualStartDeltaMs":1098,"programsToday":211,"uptimePct":"0.00","viewers":0,"errors":0},{"channelId":102,"name":"Yoga & You
+","status":"degraded","manifest":{"available":false,"responseMs":6},"epg":{"synced":true,"agoSeconds":5},"currentProgram":"Padmasana for Beginners","currentProg
+ramId":"CF-102-687","scheduledStart":1788797770000,"actualStartDeltaMs":443,"programsToday":135,"uptimePct":"0.00","viewers":0,"errors":0},{"channelId":103,"nam
+e":"Art All The Way","status":"live","manifest":{"available":true,"responseMs":833},"epg":{"synced":true,"agoSeconds":27},"currentProgram":"DIY Scorpion Origami
+ 🦂","currentProgramId":"CF-103-2266","scheduledStart":1788798924000,"actualStartDeltaMs":1159,"programsToday":538,"uptimePct":"99.93","viewers":0,"errors":0},{
+"channelId":104,"name":"Ventuno Mix","status":"live","manifest":{"available":true,"responseMs":833},"epg":{"synced":true,"agoSeconds":17},"currentProgram":"Frie
+d Chicken Biryani","currentProgramId":"CF-104-1228","scheduledStart":1788798832000,"actualStartDeltaMs":343,"programsToday":287,"uptimePct":"99.98","viewers":0,
+"errors":0}]}f549e1c35e50:/app# printf '%s\n' '-- running processes --' && ps auxww | sed -n '1,140p' && printf '%s\n' '-- service log --' && tail -40 /tmp/fasg
+-- running processes --
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   96 root      0:00 [tmux: client]
+   97 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   98 root      0:00 bash --login
+   99 root      0:00 cat
+  112 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  116 root      0:00 /bin/bash
+  574 root      0:00 [node]
+  765 root      0:00 [esbuild]
+ 1002 root      0:00 node /usr/local/bin/pnpm start
+ 1014 root      0:00 next-server (v16.3.3)
+ 1070 root      0:00 ps auxww
+ 1071 root      0:00 sed -n 1,140p
+-- service log --
+
+> fast-world-tv@0.1.0 start /app
+> next start
+
+▲ Next.js 16.3.3
+- Local:         http://localhost:3000
+- Network:       http://172.19.0.2:3000
+✓ Ready in 70ms
+✓ Running next.config.ts took 21ms
+f549e1c35e50:/app# node - <<'JS'
+> (async () => {
+>   try {
+>     const r = await fetch('http://127.0.0.1:3000/api/fast/status');
+>     console.log('HTTP', r.status);
+>     console.log(await r.text());
+>   } catch (e) {
+>     console.error('HTTP_ERROR', e instanceof Error ? e.message : e);
+>     process.exitCode = 1;
+>   }
+> })();
+> JS
+HTTP 200
+{"serverNow":1788799160069,"channelsLive":4,"streamsHealthy":2,"epgSynced":true,"programsToday":1171,"avgSwitchSeconds":"1.4","sessions":0,"eventsToday":0,"swit
+chSamples":0,"switchP50Ms":0,"switchP95Ms":0,"avgStartupMs":0,"storeBackend":"memory","channels":[{"channelId":101,"name":"Home Cooking TV","status":"degraded",
+"manifest":{"available":false,"responseMs":14},"epg":{"synced":true,"agoSeconds":23},"currentProgram":"Mutton Donne Biryani Recipe","currentProgramId":"CF-101-1
+270","scheduledStart":1788798766000,"actualStartDeltaMs":1098,"programsToday":211,"uptimePct":"0.00","viewers":0,"errors":0},{"channelId":102,"name":"Yoga & You
+","status":"degraded","manifest":{"available":false,"responseMs":6},"epg":{"synced":true,"agoSeconds":5},"currentProgram":"Padmasana for Beginners","currentProg
+ramId":"CF-102-687","scheduledStart":1788797770000,"actualStartDeltaMs":443,"programsToday":135,"uptimePct":"0.00","viewers":0,"errors":0},{"channelId":103,"nam
+e":"Art All The Way","status":"live","manifest":{"available":true,"responseMs":833},"epg":{"synced":true,"agoSeconds":27},"currentProgram":"DIY Scorpion Origami
+ 🦂","currentProgramId":"CF-103-2266","scheduledStart":1788798924000,"actualStartDeltaMs":1159,"programsToday":538,"uptimePct":"99.93","viewers":0,"errors":0},{
+"channelId":104,"name":"Ventuno Mix","status":"live","manifest":{"available":true,"responseMs":833},"epg":{"synced":true,"agoSeconds":17},"currentProgram":"Frie
+d Chicken Biryani","currentProgramId":"CF-104-1228","scheduledStart":1788798832000,"actualStartDeltaMs":343,"programsToday":287,"uptimePct":"99.98","viewers":0,
+"errors":0}]}
+f549e1c35e50:/app# printf '%s\n' '-- final patch --' && sed -n '40,48p;158,168p' src/lib/ssai.ts
+-- final patch --
+  | "ad_complete";
+
+/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId: string): void {
+  const body = JSON.stringify({ event, session_id: sessionId, pod_id: podId, ad_id: adId });
+  try {
+    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+      navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: "application/json" }));
+    } else {
+        if (now < w.start || now > w.end) continue;
+        const progress = (now - w.start) / Math.max(1, w.end - w.start);
+        for (const [threshold, beacon] of QUARTILES) {
+          if (progress + 1e-6 < threshold) continue;
+          const key = `${w.adId}:${w.start}:${beacon}`;
+          if (fired.has(key)) continue;
+          fired.add(key);
+          sendAdBeacon(opts.sessionId, beacon, w.adId, String(w.start));
+        }
+      }
+    }
+f549e1c35e50:/app#

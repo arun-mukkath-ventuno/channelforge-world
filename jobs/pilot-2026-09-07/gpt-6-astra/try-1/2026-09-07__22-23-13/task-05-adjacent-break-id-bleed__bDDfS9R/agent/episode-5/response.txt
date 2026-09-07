@@ -1,0 +1,14 @@
+{
+  "analysis": "The defect is in data-plane avail detection: a closing SCTE35-IN DATERANGE is treated as a candidate opening ID. At a zero-gap boundary, the next CUE-OUT inherits it, and the real opening DATERANGE cannot replace it. Clearing state only at CUE-IN would not fix closing DATERANGEs emitted after CUE-IN. The fix should exclude closing-only SCTE35-IN updates from ID association, while retaining generic DATERANGEs, both marker orderings, and combined OUT/IN markers.",
+  "plan": "First reproduce the incorrect attribution using an inline assertion-free probe. Then add a targeted closing-only check in avails.ts; parse attribute names without mistaking text inside quoted values for attributes. No test or configuration files will be modified.",
+  "commands": [
+    {
+      "keystrokes": "node --import tsx --input-type=module <<'JS'\nimport { detectAvails } from './packages/data-plane/src/avails.ts';\nconst m = ['#EXTM3U','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID=\"first\",SCTE35-OUT=0xFC','#EXTINF:6,','a.ts','#EXT-X-CUE-IN','#EXT-X-DATERANGE:ID=\"first\",SCTE35-IN=0xFC','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID=\"second\",SCTE35-OUT=0xFC','#EXTINF:6,','b.ts','#EXT-X-CUE-IN'].join('\\n');\nconsole.log(detectAvails(m, 'ch').map(a => a.externalBreakId));\nJS\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "node --input-type=module <<'JS'\nimport fs from 'node:fs';\nconst path = 'packages/data-plane/src/avails.ts';\nlet source = fs.readFileSync(path, 'utf8');\nconst before = '    if (marker?.kind === \"daterange\" && marker.id) {\\n      blockBreakId = marker.id;';\nconst after = `    if (marker?.kind === \"daterange\" && marker.id) {\n      // Closing updates can share a tag block with the next CUE-OUT. They must not\n      // seed that break's id. Keep generic and combined OUT/IN DATERANGEs supported.\n      const attrs = marker.raw.slice(\"#EXT-X-DATERANGE\".length).replace(/^:/, \"\");\n      const keys = Array.from(attrs.matchAll(/(?:^|,)\\\\s*([^=,\\\\s]+)=(?:\"[^\"]*\"|[^,]*)/g),\n        (match) => match[1]!.toUpperCase());\n      if (keys.includes(\"SCTE35-IN\") && !keys.includes(\"SCTE35-OUT\")) continue;\n      blockBreakId = marker.id;`;\nif (!source.includes(before)) throw new Error('Expected source not found');\nfs.writeFileSync(path, source.replace(before, after));\nJS\n",
+      "duration": 0.1
+    }
+  ]
+}

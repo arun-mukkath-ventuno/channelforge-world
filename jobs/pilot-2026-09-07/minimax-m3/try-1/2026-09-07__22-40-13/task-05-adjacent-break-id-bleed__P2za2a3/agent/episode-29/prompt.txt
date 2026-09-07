@@ -1,0 +1,58 @@
+New Terminal Output:
+
+d55ac9bae4ee:/app# python3 << 'PYEOF'
+> import re
+>
+> with open('packages/data-plane/src/avails.ts', 'r') as f:
+>     content = f.read()
+>
+> # Replace the CUE-IN close logic to also clear blockBreakId
+> old = '''    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: `opp_${channelId}_${open.startSequence}`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       continue;
+>     }'''
+>
+> new = '''    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: `opp_${channelId}_${open.startSequence}`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       // The DATERANGE id belonged to the avail we just closed; clear it so a CUE-OUT that
+>       // immediately follows (back-to-back breaks, no media URI in between) does not pick it up.
+>       blockBreakId = undefined;
+>       continue;
+>     }'''
+>
+> if old not in content:
+>     print("ERROR: old pattern not found")
+> else:
+>     content = content.replace(old, new)
+>     with open('packages/data-plane/src/avails.ts', 'w') as f:
+>         f.write(content)
+>     print("SUCCESS")
+> PYEOF
+bash: python3: command not found
+d55ac9bae4ee:/app#

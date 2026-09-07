@@ -1,0 +1,10 @@
+{
+  "analysis": "I can clearly see the bug now. The `active_takedown_for_asset` function checks for takedowns with `scope_type == \"asset\"` but the `scope_ids` list contains both the asset's id AND its series_id. So if there's a series-scoped takedown, the `scope_id.in_(scope_ids)` would match the series_id, but the `scope_type == \"asset\"` filter would exclude it. The fix is to remove the `scope_type == \"asset\"` filter, since the `scope_ids` list now correctly contains both the asset id (for asset-scoped takedowns) and the series_id (for series-scoped takedowns).",
+  "plan": "Fix the bug by removing the `RightsTakedown.scope_type == \"asset\"` line.",
+  "commands": [
+    {
+      "keystrokes": "cat tests/ -R 2>&1 | head -50\n",
+      "duration": 0.1
+    }
+  ]
+}

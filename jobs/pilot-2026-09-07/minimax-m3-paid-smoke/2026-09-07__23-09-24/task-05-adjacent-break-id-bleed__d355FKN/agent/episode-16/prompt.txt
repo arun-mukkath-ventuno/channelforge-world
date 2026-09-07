@@ -1,0 +1,17 @@
+New Terminal Output:
+
+0b3ff8174f56:/app# sed -n '108,120p' packages/data-plane/src/avails.ts
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      // The URI line follows; advance the sequence when we consume it below.
+    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+0b3ff8174f56:/app#

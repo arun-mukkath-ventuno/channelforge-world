@@ -1,0 +1,235 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# nl -ba packages/data-plane/src/server.ts | sed -n '75,180p'; printf '\n===== pod-cache =====\n'; nl -ba packages/persistence/src/pod-cache.ts
+; printf '\n===== cache tests =====\n'; nl -ba packages/persistence/src/pod-cache.test.ts
+    75	    const originBody = absolutizeManifest(originResult.body, origin.originUrlFor(channel, variant));
+    76	    const avails = detectAvails(originBody, channel);
+    77	
+    78	    // Resolve a pod for each avail (cache, else decide once), then resolve its
+    79	    // media from the store into concrete segments.
+    80	    const rendered = new Map<string, RenderedPodItem[]>();
+    81	    for (const avail of avails) {
+    82	      let pod: PodItem[] | undefined;
+    83	      const cached = await podCache.get(session, avail.opportunityId);
+    84	      if (cached) pod = cached.pod;
+    85	      else if (decider) {
+    86	        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+    87	        if (decided) pod = decided;
+    88	      }
+    89	      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+    90	    }
+    91	
+    92	    const { manifest, stitched } = stitchManifest(originBody, avails, rendered);
+    93	
+    94	    reply.header("content-type", "application/vnd.apple.mpegurl");
+    95	    reply.header("x-ssai-avails", String(avails.length));
+    96	    reply.header("x-ssai-stitched", String(stitched.length));
+    97	    if (originResult.stale) reply.header("x-ssai-origin", "stale");
+    98	    return manifest;
+    99	  });
+   100	
+   101	  // Serve prepared creative segments the stitched manifest points at (PRD §14).
+   102	  app.get("/v1/segments/:creativeId/:file", async (req, reply) => {
+   103	    const { creativeId, file } = req.params as { creativeId: string; file: string };
+   104	    if (!SAFE_ID.test(creativeId) || !SAFE_FILE.test(file)) {
+   105	      return reply.code(400).send({ error: "invalid segment path" });
+   106	    }
+   107	    return serveStored(reply, store, `creatives/${creativeId}/${file}`, file);
+   108	  });
+   109	
+   110	  // Serve prepared slate segments (PRD §20).
+   111	  app.get("/v1/slate/:slateId/:file", async (req, reply) => {
+   112	    const { slateId, file } = req.params as { slateId: string; file: string };
+   113	    if (!SAFE_ID.test(slateId) || !SAFE_FILE.test(file)) {
+   114	      return reply.code(400).send({ error: "invalid segment path" });
+   115	    }
+   116	    return serveStored(reply, store, `slates/${slateId}/${file}`, file);
+   117	  });
+   118	
+   119	  return app;
+   120	}
+   121	
+   122	async function serveStored(reply: import("fastify").FastifyReply, store: ObjectStore, key: string, file: string) {
+   123	  try {
+   124	    const data = await store.get(key);
+   125	    const ext = file.split(".").pop()!;
+   126	    reply.header("content-type", CONTENT_TYPES[ext] ?? "application/octet-stream");
+   127	    reply.header("cache-control", "public, max-age=31536000, immutable");
+   128	    return reply.send(data);
+   129	  } catch {
+   130	    return reply.code(404).send({ error: "segment_not_found" });
+   131	  }
+   132	}
+   133	
+   134	if (import.meta.url === `file://${process.argv[1]}`) {
+   135	  const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+   136	  const { createObjectStoreFromEnv } = await import("@ssai/storage");
+   137	  const podCache = new RedisPodCache(createRedis());
+   138	  const origin = new OriginClient();
+   139	  const store = await createObjectStoreFromEnv();
+   140	  const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? "http://localhost:4000";
+   141	  const decider = new HttpPodDecider(controlPlaneUrl);
+   142	  const app = buildServer({ podCache, origin, store, decider });
+   143	  app.listen({ port: Number(process.env.DATA_PLANE_PORT ?? 4010), host: "0.0.0.0" }).catch((err) => {
+   144	    app.log.error(err);
+   145	    process.exit(1);
+   146	  });
+   147	}
+
+===== pod-cache =====
+     1	// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+     2	// plane reads it on the manifest hot path and never recomputes. Keyed by
+     3	// (session, opportunity).
+     4	//
+     5	// Two implementations behind one interface: Redis for real deployments, and an
+     6	// in-memory Map for tests and single-process dev.
+     7	
+     8	import type { PodItem } from "@ssai/core";
+     9	import { Redis } from "ioredis";
+    10	
+    11	export interface CachedPod {
+    12	  sessionId: string;
+    13	  opportunityId: string;
+    14	  channelId: string;
+    15	  breakDuration: number;
+    16	  pod: PodItem[];
+    17	}
+    18	
+    19	export interface PodCache {
+    20	  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+    21	  set(entry: CachedPod, ttlSeconds?: number): Promise<void>;
+    22	  del(sessionId: string, opportunityId: string): Promise<void>;
+    23	}
+    24	
+    25	function key(sessionId:
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+d?: string;
+   167	      opportunity_id?: string;
+   168	      external_break_id?: string;
+   169	      duration?: number;
+   170	      seed?: string;
+   171	    };
+   172	    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+   173	      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+   174	    }
+   175	
+   176	    const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+   177	    const now = new Date().toISOString();
+   178	    const opportunity: AdOpportunity = {
+   179	      opportunityId: body.opportunity_id,
+   180	      channelId: body.channel_id,
+   181	      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+   182	      breakStart: now,
+   183	      breakDuration: body.duration,
+   184	      source: "cue_out",
+   185	      signalType: "cue_out",
+   186	    };
+   187	    const session: SessionContext = { sessionId, channelId: body.channel_id };
+   188	
+   189	    // Inventory from Postgres.
+   190	    const [creatives, campaignMap] = await Promise.all([
+   191	      creativesRepo.listCreatives(pool),
+   192	      campaignsRepo.campaignsAsMap(pool),
+   193	    ]);
+   194	
+   195	    const seed = body.seed ?? process.env.AD_DECISION_SEED;
+   196	    const decision = decide({
+   197	      opportunity,
+   198	      session,
+   199	      creatives,
+   200	      campaigns: campaignMap,
+   201	      now,
+   202	      ...(seed ? { seed } : {}),
+   203	    });
+   204	
+   205	    const decisionId = `dec_${randomUUID()}`;
+   206	    const podId = `pod_${randomUUID()}`;
+   207	
+   208	    // Persist opportunity + session + decision atomically (PRD §46, §47).
+   209	    await withTransaction(pool, async (tx) => {
+   210	      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+   211	      await oppsRepo.upsertOpportunity(tx, opportunity);
+   212	      await decisionsRepo.saveDecision(tx, {
+   213	        decisionId,
+   214	        podId,
+   215	        decision,
+   216	        requestedAt: now,
+   217	        completedAt: new Date().toISOString(),
+   218	      });
+   219	      for (const [type, extra] of [
+   220	        ["ad_opportunity_detected", {}],
+   221	        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+   222	        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+   223	      ] as const) {
+   224	        await eventsRepo.appendEvent(tx, {
+   225	          eventId: randomUUID(),
+   226	          eventType: type,
+   227	          sessionId,
+   228	          channelId: body.channel_id,
+   229	          opportunityId: body.opportunity_id,
+   230	          podId,
+
+===== control server decision tests/references =====
+grep: unrecognized option: include=*.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+727f8e3dc8f6:/app# grep -RInE 'RedisPodCache|MemoryPodCache|podCache\.set|podCache\.get|new Pod|POD_CACHE|TTL' packages --include='*.ts' --exclude-dir=node_modu
+les | sed -n '1,280p'
+grep: unrecognized option: include=*.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+727f8e3dc8f6:/app#

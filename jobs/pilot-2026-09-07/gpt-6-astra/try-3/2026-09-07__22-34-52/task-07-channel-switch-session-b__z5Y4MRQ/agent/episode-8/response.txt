@@ -1,0 +1,14 @@
+{
+  "analysis": "Existing tests do not explicitly cover changing a session's channel. I will verify repeated associations and metadata preservation using an ephemeral in-memory database, without adding or changing test files.",
+  "plan": "Run a standalone regression check against the rebuilt repository, start the control-plane service with the corrected build, and confirm its health endpoint responds.",
+  "commands": [
+    {
+      "keystrokes": "node --input-type=module <<'JS'\nimport assert from 'node:assert/strict';\nimport { readFileSync, readdirSync } from 'node:fs';\nimport { newDb } from 'pg-mem';\nimport { sessions, channels } from '@ssai/persistence';\nconst mem = newDb();\nmem.public.none(readdirSync('migrations').filter(f => f.endsWith('.sql')).sort().map(f => readFileSync(`migrations/${f}`, 'utf8')).join('\\n'));\nconst { Pool } = mem.adapters.createPg();\nconst db = new Pool();\nfor (const id of ['a', 'b']) await channels.insertChannel(db, { id, name: id, originUrl: `http://origin/${id}` });\nawait sessions.ensureSession(db, { id: 'switch-check', channelId: 'a', deviceType: 'web', country: 'IN', anonymousId: 'viewer' });\nconst original = await sessions.getSession(db, 'switch-check');\nfor (const channelId of ['a', 'b', 'b', 'a', 'b']) {\n  await sessions.ensureSession(db, { id: 'switch-check', channelId });\n  assert.deepEqual(await sessions.getSession(db, 'switch-check'), { ...original, channelId });\n}\nassert.equal((await sessions.listSessions(db)).length, 1);\nawait db.end();\nconsole.log('PASS: latest channel wins, repeated associations remain idempotent, and all other session fields are preserved.');\nJS\nnohup node /app/packages/control-plane/dist/server.js >/dev/null 2>&1 &\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "node --input-type=module -e 'const r = await fetch(\"http://127.0.0.1:4000/health\"); console.log(r.status, await r.text()); if (!r.ok) process.exit(1)'; ps aux; sed -n '35,44p' packages/persistence/src/repositories/sessions.ts\n",
+      "duration": 1
+    }
+  ]
+}

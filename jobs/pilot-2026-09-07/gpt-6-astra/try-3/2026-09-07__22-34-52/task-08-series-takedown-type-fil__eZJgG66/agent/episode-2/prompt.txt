@@ -1,0 +1,258 @@
+New Terminal Output:
+
+root@b904aa471694:/app# grep -R -n 'takedown' app | head -160; find app -maxdepth 3 -type f; cat pyproject.toml
+app/schemas/rights.py:87:    takedown: TakedownOut
+app/api/rights.py:25:from app.services import rights_admin, rights_takedown
+app/api/rights.py:73:# --- Emergency takedown (§8.3) ---
+app/api/rights.py:75:@router.get("/organizations/{org_id}/rights/takedowns")
+app/api/rights.py:76:def list_takedowns(
+app/api/rights.py:80:        TakedownOut.model_validate(t) for t in rights_repo.list_active_takedowns(db, org_id)
+app/api/rights.py:84:@router.get("/organizations/{org_id}/rights/takedowns/preview")
+app/api/rights.py:85:def preview_takedown(
+app/api/rights.py:92:    affected = rights_takedown.preview(
+app/api/rights.py:101:@router.post("/organizations/{org_id}/rights/takedowns", status_code=status.HTTP_201_CREATED)
+app/api/rights.py:102:def place_takedown(
+app/api/rights.py:109:    takedown, affected = rights_takedown.place_takedown(
+app/api/rights.py:114:        takedown=TakedownOut.model_validate(takedown),
+app/api/rights.py:122:@router.post("/organizations/{org_id}/rights/takedowns/{takedown_id}/lift")
+app/api/rights.py:123:def lift_takedown(
+app/api/rights.py:125:    takedown_id: uuid.UUID,
+app/api/rights.py:130:    takedown = rights_takedown.lift_takedown(
+app/api/rights.py:131:        db, org_id=org_id, actor_id=principal.user_id, takedown_id=takedown_id, meta=meta,
+app/api/rights.py:133:    return TakedownOut.model_validate(takedown)
+app/api/library.py:93:    # Composite eligibility = metadata + takedown + rights. With an agreement, rights are judged
+app/api/library.py:96:    # takedown blocks either way.
+app/models/enums.py:150:    RIGHTS_TAKEDOWN = "rights_takedown"
+app/models/rights.py:96:    """An emergency takedown on an asset or series (PRD 3.0 §8.3, ADR-5).
+app/models/rights.py:103:    __tablename__ = "rights_takedowns"
+app/services/webhooks.py:41:    "rights.conflict", "rights.takedown",
+app/services/rights_takedown.py:1:"""Emergency rights takedown (PRD 3.0 §8.3, ADR-5).
+app/services/rights_takedown.py:3:Placing a takedown is a non-destructive override: it blocks the target (asset or series) at every
+app/services/rights_takedown.py:68:def place_takedown(
+app/services/rights_takedown.py:81:        raise ServiceError("A takedown requires a reason.")
+app/services/rights_takedown.py:84:    takedown = rights_repo.create_takedown(
+app/services/rights_takedown.py:91:        db, org_id=org_id, alert_type="rights_takedown", severity="critical",
+app/services/rights_takedown.py:92:        message=f"Emergency takedown on {scope_type} {scope_id}: {reason}",
+app/services/rights_takedown.py:94:        dedup_key=f"rights_takedown:{takedown.id}",
+app/services/rights_takedown.py:97:        db, action="rights_takedown.place", actor_user_id=actor_id, organization_id=org_id,
+app/services/rights_takedown.py:98:        object_type="rights_takedown", object_id=str(takedown.id),
+app/services/rights_takedown.py:105:    return takedown, affected
+app/services/rights_takedown.py:108:def lift_takedown(
+app/services/rights_takedown.py:110:    takedown_id: uuid.UUID, meta: RequestMeta,
+app/services/rights_takedown.py:112:    takedown = rights_repo.get_takedown(db, org_id=org_id, takedown_id=takedown_id)
+app/services/rights_takedown.py:113:    if takedown is None:
+app/services/rights_takedown.py:115:    if takedown.status == "active":
+app/services/rights_takedown.py:116:        takedown.status = "lifted"
+app/services/rights_takedown.py:117:        takedown.lifted_at = now_utc()
+app/services/rights_takedown.py:118:        takedown.lifted_by = actor_id
+app/services/rights_takedown.py:120:            db, org_id=org_id, dedup_key=f"rights_takedown:{takedown.id}"
+app/services/rights_takedown.py:123:            db, action="rights_takedown.lift", actor_user_id=actor_id, organization_id=org_id,
+app/services/rights_takedown.py:124:            object_type="rights_takedown", object_id=str(takedown.id),
+app/services/rights_takedown.py:128:    return takedown
+app/services/schedules.py:697:    """Rights + takedown gate at publish (§8.2 validation/publication point, ADR-5).
+app/services/schedules.py:701:    takedowns. Territory/partner-specific rights are enforced per agreement at distributor
+app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+app/services/schedules.py:706:        return [f"'{event.title}': asset is under an active emergency takedown"]
+app/services/asset_eligibility.py:48:    # An active emergency takedown blocks the asset absolutely, before any policy check (§8.3).
+app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+app/services/asset_eligibility.py:50:    if takedown is not None:
+app/services/asset_eligibility.py:52:            code="rights_takedown", field="rights", severity="error",
+app/services/asset_eligibility.py:53:            message="Asset is u
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+/adapters/ssai_adserver.py
+app/adapters/delivery.py
+app/adapters/registry.py
+app/models/destination.py
+app/models/alert.py
+app/models/webhook.py
+app/models/storage_connection.py
+app/models/rendition.py
+app/models/media_version.py
+app/models/as_run.py
+app/models/invitation.py
+app/models/text_track.py
+app/models/avails.py
+app/models/metric.py
+app/models/channel.py
+app/models/output_profile.py
+app/models/asset.py
+app/models/collection.py
+app/models/distribution.py
+app/models/youtube.py
+app/models/schedule.py
+app/models/daypart.py
+app/models/user.py
+app/models/clock.py
+app/models/qc.py
+app/models/password_reset.py
+app/models/organization.py
+app/models/__init__.py
+app/models/reconciliation.py
+app/models/enums.py
+app/models/session.py
+app/models/rights.py
+app/models/epg.py
+app/models/audit_log.py
+app/models/programming_block.py
+app/models/membership.py
+app/models/service_account.py
+app/models/base.py
+app/models/series.py
+app/main.py
+app/jobs/tasks.py
+app/jobs/__init__.py
+app/jobs/celery_app.py
+app/jobs/scheduler.py
+app/integrations/notifications/factory.py
+app/integrations/notifications/__init__.py
+app/integrations/notifications/slack.py
+app/integrations/notifications/base.py
+app/integrations/notifications/email.py
+app/integrations/storage/factory.py
+app/integrations/storage/sftp.py
+app/integrations/storage/dropbox.py
+app/integrations/storage/s3.py
+app/integrations/storage/__init__.py
+app/integrations/storage/gdrive.py
+app/integrations/storage/base.py
+app/integrations/__init__.py
+app/integrations/youtube/oauth.py
+app/integrations/youtube/__init__.py
+app/integrations/youtube/client.py
+app/integrations/youtube/base.py
+app/clock.py
+app/__init__.py
+app/redis_client.py
+app/config.py
+app/security/crypto.py
+app/security/signing.py
+app/security/__init__.py
+app/observability/__init__.py
+app/auth/api_keys.py
+app/auth/deps.py
+app/auth/__init__.py
+app/auth/tokens.py
+app/auth/passwords.py
+app/services/slugs.py
+app/services/storage.py
+app/services/noc.py
+app/services/channels.py
+app/services/programming_blocks.py
+app/services/rights_engine.py
+app/services/as_run.py
+app/services/plans.py
+app/services/audience.py
+app/services/webhooks.py
+app/services/quickstart.py
+app/services/destinations.py
+app/services/sftp.py
+app/services/eligibility.py
+app/services/collections.py
+app/services/rights_takedown.py
+app/services/caption_parse.py
+app/services/incident.py
+app/services/organizations.py
+app/services/uploads.py
+app/services/distribution.py
+app/services/captions.py
+app/services/youtube.py
+app/services/clocks.py
+app/services/dropbox.py
+app/services/heartbeat.py
+app/services/certification.py
+app/services/qc.py
+app/services/library_import.py
+app/services/service_accounts.py
+app/services/__init__.py
+app/services/playout_runtime.py
+app/services/reconciliation.py
+app/services/rights_admin.py
+app/services/auth.py
+app/services/rights.py
+app/services/epg.py
+app/services/monitoring.py
+app/services/ssai_delivery.py
+app/services/analysis.py
+app/services/fast.py
+app/services/gdrive.py
+app/services/ssai_analytics.py
+app/services/schedules.py
+app/services/alerts.py
+app/services/probes.py
+app/services/reconciliation_wiring.py
+app/services/errors.py
+app/services/lifecycle.py
+app/services/cue_plan.py
+app/services/output_profiles.py
+app/services/media.py
+app/services/cue_validation.py
+app/services/asset_eligibility.py
+app/repositories/storage.py
+app/repositories/channels.py
+app/repositories/programming_blocks.py
+app/repositories/as_run.py
+app/repositories/destinations.py
+app/repositories/collections.py
+app/repositories/text_tracks.py
+app/repositories/audit.py
+app/repositories/sessions.py
+app/repositories/organizations.py
+app/repositories/distribution.py
+app/repositories/youtube.py
+app/repositories/qc.py
+app/repositories/users.py
+app/repositories/__init__.py
+app/repositories/rights.py
+app/repositories/schedules.py
+app/repositories/alerts.py
+app/repositories/media.py
+app/repositories/series.py
+app/repositories/rights.py.orig
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
+
+[project]
+name = "channelforge-api"
+version = "0.1.0"
+description = "ChannelForge control plane (FastAPI)"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "pydantic[email]>=2.9",
+    "pydantic-settings>=2.5",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.2",
+    "redis>=5.1",
+    "celery>=5.4",
+    "argon2-cffi>=23.1",
+    "paramiko>=3.4",
+    "cryptography>=43.0",
+    "python-multipart>=0.0.12",
+    "boto3>=1.35",
+    "google-auth-oauthlib>=1.2",
+    "google-api-python-client>=2.149",
+    "structlog>=24.4",
+    "prometheus-client>=0.21",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.27",
+    "ruff>=0.7",
+    "fakeredis>=2.20",
+    "moto[s3]>=5.0",
+    "lxml>=5.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = ["soak: long-running soak tests"]
+root@b904aa471694:/app#

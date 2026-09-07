@@ -1,0 +1,10 @@
+{
+  "analysis": "The defect is in active_takedown_for_asset: it includes the series ID among candidate IDs but requires scope_type='asset', excluding every series-scoped takedown. It also incorrectly allows an asset-scoped takedown whose ID matches the series ID. The query must match paired scope types and IDs.",
+  "plan": "Replace the ID-only matching with an OR of (asset scope, asset ID) and, when present, (series scope, series ID), retaining organization and active-status filters. Inspect test setup before running existing tests.",
+  "commands": [
+    {
+      "keystrokes": "python - <<'PY'\nfrom pathlib import Path\np = Path('app/repositories/rights.py')\ns = p.read_text().replace('from sqlalchemy import func, select', 'from sqlalchemy import and_, func, or_, select')\ns = s.replace('''    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n''', '''    scope_matches = [and_(\n        RightsTakedown.scope_type == \"asset\", RightsTakedown.scope_id == asset.id\n    )]\n    if asset.series_id is not None:\n        scope_matches.append(and_(\n            RightsTakedown.scope_type == \"series\", RightsTakedown.scope_id == asset.series_id\n        ))\n''')\ns = s.replace('''            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),''', '''            or_(*scope_matches),''')\np.write_text(s)\nPY\nsed -n '1,145p' tests/conftest.py; sed -n '1,100p' tests/test_rights_takedown.py\n",
+      "duration": 0.1
+    }
+  ]
+}

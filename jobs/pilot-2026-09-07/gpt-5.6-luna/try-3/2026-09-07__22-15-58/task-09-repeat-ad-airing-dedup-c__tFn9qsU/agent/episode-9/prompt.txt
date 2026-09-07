@@ -1,0 +1,237 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+/tmp/fast-world-tv.pid)" -o pid,stat,cmd; cat /tmp/fast-world-tv.log; else echo 'build missing; service not started'; exit 1; fi
+^C
+6af9ee0f4d51:/app# printf '%s\n' '--- parser ---'; sed -n '66,88p' src/lib/ssai.ts; printf '%s\n' '--- package scripts ---'; cat package.json
+--- parser ---
+
+/** Parse ad avails from a stitched media playlist's EXT-X-DATERANGE lines (CLASS com.fastworld.ad). */
+export function parseAdWindows(manifest: string): AdWindow[] {
+  const out: AdWindow[] = [];
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+    const attr = (k: string): string | undefined => line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("DURATION");
+    const adId = attr("X-AD-ID") || attr("ID");
+    if (!startDate || !dur || !adId) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ adId, start, end: start + seconds * 1000 });
+  }
+  return out;
+}
+
+export interface ScteAvail {
+  id: string;
+  start: number; // epoch ms — break start (absolute, from START-DATE)
+  end: number; // epoch ms
+--- package scripts ---
+{
+  "name": "fast-world-tv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "lucide-react": "^1.35.0",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "shaka-player": "^4.11.9"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
+6af9ee0f4d51:/app# pnpm exec vitest run src/lib/ssai.test.ts
+
+ RUN  v3.2.7 /app
+
+ ✓ src/lib/ssai.test.ts (2 tests) 3ms
+   ✓ parseAdWindows > extracts ad windows from EXT-X-DATERANGE ad markers 2ms
+   ✓ parseAdWindows > ignores non-ad DATERANGE and content lines 0ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  16:49:40
+   Duration  180ms (transform 77ms, setup 0ms, collect 49ms, tests 3ms, environment 0ms, prepare 48ms)
+
+6af9ee0f4d51:/app# pnpm test
+
+> fast-world-tv@0.1.0 test /app
+> vitest run
+
+
+ RUN  v3.2.7 /app
+
+ ✓ src/lib/ssai.test.ts (2 tests) 3ms
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 10 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/admin-auth.test.ts [ src/lib/admin-auth.test.ts ]
+Error: Cannot find package '@/lib/admin-auth' imported from '/app/src/lib/admin-auth.test.ts'
+ ❯ src/lib/admin-auth.test.ts:2:1
+      1| import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+      2| import {
+       | ^
+      3|   passwordOk,
+      4|   passwordConfigured,
+
+Caused by: Error: Failed to load url @/lib/admin-auth (resolved id: @/lib/admin-auth) in /app/src/lib/admin-auth.test.ts. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  src/lib/channel-config-store.test.ts [ src/lib/channel-config-store.test.ts ]
+Error: Cannot find package '@/lib/channel-config-store' imported from '/app/src/lib/channel-config-store.test.ts'
+ ❯ src/lib/channel-config-store.test.ts:2:1
+      1| import { describe, it, expect, beforeEach } from "vitest";
+      2| import {
+       | ^
+      3|   getChannelDefs,
+      4|   upsertChannel,
+
+Caused by: Error: Failed to load url @/lib/channel-config-store (resolved id: @/lib/channel-config-store) in /app/src/lib/channel-config-store.test.ts. Does the
+ file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+/fast/channels/[id]/route) in /app/src/app/api/fast/routes.test.t
+s. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  10 failed | 1 passed (11)
+      Tests  2 passed (2)
+   Start at  16:49:43
+   Duration  1.31s (transform 125ms, setup 0ms, collect 10ms, tests 3ms, environment 1ms, prepare 366ms)
+
+ ELIFECYCLE  Test failed. See above for more details.
+6af9ee0f4d51:/app# pnpm run lint
+
+> fast-world-tv@0.1.0 lint /app
+> eslint
+
+
+Oops! Something went wrong! :(
+
+ESLint: 9.39.5
+
+TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Object'
+    |     property 'configs' -> object with constructor 'Object'
+    |     property 'flat' -> object with constructor 'Object'
+    |     ...
+    |     property 'plugins' -> object with constructor 'Object'
+    --- property 'react' closes the circle
+Referenced from:
+    at JSON.stringify (<anonymous>)
+    at file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/shared/config-validator.js:308:45
+    at Array.map (<anonymous>)
+    at ConfigValidator.formatErrors (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/shared/config-validator.js:299:23)
+    at ConfigValidator.validateConfigSchema (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/shared/config-validator.js:
+330:84)
+    at ConfigArrayFactory._normalizeConfigData (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-factory.js:
+676:19)
+    at ConfigArrayFactory._loadConfigData (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-factory.js:641:2
+1)
+    at ConfigArrayFactory._loadExtendedShareableConfig (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-fac
+tory.js:946:21)
+    at ConfigArrayFactory._loadExtends (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-factory.js:814:25)
+    at ConfigArrayFactory._normalizeObjectConfigDataBody (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-f
+actory.js:752:25)
+ ELIFECYCLE  Command failed with exit code 2.
+6af9ee0f4d51:/app# pnpm run build
+
+> fast-world-tv@0.1.0 build /app
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.ts took 16ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1551ms
+✓ Finished TypeScript in 1663ms
+✓ Collecting page data using 7 workers in 1675ms
+✓ Generating static pages using 7 workers (9/9) in 160ms
+✓ Finalizing page optimization in 7ms
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/fast/admin/channels
+├ ƒ /api/fast/admin/channels/[id]
+├ ƒ /api/fast/admin/login
+├ ƒ /api/fast/admin/logout
+├ ƒ /api/fast/admin/reset
+├ ƒ /api/fast/ads/current
+├ ƒ /api/fast/channels
+├ ƒ /api/fast/channels/[id]
+├ ƒ /api/fast/channels/[id]/now
+├ ƒ /api/fast/channels/[id]/schedule
+├ ƒ /api/fast/events
+├ ƒ /api/fast/guide
+├ ƒ /api/fast/hls/[...path]
+├ ƒ /api/fast/status
+├ ƒ /api/fast/xmltv
+├ ○ /fast-world/admin
+├ ○ /fast-world/live
+├ ○ /fast-world/live/ops
+├ ○ /icon.svg
+├ ○ /robots.txt
+└ ○ /sitemap.xml
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+6af9ee0f4d51:/app# (pnpm start > /tmp/fast-world-tv.log 2>&1 & echo $! > /tmp/fast-world-tv.pid); sleep 2; cat /tmp/fast-world-tv.pid; ps -p "$(cat /tmp/fast-wo
+rld-tv.pid)" -o pid,stat,cmd; cat /tmp/fast-world-tv.log
+1150
+ps: unrecognized option: p
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: ps [-o COL1,COL2=HEADER] [-T]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+	-T			Show threads
+
+> fast-world-tv@0.1.0 start /app
+> next start
+
+▲ Next.js 16.3.3
+- Local:         http://localhost:3000
+- Network:       http://172.20.0.2:3000
+✓ Ready in 63ms
+✓ Running next.config.ts took 18ms
+6af9ee0f4d51:/app#

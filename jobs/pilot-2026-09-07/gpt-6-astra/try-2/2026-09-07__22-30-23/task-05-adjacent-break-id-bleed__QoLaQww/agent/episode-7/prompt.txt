@@ -1,0 +1,33 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+> JS
+[
+  { id: 'opp_ch_0', producer: 'first' },
+  { id: 'opp_ch_1', producer: 'first' }
+]
+41aedf6c9c91:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const file = 'packages/data-plane/src/avails.ts';
+> let src = fs.readFileSync(file, 'utf8');
+> const before = '    if (marker?.kind === "daterange" && marker.id) {\n      blockBreakId = marker.id;';
+> const after = `    if (marker?.kind === "daterange" && marker.id) {
+>       // Closing updates belong to the previous break, even when the next CUE-OUT
+>       // shares this tag block. Keep accepting generic DATERANGEs without SCTE35-OUT.
+>       const attrs = marker.raw.slice(marker.raw.indexOf(":") + 1).match(/(?:[^,"]|"[^"]*")+/g) ?? [];
+>       if (attrs.some((attr) => /^\\s*(?:SCTE35-IN|END-DATE)\\s*=/i.test(attr))) continue;
+>       blockBreakId = marker.id;`;
+> if (!src.includes(before)) throw new Error('Expected source not found');
+> fs.writeFileSync(file, src.replace(before, after));
+> JS
+41aedf6c9c91:/app# npx vitest run packages/core/src packages/data-plane/src --no-cache
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/core/src/eligibility.test.ts (9)
+

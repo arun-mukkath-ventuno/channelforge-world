@@ -1,0 +1,56 @@
+New Terminal Output:
+
+c97b28b93225:/app# pwd && printf '\n-- top-level --\n' && ls -la && printf '\n-- files --\n' && find . -maxdepth 2 -type f | sort | sed -n '1,200p'
+/app
+
+-- top-level --
+total 252
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 .
+drwxr-xr-x    1 root     root          4096 Sep  7 16:41 ..
+drwxr-xr-x  226 root     root         12288 Sep  5 09:09 node_modules
+-rw-r--r--    1 root     root        219448 Sep  5 09:09 package-lock.json
+-rw-r--r--    1 root     root           742 Sep  5 08:18 package.json
+drwxr-xr-x    1 root     root          4096 Sep  5 08:18 packages
+-rw-r--r--    1 root     root           608 Sep  5 08:18 tsconfig.base.json
+-rw-r--r--    1 root     root           274 Sep  5 08:18 tsconfig.json
+
+-- files --
+./node_modules/.package-lock.json
+./package-lock.json
+./package.json
+./tsconfig.base.json
+./tsconfig.json
+c97b28b93225:/app# printf '%s\n' '-- marker/break references --' && grep -RInE 'producer.?break|break.?id|cue.?marker|cuepoint|ad.?break|splice' --exclude-dir=.
+git --exclude='*.lock' . | head -300
+-- marker/break references --
+grep: unrecognized option: exclude-dir=.git
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+c97b28b93225:/app#

@@ -1,0 +1,31 @@
+New Terminal Output:
+
+c3585fac47ee:/app# node --import tsx --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import { detectAvails } from './packages/data-plane/src/avails.ts';
+> let checks = 0;
+> for (const closing of ['SCTE35-IN=0xFC', 'scte35-in="0xFC"', 'SCTE35-IN=0xFC,X-NOTE="x,SCTE35-OUT=fake"']) {
+>   for (const opening of ['SCTE35-OUT=0xFC', 'PLANNED-DURATION=6', 'SCTE35-OUT=0xFC,SCTE35-IN=0xFD', 'X-NOTE="x,SCTE35-IN=fake"', null]) {
+>     for (const closeBefore of [true, false]) for (const openBefore of [true, false]) {
+>       const end = `#EXT-X-DATERANGE:ID="first",${closing}`;
+>       const start = opening === null ? [] : [`#EXT-X-DATERANGE:ID="second",${opening}`];
+>       const lines = ['#EXTM3U','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID="first",SCTE35-OUT=0xFC','#EXTINF:6,','a.ts',...(closeBefore ? [end,'#EXT-X-CUE-IN'] :
+['#EXT-X-CUE-IN',end]),...(openBefore ? [...start,'#EXT-X-CUE-OUT:6'] : ['#EXT-X-CUE-OUT:6',...start]),'#EXTINF:6,','b.ts','#EXT-X-CUE-IN'];
+>       const avails = detectAvails(lines.join('\n'), 'ch');
+>       assert.deepEqual(avails.map(a => a.externalBreakId), ['first', opening === null ? undefined : 'second']);
+>       assert.deepEqual(avails.map(a => [a.opportunityId, a.duration, a.measuredDuration]), [['opp_ch_0',6,6],['opp_ch_1',6,6]]);
+>       checks++;
+>     }
+>   }
+> }
+> console.log(`${checks} adjacent-break cases passed`);
+> JS
+60 adjacent-break cases passed
+c3585fac47ee:/app# npx vitest run packages/core/src packages/data-plane/src
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/data-plane/src/media.test.ts (5)
+

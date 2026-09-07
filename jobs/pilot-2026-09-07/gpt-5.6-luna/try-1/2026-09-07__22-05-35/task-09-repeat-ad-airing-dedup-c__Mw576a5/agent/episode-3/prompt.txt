@@ -1,0 +1,265 @@
+New Terminal Output:
+
+f549e1c35e50:/app# printf '%s\n' '-- reference files --' && find /reference/ssaiadserver/control-plane/events-norm -maxdepth 5 -type f -print | sort
+-- reference files --
+find: /reference/ssaiadserver/control-plane/events-norm: No such file or directory
+f549e1c35e50:/app# printf '%s\n' '-- reference dedup/event hits --' && grep -RInE '(dedup|duplicate|idempot|event_id|eventId|airing|creative|impression|session|
+quartile|completion|beacon)' /reference/ssaiadserver/control-plane/events-norm 2>/dev/null | sed -n '1,260p'
+-- reference dedup/event hits --
+f549e1c35e50:/app# printf '%s\n' '-- ssai --' && sed -n '1,320p' src/lib/ssai.ts && printf '%s\n' '-- events route --' && sed -n '1,260p' src/app/api/fast/event
+s/route.ts && printf '%s\n' '-- player hits --' && grep -RInE '(ssai|ad|beacon|quartile|completion|impression|creative|session|event)' src/components src/app/fa
+st-world src/lib --include='*.ts' --include='*.tsx' | sed -n '1,320p'
+-- ssai --
+// SSAI (server-side ad insertion) client — the AD leg of the Stream Telemetry Blueprint.
+//
+// For channels with an `ssaiChannel`, the player requests a session from the ad server, plays the
+// returned stitched `playback_url` (ChannelForge content + spliced ads), and fires per-ad quartile
+// beacons. This is SEPARATE from the audience telemetry in `telemetry-store` / `/api/fast/events`
+// (concurrents, QoE) — that stays untouched; ad events go to the SSAI's `/v1/events`.
+
+export const SSAI_BASE = (
+  process.env.NEXT_PUBLIC_SSAI_BASE || "https://ssai.ventunotech.com"
+).replace(/\/$/, "");
+
+export interface SsaiSession {
+  sessionId: string;
+  playbackUrl: string;
+}
+
+/** Create a playback session and get the stitched manifest URL for an SSAI channel. */
+export async function createSsaiSession(ssaiChannel: string): Promise<SsaiSession | null> {
+  try {
+    const res = await fetch(`${SSAI_BASE}/v1/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel_id: ssaiChannel }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d?.session_id || !d?.playback_url) return null;
+    return { sessionId: String(d.session_id), playbackUrl: String(d.playback_url) };
+  } catch {
+    return null;
+  }
+}
+
+export type AdBeacon =
+  | "ad_impression"
+  | "ad_start"
+  | "ad_first_quartile"
+  | "ad_midpoint"
+  | "ad_third_quartile"
+  | "ad_complete";
+
+/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
+  try {
+    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+      navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: "application/json" }));
+    } else {
+      void fetch(`${SSAI_BASE}/v1/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      });
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+export interface AdWindow {
+  adId: string;
+  start: number; // epoch ms
+  end: number; // epoch ms
+}
+
+/** Parse ad avails from a stitched media playlist's EXT-X-DATERANGE lines (CLASS com.fastworld.ad). */
+export function parseAdWindows(manifest: string): AdWindow[] {
+  const out: AdWindow[] = [];
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+    const attr = (k: string): string | undefined => line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("DURATION");
+    const adId = attr("X-AD-ID") || attr("ID");
+    if (!startDate || !dur || !adId) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ adId, start, end: start + seconds * 1000 });
+  }
+  return out;
+}
+
+export interface ScteAvail {
+  id: string;
+  start: number; // epoch ms — break start (absolute, from START-DATE)
+  end: number; // epoch ms
+  durationSec: number;
+}
+
+/**
+ * Parse SCTE-35 ad avails from a ChannelForge media playlist. These are the ad
+ * OPPORTUNITIES the packager signals (where SSAI may splice), distinct from
+ * `parseAdWindows` which reads the ads actually stitched in. Reads
+ * `#EXT-X-DATERANGE` lines carrying `SCTE35-OUT` with an absolute `START-DATE`
+ * and `PLANNED-DURATION`.
+ */
+export function parseScteAvails(manifest: string): ScteAvail[] {
+  const out: ScteAvail[] = [];
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:")) continue;
+    if (!/SCTE35-OUT/i.test(line)) continue;
+    const attr = (k: string): string | undefined =>
+      line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("PLANNED-DURATION") || attr("D
+[... output limited to 10000 bytes; 68 interior bytes omitted ...]
+  const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ id, start, end: start + seconds * 1000, durationSec: seconds });
+  }
+  return out;
+}
+
+// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+const QUARTILES: [number, AdBeacon][] = [
+  [0, "ad_impression"],
+  [0, "ad_start"],
+  [0.25, "ad_first_quartile"],
+  [0.5, "ad_midpoint"],
+  [0.75, "ad_third_quartile"],
+  [1, "ad_complete"],
+];
+
+/**
+ * Watch the wall-clock playhead against the stitched manifest's ad windows and fire quartile
+ * beacons as each ad plays. `playheadDate()` returns the current playhead as epoch ms (from
+ * Shaka's getPlayheadTimeAsDate). Returns a stop() cleanup.
+ */
+export function startAdBeaconWatcher(opts: {
+  sessionId: string;
+  manifestUrl: string;
+  playheadDate: () => number | null;
+  refetchMs?: number;
+  tickMs?: number;
+}): () => void {
+  let windows: AdWindow[] = [];
+  const fired = new Set<string>(); // `${adId}:${start}:${beacon}`
+  let stopped = false;
+
+  async function refresh() {
+    try {
+      const res = await fetch(opts.manifestUrl, { cache: "no-store" });
+      if (res.ok) windows = parseAdWindows(await res.text());
+    } catch {
+      /* keep prior windows */
+    }
+  }
+
+  const tick = () => {
+    if (stopped) return;
+    const now = opts.playheadDate();
+    if (now != null) {
+      for (const w of windows) {
+        if (now < w.start || now > w.end) continue;
+        const progress = (now - w.start) / Math.max(1, w.end - w.start);
+        for (const [threshold, beacon] of QUARTILES) {
+          if (progress + 1e-6 < threshold) continue;
+          const key = `${w.adId}:${w.start}:${beacon}`;
+          if (fired.has(key)) continue;
+          fired.add(key);
+          sendAdBeacon(opts.sessionId, beacon, w.adId);
+        }
+      }
+    }
+  };
+
+  void refresh();
+  const refetch = setInterval(refresh, opts.refetchMs ?? 10_000);
+  const ticker = setInterval(tick, opts.tickMs ?? 1_000);
+  return () => {
+    stopped = true;
+    clearInterval(refetch);
+    clearInterval(ticker);
+  };
+}
+-- events route --
+import { NextResponse } from "next/server";
+import { telemetry, TelemetryEvent } from "@/lib/telemetry-store";
+
+export const dynamic = "force-dynamic";
+
+// Anonymous viewer telemetry sink. Persists to the telemetry store (Phase 2).
+// No PII is accepted or stored — only an anonymous session id and playback metrics.
+type Incoming = Partial<TelemetryEvent> & { event?: string };
+
+export async function POST(req: Request) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "bad_json" }, { status: 400 });
+  }
+  const items: Incoming[] = Array.isArray(body) ? body : [body];
+  const store = telemetry();
+
+  let accepted = 0;
+  for (const e of items) {
+    if (!e || typeof e.event !== "string") continue;
+    accepted++;
+    await store.record({
+      event: e.event,
+      ts: typeof e.ts === "number" ? e.ts : Date.now(),
+      sessionId: typeof e.sessionId === "string" ? e.sessionId : "anon",
+      channelId: typeof e.channelId === "number" ? e.channelId : undefined,
+      programId: typeof e.programId === "string" ? e.programId : undefined,
+      startupMs: typeof e.startupMs === "number" ? e.startupMs : undefined,
+      bufferMs: typeof e.bufferMs === "number" ? e.bufferMs : undefined,
+      latencyMs: typeof e.latencyMs === "number" ? e.latencyMs : undefined,
+      errorCode: typeof e.errorCode === "string" ? e.errorCode : undefined,
+    });
+  }
+
+  return NextResponse.json({ ok: true, accepted });
+}
+-- player hits --
+grep: unrecognized option: include=*.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+f549e1c35e50:/app# printf '%s\n' '-- git and service metadata --' && git status --short && find /reference/ssaiadserver -maxdepth 3 -type f \( -name 'README*' -
+o -name 'package.json' -o -name 'docker-compose*' -o -name 'Makefile' \) -print -exec sed -n '1,180p' {} \;
+-- git and service metadata --
+bash: git: command not found
+f549e1c35e50:/app#

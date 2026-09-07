@@ -1,0 +1,41 @@
+Current Terminal Screen:
+      opportunity,
+      session,
+      creatives,
+      campaigns: campaignMap,
+      now,
+      ...(seed ? { seed } : {}),
+    });
+
+    const decisionId = `dec_${randomUUID()}`;
+    const podId = `pod_${randomUUID()}`;
+
+    // Persist opportunity + session + decision atomically (PRD §46, §47).
+    await withTransaction(pool, async (tx) => {
+      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+      await oppsRepo.upsertOpportunity(tx, opportunity);
+      await decisionsRepo.saveDecision(tx, {
+        decisionId,
+        podId,
+        decision,
+        requestedAt: now,
+        completedAt: new Date().toISOString(),
+      });
+      for (const [type, extra] of [
+        ["ad_opportunity_detected", {}],
+        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+      ] as const) {
+        await eventsRepo.appendEvent(tx, {
+          eventId: randomUUID(),
+          eventType: type,
+          sessionId,
+          channelId: body.channel_id,
+          opportunityId: body.opportunity_id,
+          podId,
+          payload: extra,
+        });
+      }
+    });
+
+c14a4ace724a:/app#

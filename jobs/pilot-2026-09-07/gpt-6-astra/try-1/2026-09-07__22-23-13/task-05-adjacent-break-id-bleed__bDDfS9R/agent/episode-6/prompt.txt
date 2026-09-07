@@ -1,0 +1,26 @@
+New Terminal Output:
+
+c3585fac47ee:/app# node --import tsx --input-type=module <<'JS'
+> import { detectAvails } from './packages/data-plane/src/avails.ts';
+> const m = ['#EXTM3U','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID="first",SCTE35-OUT=0xFC','#EXTINF:6,','a.ts','#EXT-X-CUE-IN','#EXT-X-DATERANGE:ID="first",SCTE35-
+IN=0xFC','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID="second",SCTE35-OUT=0xFC','#EXTINF:6,','b.ts','#EXT-X-CUE-IN'].join('\n');
+> console.log(detectAvails(m, 'ch').map(a => a.externalBreakId));
+> JS
+[ 'first', 'first' ]
+c3585fac47ee:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const path = 'packages/data-plane/src/avails.ts';
+> let source = fs.readFileSync(path, 'utf8');
+> const before = '    if (marker?.kind === "daterange" && marker.id) {\n      blockBreakId = marker.id;';
+> const after = `    if (marker?.kind === "daterange" && marker.id) {
+>       // Closing updates can share a tag block with the next CUE-OUT. They must not
+>       // seed that break's id. Keep generic and combined OUT/IN DATERANGEs supported.
+>       const attrs = marker.raw.slice("#EXT-X-DATERANGE".length).replace(/^:/, "");
+>       const keys = Array.from(attrs.matchAll(/(?:^|,)\\s*([^=,\\s]+)=(?:"[^"]*"|[^,]*)/g),
+>         (match) => match[1]!.toUpperCase());
+>       if (keys.includes("SCTE35-IN") && !keys.includes("SCTE35-OUT")) continue;
+>       blockBreakId = marker.id;`;
+> if (!source.includes(before)) throw new Error('Expected source not found');
+> fs.writeFileSync(path, source.replace(before, after));
+> JS
+c3585fac47ee:/app#

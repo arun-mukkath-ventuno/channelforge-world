@@ -1,0 +1,62 @@
+New Terminal Output:
+
+a70d44d4f502:/app# pwd; ls -la; ps aux
+/app
+total 212
+drwxr-xr-x    1 root     root          4096 Sep  7 10:15 .
+drwxr-xr-x    1 root     root          4096 Sep  7 17:02 ..
+drwxr-xr-x    8 root     root          4096 Sep  7 10:15 .next
+-rw-r--r--    1 root     root           390 Sep  5 07:34 eslint.config.mjs
+-rw-r--r--    1 root     root           288 Sep  7 10:15 next-env.d.ts
+-rw-r--r--    1 root     root           104 Sep  5 07:34 next.config.ts
+drwxr-xr-x   10 root     root          4096 Sep  7 10:14 node_modules
+-rw-r--r--    1 root     root           706 Sep  5 07:34 package.json
+-rw-r--r--    1 root     root        165694 Sep  5 07:34 pnpm-lock.yaml
+-rw-r--r--    1 root     root            81 Sep  5 07:34 postcss.config.mjs
+drwxr-xr-x    3 root     root          4096 Sep  5 07:34 public
+drwxr-xr-x    5 root     root          4096 Sep  5 07:34 src
+-rw-r--r--    1 root     root           702 Sep  5 07:34 tsconfig.json
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   95 root      0:00 [tmux: client]
+   96 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   97 root      0:00 bash --login
+   98 root      0:00 cat
+  111 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  115 root      0:00 /bin/bash
+  148 root      0:00 ps aux
+a70d44d4f502:/app# find / -maxdepth 3 -type d \( -iname '*ingest*' -o -iname '*reference*' \) 2>/dev/null; cat package.json 2>/dev/null
+/reference
+{
+  "name": "fast-world-tv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "lucide-react": "^1.35.0",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "shaka-player": "^4.11.9"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
+a70d44d4f502:/app#

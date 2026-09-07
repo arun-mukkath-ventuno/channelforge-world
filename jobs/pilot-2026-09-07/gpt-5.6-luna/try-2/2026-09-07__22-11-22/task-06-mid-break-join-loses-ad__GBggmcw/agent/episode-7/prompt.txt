@@ -1,0 +1,273 @@
+New Terminal Output:
+
+26a4261744ce:/app# cat packages/data-plane/src/avails.ts
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+
+import { parseMarkerLine } from "@ssai/core";
+
+export interface Avail {
+  opportunityId: string;
+  channelId: string;
+  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+   *  by contrast, is a media-sequence-derived id independent of the producer). */
+  externalBreakId?: string;
+  /** Break duration: the marker's declared duration, or the summed segment time. */
+  duration: number;
+  /** Declared duration from the marker, if it carried a valid one. */
+  declaredDuration?: number;
+  /** Actual duration summed from the segments inside the avail. */
+  measuredDuration: number;
+  /** Media sequence number of the first segment inside the avail. */
+  startSequence: number;
+  programDateTime?: string;
+  /** Line index of the CUE-OUT marker. */
+  startLine: number;
+  /** Line index of the CUE-IN marker. */
+  endLine: number;
+}
+
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+export function detectAvails(manifest: string, channelId: string): Avail[] {
+  const lines = manifest.split("\n");
+
+  let mediaSequence = 0;
+  let lastPdt: string | undefined;
+  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+    measuredDuration: number;
+    pdt?: string;
+    externalBreakId?: string;
+  } | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    if (seqMatch) {
+      mediaSequence = Number(seqMatch[1]);
+      continue;
+    }
+
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    if (pdtMatch) {
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      // The URI line follows; advance the sequence when we consume it below.
+    } else
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+;
+    expect(detectAvails(m, "ch")).toEqual([]);
+  });
+
+  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:200",
+      "#EXTINF:6.000,",
+      "s200.ts",
+      "#EXT-X-CUE-OUT:90",
+      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "channel_yoga");
+    expect(avails).toHaveLength(1);
+    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+  });
+
+  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+  });
+
+  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+  });
+
+  it("does not leak one break's id onto a later break that has none", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-OUT:15",
+      "#EXTINF:6.000,",
+      "c.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails).toHaveLength(2);
+    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+    expect(avails[1]!.externalBreakId).toBeUndefined();
+  });
+
+  it("detects multiple avails in one window", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-OUT:15",
+      "#EXTINF:6.000,",
+      "c.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+  });
+});
+26a4261744ce:/app# cat packages/persistence/src/pod-cache.ts; printf '\n-- git status --\n'; git status --short 2>/dev/null || true
+// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+// plane reads it on the manifest hot path and never recomputes. Keyed by
+// (session, opportunity).
+//
+// Two implementations behind one interface: Redis for real deployments, and an
+// in-memory Map for tests and single-process dev.
+
+import type { PodItem } from "@ssai/core";
+import { Redis } from "ioredis";
+
+export interface CachedPod {
+  sessionId: string;
+  opportunityId: string;
+  channelId: string;
+  breakDuration: number;
+  pod: PodItem[];
+}
+
+export interface PodCache {
+  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+  set(entry: CachedPod, ttlSeconds?: number): Promise<void>;
+  del(sessionId: string, opportunityId: string): Promise<void>;
+}
+
+function key(sessionId: string, opportunityId: string): string {
+  return `pod:${sessionId}:${opportunityId}`;
+}
+
+/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+export const DEFAULT_POD_TTL_SECONDS = 900;
+
+export class RedisPodCache implements PodCache {
+  constructor(private readonly redis: Redis) {}
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    const raw = await this.redis.get(key(sessionId, opportunityId));
+    return raw ? (JSON.parse(raw) as CachedPod) : null;
+  }
+
+  async set(entry: CachedPod, ttlSeconds = DEFAULT_POD_TTL_SECONDS): Promise<void> {
+    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    await this.redis.del(key(sessionId, opportunityId));
+  }
+}
+
+export class MemoryPodCache implements PodCache {
+  private readonly store = new Map<string, CachedPod>();
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    return this.store.get(key(sessionId, opportunityId)) ?? null;
+  }
+
+  async set(entry: CachedPod): Promise<void> {
+    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    this.store.delete(key(sessionId, opportunityId));
+  }
+}
+
+export function createRedis(url = process.env.REDIS_URL): Redis {
+  if (!url) throw new Error("REDIS_URL is not set");
+  return new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+}
+
+-- git status --
+26a4261744ce:/app#

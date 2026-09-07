@@ -1,0 +1,22 @@
+{
+  "analysis": "The source confirms that incomplete trailing avails are deliberately ignored, and the existing test suite codifies that behavior. Changing that behavior would violate the instruction not to alter common-case detection and would break an explicit contract. The more likely defect is the per-session cache lifecycle: the data plane checks a session/opportunity key, but the control plane only populates that key for the session that first requested the decision. A later request for the same exact break and session can miss if the cache was not populated by the data-plane miss path. The prior edit attempt was not applied because Python was unavailable. I will now patch the confirmed missing cache write using Node, then run focused validation.",
+  "plan": "Use a Node heredoc to insert a cache.set immediately after a successful decider response. This preserves the existing cache-first behavior and decision call for continuous polling, while ensuring a successful mid-break decision is retained for subsequent manifests/reconnects. Then run the data-plane tests, typecheck, and inspect the changed source with available tools. If tests are still running, poll their result before restarting the service.",
+  "commands": [
+    {
+      "keystrokes": "node --input-type=module <<'NODE'\nimport { readFileSync, writeFileSync } from 'node:fs';\nconst file = 'packages/data-plane/src/server.ts';\nconst source = readFileSync(file, 'utf8');\nconst oldText = `      else if (decider) {\n        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });\n        if (decided) pod = decided;\n      }\n`;\nconst newText = `      else if (decider) {\n        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });\n        if (decided) {\n          pod = decided;\n          await podCache.set({\n            sessionId: session,\n            opportunityId: avail.opportunityId,\n            channelId: channel,\n            breakDuration: avail.duration,\n            pod: decided,\n          });\n        }\n      }\n`;\nif (!source.includes(oldText)) throw new Error('target block not found');\nwriteFileSync(file, source.replace(oldText, newText));\nNODE\nsed -n '72,112p' packages/data-plane/src/server.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts packages/data-plane/src/media.test.ts\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "npm run typecheck\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "ps -ef 2>/dev/null || ps 2>/dev/null || true\n",
+      "duration": 0.3
+    }
+  ]
+}

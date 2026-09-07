@@ -1,0 +1,71 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# node <<'NODE'
+> const fs = require('fs');
+> const p = 'packages/data-plane/src/avails.ts';
+> let s = fs.readFileSync(p, 'utf8');
+> s = s.replace('/** Detect all complete avails in the manifest. Incomplete trailing avails (a\n *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD
+§41. */', '/** Detect complete avails and an active trailing avail visible at the end of the manifest. */');
+> fs.writeFileSync(p, s);
+> NODE
+727f8e3dc8f6:/app# npm run typecheck
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+727f8e3dc8f6:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/data-plane/src/avails.test.ts (10)
+   ❯ detectAvails (PRD §9, §41) (10)
+     ✓ derives a deterministic opportunity id from channel + media sequence
+     ✓ is stable across playlist refreshes (same avail → same id as the window slides)
+     ✓ falls back to measured duration when the marker duration is invalid (PRD §41)
+     ✓ captures PROGRAM-DATE-TIME preceding the avail
+     × ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)
+     ✓ captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)
+     ✓ captures the id when the producer emits DATERANGE before CUE-OUT in the same block
+     ✓ leaves externalBreakId undefined when the origin carried no DATERANGE id
+     ✓ does not leak one break's id onto a later break that has none
+     ✓ detects multiple avails in one window
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts > detectAvails (PRD §9, §41) > ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)
+AssertionError: expected [ { opportunityId: 'opp_ch_0', …(7) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "channelId": "ch",
++     "declaredDuration": 30,
++     "duration": 30,
++     "endLine": 3,
++     "measuredDuration": 6,
++     "opportunityId": "opp_ch_0",
++     "startLine": 1,
++     "startSequence": 0,
++   },
++ ]
+
+ ❯ packages/data-plane/src/avails.test.ts:71:35
+     69|   it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+     70|     const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+     71|     expect(detectAvails(m, "ch")).toEqual([]);
+       |                                   ^
+     72|   });
+     73|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 12 passed (13)
+   Start at  16:39:55
+   Duration  295ms (transform 65ms, setup 0ms, collect 81ms, tests 12ms, environment 0ms, prepare 57ms)
+
+727f8e3dc8f6:/app#

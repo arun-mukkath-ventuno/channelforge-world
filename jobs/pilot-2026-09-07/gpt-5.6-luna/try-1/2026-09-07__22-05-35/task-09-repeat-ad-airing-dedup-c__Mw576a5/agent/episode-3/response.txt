@@ -1,0 +1,22 @@
+{
+  "analysis": "The relevant defect is in `src/lib/ssai.ts`: local suppression already distinguishes an airing using `adId:start:beacon`, but the outbound payload sends only `ad_id`. If the ingestion service deduplicates on session, event, and ad_id, separate airings with the same creative ID collide. The reference path reported earlier is not mounted at that exact location, so I need locate the actual reference directory before changing the contract. The app source also has no git binary available, and the previous grep used unsupported BusyBox options.",
+  "plan": "Locate the reference tree under `/reference` and inspect its event deduplication implementation. Read the complete SSAI tests and relevant player integration to understand expected IDs. Then update the outbound event identifier so it includes the airing-specific start while preserving identical resend deduplication; likely send an occurrence-qualified `ad_id` such as `creativeId:start`. Add no tests or CI changes, run the existing focused SSAI tests and type check, inspect the diff using available tools, and restart the running service by launching/restarting the Next.js process if needed.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- reference root --' && ls -la / /reference 2>/dev/null || true && find /reference -maxdepth 5 -type f -print 2>/dev/null | sort | sed -n '1,240p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- all likely reference paths --' && find / -path /proc -prune -o -path /sys -prune -o -path /dev -prune -o -type d -print 2>/dev/null | grep -Ei '(ssai|events-norm|reference|adserver|ingest)' | sed -n '1,240p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- SSAI tests --' && sed -n '1,360p' src/lib/ssai.test.ts && printf '%s\\n' '-- SSAI remaining source --' && sed -n '1,360p' src/lib/ssai.ts && printf '%s\\n' '-- integrations --' && grep -RInE '(startAdBeaconWatcher|createSsaiSession|sendAdBeacon|parseAdWindows)' src 2>/dev/null\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- source control/tools --' && command -v git || true && command -v pnpm || true && command -v npm || true && command -v curl || true && command -v ps || true && printf '%s\\n' '-- package scripts --' && sed -n '1,180p' package.json\n",
+      "duration": 0.3
+    }
+  ]
+}

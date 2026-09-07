@@ -1,0 +1,22 @@
+{
+  "analysis": "The previous output was truncated, so the crucial data-plane request handler was not visible. The search shows persistence decisions are stored by opportunity_id and session_id, and sessions are ensured by the decision endpoint. The likely defect may be in data-plane cache lookup or avail detection rather than the pure stitcher. I need the complete server handler plus PodCache interface/implementation and control-plane route to determine whether mid-break avails are omitted or keyed inconsistently.",
+  "plan": "Print server.ts in chunks, inspect persistence PodCache and decision repositories, then inspect control-plane routes/services. Trace the exact opportunity ID generated for a partially observed break and the cache key used on subsequent requests. Patch the smallest source location, rebuild, run focused existing tests and typecheck, then inspect process/service status for restart.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' packages/data-plane/src/server.ts; sed -n '221,460p' packages/data-plane/src/server.ts\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "grep -RInE -e 'interface PodCache' -e 'class .*Pod' -e 'getPod' -e 'putPod' -e 'podCache' packages/persistence/src packages/data-plane/src | head -300; printf '\\n-- persistence index --\\n'; find packages/persistence/src -maxdepth 2 -type f -print | sort\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "sed -n '1,180p' packages/persistence/src/index.ts 2>/dev/null; sed -n '1,260p' packages/persistence/src/repositories/decisions.ts; grep -RInE -e 'PodCache' -e 'getPod' -e 'putPod' packages | head -300\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "find packages/control-plane/src -type f -maxdepth 3 -print | sort; grep -RInE -e 'ad-decision' -e 'opportunityId' -e 'opportunity_id' -e 'ensureSession' packages/control-plane/src | head -400\n",
+      "duration": 0.5
+    }
+  ]
+}

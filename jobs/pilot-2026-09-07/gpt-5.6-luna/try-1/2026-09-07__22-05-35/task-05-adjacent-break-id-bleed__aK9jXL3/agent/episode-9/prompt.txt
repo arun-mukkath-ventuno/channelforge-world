@@ -1,0 +1,128 @@
+New Terminal Output:
+
+c5e0ec7d0eb6:/app# sed -i '/^      open = null;$/a\      // End the marker block at CUE-IN, including when the next break starts immediately.\n      blockBreakI
+d = undefined;' packages/data-plane/src/avails.ts
+c5e0ec7d0eb6:/app# sed -n '88,120p' packages/data-plane/src/avails.ts
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      // End the marker block at CUE-IN, including when the next break starts immediately.
+      blockBreakId = undefined;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+c5e0ec7d0eb6:/app# npm test --workspace @ssai/data-plane
+
+> @ssai/data-plane@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app/packages/data-plane
+
+ ✓ src/avails.test.ts (10)
+ ✓ src/media.test.ts (5)
+ ✓ src/origin-slice4.test.ts (7)
+ ✓ src/origin.test.ts (4)
+ ✓ src/stitch.test.ts (3)
+
+ Test Files  5 passed (5)
+      Tests  29 passed (29)
+   Start at  16:37:21
+   Duration  768ms (transform 113ms, setup 0ms, collect 153ms, tests 21ms, environment 1ms, prepare 175ms)
+
+c5e0ec7d0eb6:/app# npx tsx -e 'import { detectAvails } from "./packages/data-plane/src/avails.ts"; const m=["#EXT-X-MEDIA-SEQUENCE:10","#EXT-X-CUE-OUT:6","#EXT-
+X-DATERANGE:ID=\"BRK-first\",DURATION=6","#EXTINF:6,","a.ts","#EXT-X-CUE-IN","#EXT-X-CUE-OUT:6","#EXT-X-DATERANGE:ID=\"BRK-second\",DURATION=6","#EXTINF:6,","b.
+ts","#EXT-X-CUE-IN"].join("\n"); const a=detectAvails(m,"ch"); console.log(JSON.stringify(a.map(x=>({id:x.externalBreakId,opp:x.opportunityId}))); if(a.length!=
+=2||a[0].externalBreakId!=="BRK-first"||a[1].externalBreakId!=="BRK-second") process.exit(1);'
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error: Transform failed with 1 error:
+/eval.ts:1:434: ERROR: Expected ")" but found ";"
+    at failureErrorWithLog (/app/node_modules/esbuild/lib/main.js:1752:15)
+    at /app/node_modules/esbuild/lib/main.js:1019:50
+    at responseCallbacks.<computed> (/app/node_modules/esbuild/lib/main.js:886:9)
+    at handleIncomingPacket (/app/node_modules/esbuild/lib/main.js:941:12)
+    at Socket.readFromStdout (/app/node_modules/esbuild/lib/main.js:864:7)
+    at Socket.emit (node:events:519:28)
+    at addChunk (node:internal/streams/readable:561:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:512:3)
+    at Readable.push (node:internal/streams/readable:392:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  errors: [
+    {
+      detail: undefined,
+      id: '',
+      location: {
+        column: 434,
+        file: '/eval.ts',
+        length: 1,
+        line: 1,
+        lineText: 'import { detectAvails } from "./packages/data-plane/src/avails.ts"; const m=["#EXT-X-MEDIA-SEQUENCE:10","#EXT-X-CUE-OUT:6","#EXT-X-DATERANGE:
+ID=\\"BRK-first\\",DURATION=6","#EXTINF:6,","a.ts","#EXT-X-CUE-IN","#EXT-X-CUE-OUT:6","#EXT-X-DATERANGE:ID=\\"BRK-second\\",DURATION=6","#EXTINF:6,","b.ts","#EX
+T-X-CUE-IN"].join("\\n"); const a=detectAvails(m,"ch"); console.log(JSON.stringify(a.map(x=>({id:x.externalBreakId,opp:x.opportunityId}))); if(a.length!==2||a[0
+].externalBreakId!=="BRK-first"||a[1].externalBreakId!=="BRK-second") process.exit(1);',
+        namespace: '',
+        suggestion: ')'
+      },
+      notes: [],
+      pluginName: '',
+      text: 'Expected ")" but found ";"'
+    }
+  ],
+  warnings: []
+}
+
+Node.js v22.23.2
+c5e0ec7d0eb6:/app# npm run typecheck && npm run build --workspace @ssai/data-plane
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+c5e0ec7d0eb6:/app# printf '%s\n' '-- processes --'; ps 2>/dev/null || true; printf '%s\n' '-- data-plane package processes --'; ps 2>/dev/null | grep -E 'data-p
+lane|server\.js|tsx' | grep -v grep || true
+-- processes --
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   94 root      0:00 [tmux: client]
+   95 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   96 root      0:00 bash --login
+   97 root      0:00 cat
+  110 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  114 root      0:00 /bin/bash
+  516 root      0:00 [esbuild]
+  717 root      0:00 [esbuild]
+  832 root      0:00 [esbuild]
+  885 root      0:00 ps
+-- data-plane package processes --
+c5e0ec7d0eb6:/app#

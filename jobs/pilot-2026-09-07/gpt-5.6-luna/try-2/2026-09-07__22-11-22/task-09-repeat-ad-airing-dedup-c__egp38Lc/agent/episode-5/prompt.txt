@@ -1,0 +1,207 @@
+New Terminal Output:
+
+fe1dd2af1f8a:/app# printf '%s\n' 'Tracked files:'; git ls-files; printf '%s\n' 'Source sizes:'; find src -type f -maxdepth 8 -print0 | xargs -0 wc -l | sort -n;
+ printf '%s\n' 'Git history:'; git log --oneline --all -12
+Tracked files:
+bash: git: command not found
+Source sizes:
+        4 src/app/icon.svg
+        5 src/app/page.tsx
+        8 src/app/api/fast/channels/route.ts
+       10 src/app/api/fast/admin/logout/route.ts
+       10 src/app/fast-world/admin/layout.tsx
+       11 src/app/fast-world/live/ops/layout.tsx
+       12 src/app/api/fast/admin/reset/route.ts
+       15 src/app/api/fast/admin/channels/[id]/route.ts
+       15 src/app/api/fast/guide/route.ts
+       15 src/app/robots.ts
+       15 src/app/sitemap.ts
+       16 src/app/api/fast/channels/[id]/route.ts
+       18 src/components/fast/Logo.tsx
+       24 src/app/api/fast/channels/[id]/schedule/route.ts
+       26 src/app/api/fast/admin/login/route.ts
+       27 src/app/api/fast/channels/[id]/now/route.ts
+       28 src/components/fast/StatusStrip.tsx
+       28 src/lib/ssai.test.ts
+       33 src/lib/fast-client.test.ts
+       34 src/app/layout.tsx
+       38 src/app/api/fast/events/route.ts
+       38 src/lib/manifest-probe.test.ts
+       41 src/app/fast-world/live/page.tsx
+       54 src/components/fast/Bridge.tsx
+       55 src/lib/manifest-probe.ts
+       57 src/app/api/fast/admin/channels/route.ts
+       57 src/lib/admin-auth.ts
+       63 src/lib/channel-config-store.test.ts
+       67 src/lib/telemetry-store.test.ts
+       69 src/lib/admin-auth.test.ts
+       69 src/lib/channels-seam.test.ts
+       70 src/app/api/fast/xmltv/route.ts
+       71 src/app/api/fast/hls/[...path]/route.ts
+       74 src/lib/channels.test.ts
+       77 src/components/fast/ChannelsTab.tsx
+       80 src/components/fast/ProgramDialog.tsx
+       83 src/app/api/fast/status/route.ts
+       99 src/lib/fast-challenges.ts
+      100 src/app/api/fast/ads/current/route.ts
+      101 src/components/fast/AgentTab.tsx
+      110 src/components/fast/HoodTab.tsx
+      110 src/lib/fast-view.test.ts
+      113 src/app/api/fast/routes.test.ts
+      113 src/lib/channel-config-store.ts
+      117 src/lib/channelforge-epg.ts
+      126 src/components/fast/OperatorStrip.tsx
+      129 src/components/fast/ArtWork.tsx
+      130 src/components/fast/HomeTab.tsx
+      132 src/lib/channelforge-epg.test.ts
+      154 src/lib/fast-client.ts
+      155 src/components/fast/ui.tsx
+      159 src/app/fast-world/live/ops/page.tsx
+      179 src/components/fast/GuideTab.tsx
+      179 src/lib/ssai.ts
+      229 src/lib/telemetry-store.ts
+      245 src/lib/fast-view.ts
+      307 src/components/fast/FastPlayer.tsx
+      317 src/lib/channels.ts
+      380 src/app/globals.css
+      390 src/components/fast/PlayerBand.tsx
+      402 src/app/fast-world/live/LiveClient.tsx
+      425 src/app/fast-world/admin/page.tsx
+     6318 total
+Git history:
+bash: git: command not found
+fe1dd2af1f8a:/app# printf '%s\n' 'All source ad-related matches:'; find src -type f -print | while read f; do grep -nE 'quartile|creative|airing|impression|comp
+letion|ad_id|pod_id|event_id|beacon|ssai|advert' "$f" && echo "--- $f"; done || true; printf '%s\n' 'All emit calls:'; find src -type f -print | while read f; d
+o grep -n 'emit' "$f" && echo "--- $f"; done || true
+All source ad-related matches:
+9:import { parseScteAvails, type ScteAvail } from "@/lib/ssai";
+--- src/app/api/fast/ads/current/route.ts
+6:import { createSsaiSession, type SsaiSession } from "@/lib/ssai";
+48:  const [ssaiSession, setSsaiSession] = useState<SsaiSession | null>(null);
+216:  const ssaiChannel = rows[ch]?.channel.ssaiChannel;
+219:    if (!ssaiChannel) return;
+221:    void createSsaiSession(ssaiChannel).then((s) => {
+225:  }, [ssaiChannel]);
+332:        ssaiSession={ssaiSession}
+356:      {operator && <OperatorStrip view={view} status={status} ssaiSession={ssaiSession} />}
+--- src/app/fast-world/live/LiveClient.tsx
+19:import { type SsaiSession } from "@/lib/ssai";
+31:  ssaiSession: SsaiSession | null;
+74:            hlsUrl={p.ssaiSession?.playbackUrl ?? c.hlsUrl}
+75:            ssaiSessionId={p.ssaiSession?.sessionId}
+196:            const hot = c.active && solid; // only a confirmed break "lights up" as airing
+201:            const tip = `Ad break · ${fmt(c.startMs)}–${fmt(c.endMs)} · ${c.durationSec}s · ${solid ? (c.active ? "SCTE-35 · airing" : "SCTE-35") : "expecte
+d"}`;
+--- src/components/fast/PlayerBand.tsx
+5:import { startAdBeaconWatcher } from "@/lib/ssai";
+11:  /** When set, hlsUrl is an SSAI-stitched session — fire ad-quartile beacons against this session. */
+12:  ssaiSessionId?: string;
+31:  ssaiSessionId,
+194:  // Ad quartile beacons (SSAI channels only). Watches the wall-clock playhead against the stitched
+195:  // manifest's ad windows and fires impression/quartiles to the ad server. Separate from the
+198:    if (!ssaiSessionId) return;
+200:      sessionId: ssaiSessionId,
+208:  }, [ssaiSessionId, hlsUrl]);
+--- src/components/fast/FastPlayer.tsx
+4:/
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+xt/server/chunks/*.js .next/server/app/page.js; do grep -qE 'Ad quartile bea
+cons|firstquartile|airings|creative_id|pod_id|ad_id' "$f" 2>/dev/null && { echo "=== $f"; grep -nE -B 12 -A 30 'Ad quartile beacons|firstquartile|airings|creati
+ve_id|pod_id|ad_id' "$f" | head -250; }; done
+Readable generated bundle contexts:
+fe1dd2af1f8a:/app# printf '%s\n' 'Reference event persistence and API wiring:'; nl -ba /reference/ssaiadserver/persistence/repositories/events.ts | sed -n '1,24
+0p'; grep -RInE 'normalizeEvent|POST.*event|events.*normalize|eventId|event_id' /reference/ssaiadserver 2>/dev/null | head -200
+Reference event persistence and API wiring:
+     1	// Append-only event stream (PRD §26, §29, §30). Source for analytics.
+     2	
+     3	import type { Queryable } from "../db.js";
+     4	import { toIso } from "../map.js";
+     5	
+     6	export interface EventInput {
+     7	  eventId: string;
+     8	  eventType: string;
+     9	  ts?: string;
+    10	  sessionId?: string | null;
+    11	  channelId?: string | null;
+    12	  opportunityId?: string | null;
+    13	  podId?: string | null;
+    14	  adId?: string | null;
+    15	  campaignId?: string | null;
+    16	  creativeId?: string | null;
+    17	  programId?: string | null;
+    18	  playheadPosition?: number | null;
+    19	  deviceType?: string | null;
+    20	  country?: string | null;
+    21	  payload?: unknown;
+    22	}
+    23	
+    24	export async function appendEvent(db: Queryable, e: EventInput): Promise<void> {
+    25	  await db.query(
+    26	    `INSERT INTO events
+    27	       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+    28	        campaign_id, creative_id, program_id, playhead_position, device_type, country, payload)
+    29	     VALUES ($1, $2, COALESCE($3, now()), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+    30	     ON CONFLICT (event_id) DO NOTHING`,
+    31	    [
+    32	      e.eventId,
+    33	      e.eventType,
+    34	      e.ts ?? null,
+    35	      e.sessionId ?? null,
+    36	      e.channelId ?? null,
+    37	      e.opportunityId ?? null,
+    38	      e.podId ?? null,
+    39	      e.adId ?? null,
+    40	      e.campaignId ?? null,
+    41	      e.creativeId ?? null,
+    42	      e.programId ?? null,
+    43	      e.playheadPosition ?? null,
+    44	      e.deviceType ?? null,
+    45	      e.country ?? null,
+    46	      e.payload === undefined ? null : JSON.stringify(e.payload),
+    47	    ],
+    48	  );
+    49	}
+    50	
+    51	export interface StoredEvent extends Omit<EventInput, "payload"> {
+    52	  ts: string;
+    53	  payload: unknown;
+    54	}
+    55	
+    56	export async function getEventsBySession(db: Queryable, sessionId: string): Promise<StoredEvent[]> {
+    57	  const rows = (
+    58	    await db.query<Record<string, unknown>>(
+    59	      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+    60	      [sessionId],
+    61	    )
+    62	  ).rows;
+    63	
+    64	  return rows.map((r) => ({
+    65	    eventId: r.event_id as string,
+    66	    eventType: r.event_type as string,
+    67	    ts: toIso(r.ts),
+    68	    sessionId: (r.session_id as string) ?? null,
+    69	    channelId: (r.channel_id as string) ?? null,
+    70	    opportunityId: (r.opportunity_id as string) ?? null,
+    71	    podId: (r.pod_id as string) ?? null,
+    72	    adId: (r.ad_id as string) ?? null,
+    73	    campaignId: (r.campaign_id as string) ?? null,
+    74	    creativeId: (r.creative_id as string) ?? null,
+    75	    programId: (r.program_id as string) ?? null,
+    76	    playheadPosition: r.playhead_position == null ? null : Number(r.playhead_position),
+    77	    deviceType: (r.device_type as string) ?? null,
+    78	    country: (r.country as string) ?? null,
+    79	    payload: typeof r.payload === "string" ? JSON.parse(r.payload) : r.payload,
+    80	  }));
+    81	}
+/reference/ssaiadserver/control-plane/events-normalize.ts:4:// table's ON CONFLICT (event_id) DO NOTHING.
+/reference/ssaiadserver/control-plane/events-normalize.ts:47:  event_id?: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:65:  eventId: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:94:  if (raw.event_id) return raw.event_id;
+/reference/ssaiadserver/control-plane/events-normalize.ts:105:export function normalizeEvent(raw: RawEvent): NormalizedEvent | { error: string } {
+/reference/ssaiadserver/control-plane/events-normalize.ts:110:    eventId: deriveEventId(raw, eventType),
+/reference/ssaiadserver/persistence/repositories/events.ts:7:  eventId: string;
+/reference/ssaiadserver/persistence/repositories/events.ts:27:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+/reference/ssaiadserver/persistence/repositories/events.ts:30:     ON CONFLICT (event_id) DO NOTHING`,
+/reference/ssaiadserver/persistence/repositories/events.ts:32:      e.eventId,
+/reference/ssaiadserver/persistence/repositories/events.ts:65:    eventId: r.event_id as string,
+fe1dd2af1f8a:/app#

@@ -1,0 +1,68 @@
+New Terminal Output:
+
+d55ac9bae4ee:/app# cat > /tmp/fix.js << 'JSEOF'
+> const fs = require("fs");
+> const path = "packages/data-plane/src/avails.ts";
+> let content = fs.readFileSync(path, "utf8");
+> const old = `    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: \`opp_${channelId}_${open.startSequence}\`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       continue;
+>     }`;
+> const rep = `    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: \`opp_${channelId}_${open.startSequence}\`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       // The DATERANGE id belonged to the avail we just closed; clear it so a CUE-OUT that
+>       // immediately follows (back-to-back breaks, no media URI in between) does not pick it up.
+>       blockBreakId = undefined;
+>       continue;
+>     }`;
+> if (!content.includes(old)) {
+>   console.log("ERROR: old pattern not found");
+>   process.exit(1);
+> }
+> content = content.replace(old, rep);
+> fs.writeFileSync(path, content);
+> console.log("SUCCESS");
+> JSEOF
+d55ac9bae4ee:/app# node /tmp/fix.js
+/tmp/fix.js:7
+        opportunityId: \`opp_${channelId}_${open.startSequence}\`,
+                               ^
+
+ReferenceError: channelId is not defined
+    at Object.<anonymous> (/tmp/fix.js:7:32)
+    at Module._compile (node:internal/modules/cjs/loader:1781:14)
+    at Object..js (node:internal/modules/cjs/loader:1913:10)
+    at Module.load (node:internal/modules/cjs/loader:1505:32)
+    at Function._load (node:internal/modules/cjs/loader:1309:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:254:19)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:171:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.23.2
+d55ac9bae4ee:/app#

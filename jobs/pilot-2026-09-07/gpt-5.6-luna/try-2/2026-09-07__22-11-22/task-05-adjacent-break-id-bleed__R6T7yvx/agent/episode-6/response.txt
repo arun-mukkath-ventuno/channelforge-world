@@ -1,0 +1,30 @@
+{
+  "analysis": "The defect is confirmed. `blockBreakId` survives `#EXT-X-CUE-IN`. With back-to-back breaks, the next `#EXT-X-CUE-OUT` copies the first break's ID before the second break's DATERANGE is encountered; the later DATERANGE cannot replace it because `open.externalBreakId` is already set. Ordinary content naturally clears `blockBreakId` at the segment URI, which explains why isolated breaks work. The minimal fix is to clear the block-scoped ID when closing an avail at CUE-IN, before the next adjacent CUE-OUT can use it. Existing marker parsing and syntax support remain unchanged.",
+  "plan": "Patch only `packages/data-plane/src/avails.ts` to clear `blockBreakId` when processing CUE-IN. Run the data-plane avail tests and core tests, then run the workspace typecheck/build so the compiled service reflects the fix. Check for a running service; none was present earlier, so after rebuilding I will start the data-plane service in the background if possible and verify its process.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('packages/data-plane/src/avails.ts')\ns = p.read_text()\nold = '''      });\n      open = null;\n      continue;\n'''\nnew = '''      });\n      open = null;\n      // A following CUE-OUT may be adjacent with no segment URI in between.\n      // Do not let this break's DATERANGE ID become the next break's ID.\n      blockBreakId = undefined;\n      continue;\n'''\nif old not in s:\n    raise SystemExit('target block not found')\np.write_text(s.replace(old, new, 1))\nPY\nsed -n '92,125p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "npx vitest run packages/data-plane/src/avails.test.ts packages/core/src/scte.test.ts\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "npm run typecheck\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "npm run build\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "node --input-type=module -e 'import { detectAvails } from \"./packages/data-plane/dist/avails.js\"; const m=[\"#EXT-X-MEDIA-SEQUENCE:0\",\"#EXT-X-CUE-OUT:30\",\"#EXT-X-DATERANGE:ID=\\\"BRK-first\\\"\",\"#EXTINF:6,\",\"a.ts\",\"#EXT-X-CUE-IN\",\"#EXT-X-CUE-OUT:15\",\"#EXT-X-DATERANGE:ID=\\\"BRK-second\\\"\",\"#EXTINF:6,\",\"b.ts\",\"#EXT-X-CUE-IN\"].join(\"\\\\n\"); console.log(detectAvails(m,\"ch\").map(x=>x.externalBreakId));'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "ps aux | grep '[n]ode.*data-plane\\|[t]sx.*data-plane' || true\n",
+      "duration": 0.2
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+New Terminal Output:
+
+d55ac9bae4ee:/app/packages/data-plane# cd /app && npx tsx /tmp/test-back-to-back2.ts
+Test 4 - Back-to-back CUE-IN immediately followed by CUE-OUT (no URI between):
+[
+  {
+    "opp": "opp_ch_0",
+    "ext": "BRK-1",
+    "start": 1,
+    "end": 3
+  },
+  {
+    "opp": "opp_ch_0",
+    "ext": "BRK-2",
+    "start": 4,
+    "end": 8
+  }
+]
+Expected: BRK-1, BRK-2
+
+Test 5 - Normal back-to-back breaks with segments in each:
+[
+  {
+    "opp": "opp_ch_0",
+    "ext": "BRK-1",
+    "start": 1,
+    "end": 5
+  },
+  {
+    "opp": "opp_ch_1",
+    "ext": "BRK-2",
+    "start": 6,
+    "end": 10
+  }
+]
+Expected: BRK-1, BRK-2
+d55ac9bae4ee:/app#

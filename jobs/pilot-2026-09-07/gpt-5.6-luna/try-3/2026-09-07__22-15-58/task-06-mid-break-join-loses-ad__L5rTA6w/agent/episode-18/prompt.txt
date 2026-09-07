@@ -1,0 +1,200 @@
+New Terminal Output:
+
+703450db135d:/app# npx tsx -e 'import { detectAvails } from "./packages/data-plane/src/avails.ts"; const m = `#EXT-X-MEDIA-SEQUENCE:5\n#EXT-X-CUE-OUT-CONT:Elaps
+edTime=6,Duration=30\n#EXTINF:6,\nb.ts\n#EXTINF:6,\nc.ts\n#EXT-X-CUE-IN\n`; console.log(JSON.stringify(detectAvails(m, "ch"), null, 2));'
+[
+  {
+    "opportunityId": "opp_ch_4",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 12,
+    "startSequence": 4,
+    "startLine": 1,
+    "endLine": 6
+  }
+]
+703450db135d:/app# sed -n '30,175p' packages/data-plane/src/avails.ts; sed -n '78,108p' packages/data-plane/src/server.ts; grep -nE 'CUE_OUT_CONT|podCache.set'
+packages/data-plane/dist/avails.js packages/data-plane/dist/server.js
+  /** Line index of the CUE-IN marker. */
+  endLine: number;
+}
+
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+const CUE_OUT_CONT = /^#EXT-X-CUE-OUT-CONT(?::(.*))?$/;
+
+function continuationAttrs(value: string): { elapsed?: number; duration?: number } {
+  const attr = (name: string): number | undefined => {
+    const match = value.match(new RegExp(name + "=\\s*(\\d+(?:\\.\\d+)?)", "i"));
+    return match ? Number(match[1]) : undefined;
+  };
+  return { elapsed: attr("ElapsedTime"), duration: attr("Duration") };
+}
+
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+export function detectAvails(manifest: string, channelId: string): Avail[] {
+  const lines = manifest.split("\n");
+
+  let mediaSequence = 0;
+  let lastPdt: string | undefined;
+  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+    measuredDuration: number;
+    pdt?: string;
+    externalBreakId?: string;
+  } | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    if (seqMatch) {
+      mediaSequence = Number(seqMatch[1]);
+      continue;
+    }
+
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    if (pdtMatch) {
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const continuation = trimmed.match(CUE_OUT_CONT);
+    if (continuation && !open) {
+      const attrs = continuationAttrs(continuation[1] ?? "");
+      if (attrs.duration !== undefined) {
+        open = {
+          startLine: i,
+          // Corrected when the first visible segment reveals the playlist cadence.
+          startSequence: mediaSequence,
+          measuredDuration: 0,
+          declaredDuration: attrs.duration,
+          ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+          ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+        };
+        (open as typeof open & { elapsedTime?: number }).elapsedTime = attrs.elapsed;
+      }
+      continue;
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) {
+        const continuationOpen = open as typeof open & { elapsedTime?: number };
+        if (continuationOpen.elapsedTime !== undefined && open.measuredDuration === 0) {
+          open.startSequence = Math.max(0, mediaSequence - Math.round(continuationOpen.elapsedTime / segDur));
+        }
+        open.measuredDuration += segDur;
+      }
+      // The URI line follows; advance the sequence when we consume it below.
+    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+      mediaSequence += 1;
+      blockBreakId = undefined;
+    }
+  }
+
+  return avails;
+}
+    // Resolve a pod for each avail (cache, else decide once), then resolve its
+    // media from the store into concrete segments.
+    const rendered = new Map<string, RenderedPodItem[]>();
+    for (const avail of avails) {
+      let pod: PodItem[] | undefined;
+      const cached = await podCache.get(session, avail.opportunityId);
+      if (cached) pod = cached.pod;
+      else if (decider) {
+        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+        if (decided) {
+          pod = decided;
+          await podCache.set({
+            sessionId: session,
+            opportunityId: avail.opportunityId,
+            channelId: channel,
+            breakDuration: avail.duration,
+            pod: decided,
+          });
+        }
+      }
+      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+    }
+
+    const { manifest, stitched } = stitchManifest(originBody, avails, rendered);
+
+    reply.header("content-type", "application/vnd.apple.mpegurl");
+    reply.header("x-ssai-avails", String(avails.length));
+    reply.header("x-ssai-stitched", String(stitched.length));
+    if (originResult.stale) reply.header("x-ssai-origin", "stale");
+    return manifest;
+  });
+packages/data-plane/dist/avails.js:12:const CUE_OUT_CONT = /^#EXT-X-CUE-OUT-CONT(?::(.*))?$/;
+packages/data-plane/dist/avails.js:46:        const continuation = trimmed.match(CUE_OUT_CONT);
+packages/data-plane/dist/server.js:68:                    await podCache.set({
+703450db135d:/app# npm run start --workspace @ssai/data-plane > /tmp/data-plane.log 2>&1 & echo $!
+[1] 2315
+2315
+703450db135d:/app# sleep 1; cat /tmp/data-plane.log; (wget -qO- http://127.0.0.1:4010/health || true); ps -ef 2>/dev/null | grep -E 'data-plane|server.js' | gre
+p -v grep || true
+
+> @ssai/data-plane@0.1.0 start
+> node dist/server.js
+
+(node:2326) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for acce
+ssing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1788799933458,"pid":2326,"hostname":"703450db135d","msg":"Server listening at http://127.0.0.1:4010"}
+{"level":30,"time":1788799933458,"pid":2326,"hostname":"703450db135d","msg":"Server listening at http://172.19.0.3:4010"}
+{"status":"ok","plane":"data"} 2326 root      0:00 node dist/server.js
+703450db135d:/app#

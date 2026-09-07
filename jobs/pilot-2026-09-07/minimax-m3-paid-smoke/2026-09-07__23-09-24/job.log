@@ -1,0 +1,164 @@
+Skipping image OS validation for hb__channelforge-world-ssai-adjacent-break-id-bleed: docker inspect returned 1
+Installing: tmux, asciinema
+Detected system: {'os': 'alpine', 'package_manager': 'apk', 'update_command': None}
+Installing tools using apk: apk add --no-cache tmux asciinema
+Starting recording.
+Sending keys: ['asciinema rec --stdin /logs/agent/recording.cast', 'Enter'] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Sending keys: ['clear', 'Enter'] min_timeout_sec: 0.0 max_timeout_sec: 180.0
+Sending keys: ['ls -la\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['ls -la packages/\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['cat package.json\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['ls -la packages/data-plane/ packages/control-plane/\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['ls -la packages/data-plane/src/ packages/control-plane/src/\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat packages/data-plane/src/avails.ts\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['ls -la packages/core/src/\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat packages/core/src/scte.ts\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat packages/data-plane/src/avails.test.ts\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Output length exceeded: Model openrouter/minimax/minimax-m3 hit max_tokens limit. Response was truncated. Consider increasing max_tokens if possible.
+Sending keys: ['cat packages/data-plane/src/avails.ts | head -110\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat > /tmp/test_bug.mjs << \'EOF\'\nimport { detectAvails } from "./packages/data-plane/src/avails.ts";\n\n// Back-to-back break scenario where the DATERANGE for break 1 comes AFTER its segments\n// Actually the simplest back-to-back: DATERANGE follows CUE-OUT, but no segment between\n// Let me try: the second break\'s cue_out comes immediately after the first break\'s cue_in\n// without a URI segment in between\n\n// Wait, there IS a URI segment in the first break. Let me think.\n\n// Actually, look: the second break\'s cue_out happens, and if there was a segment between\n// cue_in and the second cue_out, then blockBreakId is cleared. So we need NO segment.\n\n// Scenario: two breaks back-to-back, with no segment between CUE-IN and the next CUE-OUT\nconst m = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXTINF:6.000,\nseg2.ts\n#EXT-X-CUE-IN`;\n\nconst avails = detectAvails(m, "ch");\nconsole.log(JSON.stringify(avails, null, 2));\nEOF\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['cd /app && npx tsx /tmp/test_bug.mjs\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat > /app/test_bug.mjs << \'EOF\'\nimport { detectAvails } from "./packages/data-plane/src/avails.ts";\n\nconst m = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXTINF:6.000,\nseg2.ts\n#EXT-X-CUE-IN`;\n\nconst avails = detectAvails(m, "ch");\nconsole.log(JSON.stringify(avails, null, 2));\nEOF\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['npx tsx test_bug.mjs\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat > /app/test_bug.mjs << \'EOF\'\nimport { detectAvails } from "./packages/data-plane/src/avails.ts";\n\n// Scenario: second break\'s DATERANGE comes BEFORE its CUE-OUT (unusual order)\nconst m1 = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nseg2.ts\n#EXT-X-CUE-IN`;\n\nconsole.log("=== Scenario 1: DATERANGE before second CUE-OUT ===");\nconst avails1 = detectAvails(m1, "ch");\nconsole.log(JSON.stringify(avails1.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId})), null, 2));\n\n// Scenario: no segment between CUE-IN of break 1 and the cue_out/daterange of break 2\n// i.e., break 2 starts with a daterange right after the CUE-IN\nconst m2 = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXTINF:6.000,\nseg2.ts\n#EXT-X-CUE-IN`;\n\nconsole.log("\\n=== Scenario 2: normal back-to-back ===");\nconst avails2 = detectAvails(m2, "ch");\nconsole.log(JSON.stringify(avails2.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId})), null, 2));\n\n// Scenario: what if the daterange for second break comes RIGHT after cue_in, before its cue_out?\nconst m3 = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nseg2.ts\n#EXT-X-CUE-IN`;\n\nconsole.log("\\n=== Scenario 3: daterange before second cue_out ===");\nconst avails3 = detectAvails(m3, "ch");\nconsole.log(JSON.stringify(avails3.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId})), null, 2));\nEOF\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['npx tsx test_bug.mjs\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat > /app/test_bug.mjs << \'EOF\'\nimport { detectAvails } from "./packages/data-plane/src/avails.ts";\n\n// Scenario A: what if the second break\'s DATERANGE comes after a partial segment in the first break?\n// Actually, what if the first break has NO URI segments between CUE-OUT and CUE-IN\nconst mA = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN`;\n\nconsole.log("=== Scenario A: First break has NO URI segment between CUE-OUT and CUE-IN ===");\nconst availsA = detectAvails(mA, "ch");\nconsole.log(JSON.stringify(availsA.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId, startSequence: a.startSequence, measuredDuration: a.measuredDuration})), null, 2));\n\n// Scenario B: second break has no DATERANGE\nconst mB = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nseg2.ts\n#EXT-X-CUE-IN`;\n\nconsole.log("\\n=== Scenario B: second break has no DATERANGE ===");\nconst availsB = detectAvails(mB, "ch");\nconsole.log(JSON.stringify(availsB.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId})), null, 2));\n\n// Scenario C: what about back-to-back with no segments at all in either break\nconst mC = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXT-X-CUE-IN`;\n\nconsole.log("\\n=== Scenario C: back-to-back no segments in either ===");\nconst availsC = detectAvails(mC, "ch");\nconsole.log(JSON.stringify(availsC.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId, measuredDuration: a.measuredDuration})), null, 2));\n\n// Scenario D: with PDT before second break, normal ordering\nconst mD = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN\n#EXT-X-PROGRAM-DATE-TIME:2026-01-01T00:00:00Z\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXTINF:6.000,\nseg2.ts\n#EXT-X-CUE-IN`;\n\nconsole.log("\\n=== Scenario D: with PDT before second cue_out ===");\nconst availsD = detectAvails(mD, "ch");\nconsole.log(JSON.stringify(availsD.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId, programDateTime: a.programDateTime})), null, 2));\nEOF\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['npx tsx test_bug.mjs\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cd packages/data-plane && npx vitest run src/avails.test.ts 2>&1 | tail -30\n'] min_timeout_sec: 10.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ["cd /app && sed -n '90,108p' packages/data-plane/src/avails.ts\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ["sed -n '108,120p' packages/data-plane/src/avails.ts\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ["sed -i 's/      open = null;$/      open = null;\\n      blockBreakId = undefined;/' packages/data-plane/src/avails.ts\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["sed -n '108,120p' packages/data-plane/src/avails.ts\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['npx tsx test_bug.mjs\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cd /app/packages/data-plane && npx vitest run 2>&1 | tail -30\n'] min_timeout_sec: 15.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cd /app && npm test 2>&1 | tail -50\n'] min_timeout_sec: 60.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['npm test 2>&1 | grep -E "(FAIL|PASS|✓|✗|Tests)" | head -50\n'] min_timeout_sec: 60.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['git stash && npm test 2>&1 | grep -E "(Tests)" | tail -5\n'] min_timeout_sec: 60.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['npm test 2>&1 | grep -A 2 "FAIL " | head -30\n'] min_timeout_sec: 60.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['ps aux | grep -E "(node|npm)" | grep -v grep\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['ls /etc/init.d/ 2>/dev/null; ls /etc/systemd/system/ 2>/dev/null; which supervisord systemctl 2>/dev/null\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['cat /app/package.json | grep -E "(dev|start)"\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat packages/data-plane/package.json\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['cat packages/control-plane/package.json\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cd /app/packages/data-plane && ls dist/\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['npm run build 2>&1 | tail -10\n'] min_timeout_sec: 30.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['grep -A 2 "open = null" dist/avails.js | head -5\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['grep -B 1 -A 4 "open = null" dist/avails.js\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cd /app && npm run dev:data > /tmp/data-plane.log 2>&1 &\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['sleep 5 && cat /tmp/data-plane.log | tail -20\n'] min_timeout_sec: 7.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['ps aux | grep -E "(tsx|node)" | grep -v grep\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cd /app && jobs && ps aux | grep -E "(tsx|node)" | grep -v grep\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['curl -s http://127.0.0.1:4010/healthz 2>&1 | head -5\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['curl -s http://127.0.0.1:4010/ 2>&1 | head -10\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ["cat > /tmp/test_server.mjs << 'EOF'\nconst response = await fetch('http://127.0.0.1:4010/healthz');\nconsole.log('Status:', response.status);\nconsole.log('Body:', await response.text());\nEOF\nnode /tmp/test_server.mjs\n"] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: [''] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Parser warnings: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+Sending keys: ['C-c'] min_timeout_sec: 0.5 max_timeout_sec: 180.0
+Sending keys: ['\n'] min_timeout_sec: 0.5 max_timeout_sec: 180.0
+Sending keys: ['ls /app/packages/data-plane/dist/avails.js && head -5 /app/packages/data-plane/dist/avails.js\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['netstat -tlnp 2>/dev/null | grep 4010 || ss -tlnp 2>/dev/null | grep 4010\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['which wget\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["echo -e 'GET /healthz HTTP/1.1\\r\\nHost: 127.0.0.1:4010\\r\\n\\r\\n' | timeout 3 nc 127.0.0.1 4010 2>&1 | head -10\n"] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['wget -q -O - http://127.0.0.1:4010/healthz 2>&1 | head -5\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: [''] min_timeout_sec: 10.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Parser warnings: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+Sending keys: ['C-c'] min_timeout_sec: 0.5 max_timeout_sec: 180.0
+Sending keys: ['\n'] min_timeout_sec: 0.5 max_timeout_sec: 180.0
+Sending keys: ['wget --timeout=3 -q -O - http://127.0.0.1:4010/ 2>&1 | head -10\n'] min_timeout_sec: 10.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['head -50 src/server.ts\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cd packages/data-plane && head -50 src/server.ts\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['grep -n "app\\.\\|app.get\\|app.post" src/server.ts | head -20\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['wget --timeout=3 -q -O - http://127.0.0.1:4010/health 2>&1 | head -5\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['ss -tlnp | grep 4010\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['echo > /dev/tcp/127.0.0.1/4010 && echo "Connected" || echo "Failed"\n'] min_timeout_sec: 2.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['node -e "fetch(\'http://127.0.0.1:4010/health\').then(r=>r.text()).then(t=>console.log(\'OK:\', t)).catch(e=>console.log(\'ERR:\', e.message))"\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: [''] min_timeout_sec: 10.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Parser warnings: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+Sending keys: ['C-c'] min_timeout_sec: 0.5 max_timeout_sec: 180.0
+Sending keys: ['\n'] min_timeout_sec: 0.5 max_timeout_sec: 180.0
+Sending keys: ['tail -30 /tmp/data-plane.log\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ["printf 'GET /health HTTP/1.1\\r\\nHost: 127.0.0.1:4010\\r\\nConnection: close\\r\\n\\r\\n' | nc 127.0.0.1 4010\n"] min_timeout_sec: 3.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: [''] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Parser warnings: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+Sending keys: ['C-c'] min_timeout_sec: 0.5 max_timeout_sec: 180.0
+Sending keys: ['\n'] min_timeout_sec: 0.5 max_timeout_sec: 180.0
+Sending keys: ["sed -n '120,160p' src/server.ts\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ["sed -n '50,57p' src/server.ts\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ["cat > /tmp/test.mjs << 'EOF'\nimport http from 'http';\nconst req = http.request({hostname: '127.0.0.1', port: 4010, path: '/health', method: 'GET', timeout: 2000}, (res) => {\n  let data = '';\n  res.on('data', (chunk) => data += chunk);\n  res.on('end', () => {\n    console.log('Status:', res.statusCode);\n    console.log('Body:', data);\n    process.exit(0);\n  });\n});\nreq.on('timeout', () => { console.log('TIMEOUT'); req.destroy(); process.exit(1); });\nreq.on('error', (e) => { console.log('ERR:', e.message); process.exit(1); });\nreq.end();\nEOF\nnode /tmp/test.mjs\n"] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['tail -30 /tmp/data-plane.log\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['ps aux | grep -E "(tsx|node)" | grep -v grep\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['cat > /tmp/verify_fix.mjs << \'EOF\'\nimport { detectAvails } from "/app/packages/data-plane/src/avails.ts";\n\n// Back-to-back breaks scenario (the bug)\nconst m = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-first"\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID="BRK-second"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN`;\n\nconst avails = detectAvails(m, "ch");\nconsole.log("Number of avails:", avails.length);\nconsole.log("Avail 1 externalBreakId:", avails[0]?.externalBreakId);\nconsole.log("Avail 2 externalBreakId:", avails[1]?.externalBreakId);\n\nif (avails.length === 2 && avails[0].externalBreakId === "BRK-first" && avails[1].externalBreakId === "BRK-second") {\n  console.log("FIX VERIFIED: ✓");\n} else {\n  console.log("FIX FAILED");\n}\nEOF\ncd /app && npx tsx /tmp/verify_fix.mjs\n'] min_timeout_sec: 5.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['tail -50 /tmp/data-plane.log\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['kill 2701 2712 2>/dev/null; sleep 2; ps aux | grep -E "(tsx|node)" | grep -v grep\n'] min_timeout_sec: 3.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['kill -9 2701 2712 2>/dev/null; sleep 2; ps aux | grep -E "(tsx|node)" | grep -v grep\n'] min_timeout_sec: 3.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Sending keys: ['kill -9 2701 2712; sleep 1; ps -ef | grep -E "(tsx|node)" | grep -v grep\n'] min_timeout_sec: 3.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Unknown Error in LLM interaction: litellm.APIError: APIError: OpenrouterException - {"error":{"message":"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.","code":402,"metadata":{"reason":"in_flight_budget_exhausted","limit_source":"openrouter_in_flight_budget","remedy_hint":"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.","headers":{"Retry-After":"120"},"provider_name":null}},"user_id":"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm"}
+Sending keys: ['echo > /dev/tcp/127.0.0.1/4010 && echo "Port still in use" || echo "Port free"\n'] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Unknown Error in LLM interaction: litellm.APIError: APIError: OpenrouterException - {"error":{"message":"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.","code":402,"metadata":{"reason":"in_flight_budget_exhausted","limit_source":"openrouter_in_flight_budget","remedy_hint":"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.","headers":{"Retry-After":"120"},"provider_name":null}},"user_id":"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm"}
+Unknown Error in LLM interaction: litellm.APIError: APIError: OpenrouterException - {"error":{"message":"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.","code":402,"metadata":{"reason":"in_flight_budget_exhausted","limit_source":"openrouter_in_flight_budget","remedy_hint":"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.","headers":{"Retry-After":"120"},"provider_name":null}},"user_id":"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm"}
+Unknown Error in LLM interaction: litellm.APIError: APIError: OpenrouterException - {"error":{"message":"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.","code":402,"metadata":{"reason":"in_flight_budget_exhausted","limit_source":"openrouter_in_flight_budget","remedy_hint":"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.","headers":{"Retry-After":"120"},"provider_name":null,"previous_errors":[{"code":402,"message":"This request requires more credits, or fewer max_tokens. You requested up to 8000 tokens, but can only afford 7696. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account"}]}},"user_id":"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm"}
+Trajectory dumped to jobs/pilot-2026-09-07/minimax-m3-paid-smoke/2026-09-07__23-09-24/task-05-adjacent-break-id-bleed__d355FKN/agent/trajectory.json
+Trial task-05-adjacent-break-id-bleed__d355FKN failed: litellm.APIError: APIError: OpenrouterException - {"error":{"message":"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.","code":402,"metadata":{"reason":"in_flight_budget_exhausted","limit_source":"openrouter_in_flight_budget","remedy_hint":"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.","headers":{"Retry-After":"120"},"provider_name":null,"previous_errors":[{"code":402,"message":"This request requires more credits, or fewer max_tokens. You requested up to 8000 tokens, but can only afford 7696. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account"}]}},"user_id":"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm"}
+Not retrying trial because the maximum number of retries has been reached

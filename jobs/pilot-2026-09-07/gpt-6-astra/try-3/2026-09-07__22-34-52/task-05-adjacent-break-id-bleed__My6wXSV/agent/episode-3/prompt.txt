@@ -1,0 +1,187 @@
+New Terminal Output:
+
+1a789d16c4fd:/app# cat packages/data-plane/package.json; cat packages/core/src/scte.ts; cat packages/data-plane/src/avails.ts
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+// HLS ad-marker parsing (PRD §9, §22, §41).
+//
+// Supports the MVP-preferred form and common interoperability variants:
+//   #EXT-X-CUE-OUT:60
+//   #EXT-X-CUE-OUT:DURATION=60
+//   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+//   #EXT-X-CUE-IN
+//   #EXT-X-DATERANGE:...,DURATION=60,SCTE35-OUT=...
+//
+// This parser is deliberately tolerant: an unparseable duration does not throw,
+// it yields a marker flagged invalid so the caller can apply PRD §41 fallback
+// (infer the boundary from CUE-IN, otherwise preserve origin).
+
+export interface ParsedMarker {
+  kind: "cue_out" | "cue_in" | "daterange";
+  /** Break duration in seconds, when the marker carries one. */
+  duration?: number;
+  /** Line index within the manifest where the marker was found. */
+  lineIndex: number;
+  /** DATERANGE id / raw payload, retained for debugging (PRD §46). */
+  raw: string;
+  /** DATERANGE ID attribute, when present. ChannelForge threads its stable break_id here
+   *  (`#EXT-X-DATERANGE:ID="BRK-…"`), so downstream reconciliation can key on it. */
+  id?: string;
+  /** True when a duration was expected but could not be parsed (PRD §41). */
+  invalidDuration?: boolean;
+}
+
+const SECONDS = /^-?\d+(\.\d+)?$/;
+
+/** Parse a single manifest line into a marker, or null if it is not one. */
+export function parseMarkerLine(line: string, lineIndex: number): ParsedMarker | null {
+  const trimmed = line.trim();
+
+  // CUE-IN: no attributes.
+  if (trimmed === "#EXT-X-CUE-IN") {
+    return { kind: "cue_in", lineIndex, raw: trimmed };
+  }
+
+  // CUE-OUT: value may be a bare number or DURATION=<n>.
+  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+    const value = trimmed.slice("#EXT-X-CUE-OUT".length).replace(/^:/, "").trim();
+    const duration = parseCueOutDuration(value);
+    return {
+      kind: "cue_out",
+      lineIndex,
+      raw: trimmed,
+      ...(duration === null ? { invalidDuration: value.length > 0 } : { duration }),
+    };
+  }
+
+  // DATERANGE: pull DURATION and PLANNED-DURATION attributes if present.
+  if (trimmed.startsWith("#EXT-X-DATERANGE")) {
+    const attrs = trimmed.slice("#EXT-X-DATERANGE".length).replace(/^:/, "");
+    const duration = parseAttr(attrs, "DURATION") ?? parseAttr(attrs, "PLANNED-DURATION");
+    const id = parseStringAttr(attrs, "ID");
+    return {
+      kind: "daterange",
+      lineIndex,
+      raw: trimmed,
+      ...(duration === null ? {} : { duration }),
+      ...(id === null ? {} : { id }),
+    };
+  }
+
+  return null;
+}
+
+/** Accepts `60`, `60.0`, `DURATION=60`, or `DURATION=60,...`. Returns null if absent/invalid. */
+function parseCueOutDuration(value: string): number | null {
+  if (value.length === 0) return null;
+  if (SECONDS.test(value)) {
+    const n = Number(value);
+    return n >= 0 ? n : null;
+  }
+  // Attribute form: DURATION=60 (possibly with more comma-separated attrs).
+  return parseAttr(value, "DURATION");
+}
+
+/** Parse `KEY=value` (optionally quoted) out of a comma-separated attribute list. */
+function parseAttr(attrs: string, key: string): number | null {
+  const re = new RegExp(`${key}=("?)(-?\\d+(?:\\.\\d+)?)\\1`, "i");
+  const m = attrs.match(re);
+  if (!m) return null;
+  const n = Number(m[2]);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Parse a string `KEY="value"` (or bare `KEY=value`) attribute; null if absent/empty. */
+function parseStringAttr(attrs: string, key: string): string | null {
+  const re = new RegExp(`${key}=(?:"([^"]*)"|([^,\\s]+))`, "i");
+  const m = attrs.match(re);
+  if (!m) return null;
+  const value = m[1] ?? m[2] ?? "";
+  return value.length > 0 ? value : null;
+}
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+
+import { parseMarkerLine } from "@ssai/core";
+
+export interface Avail {
+  opportunityId: string;
+  channelId: strin
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+packages/data-plane/src/avails.test.ts:70:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/src/avails.test.ts:79:      "#EXT-X-CUE-OUT:90",
+packages/data-plane/src/avails.test.ts:84:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:88:    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+packages/data-plane/src/avails.test.ts:91:  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+packages/data-plane/src/avails.test.ts:95:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:98:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:100:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+packages/data-plane/src/avails.test.ts:103:  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+packages/data-plane/src/avails.test.ts:104:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"
+]);
+packages/data-plane/src/avails.test.ts:105:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:111:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:115:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:118:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:121:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:125:    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+packages/data-plane/src/avails.test.ts:126:    expect(avails[1]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:132:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:135:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:138:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:141:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.ts:3:// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:17:   *  by contrast, is a media-sequence-derived id independent of the producer). */
+packages/data-plane/src/avails.ts:18:  externalBreakId?: string;
+packages/data-plane/src/avails.ts:28:  /** Line index of the CUE-OUT marker. */
+packages/data-plane/src/avails.ts:30:  /** Line index of the CUE-IN marker. */
+packages/data-plane/src/avails.ts:39: *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+packages/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/src/avails.ts:47:  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+packages/data-plane/src/avails.ts:48:  let blockBreakId: string | undefined;
+packages/data-plane/src/avails.ts:51:  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+packages/data-plane/src/avails.ts:58:    externalBreakId?: string;
+packages/data-plane/src/avails.ts:79:      blockBreakId = marker.id;
+packages/data-plane/src/avails.ts:80:      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+packages/data-plane/src/avails.ts:81:      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+packages/data-plane/src/avails.ts:84:    if (marker?.kind === "cue_out" && !open) {
+packages/data-plane/src/avails.ts:91:        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+packages/data-plane/src/avails.ts:92:        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+packages/data-plane/src/avails.ts:96:    if (marker?.kind === "cue_in" && open) {
+packages/data-plane/src/avails.ts:101:        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+packages/data-plane/src/avails.ts:123:      blockBreakId = undefined;
+packages/data-plane/src/decider.ts:39:          ...(avail.externalBreakId === undefined
+packages/data-plane/src/decider.ts:41:            : { external_break_id: avail.externalBreakId }),
+packages/data-plane/src/stitch.test.ts:15:  "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/stitch.test.ts:20:  "#EXT-X-CUE-IN",
+packages/data-plane/src/stitch.test.ts:50:    expect(manifest).not.toContain("#EXT-X-CUE-OUT");
+packages/data-plane/src/stitch.ts:3:// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+packages/data-plane/src/stitch.ts:47:      i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+1a789d16c4fd:/app#

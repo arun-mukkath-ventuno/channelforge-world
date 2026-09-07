@@ -1,0 +1,18 @@
+{
+  "analysis": "The SCTE parser itself supports CUE-OUT, CUE-IN, CUE-OUT-CONT, and DATERANGE syntax, and DATERANGE IDs are explicitly intended to carry stable producer break IDs. The displayed tests confirm reconciliation uses externalBreakId, but the critical opportunity-generation/state code was truncated from the output. I need inspect data-plane origin/stitch/avails and core exports with line numbers, plus search by exact symbols such as parseMarkerLine and externalBreakId.",
+  "plan": "Trace every call to parseMarkerLine and every assignment of opportunityId/externalBreakId. Pay particular attention to state reused between manifests or markers at the same timestamp, since adjacent breaks likely collide due to a truthy/ongoing-break guard or an ID derived from the prior break. Inspect the relevant tests and then patch only the source logic.",
+  "commands": [
+    {
+      "keystrokes": "grep -RInE 'parseMarkerLine|ParsedMarker|externalBreakId|opportunityId|breakStart|CUE-OUT|DATERANGE' packages/core/src packages/data-plane/src packages/persistence/src --include='*.ts' | head -300\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '### data-plane avails'; nl -ba packages/data-plane/src/avails.ts | sed -n '1,360p'; printf '%s\\n' '### data-plane stitch'; nl -ba packages/data-plane/src/stitch.ts | sed -n '1,420p'; printf '%s\\n' '### data-plane origin rewrite'; nl -ba packages/data-plane/src/origin-rewrite.ts | sed -n '1,360p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '### core index'; cat packages/core/src/index.ts; printf '%s\\n' '### core decide'; nl -ba packages/core/src/decide.ts | sed -n '1,360p'; printf '%s\\n' '### data-plane tests around avails/stitch'; grep -nE 'adjacent|back.?to.?back|external|break|cue|marker|daterange' packages/data-plane/src/*test.ts packages/core/src/*test.ts\n",
+      "duration": 0.5
+    }
+  ]
+}

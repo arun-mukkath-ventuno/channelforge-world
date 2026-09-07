@@ -1,0 +1,18 @@
+{
+  "analysis": "The request handler confirms every detected avail is looked up by (session, opportunityId), then decided only on cache miss. Therefore the defect is almost certainly that detectAvails does not recognize an in-progress break when the first fetched playlist starts after the CUE-OUT, or it derives a different opportunity ID from a partial playlist. That explains both fresh sessions and previously decided sessions: no avail is produced, so neither cache lookup nor decision occurs. The persistence decision repository itself supports stable opportunity IDs. I need inspect detectAvails and its tests, especially handling of partial CUE-OUT/CUE-IN windows, plus pod-cache and service startup details.",
+  "plan": "Read the complete avail detector and tests, compare behavior for full versus mid-break playlists, and inspect pod-cache only to confirm key semantics. If the detector drops a trailing in-progress avail because it requires CUE-IN, make a minimal detector fix that preserves the existing common-case behavior and uses the stable DATERANGE/break ID. Then run data-plane tests/typecheck/build and restart the data-plane process or container service.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,260p' packages/data-plane/src/avails.ts; printf '\\n-- avail tests --\\n'; sed -n '1,360p' packages/data-plane/src/avails.test.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "cat packages/persistence/src/pod-cache.ts; printf '\\n-- server tail --\\n'; sed -n '90,260p' packages/data-plane/src/server.ts\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "printf '\\n-- control files --\\n'; find packages/control-plane/src -maxdepth 3 -type f -print | sort; printf '\\n-- decision refs --\\n'; grep -RInE -e 'ad-decision' -e 'opportunityId' -e 'opportunity_id' -e 'ensureSession' packages/control-plane/src 2>/dev/null | head -400\n",
+      "duration": 0.5
+    }
+  ]
+}

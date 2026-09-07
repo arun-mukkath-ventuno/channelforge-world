@@ -1,0 +1,18 @@
+{
+  "analysis": "The defect is now strongly indicated: sendAdBeacon sends only session_id and ad_id, and the deduplication service derives lifecycle IDs from session_id + pod_id + ad_id + event type. parseAdWindows uses the manifest's ad ID, which is likely the creative ID and therefore repeats across airings. Since pod_id is omitted, the second airing collides with the first. I still need inspect the watcher implementation and its tests to confirm the correct per-airing value and make the minimal fix without breaking duplicate-beacon collapse.",
+  "plan": "Read the remaining ssai.ts watcher code and the exact PlayerBand effect, plus all SSAI tests. Confirm whether each DATERANGE has an airing-specific ID or only a creative ID. The likely targeted fix is to send an airing-specific pod_id derived from the ad window's unique manifest occurrence (or otherwise add a stable per-airing identifier), preserving the same identifier for repeated beacon sends from one airing. Then update only application source, run tests/build, and restart the running Next service.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '--- ssai.ts lines 90-240'; nl -ba src/lib/ssai.ts | sed -n '90,260p'; printf '%s\\n' '--- ssai tests'; cat src/lib/ssai.test.ts; printf '%s\\n' '--- PlayerBand lines 175-225'; nl -ba src/components/fast/PlayerBand.tsx | sed -n '175,230p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Manifest/ad identifiers in source:'; find src -type f -print | while read f; do grep -nE 'X-AD-ID|DATERANGE|parseAdWindows|sendAdBeacon|adWindows|window|adId|startAdBeaconWatcher' \"$f\" && echo \"--- $f\"; done; printf '%s\\n' 'Reference docs mentioning pod/ad identity:'; find /reference/ssaiadserver -type f -print | while read f; do grep -nE 'pod_id|podId|ad_id|adId|airing|creative' \"$f\" >/dev/null 2>&1 && { echo \"--- $f\"; grep -nE 'pod_id|podId|ad_id|adId|airing|creative' \"$f\" | head -100; }; done\n",
+      "duration": 1.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Running processes:'; ps aux 2>/dev/null || true; printf '%s\\n' 'Listening ports:'; (netstat -ltnp 2>/dev/null || ss -ltnp 2>/dev/null || true); printf '%s\\n' 'Container init/cmd hints:'; tr '\\0' ' ' </proc/1/cmdline 2>/dev/null; echo\n",
+      "duration": 0.5
+    }
+  ]
+}

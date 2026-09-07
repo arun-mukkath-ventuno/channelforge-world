@@ -1,0 +1,41 @@
+Current Terminal Screen:
+>     ...(Number.isFinite(breakTime) ? { programDateTime: new Date(breakTime).toISOString() } : {}),
+>   };
+> }
+> `;
+> fs.writeFileSync(p,s);
+> const q='packages/data-plane/src/stitch.ts';
+> s=fs.readFileSync(q,'utf8').replace('const pod = avail ? rendered.get(avail.opportunityId) : undefined;', `const resolved = avail ? rendered.get(avail.opportu
+nityId) : undefined;
+>     const pod = avail?.elapsed !== undefined && resolved
+>       ? visiblePod(resolved, avail.elapsed, avail.measuredDuration)
+>       : resolved;`);
+> s+=`
+> /** Keep only media overlapping the visible continuation, not the entire pod.
+>  * Segment bytes cannot be split: boundary segments are retained whole.
+>  */
+> function visiblePod(pod: RenderedPodItem[], elapsed: number, duration: number): RenderedPodItem[] {
+>   const end = elapsed + duration;
+>   return pod.flatMap((item) => {
+>     let offset = item.startOffset;
+>     const segments = item.segments.filter((segment) => {
+>       const start = offset;
+>       offset += segment.duration;
+>       return offset > elapsed + 0.001 && start < end - 0.001;
+>     });
+>     return segments.length ? [{ ...item, segments }] : [];
+>   });
+> }
+> `;
+> fs.writeFileSync(q,s);
+> JS
+6f61bf7d2dec:/app# npx vitest run packages/data-plane/src packages/core/src/scte.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/core/src/scte.test.ts (11)
+

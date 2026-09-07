@@ -1,0 +1,159 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# nl -ba packages/data-plane/src/server.ts | sed -n '1,260p'; printf '\n--- server remainder ---\n'; nl -ba packages/data-plane/src/server.ts |
+ sed -n '261,520p'
+     1	// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+     2	//
+     3	// The manifest hot path:
+     4	//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+     5	//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+     6	//   the object store → stitch → return.
+     7	// It also serves the stored creative segments the stitched manifest references.
+     8	// No DB, no transcode on this path.
+     9	
+    10	import Fastify from "fastify";
+    11	import { verifySession, type PodItem } from "@ssai/core";
+    12	import type { PodCache } from "@ssai/persistence";
+    13	import type { ObjectStore } from "@ssai/storage";
+    14	import { OriginClient } from "./origin.js";
+    15	import { absolutizeManifest } from "./origin-rewrite.js";
+    16	import { detectAvails } from "./avails.js";
+    17	import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+    18	import { stitchManifest } from "./stitch.js";
+    19	import { HttpPodDecider, type PodDecider } from "./decider.js";
+    20	
+    21	export interface DataPlaneDeps {
+    22	  podCache: PodCache;
+    23	  origin: OriginClient;
+    24	  /** Object store holding prepared creative HLS (creatives/{id}/…). */
+    25	  store: ObjectStore;
+    26	  /** Optional: resolves a pod when none is cached. Omit → cache miss means slate. */
+    27	  decider?: PodDecider;
+    28	  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+    29	  sessionSecret?: string;
+    30	  logger?: boolean;
+    31	}
+    32	
+    33	export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+    34	
+    35	// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+    36	const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+    37	const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+    38	
+    39	const CONTENT_TYPES: Record<string, string> = {
+    40	  ts: "video/mp2t",
+    41	  m3u8: "application/vnd.apple.mpegurl",
+    42	  m4s: "video/iso.segment",
+    43	  mp4: "video/mp4",
+    44	  aac: "audio/aac",
+    45	};
+    46	
+    47	export function buildServer(deps: DataPlaneDeps) {
+    48	  // Signed tokens are long — raise the route param length limit (default 100).
+    49	  const app = Fastify({ logger: deps.logger ?? true, maxParamLength: 4096 });
+    50	  const { podCache, origin, decider, store } = deps;
+    51	  const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+    52	
+    53	  app.get("/health", async () => ({ status: "ok", plane: "data" }));
+    54	
+    55	  // Personalized media playlist (PRD §11, §22, §24, §52).
+    56	  app.get("/v1/hls/:token/:channel/:variant.m3u8", async (req, reply) => {
+    57	    const { token, channel, variant } = req.params as { token: string; channel: string; variant: string };
+    58	
+    59	    // Verify the signed playback token (PRD §57) before doing any work.
+    60	    const claims = verifySession(token, sessionSecret);
+    61	    if (!claims) return reply.code(403).send({ error: "invalid_session_token" });
+    62	    if (claims.ch !== channel) return reply.code(403).send({ error: "channel_mismatch" });
+    63	    const session = claims.sid;
+    64	
+    65	    let originResult;
+    66	    try {
+    67	      originResult = await origin.fetchMediaPlaylist(channel, variant);
+    68	    } catch (err) {
+    69	      req.log.error({ err }, "origin fetch failed with no cached copy");
+    70	      return reply.code(502).send({ error: "origin_unavailable" });
+    71	    }
+    72	
+    73	    // Absolutize the origin's relative content URIs against the real origin URL so the player
+    74	    // pulls content straight from ChannelForge (ad segments stay absolute SSAI paths).
+    75	    const originBody = absolutizeManifest(originResult.body, origin.originUrlFor(channel, variant));
+    76	    const avails = detectAvails(originBody, channel);
+    77	
+    78	    // Resolve a pod for each avail (cache, else decide once), then resolve its
+    79	    // media from the store into concrete segments.
+    80	    const rendered = new Map<string, RenderedPodItem[]>();
+    81	    for (const avail of avails) {
+    82	      let pod: PodItem[] | undefined;
+    83	      const cached = await podCache.get(session, avail.opportunityId);
+    84	      if (cached) pod = cached.pod;
+    85	      else if (decider) {
+    86	        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+    87	        if (decided) pod = decided;
+    88	      }
+    89	      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+    90	    }
+    91	
+    92	    const { manifest, stitched } = stitchManifest(originBody, avails, rendered);
+  
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+erver.ts-315-      eventsRepo.getEventsBySession(pool, id),
+packages/control-plane/src/server.ts-316-    ]);
+packages/control-plane/src/server.ts:317:    return { session, decisions, events };
+packages/control-plane/src/server.ts-318-  });
+packages/control-plane/src/server.ts:319:  app.get("/v1/debug/opportunity/:id", async (req) => {
+packages/control-plane/src/server.ts-320-    const { id } = req.params as { id: string };
+packages/control-plane/src/server.ts:321:    return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+packages/control-plane/src/server.ts-322-  });
+packages/control-plane/src/server.ts-323-
+packages/control-plane/src/server.ts-324-  // ── Admin SPA (PRD §33, §34) ─────────────────────────────────────────────
+packages/control-plane/src/server.ts-325-  // @fastify/static serves /admin/index.html + /admin/assets/*; client-side
+packages/control-plane/src/server.ts-326-  // routes (e.g. /admin/campaigns) fall through to the SPA index below.
+packages/control-plane/src/server.ts-327-  let landingHtml = "";
+packages/control-plane/src/server.ts-328-  try {
+packages/control-plane/src/server.ts-329-    landingHtml = readFileSync(new URL("../public/landing.html", import.meta.url), "utf8");
+--
+packages/control-plane/src/server.ts-491-    return reply.code(202).send({ creative_id: id, source_key: sourceKey, bytes: buffer.length, status: "uploaded" });
+packages/control-plane/src/server.ts-492-  });
+packages/control-plane/src/server.ts-493-
+packages/control-plane/src/server.ts-494-  return app;
+packages/control-plane/src/server.ts-495-}
+packages/control-plane/src/server.ts-496-
+packages/control-plane/src/server.ts-497-// Bootstrap from env when run directly.
+packages/control-plane/src/server.ts-498-if (import.meta.url === `file://${process.argv[1]}`) {
+packages/control-plane/src/server.ts:499:  const { createPool, createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/control-plane/src/server.ts-500-  const { createObjectStoreFromEnv } = await import("@ssai/storage");
+packages/control-plane/src/server.ts-501-  const pool = createPool();
+packages/control-plane/src/server.ts:502:  const podCache = new RedisPodCache(createRedis());
+packages/control-plane/src/server.ts-503-  const store = await createObjectStoreFromEnv();
+packages/control-plane/src/server.ts:504:  const app = buildServer({ pool, podCache, store });
+packages/control-plane/src/server.ts-505-  app.listen({ port: Number(process.env.CONTROL_PLANE_PORT ?? 4000), host: "0.0.0.0" }).catch((err) => {
+packages/control-plane/src/server.ts-506-    app.log.error(err);
+packages/control-plane/src/server.ts-507-    process.exit(1);
+packages/control-plane/src/server.ts-508-  });
+packages/control-plane/src/server.ts-509-}
+--
+packages/control-plane/src/vast-inventory.ts:1:// Turn resolved VAST ads into decisionable creative inventory for a channel. A VAST ad's best media
+packages/control-plane/src/vast-inventory.ts-2-// file becomes a creative's source (transcoded to HLS by the creative-worker like any upload), its
+packages/control-plane/src/vast-inventory.ts-3-// duration + tracking are stored, and a per-channel VAST campaign targets the channel — so the ad
+packages/control-plane/src/vast-inventory.ts:4:// flows through the *same* eligibility → decision → stitch path as house creatives. No decide() or
+packages/control-plane/src/vast-inventory.ts-5-// data-plane change: once conditioned (status "ready"), a VAST creative is normal inventory.
+packages/control-plane/src/vast-inventory.ts-6-
+packages/control-plane/src/vast-inventory.ts-7-import { createHash } from "node:crypto";
+packages/control-plane/src/vast-inventory.ts-8-
+packages/control-plane/src/vast-inventory.ts-9-import { campaigns as campaignsRepo, creatives as creativesRepo, type Pool } from "@ssai/persistence";
+packages/control-plane/src/vast-inventory.ts-10-
+packages/control-plane/src/vast-inventory.ts-11-import { fetchVast, type FetchVastOptions } from "./vast-fetch.js";
+packages/control-plane/src/vast-inventory.ts-12-import type { VastAd, VastTracking } from "./vast.js";
+--
+packages/control-plane/src/events-normalize.ts-41-  100: "ad_complete",
+packages/control-plane/src/events-normalize.ts-42-};
+packages/control-plane/src/events-normalize.ts-43-
+packages/control-plane/src/events-normalize.ts-44-export interface RawEvent {
+packages/control-plane/src/events-normalize.ts-45-  event?: string;
+packages/control-plane/src/events-normalize.ts-46-  event_type?: string;
+packages/control-plane/src/events-normalize.ts-47-  event_id?: string;
+packages/control-plane/src/events-normalize.ts-48-  quartile?: number;
+packages/control-plane/src/events-normalize.ts:49:  session_id?: string;
+packages/control-plane/src/events-normalize.ts-50-  channel_id?: string;
+packages/control-plane/src/events-normalize.ts:51:  opportunity_id?: string;
+727f8e3dc8f6:/app#

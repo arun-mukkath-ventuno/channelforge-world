@@ -1,0 +1,216 @@
+New Terminal Output:
+
+c97b28b93225:/app# nl -ba packages/data-plane/src/avails.ts | sed -n '1,260p'
+     1	// Avail detection over an origin media playlist (PRD §9, §22, §41).
+     2	//
+     3	// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+     4	// *deterministic* opportunity id derived from the channel + the media sequence
+     5	// of the avail's first segment. Determinism matters: every viewer's data-plane
+     6	// request and the decisioning path must agree on the same opportunity id for a
+     7	// given break without coordinating, so the cached pod is found on the hot path.
+     8	
+     9	import { parseMarkerLine } from "@ssai/core";
+    10	
+    11	export interface Avail {
+    12	  opportunityId: string;
+    13	  channelId: string;
+    14	  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+    15	   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+    16	   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+    17	   *  by contrast, is a media-sequence-derived id independent of the producer). */
+    18	  externalBreakId?: string;
+    19	  /** Break duration: the marker's declared duration, or the summed segment time. */
+    20	  duration: number;
+    21	  /** Declared duration from the marker, if it carried a valid one. */
+    22	  declaredDuration?: number;
+    23	  /** Actual duration summed from the segments inside the avail. */
+    24	  measuredDuration: number;
+    25	  /** Media sequence number of the first segment inside the avail. */
+    26	  startSequence: number;
+    27	  programDateTime?: string;
+    28	  /** Line index of the CUE-OUT marker. */
+    29	  startLine: number;
+    30	  /** Line index of the CUE-IN marker. */
+    31	  endLine: number;
+    32	}
+    33	
+    34	const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+    35	const EXTINF = /^#EXTINF:([\d.]+)/;
+    36	const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+    37	
+    38	/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+    39	 *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+    40	export function detectAvails(manifest: string, channelId: string): Avail[] {
+    41	  const lines = manifest.split("\n");
+    42	
+    43	  let mediaSequence = 0;
+    44	  let lastPdt: string | undefined;
+    45	  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    46	  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    47	  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    48	  let blockBreakId: string | undefined;
+    49	  const avails: Avail[] = [];
+    50	
+    51	  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    52	  let open: {
+    53	    startLine: number;
+    54	    startSequence: number;
+    55	    declaredDuration?: number;
+    56	    measuredDuration: number;
+    57	    pdt?: string;
+    58	    externalBreakId?: string;
+    59	  } | null = null;
+    60	
+    61	  for (let i = 0; i < lines.length; i++) {
+    62	    const line = lines[i]!;
+    63	    const trimmed = line.trim();
+    64	
+    65	    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    66	    if (seqMatch) {
+    67	      mediaSequence = Number(seqMatch[1]);
+    68	      continue;
+    69	    }
+    70	
+    71	    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    72	    if (pdtMatch) {
+    73	      lastPdt = pdtMatch[1]!.trim();
+    74	      // continue — PDT applies to the next segment.
+    75	    }
+    76	
+    77	    const marker = parseMarkerLine(line, i);
+    78	    if (marker?.kind === "daterange" && marker.id) {
+    79	      blockBreakId = marker.id;
+    80	      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+    81	      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+    82	      continue;
+    83	    }
+    84	    if (marker?.kind === "cue_out" && !open) {
+    85	      open = {
+    86	        startLine: i,
+    87	        startSequence: mediaSequence,
+    88	        measuredDuration: 0,
+    89	        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+    99	        opportunityId: `opp_${channelId}_${open.startSequence}`,
+   100	        channelId,
+   101	        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId })
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ction parseOriginMap(raw: string | undefined): Record<string, string> {
+    32	  if (!raw) return {};
+    33	  try {
+    34	    const v = JSON.parse(raw);
+    35	    return v && typeof v === "object" ? (v as Record<string, string>) : {};
+    36	  } catch {
+    37	    return {};
+    38	  }
+    39	}
+    40	
+    41	interface CacheEntry {
+    42	  body: string;
+    43	  at: number;
+    44	}
+    45	
+    46	export class OriginClient {
+    47	  private readonly cache = new Map<string, CacheEntry>();
+    48	  private readonly baseUrl: string;
+    49	  private readonly ttlMs: number;
+    50	  private readonly timeoutMs: number;
+    51	  private readonly fetchImpl: typeof fetch;
+    52	  private readonly originMap: Record<string, string>;
+    53	  private readonly urlFor: (channel: string, variant: string) => string;
+    54	
+    55	  constructor(opts: OriginClientOptions = {}) {
+    56	    this.baseUrl = (opts.baseUrl ?? process.env.CHANNELFORGE_ORIGIN_URL ?? "http://localhost:8080").replace(/\/$/, "");
+    57	    this.ttlMs = opts.ttlMs ?? 2000;
+    58	    this.timeoutMs = opts.timeoutMs ?? 3000;
+    59	    this.fetchImpl = opts.fetchImpl ?? fetch;
+    60	    this.originMap = opts.originMap ?? parseOriginMap(process.env.CHANNELFORGE_ORIGIN_MAP);
+    61	    this.urlFor =
+    62	      opts.urlFor ??
+    63	      ((channel, variant) => this.originMap[channel] ?? `${this.baseUrl}/${channel}/${variant}.m3u8`);
+    64	  }
+    65	
+    66	  /** The resolved origin media-playlist URL for a channel — also the base for absolutizing
+    67	   * the origin's relative segment URIs (so a real external origin's content stays fetchable). */
+    68	  originUrlFor(channel: string, variant = "index"): string {
+    69	    return this.urlFor(channel, variant);
+    70	  }
+    71	
+    72	  async fetchMediaPlaylist(channel: string, variant = "index"): Promise<OriginResult> {
+    73	    const url = this.urlFor(channel, variant);
+    74	    const now = Date.now();
+    75	    const hit = this.cache.get(url);
+    76	
+    77	    if (hit && now - hit.at < this.ttlMs) {
+    78	      return { body: hit.body, fromCache: true, stale: false };
+    79	    }
+    80	
+    81	    try {
+    82	      const controller = new AbortController();
+    83	      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    84	      let body: string;
+    85	      try {
+    86	        const res = await this.fetchImpl(url, { signal: controller.signal });
+    87	        if (!res.ok) throw new Error(`origin responded ${res.status}`);
+    88	        body = await res.text();
+    89	      } finally {
+    90	        clearTimeout(timer);
+    91	      }
+    92	      this.cache.set(url, { body, at: now });
+    93	      return { body, fromCache: false, stale: false };
+    94	    } catch (err) {
+    95	      // Origin failed — serve last-good if we have it (PRD §42).
+    96	      if (hit) return { body: hit.body, fromCache: true, stale: true };
+    97	      throw err;
+    98	    }
+    99	  }
+   100	}
+c97b28b93225:/app# nl -ba packages/data-plane/src/origin-rewrite.ts | sed -n '1,360p'
+     1	// Absolutize an origin media playlist's RELATIVE URIs against the origin playlist URL.
+     2	//
+     3	// When the SSAI wraps a real EXTERNAL ChannelForge origin, the stitched manifest is served from
+     4	// the SSAI host — so an origin's relative content URI like `index0.ts` would otherwise resolve
+     5	// against the SSAI (`…/v1/hls/{token}/{channel}/index0.ts`) and 404. Rewriting content URIs to
+     6	// absolute origin URLs (`https://forge…/hls/{uuid}/index0.ts`) lets the player pull content
+     7	// straight from ChannelForge, while ad segments the stitcher inserts stay absolute SSAI paths.
+     8	// For the co-located fixture origin (relative URIs that already resolve) this is a harmless no-op
+     9	// difference, so it's safe to apply unconditionally.
+    10	
+    11	function absolutize(uri: string, base: URL): string {
+    12	  const t = uri.trim();
+    13	  if (!t || /^https?:\/\//i.test(t)) return uri; // already absolute
+    14	  try {
+    15	    return new URL(t, base).toString();
+    16	  } catch {
+    17	    return uri;
+    18	  }
+    19	}
+    20	
+    21	export function absolutizeManifest(body: string, originUrl: string): string {
+    22	  let base: URL;
+    23	  try {
+    24	    base = new URL(originUrl);
+    25	  } catch {
+    26	    return body; // non-absolute origin (e.g. fixture http://host/...) still parses; bad input → passthrough
+    27	  }
+    28	  return body
+    29	    .split("\n")
+    30	    .map((line) => {
+    31	      const t = line.trim();
+    32	      if (!t) return line;
+    33	      // A bare segment URI line (not a tag).
+    34	      if (!t.startsWith("#")) return absolutize(line, base);
+    35	      // Tags that carry a URI="..." attribute (EXT-X-MAP, EXT-X-KEY, …).
+    36	      return line.replace(/URI="([^"]+)"/g, (_m, u) => `URI="${absolutize(u, base)}"`);
+    37	    })
+    38	    .join("\n");
+    39	}
+c97b28b93225:/app#

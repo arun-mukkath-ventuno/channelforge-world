@@ -1,0 +1,18 @@
+{
+  "analysis": "The actual ad beacon implementation is in src/lib/ssai.ts and src/components/fast/PlayerBand.tsx. The relevant source matches were truncated before showing the implementation, so the defect is not yet visible. The external contract confirms deduplication uses session_id, pod_id, ad_id, and event type; if the watcher sends a creative identifier as ad_id and leaves pod_id empty, all airings of that creative in a session collide. I need read those files and related tests in full, then patch the per-airing identity generation.",
+  "plan": "Inspect ssai.ts, PlayerBand.tsx, FastPlayer.tsx, and ssai tests with line numbers. Trace how the watcher is initialized and what identifiers are available from the stitched manifest. Determine whether the watcher currently keys an airing only by creative/ad identity or uses a constant empty pod. Add a minimal unique per-airing identifier, preserving it across duplicate watcher callbacks/manifest refreshes, and add no test modifications. Then run the existing tests and build, followed by service restart.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '--- src/lib/ssai.ts'; nl -ba src/lib/ssai.ts; printf '%s\\n' '--- src/lib/ssai.test.ts'; nl -ba src/lib/ssai.test.ts; printf '%s\\n' '--- PlayerBand ad section'; nl -ba src/components/fast/PlayerBand.tsx | sed -n '1,260p'; printf '%s\\n' '--- FastPlayer'; nl -ba src/components/fast/FastPlayer.tsx | sed -n '1,360p'\n",
+      "duration": 1.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'All references to startAdBeaconWatcher and SSAI fields:'; find src -type f -print | while read f; do grep -nE 'startAdBeaconWatcher|SsaiSession|playbackUrl|sessionId|ad.?beacon|quartile' \"$f\" && echo \"--- $f\"; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'SSAI-related API and manifest code:'; nl -ba src/app/api/fast/ads/current/route.ts; nl -ba src/app/api/fast/hls/'[...path]'/route.ts; printf '%s\\n' 'Reference normalizer tests/files:'; find /reference/ssaiadserver -type f -print | sort | while read f; do grep -nE 'deriveEventId|normalizeEvent|pod_id|ad_id' \"$f\" >/dev/null 2>&1 && { echo \"--- $f\"; sed -n '1,260p' \"$f\"; }; done\n",
+      "duration": 1.5
+    }
+  ]
+}

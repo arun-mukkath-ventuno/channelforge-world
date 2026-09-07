@@ -1,0 +1,283 @@
+New Terminal Output:
+
+c3e0c565748c:/app# cat packages/data-plane/src/decider.ts; sed -n '1,85p' packages/data-plane/src/avails.test.ts; sed -n '1,115p' packages/data-plane/src/media.
+ts; env | sort
+// When a viewer reaches an avail with no cached pod, the data plane asks the
+// control plane's Ad Decision Service for one (PRD §15). The control plane
+// persists the decision and writes the pod to the cache, so subsequent playlist
+// refreshes for this (session, opportunity) are pure cache reads on the hot path.
+
+import type { PodItem } from "@ssai/core";
+import type { Avail } from "./avails.js";
+
+export interface DecideRequest {
+  sessionId: string;
+  channelId: string;
+  avail: Avail;
+}
+
+export interface PodDecider {
+  decide(req: DecideRequest): Promise<PodItem[] | null>;
+}
+
+/** Posts to the control plane's /v1/ad-decision. */
+export class HttpPodDecider implements PodDecider {
+  constructor(
+    private readonly controlPlaneUrl: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs = 200,
+  ) {}
+
+  async decide({ sessionId, channelId, avail }: DecideRequest): Promise<PodItem[] | null> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const res = await this.fetchImpl(`${this.controlPlaneUrl}/v1/ad-decision`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          channel_id: channelId,
+          opportunity_id: avail.opportunityId,
+          duration: avail.duration,
+          ...(avail.externalBreakId === undefined
+            ? {}
+            : { external_break_id: avail.externalBreakId }),
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      const decision = (await res.json()) as { pod?: PodItem[] };
+      return decision.pod ?? null;
+    } catch {
+      // ADS unavailable → no pod → origin slate plays (PRD §37).
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+import { describe, it, expect } from "vitest";
+import { detectAvails } from "./avails.js";
+
+function manifest(lines: string[]): string {
+  return lines.join("\n");
+}
+
+describe("detectAvails (PRD §9, §41)", () => {
+  it("derives a deterministic opportunity id from channel + media sequence", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:100",
+      "#EXTINF:6.000,",
+      "s100.ts",
+      "#EXTINF:6.000,",
+      "s101.ts",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "channel_food");
+    expect(avails).toHaveLength(1);
+    // Two segments consumed (100, 101), so the avail's first segment is 102.
+    expect(avails[0]).toMatchObject({
+      opportunityId: "opp_channel_food_102",
+      channelId: "channel_food",
+      duration: 30,
+      declaredDuration: 30,
+      startSequence: 102,
+    });
+  });
+
+  it("is stable across playlist refreshes (same avail → same id as the window slides)", () => {
+    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    const a = detectAvails(before, "ch")[0]!;
+    const b = detectAvails(after, "ch")[0]!;
+    expect(a.opportunityId).toBe(b.opportunityId); // opp_ch_101 in both
+  });
+
+  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:oops",
+      "#EXTINF:6.000,",
+      "slate1.ts",
+      "#EXTINF:6.000,",
+      "slate2.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails[0]!.declaredDuration).toBeUndefined();
+    expect(avails[0]!.measuredDuration).toBe(12);
+    expect(avails[0]!.duration).toBe(12);
+  });
+
+  it("captures PROGRAM-DATE-TIME preceding the avail", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    expect(detectAvails(m, "ch")[0]!.programDateTime).toBe("2026-08-29T12:15:00.000Z");
+  });
+
+  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+    expect(detectAvails(m, "ch")).toEqual([]);
+  });
+
+  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:200",
+      "#EXTINF:6.000,",
+      "s200.ts",
+      "#EXT-X-CUE-OUT:90",
+      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+M=tmux-256color
+TERM_PROGRAM=tmux
+TERM_PROGRAM_VERSION=3.7c
+TMUX=/tmp/tmux-0/default,96,0
+TMUX_PANE=%0
+YARN_VERSION=1.22.22
+_=/usr/bin/env
+c3e0c565748c:/app# cat packages/data-plane/src/stitch.test.ts | head -95; cat packages/persistence/src/db.ts; cat packages/storage/src/factory.ts
+import { describe, it, expect } from "vitest";
+import { stitchManifest } from "./stitch.js";
+import { detectAvails } from "./avails.js";
+import type { RenderedPodItem } from "./media.js";
+
+const ORIGIN = [
+  "#EXTM3U",
+  "#EXT-X-VERSION:3",
+  "#EXT-X-TARGETDURATION:6",
+  "#EXT-X-MEDIA-SEQUENCE:100",
+  "#EXTINF:6.000,",
+  "segment100.ts",
+  "#EXTINF:6.000,",
+  "segment101.ts",
+  "#EXT-X-CUE-OUT:30",
+  "#EXTINF:6.000,",
+  "slate001.ts",
+  "#EXTINF:6.000,",
+  "slate002.ts",
+  "#EXT-X-CUE-IN",
+  "#EXTINF:6.000,",
+  "segment105.ts",
+  "",
+].join("\n");
+
+const AD_MEDIA: RenderedPodItem[] = [
+  {
+    type: "ad",
+    creativeId: "cr_a",
+    campaignId: "camp_a",
+    duration: 30,
+    startOffset: 0,
+    segments: [
+      { duration: 8.333, uri: "/v1/segments/cr_a/cr_a_000.ts" },
+      { duration: 8.333, uri: "/v1/segments/cr_a/cr_a_001.ts" },
+    ],
+  },
+];
+
+function renderedFor(oppId: string, items: RenderedPodItem[]): Map<string, RenderedPodItem[]> {
+  return new Map([[oppId, items]]);
+}
+
+describe("stitchManifest (PRD §22-25)", () => {
+  it("replaces the avail region with real creative segment URLs", () => {
+    const avails = detectAvails(ORIGIN, "channel_food");
+    const { manifest, stitched } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+    expect(stitched).toEqual([avails[0]!.opportunityId]);
+    expect(manifest).not.toContain("slate001.ts");
+    expect(manifest).not.toContain("#EXT-X-CUE-OUT");
+    expect(manifest).toContain("/v1/segments/cr_a/cr_a_000.ts");
+    expect(manifest).toContain("#EXTINF:8.333,");
+    // Surrounding content preserved.
+    expect(manifest).toContain("segment101.ts");
+    expect(manifest).toContain("segment105.ts");
+  });
+
+  it("emits discontinuities and ad metadata (PRD §24, §25)", () => {
+    const avails = detectAvails(ORIGIN, "channel_food");
+    const { manifest } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+    expect(manifest).toContain("#EXT-X-DISCONTINUITY");
+    expect(manifest).toContain('X-AD-ID="cr_a"');
+    expect(manifest).toContain('X-CAMPAIGN-ID="camp_a"');
+  });
+
+  it("leaves an avail untouched when no media is resolved (origin slate plays, §42)", () => {
+    const avails = detectAvails(ORIGIN, "channel_food");
+    const { manifest, stitched } = stitchManifest(ORIGIN, avails, new Map());
+    expect(stitched).toEqual([]);
+    expect(manifest).toContain("slate001.ts");
+    expect(manifest).toBe(ORIGIN);
+  });
+});
+// Postgres connection + a minimal Queryable abstraction so repositories work
+// against both a real `pg.Pool` and the pg-mem adapter used in tests.
+
+import pg from "pg";
+
+const { Pool } = pg;
+
+/** Anything that can run a parameterized query — pg.Pool, pg.PoolClient, pg-mem. */
+export interface Queryable {
+  query<R extends pg.QueryResultRow = pg.QueryResultRow>(
+    text: string,
+    params?: readonly unknown[],
+  ): Promise<pg.QueryResult<R>>;
+}
+
+export type Pool = pg.Pool;
+
+export function createPool(connectionString = process.env.DATABASE_URL): pg.Pool {
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  return new Pool({ connectionString, max: 10 });
+}
+
+/** Run `fn` inside a transaction, rolling back on error. */
+export async function withTransaction<T>(pool: pg.Pool, fn: (tx: Queryable) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+// Choose an ObjectStore from the environment: S3/MinIO when S3_BUCKET is set,
+// otherwise the filesystem store (the zero-infra default for dev / RL).
+
+import type { ObjectStore } from "./storage.js";
+import { FilesystemObjectStore } from "./storage.js";
+
+export async function createObjectStoreFromEnv(): Promise<ObjectStore> {
+  if (process.env.S3_BUCKET) {
+    const { createS3ObjectStore } = await import("./s3.js");
+    return createS3ObjectStore({
+      bucket: process.env.S3_BUCKET,
+      ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT } : {}),
+      ...(process.env.S3_REGION ? { region: process.env.S3_REGION } : {}),
+      ...(process.env.S3_ACCESS_KEY ? { accessKeyId: process.env.S3_ACCESS_KEY } : {}),
+      ...(process.env.S3_SECRET_KEY ? { secretAccessKey: process.env.S3_SECRET_KEY } : {}),
+      forcePathStyle: true,
+      ...(process.env.CREATIVE_STORE_BASE_URL ? { publicBaseUrl: process.env.CREATIVE_STORE_BASE_URL } : {}),
+    });
+  }
+  return new FilesystemObjectStore(process.env.CREATIVE_STORE_ROOT ?? "./storage/creatives");
+}
+c3e0c565748c:/app#

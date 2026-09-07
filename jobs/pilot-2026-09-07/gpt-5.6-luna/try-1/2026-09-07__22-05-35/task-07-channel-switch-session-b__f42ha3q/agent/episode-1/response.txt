@@ -1,0 +1,18 @@
+{
+  "analysis": "The project is a Node/TypeScript service with migrations and dependencies, but the initial shallow listing did not show application files or source directories. The source is likely deeper than two levels, hidden, or mounted separately. I need inspect all non-node_modules entries and package scripts to locate the service entrypoint.",
+  "plan": "List the complete repository tree while excluding node_modules, inspect package.json and TypeScript configuration, then search the application source for session and channel terminology. This will identify the exact persistence/update path before making any change.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' 'Repository entries:' && find . -path './node_modules' -prune -o -print | sort | sed -n '1,300p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'package.json:' && cat package.json && printf '%s\\n' 'tsconfig.json:' && cat tsconfig.json && printf '%s\\n' 'tsconfig.base.json:' && cat tsconfig.base.json\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Session/channel references:' && grep -RIn --exclude-dir=node_modules --exclude='*.lock' -E 'session|channel' . | sed -n '1,300p'\n",
+      "duration": 0.5
+    }
+  ]
+}

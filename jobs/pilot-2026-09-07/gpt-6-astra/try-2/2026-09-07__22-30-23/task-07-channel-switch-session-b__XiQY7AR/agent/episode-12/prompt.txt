@@ -1,0 +1,17 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+> tsc --build
+
+
+> @ssai/storage@0.1.0 build
+> tsc --build
+
+control-plane restarted (pid 773)
+c14a4ace724a:/app# {"level":30,"time":1788800520671,"pid":773,"hostname":"c14a4ace724a","msg":"Server listening at http://127.0.0.1:4000"}
+{"level":30,"time":1788800520671,"pid":773,"hostname":"c14a4ace724a","msg":"Server listening at http://172.20.0.4:4000"}
+node --input-type=module -e "const r = await fetch('http://127.0.0.1:4000/health'); console.log(r.status, await r.text()); if (!r.ok) process.exit(1);"
+bash: !r.ok: event not found
+c14a4ace724a:/app#

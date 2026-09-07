@@ -1,0 +1,22 @@
+{
+  "analysis": "The control plane explicitly persists decisions and writes them to the pod cache, but its ad-decision route likely always creates a new decision because the data plane calls it only after a session-scoped cache miss. This explains continuous viewers (cache hit) versus fresh/reconnected viewers (miss), and also duplicate decisions for the same session after reconnect. The intended fix should make the cache recoverable by exact opportunity, while retaining the session/opportunity fast path. I need see the full route and interfaces before editing.",
+  "plan": "Inspect the complete control-plane ad-decision handler and data-plane startup, then inspect any data-plane server tests or compiled source clues. If the control plane already has an opportunity decision query, add a targeted PodCache lookup by opportunity and use it only as a fallback after the existing session-key lookup. If not, expose a minimal control-plane recovery endpoint or adjust the decider contract, but avoid changing common-case detection/decisioning.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '145,255p' packages/control-plane/src/server.ts; sed -n '470,530p' packages/control-plane/src/server.ts\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "sed -n '115,175p' packages/data-plane/src/server.ts; cat packages/persistence/src/pod-cache.ts; cat packages/data-plane/tsconfig.json\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "find packages/data-plane/src -type f -name '*.test.ts' -exec grep -nHE 'buildServer|hls|token|decider|podCache|x-ssai' {} +\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "grep -RInE 'interface PodCache|class .*PodCache|pod-cache' packages --exclude='*.map' --exclude='*.js' 2>/dev/null\n",
+      "duration": 0.3
+    }
+  ]
+}

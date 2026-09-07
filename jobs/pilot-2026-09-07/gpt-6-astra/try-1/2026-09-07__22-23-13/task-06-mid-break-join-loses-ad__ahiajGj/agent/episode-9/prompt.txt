@@ -1,0 +1,231 @@
+New Terminal Output:
+
+6f61bf7d2dec:/app# ls -la /data; sed -n '1,150p' packages/data-plane/src/media.test.ts; sed -n '1,160p' packages/data-plane/src/stitch.test.ts; sed -n '1,45p' p
+ackages/data-plane/src/server.ts
+ls: /data: No such file or directory
+import { describe, it, expect } from "vitest";
+import { parseVariantPlaylist, resolvePodSegments } from "./media.js";
+import type { ObjectStore } from "@ssai/storage";
+import type { PodItem } from "@ssai/core";
+
+const VARIANT = [
+  "#EXTM3U",
+  "#EXT-X-VERSION:6",
+  "#EXT-X-TARGETDURATION:8",
+  "#EXT-X-PLAYLIST-TYPE:VOD",
+  "#EXTINF:8.333333,",
+  "cr_a_000.ts",
+  "#EXTINF:8.333333,",
+  "cr_a_001.ts",
+  "#EXT-X-ENDLIST",
+  "",
+].join("\n");
+
+// In-memory store seeded with one prepared creative.
+function storeWith(entries: Record<string, string>): ObjectStore {
+  return {
+    async get(key) {
+      if (entries[key] === undefined) throw new Error("not found: " + key);
+      return Buffer.from(entries[key]);
+    },
+    async put() {},
+    async list() {
+      return [];
+    },
+    url: (k) => "store://local/" + k,
+  };
+}
+
+describe("parseVariantPlaylist", () => {
+  it("extracts EXTINF durations + segment names", () => {
+    expect(parseVariantPlaylist(VARIANT)).toEqual([
+      { duration: 8.333333, uri: "cr_a_000.ts" },
+      { duration: 8.333333, uri: "cr_a_001.ts" },
+    ]);
+  });
+});
+
+describe("resolvePodSegments (PRD §14, §42)", () => {
+  const pod: PodItem[] = [
+    { type: "ad", creativeId: "cr_a", campaignId: "camp_a", duration: 30, position: 0, startOffset: 0, endOffset: 30 },
+    { type: "slate", duration: 15, position: 1, startOffset: 30, endOffset: 45 },
+  ];
+
+  it("maps a prepared ad to real segment URLs, and synthesizes slate", async () => {
+    const store = storeWith({ "creatives/cr_a/cr_a.m3u8": VARIANT });
+    const rendered = await resolvePodSegments(pod, store);
+
+    expect(rendered[0]).toMatchObject({ type: "ad", creativeId: "cr_a" });
+    expect(rendered[0]!.segments.map((s) => s.uri)).toEqual([
+      "/v1/segments/cr_a/cr_a_000.ts",
+      "/v1/segments/cr_a/cr_a_001.ts",
+    ]);
+    expect(rendered[1]!.type).toBe("slate");
+    expect(rendered[1]!.segments.length).toBeGreaterThan(0);
+  });
+
+  it("degrades an unprepared creative to slate so playback survives (§42)", async () => {
+    const store = storeWith({}); // cr_a not stored
+    const rendered = await resolvePodSegments(pod, store);
+    expect(rendered[0]!.type).toBe("slate"); // ad slot degraded
+    expect(rendered[0]!.creativeId).toBeUndefined();
+  });
+});
+
+const SLATE_VARIANT = [
+  "#EXTM3U",
+  "#EXTINF:7.500,",
+  "s_000.ts",
+  "#EXTINF:7.500,",
+  "s_001.ts",
+  "#EXT-X-ENDLIST",
+  "",
+].join("\n");
+
+describe("slate fill from prepared media (PRD §20, §21)", () => {
+  const slatePod: PodItem[] = [
+    { type: "slate", duration: 30, position: 0, startOffset: 0, endOffset: 30 },
+  ];
+
+  it("loops the channel slate clip to cover the slate duration exactly", async () => {
+    const store = storeWith({ "slates/channel_food/channel_food.m3u8": SLATE_VARIANT });
+    const rendered = await resolvePodSegments(slatePod, store, { channelId: "channel_food" });
+    // 15s clip looped twice covers 30s → 4 segments, all real slate URLs.
+    expect(rendered[0]!.segments).toHaveLength(4);
+    expect(rendered[0]!.segments.map((s) => s.uri)).toEqual([
+      "/v1/slate/channel_food/s_000.ts",
+      "/v1/slate/channel_food/s_001.ts",
+      "/v1/slate/channel_food/s_000.ts",
+      "/v1/slate/channel_food/s_001.ts",
+    ]);
+  });
+
+  it("falls back to the default slate when the channel has none", async () => {
+    const store = storeWith({ "slates/default/default.m3u8": SLATE_VARIANT });
+    const rendered = await resolvePodSegments(slatePod, store, { channelId: "channel_food" });
+    expect(rendered[0]!.segments[0]!.uri).toBe("/v1/slate/default/s_000.ts");
+  });
+});
+import { describe, it, expect } from "vitest";
+import { stitchManifest } from "./stitch.js";
+import { detectAvails } from "./avails.js";
+import type { RenderedPodItem } from "./media.js";
+
+const ORIGIN = [
+  "#EXTM3U",
+  "#EXT-X-VERSION:3",
+  "#EXT-X-TARGETDURATION:6",
+  "#EXT-X-MEDIA-SEQUENCE:100",
+  "#EXTINF:6.000,",
+  "segment100.ts",
+  "#EXTINF:6.000,",
+  "segment101.ts",
+  "#EXT-X-CUE-OUT:30",
+  "#EXTINF:6.000,",
+  "slate001.ts",
+  "#EXTINF:6.000,",
+  "slate002.ts",
+  "#EXT-X-CUE-IN",
+  "#EXTINF:6.000,",
+  "segment105.ts",
+  "",
+].join("\n");
+
+const AD_MEDIA: RenderedPodItem[] = [
+  {
+    type: "ad",
+    creativeId: "cr_a",
+    campaignId: "camp_a",
+    duration: 30,
+    startOffset: 0,
+    segments: [
+      { duration: 8.333, uri: "/v1/segments/cr_a/cr_a_000.ts" },
+      { duration: 8.333, uri: "/v1/segments/cr_a/cr_a_001.ts" },
+    ],
+  },
+];
+
+function renderedFor(oppId: string, items: RenderedPodItem[]): Map<string, RenderedPodItem[]> {
+  return new Map([[oppId, items]]);
+}
+
+describe("stitchManifest (PRD §22-25)", () => {
+  it("replaces the avail region with real creative segment URLs", () => {
+    const avails = detectAvails(ORIGIN, "channel_food");
+    const { manifest, stitched } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+    expect(stitched).toEqual([avails[0]!.opportunityId]);
+    expect(manifest).not.toContain("slate001.ts");
+    expect(manifest).not.toContain("#EXT-X-CUE-OUT");
+    expect(manifest).toContain("/v1/segments/cr_a/cr_a_000.ts");
+    expect(manifest).toContain("#EXTINF:8.333,");
+    // Surrounding content preserved.
+    expect(manifest).toContain("segment101.ts");
+    expect(manifest).toContain("segment105.ts");
+  });
+
+  it("emits discontinuities and ad metadata (PRD §24, §25)", () => {
+    const avails = detectAvails(ORIGIN, "channel_food");
+    const { manifest } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+    expect(manifest).toContain("#EXT-X-DISCONTINUITY");
+    expect(manifest).toContain('X-AD-ID="cr_a"');
+    expect(manifest).toContain('X-CAMPAIGN-ID="camp_a"');
+  });
+
+  it("leaves an avail untouched when no media is resolved (origin slate plays, §42)", () => {
+    const avails = detectAvails(ORIGIN, "channel_food");
+    const { manifest, stitched } = stitchManifest(ORIGIN, avails, new Map());
+    expect(stitched).toEqual([]);
+    expect(manifest).toContain("slate001.ts");
+    expect(manifest).toBe(ORIGIN);
+  });
+});
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+
+import Fastify from "fastify";
+import { verifySession, type PodItem } from "@ssai/core";
+import type { PodCache } from "@ssai/persistence";
+import type { ObjectStore } from "@ssai/storage";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider, type PodDecider } from "./decider.js";
+
+export interface DataPlaneDeps {
+  podCache: PodCache;
+  origin: OriginClient;
+  /** Object store holding prepared creative HLS (creatives/{id}/…). */
+  store: ObjectStore;
+  /** Optional: resolves a pod when none is cached. Omit → cache miss means slate. */
+  decider?: PodDecider;
+  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+  sessionSecret?: string;
+  logger?: boolean;
+}
+
+export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+
+// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+
+const CONTENT_TYPES: Record<string, string> = {
+  ts: "video/mp2t",
+  m3u8: "application/vnd.apple.mpegurl",
+  m4s: "video/iso.segment",
+  mp4: "video/mp4",
+  aac: "audio/aac",
+};
+6f61bf7d2dec:/app# node --input-type=module -e 'for (const url of ["http://localhost:8080/health","http://localhost:4000/health"]) { try { const r = await fetch
+(url); console.log(url,r.status,await r.text()); } catch(e) {console.log(url,e.message)} }'
+http://localhost:8080/health fetch failed
+http://localhost:4000/health fetch failed
+6f61bf7d2dec:/app#

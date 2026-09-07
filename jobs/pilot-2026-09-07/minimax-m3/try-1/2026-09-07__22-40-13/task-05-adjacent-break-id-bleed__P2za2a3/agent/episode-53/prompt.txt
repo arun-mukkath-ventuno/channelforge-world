@@ -1,0 +1,34 @@
+New Terminal Output:
+
+d55ac9bae4ee:/app# cat packages/data-plane/dist/avails.js | head -30
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+import { parseMarkerLine } from "@ssai/core";
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+export function detectAvails(manifest, channelId) {
+    const lines = manifest.split("\n");
+    let mediaSequence = 0;
+    let lastPdt;
+    // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    let blockBreakId;
+    const avails = [];
+    // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    let open = null;
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const trimmed = line.trim();
+        const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+        if (seqMatch) {
+            mediaSequence = Number(seqMatch[1]);
+d55ac9bae4ee:/app#

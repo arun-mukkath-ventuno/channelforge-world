@@ -1,0 +1,14 @@
+{
+  "analysis": "The terminal is at /app with no command output yet. I need inspect the service source, identify how cue markers are parsed and producer break IDs are assigned across adjacent breaks, make a minimal source-only fix, run relevant tests, and restart the affected service.",
+  "plan": "First list the repository and service structure, then search for cue-marker parsing, break IDs, and delivery attribution logic. After locating the defect, inspect the relevant implementation and tests, patch only application source, run targeted tests (without modifying test files), and restart the service using the repository's existing mechanism.",
+  "commands": [
+    {
+      "keystrokes": "pwd; printf '\\n-- top-level --\\n'; find . -maxdepth 2 -type f | sort | sed -n '1,160p'; printf '\\n-- dirs --\\n'; find . -maxdepth 2 -type d | sort | sed -n '1,120p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- candidate references --'; grep -RInE 'cue|marker|break[_ -]?id|producer|splice|ad break|adbreak' --exclude-dir=.git --exclude-dir=node_modules . 2>/dev/null | head -300\n",
+      "duration": 1.0
+    }
+  ]
+}

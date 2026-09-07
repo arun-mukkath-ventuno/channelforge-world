@@ -1,0 +1,80 @@
+New Terminal Output:
+
+e6f3e04d76cc:/app# sed -i 's/ON CONFLICT (id) DO NOTHING/ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id/' packages/persistence/src/repositories
+/sessions.ts
+e6f3e04d76cc:/app# sed -n '20,52p' packages/persistence/src/repositories/sessions.ts; printf '\nDiff:\n'; git diff -- packages/persistence/src/repositories/sess
+ions.ts 2>/dev/null || true
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+  );
+}
+
+Diff:
+e6f3e04d76cc:/app# npm test -- --run packages/persistence/src/repositories.test.ts
+
+> ssaiadserver@0.1.0 test
+> vitest run --run packages/persistence/src/repositories.test.ts
+
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/persistence/src/repositories.test.ts (4)
+   ✓ seed + inventory repositories (2)
+     ✓ seeds 5 channels and assembles campaign target channels
+     ✓ returns creatives with numeric duration/priority/weight
+   ✓ decision persistence round-trip (PRD §46, §47) (1)
+     ✓ persists a decided pod and reads the full payload back
+   ✓ event stream (PRD §26, §29, §30) (1)
+     ✓ appends and reads events by session, ignoring duplicate event ids
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  16:47:00
+   Duration  571ms (transform 155ms, setup 0ms, collect 265ms, tests 178ms, environment 0ms, prepare 35ms)
+
+e6f3e04d76cc:/app# npm run typecheck
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+npm run build
+e6f3e04d76cc:/app# npm run build
+
+> ssaiadserver@0.1.0 build
+> npm run build --workspaces --if-present
+
+
+> @ssai/admin-web@0.1.0 build
+> vite build
+
+vite v6.4.3 building for production...
+transforming (30) ../../node_modules/marked/lib/marked.esm.js

@@ -1,0 +1,209 @@
+New Terminal Output:
+root@8ca8bd3b4dbf:/app# pwd && printf '\nTop-level files:\n' && find . -maxdepth 2 -type f | sort | sed -n '1,160p'
+/app
+
+Top-level files:
+./Dockerfile
+./alembic.ini
+./app/__init__.py
+./app/clock.py
+./app/config.py
+./app/db.py
+./app/main.py
+./app/redis_client.py
+./channelforge_api.egg-info/PKG-INFO
+./channelforge_api.egg-info/SOURCES.txt
+./channelforge_api.egg-info/dependency_links.txt
+./channelforge_api.egg-info/requires.txt
+./channelforge_api.egg-info/top_level.txt
+./migrations/env.py
+./migrations/script.py.mako
+./pyproject.toml
+./tests/__init__.py
+./tests/conftest.py
+./tests/helpers.py
+./tests/test_admin.py
+./tests/test_alerts.py
+./tests/test_analysis.py
+./tests/test_as_run.py
+./tests/test_asset_delete.py
+./tests/test_asset_metadata.py
+./tests/test_audience.py
+./tests/test_audit.py
+./tests/test_audit_expansion.py
+./tests/test_auth.py
+./tests/test_authorization_matrix.py
+./tests/test_auto_normalize.py
+./tests/test_branding.py
+./tests/test_caption_parse.py
+./tests/test_captions.py
+./tests/test_certification.py
+./tests/test_channel_status.py
+./tests/test_clock_generation.py
+./tests/test_collections.py
+./tests/test_cue_plan.py
+./tests/test_cue_validation.py
+./tests/test_dashboard_gaps.py
+./tests/test_dayparts.py
+./tests/test_destinations.py
+./tests/test_distribution_adapter_contract.py
+./tests/test_distribution_gate.py
+./tests/test_dropbox.py
+./tests/test_editorial_model.py
+./tests/test_effective_at.py
+./tests/test_eligibility.py
+./tests/test_epg.py
+./tests/test_epg_api.py
+./tests/test_epg_delivery.py
+./tests/test_fallback_resolution.py
+./tests/test_fast_status.py
+./tests/test_flow_gaps.py
+./tests/test_gdrive.py
+./tests/test_health.py
+./tests/test_heartbeat_detector.py
+./tests/test_horizon_extension.py
+./tests/test_http_delivery.py
+./tests/test_incident.py
+./tests/test_integration_boundaries.py
+./tests/test_library_import.py
+./tests/test_lifecycle.py
+./tests/test_media_bulk_and_filters.py
+./tests/test_migration_drift.py
+./tests/test_noc.py
+./tests/test_normalization_robustness.py
+./tests/test_notifications.py
+./tests/test_oauth_callback.py
+./tests/test_operator_role.py
+./tests/test_organizations.py
+./tests/test_output_failover.py
+./tests/test_output_heartbeat.py
+./tests/test_output_probe_sweep.py
+./tests/test_output_profiles.py
+./tests/test_password_reset.py
+./tests/test_per_agreement_eligibility.py
+./tests/test_plans.py
+./tests/test_platform_storage.py
+./tests/test_preview.py
+./tests/test_probes.py
+./tests/test_profile_presets.py
+./tests/test_programming.py
+./tests/test_programming_blocks.py
+./tests/test_public_epg.py
+./tests/test_qc.py
+./tests/test_quickstart.py
+./tests/test_reconciliation.py
+./tests/test_reconciliation_runs.py
+./tests/test_reconciliation_wiring.py
+./tests/test_recurring_blocks.py
+./tests/test_redundancy.py
+./tests/test_resumable_uploads.py
+./tests/test_rights_enforcement.py
+./tests/test_rights_engine.py
+./tests/test_rights_takedown.py
+./tests/test_schedule_alerts.py
+./tests/test_schedule_rights.py
+./tests/test_schedules.py
+./tests/test_service_accounts.py
+./tests/test_sftp.py
+./tests/test_ssai_adapter_contract.py
+./tests/test_ssai_adserver_adapter.py
+./tests/test_ssai_delivery.py
+./tests/test_start_timeout.py
+./tests/test_storage.py
+./tests/test_vast_tag.py
+./tests/test_webhooks.py
+./tests/test_webhooks_api.py
+./tests/test_youtube.py
+./tests/test_youtube_alerts.py
+./tests/test_youtube_broadcast_reconcile.py
+root@8ca8bd3b4dbf:/app# printf '\nDirectories:\n' && find . -maxdepth 2 -type d | sort | sed -n '1,120p'
+
+Directories:
+.
+./app
+./app/adapters
+./app/api
+./app/auth
+./app/integrations
+./app/jobs
+./app/models
+./app/observability
+./app/repositories
+./app/schemas
+./app/security
+./app/services
+./channelforge_api.egg-info
+./migrations
+./migrations/versions
+./tests
+./tests/fixtures
+root@8ca8bd3b4dbf:/app# grep -RInE "takedown|series|eligible|eligib" --exclude-dir=.git --exclude-dir=tests . | head -240
+./app/schemas/channels.py:139:    """Concurrents series (PRD 2.0 §4.4). RTMP-only channels have no analytics source."""
+./app/schemas/collections.py:13:    series: str | None = None
+./app/schemas/rights.py:8:_SCOPE_TYPES = {"asset", "series", "collection", "channel", "agreement"}
+./app/schemas/rights.py:63:    scope_type: str  # asset | series
+./app/schemas/rights.py:87:    takedown: TakedownOut
+./app/schemas/library.py:35:    series: SeriesImportIn
+./app/schemas/library.py:55:    eligibility: EligibilityOut | None = None
+./app/schemas/library.py:60:    series_id: uuid.UUID | None = None
+./app/schemas/library.py:61:    series_action: str | None = None
+./app/schemas/media.py:60:    series: str | None = Field(default=None, max_length=300)
+./app/schemas/media.py:95:    series: str | None = Field(default=None, max_length=300)
+./app/schemas/media.py:132:    series: str | None
+./app/api/channels.py:231:    """Concurrents series + availability (PRD 2.0 §4.4)."""
+./app/api/channels.py:236:    points = audience_service.series(
+./app/api/rights.py:25:from app.services import rights_a
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+hecks rights against a single instant. A
+./app/services/epg.py:52:    series: str | None = None
+./app/services/epg.py:113:                "series": p.series,
+./app/services/epg.py:589:        series=field("series"),
+./app/services/schedules.py:697:    """Rights + takedown gate at publish (§8.2 validation/publication point, ADR-5).
+./app/services/schedules.py:701:    takedowns. Territory/partner-specific rights are enforced per agreement at distributor
+./app/services/schedules.py:702:    eligibility. Falls back to the asset's legacy rights window when no policy is assigned.
+./app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+./app/services/schedules.py:706:        return [f"'{event.title}': asset is under an active emergency takedown"]
+./app/services/lifecycle.py:140:                issues.append("Default filler collection has no eligible assets.")
+./app/services/media.py:30:        # Resolve manual members or the dynamic filter — same eligibility the scheduler sees.
+./app/services/media.py:139:    """Toggle scheduling eligibility; audited as asset.enable / asset.disable (§7.16)."""
+./app/services/media.py:161:    "title", "description", "content_type", "series", "season",
+./app/services/media.py:175:    """Partial metadata update (title/tags/series/rights/…), audited as asset.update.
+./app/services/media.py:358:_BULK_FIELDS = ("content_type", "series", "tags", "language", "rights_start", "rights_end")
+./app/services/asset_eligibility.py:1:"""Composite asset eligibility (PRD 3.0 §9.4): metadata + rights, per distribution agreement.
+./app/services/asset_eligibility.py:3:Composes the pure metadata engine (``eligibility.evaluate_metadata``) with the pure rights engine
+./app/services/asset_eligibility.py:5:is what makes the same asset eligible for one agreement and ineligible for another (§8.4, §9.5).
+./app/services/asset_eligibility.py:22:from app.services.eligibility import (
+./app/services/asset_eligibility.py:30:# Reference air window for a general (not event-specific) eligibility check. Territory/partner
+./app/services/asset_eligibility.py:48:    # An active emergency takedown blocks the asset absolutely, before any policy check (§8.3).
+./app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+./app/services/asset_eligibility.py:50:    if takedown is not None:
+./app/services/asset_eligibility.py:52:            code="rights_takedown", field="rights", severity="error",
+./app/services/asset_eligibility.py:53:            message="Asset is under an active emergency takedown.",
+./app/repositories/rights.py:23:_SPECIFICITY = {"asset": 4, "series": 3, "collection": 2, "channel": 1, "agreement": 0}
+./app/repositories/rights.py:93:    Matches assignments scoped to the asset, its series, the channel, or the agreement, using each
+./app/repositories/rights.py:97:    if asset.series_id is not None:
+./app/repositories/rights.py:98:        scope_targets.append(("series", asset.series_id))
+./app/repositories/rights.py:131:def create_takedown(db: Session, **fields) -> RightsTakedown:
+./app/repositories/rights.py:132:    takedown = RightsTakedown(**fields)
+./app/repositories/rights.py:133:    db.add(takedown)
+./app/repositories/rights.py:135:    return takedown
+./app/repositories/rights.py:138:def get_takedown(
+./app/repositories/rights.py:139:    db: Session, *, org_id: uuid.UUID, takedown_id: uuid.UUID
+./app/repositories/rights.py:143:            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+./app/repositories/rights.py:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+./app/repositories/rights.py:161:def active_takedown_for_asset(
+./app/repositories/rights.py:164:    """An active takedown covering this asset, if any."""
+./app/repositories/rights.py:166:    if asset.series_id is not None:
+./app/repositories/rights.py:167:        scope_ids.append(asset.series_id)
+./app/repositories/rights.py:183:    if scope_type == "series":
+./app/repositories/rights.py:187:                    Asset.organization_id == org_id, Asset.series_id == scope_id
+./app/repositories/series.py:1:"""Data access for the series/season hierarchy (PRD 3.0 §6.1)."""
+./app/repositories/series.py:13:def get_series_by_external_ref(
+./app/repositories/series.py:25:def create_series(db: Session, **fields) -> Series:
+./app/repositories/series.py:26:    series = Series(**fields)
+./app/repositories/series.py:27:    db.add(series)
+./app/repositories/series.py:29:    return series
+./app/repositories/series.py:32:def get_season(db: Session, *, series_id: uuid.UUID, season_number: int) -> Season | None:
+./app/repositories/series.py:35:            Season.series_id == series_id, Season.season_number == season_number
+./app/repositories/rights.py.orig:23:_SPECIFICITY = {"asset": 4, "series": 3, "collection": 2, "channel": 1, "agreement": 0}
+root@8ca8bd3b4dbf:/app#

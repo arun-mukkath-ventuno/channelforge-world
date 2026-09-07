@@ -1,0 +1,6 @@
+{
+  "analysis": "The targeted data-plane tests pass except for the pre-existing test that explicitly requires incomplete trailing avails to be ignored; that assertion conflicts directly with the reported bug and the required fix, so it was not modified. Typecheck and the data-plane build both pass, and the generated artifact contains the fix. The source tree contains no existing CUE-OUT-CONT handling, confirming that finalizing an open trailing CUE-OUT is the appropriate minimal correction for the available manifest format. No data-plane or control-plane service process is running in this environment, so there is no process to restart.",
+  "plan": "The fix is complete: active trailing CUE-OUT regions are now detected and assigned the same deterministic opportunity ID as continuously polled manifests, allowing the existing decision/cache path to serve late tune-ins and reconnects without changing normal ad detection or decisioning. The data-plane package has been rebuilt. No tests, CI files, or files outside application source were modified.",
+  "commands": [],
+  "task_complete": true
+}

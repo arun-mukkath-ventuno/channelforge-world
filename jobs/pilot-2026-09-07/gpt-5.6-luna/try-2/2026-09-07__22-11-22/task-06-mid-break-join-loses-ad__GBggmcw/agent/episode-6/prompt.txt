@@ -1,0 +1,133 @@
+New Terminal Output:
+
+s/control-plane/src | head -400
+packages/control-plane/src/server.ts:30:  type PodCache,
+packages/control-plane/src/server.ts:38:  podCache: PodCache;
+packages/control-plane/src/server.ts:499:  const { createPool, createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/control-plane/src/server.ts:502:  const podCache = new RedisPodCache(createRedis());
+packages/control-plane/src/server.test.ts:7:import { MemoryPodCache, type Pool } from "@ssai/persistence";
+packages/control-plane/src/server.test.ts:25:  const app = buildServer({ pool, podCache: new MemoryPodCache(), store, logger: false, authDisabled: true });
+packages/control-plane/src/server.test.ts:36:    podCache: new MemoryPodCache(),
+packages/control-plane/dist/server.d.ts:3:import { type Pool, type PodCache } from "@ssai/persistence";
+packages/control-plane/dist/server.d.ts:6:    podCache: PodCache;
+packages/control-plane/dist/server.test.js:7:import { MemoryPodCache } from "@ssai/persistence";
+packages/control-plane/dist/server.test.js:23:    const app = buildServer({ pool, podCache: new MemoryPodCache(), store, logger: false, authDisabled: true });
+packages/control-plane/dist/server.test.js:33:        podCache: new MemoryPodCache(),
+packages/control-plane/dist/server.js:429:    const { createPool, createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/control-plane/dist/server.js:432:    const podCache = new RedisPodCache(createRedis());
+packages/data-plane/src/server.ts:12:import type { PodCache } from "@ssai/persistence";
+packages/data-plane/src/server.ts:22:  podCache: PodCache;
+packages/data-plane/src/server.ts:135:  const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/data-plane/src/server.ts:137:  const podCache = new RedisPodCache(createRedis());
+packages/data-plane/dist/server.d.ts:2:import type { PodCache } from "@ssai/persistence";
+packages/data-plane/dist/server.d.ts:7:    podCache: PodCache;
+packages/data-plane/dist/server.js:111:    const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/data-plane/dist/server.js:113:    const podCache = new RedisPodCache(createRedis());
+packages/persistence/src/pod-cache.test.ts:2:import { MemoryPodCache, type CachedPod } from "./pod-cache.js";
+packages/persistence/src/pod-cache.test.ts:15:describe("PodCache (control→data plane bridge, PRD §48)", () => {
+packages/persistence/src/pod-cache.test.ts:17:    const cache = new MemoryPodCache();
+packages/persistence/src/pod-cache.test.ts:24:    const cache = new MemoryPodCache();
+packages/persistence/src/pod-cache.test.ts:30:    const cache = new MemoryPodCache();
+packages/persistence/src/pod-cache.ts:19:export interface PodCache {
+packages/persistence/src/pod-cache.ts:32:export class RedisPodCache implements PodCache {
+packages/persistence/src/pod-cache.ts:49:export class MemoryPodCache implements PodCache {
+packages/persistence/dist/pod-cache.d.ts:10:export interface PodCache {
+packages/persistence/dist/pod-cache.d.ts:17:export declare class RedisPodCache implements PodCache {
+packages/persistence/dist/pod-cache.d.ts:24:export declare class MemoryPodCache implements PodCache {
+packages/persistence/dist/pod-cache.js:13:export class RedisPodCache {
+packages/persistence/dist/pod-cache.js:29:export class MemoryPodCache {
+26a4261744ce:/app# find packages/control-plane/src -type f -maxdepth 3 -print | sort; grep -RInE -e 'ad-decision' -e 'opportunityId' -e 'opportunity_id' -e 'ens
+ureSession' packages/control-plane/src | head -400
+packages/control-plane/src/beacons.test.ts
+packages/control-plane/src/beacons.ts
+packages/control-plane/src/events-normalize.test.ts
+packages/control-plane/src/events-normalize.ts
+packages/control-plane/src/server.test.ts
+packages/control-plane/src/server.ts
+packages/control-plane/src/vast-fetch.test.ts
+packages/control-plane/src/vast-fetch.ts
+packages/control-plane/src/vast-inventory.test.ts
+packages/control-plane/src/vast-inventory.ts
+packages/control-plane/src/vast.test.ts
+packages/control-plane/src/vast.ts
+packages/control-plane/src/server.ts:89:  // Public: health, login, the player endpoints, the ad-decision (internal), and
+packages/control-plane/src/server.ts:97:    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+packages/control-plane/src/server.ts:133:    await sessionsRepo.ensureSession(pool, {
+packages/control-plane/src/server.ts:163:  app.post("/v1/ad-decision", async (req, reply) => {
+packages/control-plane/src/server.ts:167:      opportunity_id?: string;
+packages/control-plane/src/server.ts:172:    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+packages/control-plane/src/server.ts:173:      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+packages/control-plane/src/server.ts:179:      opportunityId: body.opportunity_id,
+packages/control-plane/src/server.
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+lication/octet-stream");
+    reply.header("cache-control", "public, max-age=31536000, immutable");
+    return reply.send(data);
+  } catch {
+    return reply.code(404).send({ error: "segment_not_found" });
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+  const { createObjectStoreFromEnv } = await import("@ssai/storage");
+  const podCache = new RedisPodCache(createRedis());
+  const origin = new OriginClient();
+  const store = await createObjectStoreFromEnv();
+  const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? "http://localhost:4000";
+  const decider = new HttpPodDecider(controlPlaneUrl);
+  const app = buildServer({ podCache, origin, store, decider });
+  app.listen({ port: Number(process.env.DATA_PLANE_PORT ?? 4010), host: "0.0.0.0" }).catch((err) => {
+    app.log.error(err);
+    process.exit(1);
+  });
+}
+26a4261744ce:/app# printf '\n-- control files --\n'; find packages/control-plane/src -maxdepth 3 -type f -print | sort; printf '\n-- decision refs --\n'; grep -
+RInE -e 'ad-decision' -e 'opportunityId' -e 'opportunity_id' -e 'ensureSession' packages/control-plane/src 2>/dev/null | head -400
+
+-- control files --
+packages/control-plane/src/beacons.test.ts
+packages/control-plane/src/beacons.ts
+packages/control-plane/src/events-normalize.test.ts
+packages/control-plane/src/events-normalize.ts
+packages/control-plane/src/server.test.ts
+packages/control-plane/src/server.ts
+packages/control-plane/src/vast-fetch.test.ts
+packages/control-plane/src/vast-fetch.ts
+packages/control-plane/src/vast-inventory.test.ts
+packages/control-plane/src/vast-inventory.ts
+packages/control-plane/src/vast.test.ts
+packages/control-plane/src/vast.ts
+
+-- decision refs --
+packages/control-plane/src/server.ts:89:  // Public: health, login, the player endpoints, the ad-decision (internal), and
+packages/control-plane/src/server.ts:97:    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+packages/control-plane/src/server.ts:133:    await sessionsRepo.ensureSession(pool, {
+packages/control-plane/src/server.ts:163:  app.post("/v1/ad-decision", async (req, reply) => {
+packages/control-plane/src/server.ts:167:      opportunity_id?: string;
+packages/control-plane/src/server.ts:172:    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+packages/control-plane/src/server.ts:173:      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+packages/control-plane/src/server.ts:179:      opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+packages/control-plane/src/server.ts:229:          opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:239:      opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:321:    return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+packages/control-plane/src/events-normalize.ts:51:  opportunity_id?: string;
+packages/control-plane/src/events-normalize.ts:69:  opportunityId: string | null;
+packages/control-plane/src/events-normalize.ts:114:    opportunityId: raw.opportunity_id ?? null,
+packages/control-plane/src/beacons.test.ts:64:    const ev = { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId: "cr_vast_1" };
+packages/control-plane/src/beacons.test.ts:71:    expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "o", creati
+veId: "cr_house" })).toBe(0);
+packages/control-plane/src/beacons.test.ts:72:    expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: null, opportunityId: "o", creati
+veId: "cr_vast_1" })).toBe(0);
+packages/control-plane/src/beacons.test.ts:85:    await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId
+: "cr_vast_1" });
+packages/control-plane/src/beacons.ts:32:  ev: { eventType: string; sessionId?: string | null; opportunityId?: string | null; creativeId?: string | null },
+packages/control-plane/src/beacons.ts:34:  if (!ev.creativeId || !ev.sessionId || !ev.opportunityId) return 0;
+packages/control-plane/src/beacons.ts:41:      opportunityId: ev.opportunityId,
+packages/control-plane/src/server.test.ts:188:  it("records external_break_id from an ad-decision and lists it per break", async () => {
+packages/control-plane/src/server.test.ts:192:      url: "/v1/ad-decision",
+packages/control-plane/src/server.test.ts:196:        opportunity_id: "opp_channel_yoga_202",
+packages/control-plane/src/server.test.ts:205:    const { breaks } = res.json() as { breaks: Array<{ opportunityId: string; externalBreakId: string | null }> };
+packages/control-plane/src/server.test.ts:208:      opportunityId: "opp_channel_yoga_202",
+26a4261744ce:/app#

@@ -1,0 +1,14 @@
+{
+  "analysis": "The request flow confirms the fix belongs solely in ensureSession. The attempted edit did not run because Python is unavailable; no files have changed yet.",
+  "plan": "Apply the two-line source change with Node, rebuild the affected service dependency, and run existing persistence and control-plane tests without modifying them.",
+  "commands": [
+    {
+      "keystrokes": "node --input-type=module <<'JS'\nimport fs from 'node:fs';\nconst p = 'packages/persistence/src/repositories/sessions.ts';\nlet s = fs.readFileSync(p, 'utf8');\ns = s.replace('/** Create the session if absent; idempotent so ad-decision can ensure it exists. */', '/** Create the session if absent; otherwise refresh its current channel. */');\ns = s.replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id');\nfs.writeFileSync(p, s);\nJS\nnpm run build --workspace @ssai/control-plane\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "npx vitest run packages/persistence/src packages/control-plane/src\n",
+      "duration": 1
+    }
+  ]
+}

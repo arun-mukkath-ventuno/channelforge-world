@@ -1,0 +1,48 @@
+New Terminal Output:
+
+5d6083492e48:/app# sed -n '70,150p' packages/persistence/src/repositories.test.ts
+    const session: SessionContext = { sessionId: "sess_1", channelId: "channel_food" };
+
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns,
+      now: "2026-08-29T12:15:00Z",
+      seed: "demo",
+    });
+
+    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+    await upsertOpportunity(db, opportunity);
+    await saveDecision(db, {
+      decisionId: "dec_1",
+      podId: "pod_1",
+      decision,
+      requestedAt: "2026-08-29T12:15:00Z",
+      completedAt: "2026-08-29T12:15:00Z",
+    });
+
+    const stored = await getDecisionsBySession(db, "sess_1");
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.selectedCount).toBe(decision.pod.filter((p) => p.type === "ad").length);
+    // Full payload reconstructable (RL evaluation, PRD §56).
+    expect(stored[0]!.decision.pod).toEqual(decision.pod);
+    expect(stored[0]!.decision.breakDuration).toBe(60);
+
+    const sess = await getSession(db, "sess_1");
+    expect(sess).toMatchObject({ channelId: "channel_food", deviceType: "web", country: "IN" });
+  });
+});
+
+describe("event stream (PRD §26, §29, §30)", () => {
+  it("appends and reads events by session, ignoring duplicate event ids", async () => {
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1", adId: "cr_food_a_30" });
+    await appendEvent(db, { eventId: "e2", eventType: "ad_complete", sessionId: "sess_1", adId: "cr_food_a_30" });
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1" }); // dup
+
+    const events = await getEventsBySession(db, "sess_1");
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.eventType)).toEqual(["ad_impression", "ad_complete"]);
+  });
+});
+5d6083492e48:/app#

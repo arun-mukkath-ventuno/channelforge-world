@@ -1,0 +1,96 @@
+New Terminal Output:
+
+c3e0c565748c:/app# sed -n '16,36p' packages/data-plane/src/media.ts; cat packages/persistence/src/pod-cache.ts | head -65; printenv | grep -E 'PORT|URL|REDIS|ST
+ORE|CHANNEL'; which python3
+import type { ObjectStore } from "@ssai/storage";
+import { segmentDurations } from "./segment.js";
+
+export interface RenderedSegment {
+  duration: number;
+  uri: string;
+}
+
+export interface RenderedPodItem {
+  type: "ad" | "slate";
+  creativeId?: string;
+  campaignId?: string;
+  duration: number;
+  startOffset: number;
+  segments: RenderedSegment[];
+}
+
+export interface ResolveOptions {
+  /** Channel id, used to pick the channel slate (PRD §21). */
+  channelId?: string;
+  /** URL prefix the data plane serves stored creative segments from. */
+// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+// plane reads it on the manifest hot path and never recomputes. Keyed by
+// (session, opportunity).
+//
+// Two implementations behind one interface: Redis for real deployments, and an
+// in-memory Map for tests and single-process dev.
+
+import type { PodItem } from "@ssai/core";
+import { Redis } from "ioredis";
+
+export interface CachedPod {
+  sessionId: string;
+  opportunityId: string;
+  channelId: string;
+  breakDuration: number;
+  pod: PodItem[];
+}
+
+export interface PodCache {
+  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+  set(entry: CachedPod, ttlSeconds?: number): Promise<void>;
+  del(sessionId: string, opportunityId: string): Promise<void>;
+}
+
+function key(sessionId: string, opportunityId: string): string {
+  return `pod:${sessionId}:${opportunityId}`;
+}
+
+/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+export const DEFAULT_POD_TTL_SECONDS = 900;
+
+export class RedisPodCache implements PodCache {
+  constructor(private readonly redis: Redis) {}
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    const raw = await this.redis.get(key(sessionId, opportunityId));
+    return raw ? (JSON.parse(raw) as CachedPod) : null;
+  }
+
+  async set(entry: CachedPod, ttlSeconds = DEFAULT_POD_TTL_SECONDS): Promise<void> {
+    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    await this.redis.del(key(sessionId, opportunityId));
+  }
+}
+
+export class MemoryPodCache implements PodCache {
+  private readonly store = new Map<string, CachedPod>();
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    return this.store.get(key(sessionId, opportunityId)) ?? null;
+  }
+
+  async set(entry: CachedPod): Promise<void> {
+    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    this.store.delete(key(sessionId, opportunityId));
+  }
+}
+
+export function createRedis(url = process.env.REDIS_URL): Redis {
+REDIS_URL=redis://redis:6379
+CONTROL_PLANE_URL=http://localhost:4000
+DATA_PLANE_PORT=4010
+CHANNELFORGE_ORIGIN_URL=http://localhost:8080
+CREATIVE_STORE_ROOT=/data/creatives
+c3e0c565748c:/app#

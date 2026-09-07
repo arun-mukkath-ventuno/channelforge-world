@@ -1,0 +1,132 @@
+New Terminal Output:
+
+e6f3e04d76cc:/app# printf '%s\n' 'ensureSession callers:'; grep -RIn 'ensureSession' packages --exclude-dir=node_modules --exclude-dir=dist --include='*.ts'; pr
+intf '%s\n' 'Service manifests:'; for f in packages/control-plane/package.json packages/data-plane/package.json; do echo ---$f; cat "$f"; done
+ensureSession callers:
+grep: unrecognized option: exclude-dir=node_modules
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+Service manifests:
+---packages/control-plane/package.json
+{
+  "name": "@ssai/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI control plane — campaigns, creatives, channels, sessions, ad decisioning, events, analytics, debug APIs.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fast-xml-parser": "^4.5.7",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.1"
+  }
+}
+---packages/data-plane/package.json
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+e6f3e04d76cc:/app# printf '%s\n' 'Runtime processes:'; ps auxww; printf '%s\n' 'Containers/services hints:'; find /app -maxdepth 2 -type f \( -name 'Dockerfile*
+' -o -name 'docker-compose*' -o -name '*.sh' \) -print 2>/dev/null | sort
+Runtime processes:
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   92 root      0:00 [tmux: client]
+   93 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   94 root      0:00 bash --login
+   95 root      0:00 cat
+  108 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  112 root      0:00 /bin/bash
+  338 root      0:00 ps auxww
+Containers/services hints:
+e6f3e04d76cc:/app# printf '%s\n' 'Relevant server snippets:'; grep -RIn -C 8 'ensureSession' packages/control-plane/src packages/data-plane/src --include='*.ts'
+ || true; printf '%s\n' 'sessions git status:'; git status --short 2>/dev/null || true
+Relevant server snippets:
+grep: unrecognized option: include=*.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+sessions git status:
+e6f3e04d76cc:/app#

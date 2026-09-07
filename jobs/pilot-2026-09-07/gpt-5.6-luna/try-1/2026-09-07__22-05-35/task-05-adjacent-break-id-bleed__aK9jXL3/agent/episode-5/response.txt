@@ -1,0 +1,18 @@
+{
+  "analysis": "The relevant defect is almost certainly in detectAvails state handling, not marker syntax parsing. The source shows blockBreakId is cleared at segment boundaries, while back-to-back breaks may have marker blocks without an intervening ordinary segment, so the second break can inherit or be associated with the first break's ID. The avails tests already cover ID leakage for a later break, but not zero-gap breaks; I need the complete function and stitch path to confirm the exact state transition.",
+  "plan": "Read the remaining lines of avails.ts and its tests, plus stitch.ts and all call sites. Determine whether DATERANGE IDs are paired by segment block or by open avail and whether a new CUE-OUT closes/replaces an old state. Then implement the minimal correction that preserves all existing marker forms and run core/data-plane/persistence tests.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.ts | sed -n '1,260p'; printf '%s\\n' '### avails tests'; nl -ba packages/data-plane/src/avails.test.ts | sed -n '1,260p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/stitch.ts | sed -n '1,460p'; printf '%s\\n' '### call sites'; find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -name '*.ts' -print | xargs grep -nE 'detectAvails|externalBreakId|startSequence|startLine' 2>/dev/null\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '### marker parser callers'; find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -name '*.ts' -print | xargs grep -nE 'parseMarkerLine|marker\\.kind|cue_out|daterange' 2>/dev/null; printf '%s\\n' '### git status'; git status --short 2>/dev/null || true\n",
+      "duration": 0.5
+    }
+  ]
+}

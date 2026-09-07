@@ -1,0 +1,40 @@
+New Terminal Output:
+
+2c0f333a5b7b:/app# node <<'NODE'
+> const fs = require('fs');
+> const path = 'src/lib/ssai.ts';
+> let s = fs.readFileSync(path, 'utf8');
+> s = s.replace('export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\n  const body = JSON.stringify({ event, session_id: sess
+ionId, ad_id: adId });', `export function sendAdBeacon(
+>   sessionId: string,
+>   event: AdBeacon,
+>   adId: string,
+>   windowStart?: number,
+> ): void {
+>   // SSAI honors event_id; its fallback session/pod/ad/type key merges repeat airings.
+>   // Use the manifest's absolute start so refreshes/retries retain the same identity.
+>   const eventId = windowStart === undefined
+>     ? undefined
+>     : \`evt_\${JSON.stringify([sessionId, adId, windowStart, event])}\`;
+>   const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, event_id: eventId });`);
+> s = s.replace('sendAdBeacon(opts.sessionId, beacon, w.adId);', 'sendAdBeacon(opts.sessionId, beacon, w.adId, w.start);');
+> fs.writeFileSync(path, s);
+> NODE
+2c0f333a5b7b:/app# pnpm test
+
+> fast-world-tv@0.1.0 test /app
+> vitest run
+
+
+ RUN  v3.2.7 /app
+
+
+ ❯ src/app/api/fast/routes.test.ts [queued]
+ ❯ src/lib/channelforge-epg.test.ts [queued]
+ ❯ src/lib/fast-view.test.ts [queued]
+
+ Test Files 0 passed (11)
+      Tests 0 passed (0)
+   Start at 16:58:21
+   Duration 404ms
+

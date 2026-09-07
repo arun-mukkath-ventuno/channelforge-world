@@ -1,0 +1,14 @@
+{
+  "analysis": "The source confirms a stateless detection gap: once CUE-OUT slides out of the playlist, CUE-OUT-CONT cannot produce an avail, so neither cached pods nor decisioning are reached. Recovery must preserve the original opportunity identity and render only the visible portion of the full pod.",
+  "plan": "Inspect existing test expectations, decision request fields, and runtime configuration before implementing a continuation-only recovery path.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/data-plane/src/decider.ts; sed -n '1,85p' packages/data-plane/src/avails.test.ts; sed -n '1,115p' packages/data-plane/src/media.ts; env | sort\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat packages/data-plane/src/stitch.test.ts | head -95; cat packages/persistence/src/db.ts; cat packages/storage/src/factory.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

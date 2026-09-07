@@ -1,0 +1,40 @@
+New Terminal Output:
+
+c3e0c565748c:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const p='packages/data-plane/src/avails.ts';let s=fs.readFileSync(p,'utf8');
+> s=s.replace('/** Detect all complete avails in the manifest. Incomplete trailing avails (a\n *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §4
+1. */','/** Detect complete avails and recover visible suffixes announced by continuation\n *  markers. Bare trailing CUE-OUTs still require CUE-IN — PRD §41. *
+/');
+> s=s.replace('    elapsedDuration?: number;\n  } | null','    elapsedDuration?: number;\n    lastSegmentLine?: number;\n  } | null');
+> s=s.replace('      const nextInf = lines.slice(i + 1).find((l) => l.trim().match(EXTINF));\n      const segmentDuration = Number(nextInf?.trim().match(EXTINF)
+?.[1]);', `      let segmentDuration = 0;
+>       for (let j = i + 1; j < lines.length; j++) {
+>         const next = lines[j]!.trim();
+>         const inf = next.match(EXTINF);
+>         if (inf) { segmentDuration = Number(inf[1]); break; }
+>         if (next.startsWith("#EXT-X-CUE-") || (next && !next.startsWith("#"))) break;
+>       }`);
+> s=s.replace('      mediaSequence += 1;', '      if (open) open.lastSegmentLine = i;\n      mediaSequence += 1;');
+> s=s.replace('open?.elapsedDuration !== undefined && open.measuredDuration > 0','open?.elapsedDuration !== undefined && open.lastSegmentLine !== undefined && o
+pen.measuredDuration > 0');
+> s=s.replace('      endLine: lines.length - 1,','      endLine: open.lastSegmentLine,');
+> fs.writeFileSync(p,s);
+> JS
+c3e0c565748c:/app# npx vitest run packages/data-plane/src; npx tsc -p packages/data-plane/tsconfig.json --noEmit --incremental false --composite false
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  5 passed (5)
+      Tests  29 passed (29)
+   Start at  17:04:29
+   Duration  673ms (transform 98ms, setup 0ms, collect 125ms, tests 19ms, environment 1ms, prepare 155ms)
+
+

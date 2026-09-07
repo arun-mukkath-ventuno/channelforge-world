@@ -1,0 +1,18 @@
+{
+  "analysis": "Let me check if there's a Dockerfile or any indication of how the service is started.",
+  "plan": "Look for Dockerfile and other configuration files.",
+  "commands": [
+    {
+      "keystrokes": "ls /app/.dockerenv 2>&1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -maxdepth 3 -name 'Dockerfile*' -o -name 'docker-compose*' -o -name 'pm2*' 2>/dev/null\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find / -name 'data-plane*' 2>/dev/null | head -10\n",
+      "duration": 0.5
+    }
+  ]
+}

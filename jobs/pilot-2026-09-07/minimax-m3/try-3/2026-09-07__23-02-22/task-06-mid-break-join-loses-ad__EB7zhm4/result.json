@@ -1,0 +1,105 @@
+{
+    "id": "d769a10d-eeda-4482-8c42-b9f225a6e918",
+    "task_name": "channelforge-world/ssai-mid-break-join-loses-ad-pod",
+    "trial_name": "task-06-mid-break-join-loses-ad__EB7zhm4",
+    "trial_uri": "file:///Users/arunmukkath/Work/ventuno-labs/channelforge-world/jobs/pilot-2026-09-07/minimax-m3/try-3/2026-09-07__23-02-22/task-06-mid-break-join-loses-ad__EB7zhm4",
+    "task_id": {
+        "path": "tasks/task-06-mid-break-join-loses-ad-pod"
+    },
+    "source": "tasks",
+    "task_checksum": "382f66ffe0a0b6dc35af5fc19bc52516463d4edc129721a305ce2e3104b10328",
+    "config": {
+        "task": {
+            "path": "tasks/task-06-mid-break-join-loses-ad-pod",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "tasks"
+        },
+        "trial_name": "task-06-mid-break-join-loses-ad__EB7zhm4",
+        "trials_dir": "jobs/pilot-2026-09-07/minimax-m3/try-3/2026-09-07__23-02-22",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": "terminus-2",
+            "import_path": null,
+            "model_name": "openrouter/minimax/minimax-m3:free",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "env": {},
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "c90880ca-69d4-44ab-8680-9868b007c519"
+    },
+    "agent_info": {
+        "name": "terminus-2",
+        "version": "2.0.0",
+        "model_info": {
+            "name": "minimax/minimax-m3:free",
+            "provider": "openrouter"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 0,
+        "n_cache_tokens": 0,
+        "n_output_tokens": 0,
+        "cost_usd": null,
+        "rollout_details": [],
+        "metadata": {
+            "n_episodes": 1,
+            "api_request_times_msec": [],
+            "summarization_count": 0
+        }
+    },
+    "verifier_result": null,
+    "exception_info": {
+        "exception_type": "CancelledError",
+        "exception_message": "",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py\", line 195, in run\n    return runner.run(main)\n           ^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py\", line 118, in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py\", line 678, in run_until_complete\n    self.run_forever()\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py\", line 645, in run_forever\n    self._run_once()\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py\", line 1961, in _run_once\n    event_list = self._selector.select(timeout)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/selectors.py\", line 566, in select\n    kev_list = self._selector.control(None, max_ev, timeout)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/cli/jobs.py\", line 282, in _handle_sigterm\n    raise KeyboardInterrupt\nKeyboardInterrupt\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/trial/trial.py\", line 961, in run\n    await self._execute_agent()\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/trial/trial.py\", line 370, in _execute_agent\n    await asyncio.wait_for(\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1605, in run\n    await self._run_agent_loop(\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1306, in _run_agent_loop\n    ) = await self._handle_llm_interaction(\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1181, in _handle_llm_interaction\n    llm_response = await self._query_llm(\n                   ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 193, in async_wrapped\n    return await copy(fn, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 393, in <lambda>\n    self._add_action_func(lambda rs: rs.outcome.result())\n                                     ^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1004, in _query_llm\n    llm_response = await chat.chat(\n                   ^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/chat.py\", line 89, in chat\n    llm_response: LLMResponse = await self._model.call(\n                                ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 193, in async_wrapped\n    return await copy(fn, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 125, in __call__\n    await self.sleep(do)  # type: ignore[misc]\n    ^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py\", line 665, in sleep\n    return await future\n           ^^^^^^^^^^^^\nasyncio.exceptions.CancelledError\n",
+        "occurred_at": "2026-09-07T23:04:48.789891"
+    },
+    "started_at": "2026-09-07T17:34:25.393488Z",
+    "finished_at": "2026-09-07T17:34:50.630391Z",
+    "environment_setup": {
+        "started_at": "2026-09-07T17:34:25.395973Z",
+        "finished_at": "2026-09-07T17:34:36.051665Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-09-07T17:34:36.051727Z",
+        "finished_at": "2026-09-07T17:34:39.246887Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-09-07T17:34:39.247025Z",
+        "finished_at": "2026-09-07T17:34:48.784592Z"
+    },
+    "verifier": null,
+    "step_results": null
+}

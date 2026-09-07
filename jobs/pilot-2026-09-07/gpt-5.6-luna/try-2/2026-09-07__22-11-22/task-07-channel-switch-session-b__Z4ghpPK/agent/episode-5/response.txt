@@ -1,0 +1,22 @@
+{
+  "analysis": "The root cause is definitively the `ON CONFLICT (id) DO NOTHING` in `ensureSession`; the session's channel is written only on first insert. The schema confirms `channel_id` is the session record field, and the control plane invokes session handling for incoming decisions/events. No application service is currently running (only the shell/recording processes), so after patching I should rebuild the relevant packages and start the affected service so the runtime reflects the fix.",
+  "plan": "Apply the minimal SQL change `DO UPDATE SET channel_id = EXCLUDED.channel_id`, leaving all decision/opportunity/event tables and metadata behavior unchanged. Inspect the exact control-plane call site to ensure ensureSession is invoked on each relevant request, run persistence tests and full typecheck/tests, build the workspace, then start the control-plane service in the background because it owns session persistence.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '180,285p' packages/control-plane/src/server.ts && printf '\\nRepository test setup and imports:\\n' && sed -n '1,220p' packages/persistence/src/repositories.test.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('packages/persistence/src/repositories/sessions.ts')\ns = p.read_text()\nold = 'ON CONFLICT (id) DO NOTHING'\nnew = 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id'\nif old not in s:\n    raise SystemExit('expected SQL clause not found')\np.write_text(s.replace(old, new, 1))\nPY\n\ngit diff -- packages/persistence/src/repositories/sessions.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "npm test -- --run packages/persistence/src/repositories.test.ts\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "npm run typecheck && npm test\n",
+      "duration": 5.0
+    }
+  ]
+}

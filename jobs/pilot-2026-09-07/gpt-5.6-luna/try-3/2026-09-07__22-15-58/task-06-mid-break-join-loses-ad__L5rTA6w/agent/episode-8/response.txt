@@ -1,0 +1,18 @@
+{
+  "analysis": "The defect is confirmed in the data-plane hot path: after a cache miss, it asks the decider and uses the returned pod only for that response, but never writes the result back to its PodCache. Continuous viewers work because the control plane has already populated the cache before their later requests. A session entering mid-break can miss the cache and, especially if the control-plane response races the short 200 ms timeout, receive origin content; the decision is also not durably available from the data plane for that session's later reconnect. The targeted fix is to cache a successful decider result in the same session/opportunity key immediately after receiving it. The existing cache-hit path and ad detection/decision behavior remain unchanged.",
+  "plan": "Patch only packages/data-plane/src/server.ts so a decided pod is written to PodCache with the channel and break duration. Run typecheck and the existing test suite, inspect the diff and status, then restart the data-plane service. Since no compose/service files are present, use the package's start process if one is running; first inspect processes and service state.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('packages/data-plane/src/server.ts')\ns = p.read_text()\nold = '''      else if (decider) {\n        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });\n        if (decided) pod = decided;\n      }\n'''\nnew = '''      else if (decider) {\n        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });\n        if (decided) {\n          pod = decided;\n          // Persist the miss result for this session/break. Without this write,\n          // a viewer entering mid-break (or reconnecting) has to decide again\n          // on every manifest request and can fall back to origin content.\n          await podCache.set({\n            sessionId: session,\n            opportunityId: avail.opportunityId,\n            channelId: channel,\n            breakDuration: avail.duration,\n            pod: decided,\n          });\n        }\n      }\n'''\nif old not in s:\n    raise SystemExit('target block not found')\np.write_text(s.replace(old, new))\nPY\n\ngit diff -- packages/data-plane/src/server.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm run typecheck\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "npm test -- --run\n",
+      "duration": 2.0
+    }
+  ]
+}

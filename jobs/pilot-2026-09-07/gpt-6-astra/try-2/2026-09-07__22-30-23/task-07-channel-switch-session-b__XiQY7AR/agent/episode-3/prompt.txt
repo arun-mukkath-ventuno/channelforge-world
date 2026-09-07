@@ -1,0 +1,150 @@
+New Terminal Output:
+
+c14a4ace724a:/app# ls packages/persistence/src; grep -n -i 'session' packages/persistence/src/*.ts packages/control-plane/src/server.ts | head -130; cat package
+s/control-plane/package.json packages/persistence/package.json
+analytics.test.ts       db.ts                   migrate.ts              reconciliation.test.ts  repositories.test.ts
+analytics.ts            index.ts                pod-cache.test.ts       reconciliation.ts       seed.ts
+cli                     map.ts                  pod-cache.ts            repositories
+packages/persistence/src/analytics.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/analytics.test.ts:44:  sessionId: "s1",
+packages/persistence/src/analytics.test.ts:68:  await ensureSession(db, { id: "s1", channelId: "channel_food" });
+packages/persistence/src/analytics.test.ts:101:    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "s1", adId: "a1" });
+packages/persistence/src/analytics.test.ts:102:    await appendEvent(db, { eventId: "e2", eventType: "ad_start", sessionId: "s1", adId: "a1" });
+packages/persistence/src/analytics.test.ts:103:    await appendEvent(db, { eventId: "e3", eventType: "ad_midpoint", sessionId: "s1", adId: "a1" });
+packages/persistence/src/analytics.test.ts:104:    await appendEvent(db, { eventId: "e4", eventType: "ad_complete", sessionId: "s1", adId: "a1" });
+packages/persistence/src/analytics.test.ts:115:    await appendEvent(db, { eventId: "e1", eventType: "ad_start", sessionId: "s1", adId: "a1" });
+packages/persistence/src/analytics.test.ts:123:  it("reports streaming session metrics", async () => {
+packages/persistence/src/analytics.test.ts:125:    expect(a.streaming.totalSessions).toBe(1);
+packages/persistence/src/analytics.test.ts:126:    expect(a.streaming.activeSessions).toBe(1);
+packages/persistence/src/analytics.test.ts:127:    expect(a.streaming.sessionsByChannel).toEqual([{ channelId: "channel_food", sessions: 1 }]);
+packages/persistence/src/analytics.ts:12:    totalSessions: number;
+packages/persistence/src/analytics.ts:13:    activeSessions: number;
+packages/persistence/src/analytics.ts:14:    sessionsByChannel: { channelId: string; sessions: number }[];
+packages/persistence/src/analytics.ts:15:    avgSessionSeconds: number;
+packages/persistence/src/analytics.ts:46:  /** A session is "active" if it had activity within this window. Default 300s. */
+packages/persistence/src/analytics.ts:61:  const sessionRows = (
+packages/persistence/src/analytics.ts:63:      "SELECT channel_id, created_at, last_activity_at FROM playback_sessions",
+packages/persistence/src/analytics.ts:68:  let activeSessions = 0;
+packages/persistence/src/analytics.ts:71:  for (const s of sessionRows) {
+packages/persistence/src/analytics.ts:76:    if (last >= thresholdMs) activeSessions += 1;
+packages/persistence/src/analytics.ts:78:  const totalSessions = sessionRows.length;
+packages/persistence/src/analytics.ts:79:  const avgSessionSeconds = totalSessions > 0 ? totalLengthMs / totalSessions / 1000 : 0;
+packages/persistence/src/analytics.ts:88:  // Delivered breaks (per-session pods) drive fill classification.
+packages/persistence/src/analytics.ts:126:      totalSessions,
+packages/persistence/src/analytics.ts:127:      activeSessions,
+packages/persistence/src/analytics.ts:128:      sessionsByChannel: [...byChannel.entries()]
+packages/persistence/src/analytics.ts:129:        .map(([channelId, sessions]) => ({ channelId, sessions }))
+packages/persistence/src/analytics.ts:131:      avgSessionSeconds,
+packages/persistence/src/index.ts:13:export * as sessions from "./repositories/sessions.js";
+packages/persistence/src/pod-cache.test.ts:5:  sessionId: "sess_1",
+packages/persistence/src/pod-cache.test.ts:16:  it("stores and retrieves a pod by (session, opportunity)", async () => {
+packages/persistence/src/pod-cache.ts:3:// (session, opportunity).
+packages/persistence/src/pod-cache.ts:12:  sessionId: string;
+packages/persistence/src/pod-cache.ts:20:  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+packages/persistence/src/pod-cache.ts:22:  del(sessionId: string, opportunityId: string): Promise<void>;
+packages/persistence/src/pod-cache.ts:25:function key(sessionId: string, opportunityId: string): string {
+packages/persistence/src/pod-cache.ts:26:  return `pod:${sessionId}:${opportunityId}`;
+packages/persistence/src/pod-cache.ts:35:  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+packages/persistence/src/pod-cache.ts:36:    const raw = await this.redis.get(key(sessionId, opportunityId));
+packages/persistence/src/pod-cache.ts:41:    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+packages/persistence/src/pod-cache.ts:44:  async del(sessionId: string, opportunityId: string): Promise<void> {
+packages/persistence/src/pod-cache.ts:45:    await this.redis.del(key(sessionId, opportun
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+
+packages/control-plane/src/server.ts:134:      id: sessionId,
+packages/control-plane/src/server.ts:141:      eventType: "session_created",
+packages/control-plane/src/server.ts:142:      sessionId,
+packages/control-plane/src/server.ts:147:    const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+packages/control-plane/src/server.ts:149:      session_id: sessionId,
+packages/control-plane/src/server.ts:156:  app.get("/v1/sessions/:id", async (req, reply) => {
+packages/control-plane/src/server.ts:158:    const session = await sessionsRepo.getSession(pool, id);
+packages/control-plane/src/server.ts:159:    return session ?? reply.code(404).send({ error: "not_found" });
+packages/control-plane/src/server.ts:165:      session_id?: string;
+packages/control-plane/src/server.ts:176:    const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+packages/control-plane/src/server.ts:187:    const session: SessionContext = { sessionId, channelId: body.channel_id };
+packages/control-plane/src/server.ts:198:      session,
+packages/control-plane/src/server.ts:208:    // Persist opportunity + session + decision atomically (PRD §46, §47).
+packages/control-plane/src/server.ts:210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+packages/control-plane/src/server.ts:227:          sessionId,
+packages/control-plane/src/server.ts:238:      sessionId,
+packages/control-plane/src/server.ts:261:      if (normalized.sessionId) touched.add(normalized.sessionId);
+packages/control-plane/src/server.ts:265:    // Telemetry keeps a session "active" for streaming analytics.
+packages/control-plane/src/server.ts:266:    for (const sid of touched) await sessionsRepo.touchSession(pool, sid);
+packages/control-plane/src/server.ts:304:  app.get("/v1/sessions", async (req) => {
+packages/control-plane/src/server.ts:306:    return sessionsRepo.listSessions(pool, q.limit ? Number(q.limit) : undefined);
+packages/control-plane/src/server.ts:310:  app.get("/v1/debug/session/:id", async (req) => {
+packages/control-plane/src/server.ts:312:    const [session, decisions, events] = await Promise.all([
+packages/control-plane/src/server.ts:313:      sessionsRepo.getSession(pool, id),
+packages/control-plane/src/server.ts:314:      decisionsRepo.getDecisionsBySession(pool, id),
+packages/control-plane/src/server.ts:315:      eventsRepo.getEventsBySession(pool, id),
+packages/control-plane/src/server.ts:317:    return { session, decisions, events };
+{
+  "name": "@ssai/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI control plane — campaigns, creatives, channels, sessions, ad decisioning, events, analytics, debug APIs.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fast-xml-parser": "^4.5.7",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.1"
+  }
+}
+{
+  "name": "@ssai/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI persistence — Postgres repositories, migration runner, and the Redis pod cache that bridges control plane and data plane.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5"
+  }
+}
+c14a4ace724a:/app# ls -la /usr/local/bin; cat packages/persistence/src/sessions.ts
+total 123304
+drwxr-xr-x    1 root     root          4096 Sep  6 10:45 .
+drwxr-xr-x    1 root     root          4096 Jul 29 17:57 ..
+lrwxrwxrwx    1 root     root            45 Jul 29 17:57 corepack -> ../lib/node_modules/corepack/dist/corepack.js
+-rwxr-xr-x    1 root     root           388 Jul 29 17:26 docker-entrypoint.sh
+-rwxr-xr-x    1 root     root     126241888 Jul 29 17:57 node
+lrwxrwxrwx    1 root     root            38 Jul 29 17:57 npm -> ../lib/node_modules/npm/bin/npm-cli.js
+lrwxrwxrwx    1 root     root            38 Jul 29 17:57 npx -> ../lib/node_modules/npm/bin/npx-cli.js
+-rwxr-xr-x    1 root     root          1655 Aug 31 07:16 restart-ssai
+lrwxrwxrwx    1 root     root            27 Jul 29 17:57 yarn -> /opt/yarn-v1.22.22/bin/yarn
+lrwxrwxrwx    1 root     root            30 Jul 29 17:57 yarnpkg -> /opt/yarn-v1.22.22/bin/yarnpkg
+cat: can't open 'packages/persistence/src/sessions.ts': No such file or directory
+c14a4ace724a:/app#

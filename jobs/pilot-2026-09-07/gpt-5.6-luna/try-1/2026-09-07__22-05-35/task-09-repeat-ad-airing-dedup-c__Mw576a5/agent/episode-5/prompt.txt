@@ -1,0 +1,207 @@
+New Terminal Output:
+
+f549e1c35e50:/app# printf '%s\n' '-- normalize reference --' && sed -n '1,360p' /reference/ssaiadserver/control-plane/events-normalize.ts && printf '%s\n' '-- p
+ersistence reference --' && sed -n '1,420p' /reference/ssaiadserver/persistence/repositories/events.ts
+-- normalize reference --
+// Normalize player telemetry (PRD §26B, §28) into canonical ad event types, and
+// derive a deterministic event id so duplicate beacons — e.g. a quartile fired
+// again after a manifest refresh (PRD §60 task 6) — collapse via the events
+// table's ON CONFLICT (event_id) DO NOTHING.
+
+import { createHash } from "node:crypto";
+
+export type CanonicalAdEvent =
+  | "ad_impression"
+  | "ad_start"
+  | "ad_first_quartile"
+  | "ad_midpoint"
+  | "ad_third_quartile"
+  | "ad_complete"
+  | "ad_error";
+
+const ALIASES: Record<string, CanonicalAdEvent> = {
+  impression: "ad_impression",
+  ad_impression: "ad_impression",
+  start: "ad_start",
+  ad_start: "ad_start",
+  firstquartile: "ad_first_quartile",
+  first_quartile: "ad_first_quartile",
+  ad_first_quartile: "ad_first_quartile",
+  midpoint: "ad_midpoint",
+  ad_midpoint: "ad_midpoint",
+  thirdquartile: "ad_third_quartile",
+  third_quartile: "ad_third_quartile",
+  ad_third_quartile: "ad_third_quartile",
+  complete: "ad_complete",
+  ad_complete: "ad_complete",
+  error: "ad_error",
+  ad_error: "ad_error",
+};
+
+const QUARTILE_TO_EVENT: Record<number, CanonicalAdEvent> = {
+  0: "ad_start",
+  25: "ad_first_quartile",
+  50: "ad_midpoint",
+  75: "ad_third_quartile",
+  100: "ad_complete",
+};
+
+export interface RawEvent {
+  event?: string;
+  event_type?: string;
+  event_id?: string;
+  quartile?: number;
+  session_id?: string;
+  channel_id?: string;
+  opportunity_id?: string;
+  pod_id?: string;
+  ad_id?: string;
+  campaign_id?: string;
+  creative_id?: string;
+  program_id?: string;
+  playhead_position?: number;
+  device_type?: string;
+  country?: string;
+  payload?: unknown;
+  [k: string]: unknown;
+}
+
+export interface NormalizedEvent {
+  eventId: string;
+  eventType: string;
+  sessionId: string | null;
+  channelId: string | null;
+  opportunityId: string | null;
+  podId: string | null;
+  adId: string | null;
+  campaignId: string | null;
+  creativeId: string | null;
+  programId: string | null;
+  playheadPosition: number | null;
+  deviceType: string | null;
+  country: string | null;
+  payload: unknown;
+}
+
+/** Resolve the canonical event type from an explicit type or a quartile marker. */
+export function canonicalType(raw: RawEvent): string {
+  const explicit = (raw.event_type ?? raw.event ?? "").toString();
+  const key = explicit.toLowerCase().replace(/\s+/g, "");
+
+  if ((key === "ad_quartile" || key === "quartile") && typeof raw.quartile === "number") {
+    return QUARTILE_TO_EVENT[raw.quartile] ?? explicit;
+  }
+  return ALIASES[key] ?? explicit;
+}
+
+/** Deterministic id for lifecycle events so duplicates dedup; unique otherwise. */
+export function deriveEventId(raw: RawEvent, eventType: string): string {
+  if (raw.event_id) return raw.event_id;
+
+  const isAdLifecycle = eventType.startsWith("ad_") && eventType !== "ad_error";
+  if (isAdLifecycle && raw.session_id) {
+    const basis = [raw.session_id, raw.pod_id ?? "", raw.ad_id ?? "", eventType].join("|");
+    return `evt_${createHash("sha1").update(basis).digest("hex").slice(0, 24)}`;
+  }
+  // Non-lifecycle (errors, unknown) — let each occurrence be recorded.
+  return `evt_${createHash("sha1").update(`${JSON.stringify(raw)}|${Date.now()}|${Math.random()}`).digest("hex").slice(0, 24)}`;
+}
+
+export function normalizeEvent(raw: RawEvent): NormalizedEvent | { error: string } {
+  const eventType = canonicalType(raw);
+  if (!eventType) return { error: "event_type is required" };
+
+  return {
+    eventId: deriveEventId(raw, eventType),
+    eventType,
+    sessionId: raw.session_id ?? null,
+    channelId: raw.channel_id ?? null,
+    opportunityId: raw.opportunity_id ?? null,
+    podId: raw.pod_id ?? null,
+    adId: raw.ad_id ?? null,
+    campaignId: raw.campaign_id ?? null,
+    creativeId: raw.creative_id ?? null,
+    programId: raw.program_id ?? null,
+    playheadPosition: raw.playhead_position ?? null,
+    deviceType: raw.device_type ?? null,
+    country: raw.country ?? null,
+    payload: raw.payload ?? raw,
+  };
+}
+-- persistence reference --
+// Append-only event stream (PRD §26, §29, §30). Source for analytics.
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface EventInput {
+  eventId: string;
+  eventType: string;
+  ts?: string;
+  sessionId?: string | null;
+  channelId?: string | null;
+  opportunityId?: string | null;
+  podId?: string | null;
+  adId?: string | null;
+  campaignId?: string | null;
+  creativeId?: string | null;
+  programId?: string | null;
+  playheadPosition?: number | null;
+  deviceType?: string | null;
+  country?: string | null;
+  payload?: unknown;
+}
+
+export async function appendEvent(db: Queryable, e: EventInput): Promise<void> {
+  await db.query(
+    `INSERT INTO 
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ duplicate beacons — e.g. a quartile fired
+/reference/ssaiadserver/control-plane/events-normalize.ts:3:// again after a manifest refresh (PRD §60 task 6) — collapse via the events
+/reference/ssaiadserver/control-plane/events-normalize.ts:4:// table's ON CONFLICT (event_id) DO NOTHING.
+/reference/ssaiadserver/control-plane/events-normalize.ts:9:  | "ad_impression"
+/reference/ssaiadserver/control-plane/events-normalize.ts:18:  impression: "ad_impression",
+/reference/ssaiadserver/control-plane/events-normalize.ts:19:  ad_impression: "ad_impression",
+/reference/ssaiadserver/control-plane/events-normalize.ts:45:  event?: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:46:  event_type?: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:47:  event_id?: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:49:  session_id?: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:53:  ad_id?: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:55:  creative_id?: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:65:  eventId: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:66:  eventType: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:73:  creativeId: string | null;
+/reference/ssaiadserver/control-plane/events-normalize.ts:81:/** Resolve the canonical event type from an explicit type or a quartile marker. */
+/reference/ssaiadserver/control-plane/events-normalize.ts:83:  const explicit = (raw.event_type ?? raw.event ?? "").toString();
+/reference/ssaiadserver/control-plane/events-normalize.ts:92:/** Deterministic id for lifecycle events so duplicates dedup; unique otherwise. */
+/reference/ssaiadserver/control-plane/events-normalize.ts:93:export function deriveEventId(raw: RawEvent, eventType: string): string {
+/reference/ssaiadserver/control-plane/events-normalize.ts:94:  if (raw.event_id) return raw.event_id;
+/reference/ssaiadserver/control-plane/events-normalize.ts:96:  const isAdLifecycle = eventType.startsWith("ad_") && eventType !== "ad_error";
+/reference/ssaiadserver/control-plane/events-normalize.ts:97:  if (isAdLifecycle && raw.session_id) {
+/reference/ssaiadserver/control-plane/events-normalize.ts:98:    const basis = [raw.session_id, raw.pod_id ?? "", raw.ad_id ?? "", eventType].join("|");
+/reference/ssaiadserver/control-plane/events-normalize.ts:101:  // Non-lifecycle (errors, unknown) — let each occurrence be recorded.
+/reference/ssaiadserver/control-plane/events-normalize.ts:106:  const eventType = canonicalType(raw);
+/reference/ssaiadserver/control-plane/events-normalize.ts:107:  if (!eventType) return { error: "event_type is required" };
+/reference/ssaiadserver/control-plane/events-normalize.ts:110:    eventId: deriveEventId(raw, eventType),
+/reference/ssaiadserver/control-plane/events-normalize.ts:111:    eventType,
+/reference/ssaiadserver/control-plane/events-normalize.ts:112:    sessionId: raw.session_id ?? null,
+/reference/ssaiadserver/control-plane/events-normalize.ts:116:    adId: raw.ad_id ?? null,
+/reference/ssaiadserver/control-plane/events-normalize.ts:118:    creativeId: raw.creative_id ?? null,
+/reference/ssaiadserver/persistence/repositories/events.ts:1:// Append-only event stream (PRD §26, §29, §30). Source for analytics.
+/reference/ssaiadserver/persistence/repositories/events.ts:7:  eventId: string;
+/reference/ssaiadserver/persistence/repositories/events.ts:8:  eventType: string;
+/reference/ssaiadserver/persistence/repositories/events.ts:16:  creativeId?: string | null;
+/reference/ssaiadserver/persistence/repositories/events.ts:26:    `INSERT INTO events
+/reference/ssaiadserver/persistence/repositories/events.ts:27:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+/reference/ssaiadserver/persistence/repositories/events.ts:28:        campaign_id, creative_id, program_id, playhead_position, device_type, country, payload)
+/reference/ssaiadserver/persistence/repositories/events.ts:30:     ON CONFLICT (event_id) DO NOTHING`,
+/reference/ssaiadserver/persistence/repositories/events.ts:32:      e.eventId,
+/reference/ssaiadserver/persistence/repositories/events.ts:33:      e.eventType,
+/reference/ssaiadserver/persistence/repositories/events.ts:41:      e.creativeId ?? null,
+/reference/ssaiadserver/persistence/repositories/events.ts:59:      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+/reference/ssaiadserver/persistence/repositories/events.ts:65:    eventId: r.event_id as string,
+/reference/ssaiadserver/persistence/repositories/events.ts:66:    eventType: r.event_type as string,
+/reference/ssaiadserver/persistence/repositories/events.ts:68:    sessionId: (r.session_id as string) ?? null,
+/reference/ssaiadserver/persistence/repositories/events.ts:72:    adId: (r.ad_id as string) ?? null,
+/reference/ssaiadserver/persistence/repositories/events.ts:74:    creativeId: (r.creative_id as string) ?? null,
+f549e1c35e50:/app#

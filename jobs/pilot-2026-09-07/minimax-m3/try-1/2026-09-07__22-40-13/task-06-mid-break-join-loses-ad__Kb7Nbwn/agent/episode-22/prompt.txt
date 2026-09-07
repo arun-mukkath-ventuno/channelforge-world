@@ -1,0 +1,107 @@
+New Terminal Output:
+
+a862f4e7fb65:/app# cat packages/data-plane/src/media.test.ts
+import { describe, it, expect } from "vitest";
+import { parseVariantPlaylist, resolvePodSegments } from "./media.js";
+import type { ObjectStore } from "@ssai/storage";
+import type { PodItem } from "@ssai/core";
+
+const VARIANT = [
+  "#EXTM3U",
+  "#EXT-X-VERSION:6",
+  "#EXT-X-TARGETDURATION:8",
+  "#EXT-X-PLAYLIST-TYPE:VOD",
+  "#EXTINF:8.333333,",
+  "cr_a_000.ts",
+  "#EXTINF:8.333333,",
+  "cr_a_001.ts",
+  "#EXT-X-ENDLIST",
+  "",
+].join("\n");
+
+// In-memory store seeded with one prepared creative.
+function storeWith(entries: Record<string, string>): ObjectStore {
+  return {
+    async get(key) {
+      if (entries[key] === undefined) throw new Error("not found: " + key);
+      return Buffer.from(entries[key]);
+    },
+    async put() {},
+    async list() {
+      return [];
+    },
+    url: (k) => "store://local/" + k,
+  };
+}
+
+describe("parseVariantPlaylist", () => {
+  it("extracts EXTINF durations + segment names", () => {
+    expect(parseVariantPlaylist(VARIANT)).toEqual([
+      { duration: 8.333333, uri: "cr_a_000.ts" },
+      { duration: 8.333333, uri: "cr_a_001.ts" },
+    ]);
+  });
+});
+
+describe("resolvePodSegments (PRD §14, §42)", () => {
+  const pod: PodItem[] = [
+    { type: "ad", creativeId: "cr_a", campaignId: "camp_a", duration: 30, position: 0, startOffset: 0, endOffset: 30 },
+    { type: "slate", duration: 15, position: 1, startOffset: 30, endOffset: 45 },
+  ];
+
+  it("maps a prepared ad to real segment URLs, and synthesizes slate", async () => {
+    const store = storeWith({ "creatives/cr_a/cr_a.m3u8": VARIANT });
+    const rendered = await resolvePodSegments(pod, store);
+
+    expect(rendered[0]).toMatchObject({ type: "ad", creativeId: "cr_a" });
+    expect(rendered[0]!.segments.map((s) => s.uri)).toEqual([
+      "/v1/segments/cr_a/cr_a_000.ts",
+      "/v1/segments/cr_a/cr_a_001.ts",
+    ]);
+    expect(rendered[1]!.type).toBe("slate");
+    expect(rendered[1]!.segments.length).toBeGreaterThan(0);
+  });
+
+  it("degrades an unprepared creative to slate so playback survives (§42)", async () => {
+    const store = storeWith({}); // cr_a not stored
+    const rendered = await resolvePodSegments(pod, store);
+    expect(rendered[0]!.type).toBe("slate"); // ad slot degraded
+    expect(rendered[0]!.creativeId).toBeUndefined();
+  });
+});
+
+const SLATE_VARIANT = [
+  "#EXTM3U",
+  "#EXTINF:7.500,",
+  "s_000.ts",
+  "#EXTINF:7.500,",
+  "s_001.ts",
+  "#EXT-X-ENDLIST",
+  "",
+].join("\n");
+
+describe("slate fill from prepared media (PRD §20, §21)", () => {
+  const slatePod: PodItem[] = [
+    { type: "slate", duration: 30, position: 0, startOffset: 0, endOffset: 30 },
+  ];
+
+  it("loops the channel slate clip to cover the slate duration exactly", async () => {
+    const store = storeWith({ "slates/channel_food/channel_food.m3u8": SLATE_VARIANT });
+    const rendered = await resolvePodSegments(slatePod, store, { channelId: "channel_food" });
+    // 15s clip looped twice covers 30s → 4 segments, all real slate URLs.
+    expect(rendered[0]!.segments).toHaveLength(4);
+    expect(rendered[0]!.segments.map((s) => s.uri)).toEqual([
+      "/v1/slate/channel_food/s_000.ts",
+      "/v1/slate/channel_food/s_001.ts",
+      "/v1/slate/channel_food/s_000.ts",
+      "/v1/slate/channel_food/s_001.ts",
+    ]);
+  });
+
+  it("falls back to the default slate when the channel has none", async () => {
+    const store = storeWith({ "slates/default/default.m3u8": SLATE_VARIANT });
+    const rendered = await resolvePodSegments(slatePod, store, { channelId: "channel_food" });
+    expect(rendered[0]!.segments[0]!.uri).toBe("/v1/slate/default/s_000.ts");
+  });
+});
+a862f4e7fb65:/app#

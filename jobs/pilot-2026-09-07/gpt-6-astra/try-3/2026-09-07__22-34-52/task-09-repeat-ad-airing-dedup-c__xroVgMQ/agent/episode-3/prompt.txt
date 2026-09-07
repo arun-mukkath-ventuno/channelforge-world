@@ -1,0 +1,325 @@
+New Terminal Output:
+
+04463b8c374a:/app# cat src/lib/ssai.ts; cat /reference/ssaiadserver/control-plane/events-normalize.ts; cat /reference/ssaiadserver/persistence/repositories/even
+ts.ts
+// SSAI (server-side ad insertion) client — the AD leg of the Stream Telemetry Blueprint.
+//
+// For channels with an `ssaiChannel`, the player requests a session from the ad server, plays the
+// returned stitched `playback_url` (ChannelForge content + spliced ads), and fires per-ad quartile
+// beacons. This is SEPARATE from the audience telemetry in `telemetry-store` / `/api/fast/events`
+// (concurrents, QoE) — that stays untouched; ad events go to the SSAI's `/v1/events`.
+
+export const SSAI_BASE = (
+  process.env.NEXT_PUBLIC_SSAI_BASE || "https://ssai.ventunotech.com"
+).replace(/\/$/, "");
+
+export interface SsaiSession {
+  sessionId: string;
+  playbackUrl: string;
+}
+
+/** Create a playback session and get the stitched manifest URL for an SSAI channel. */
+export async function createSsaiSession(ssaiChannel: string): Promise<SsaiSession | null> {
+  try {
+    const res = await fetch(`${SSAI_BASE}/v1/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel_id: ssaiChannel }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d?.session_id || !d?.playback_url) return null;
+    return { sessionId: String(d.session_id), playbackUrl: String(d.playback_url) };
+  } catch {
+    return null;
+  }
+}
+
+export type AdBeacon =
+  | "ad_impression"
+  | "ad_start"
+  | "ad_first_quartile"
+  | "ad_midpoint"
+  | "ad_third_quartile"
+  | "ad_complete";
+
+/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
+  try {
+    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+      navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: "application/json" }));
+    } else {
+      void fetch(`${SSAI_BASE}/v1/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      });
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+export interface AdWindow {
+  adId: string;
+  start: number; // epoch ms
+  end: number; // epoch ms
+}
+
+/** Parse ad avails from a stitched media playlist's EXT-X-DATERANGE lines (CLASS com.fastworld.ad). */
+export function parseAdWindows(manifest: string): AdWindow[] {
+  const out: AdWindow[] = [];
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+    const attr = (k: string): string | undefined => line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("DURATION");
+    const adId = attr("X-AD-ID") || attr("ID");
+    if (!startDate || !dur || !adId) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ adId, start, end: start + seconds * 1000 });
+  }
+  return out;
+}
+
+export interface ScteAvail {
+  id: string;
+  start: number; // epoch ms — break start (absolute, from START-DATE)
+  end: number; // epoch ms
+  durationSec: number;
+}
+
+/**
+ * Parse SCTE-35 ad avails from a ChannelForge media playlist. These are the ad
+ * OPPORTUNITIES the packager signals (where SSAI may splice), distinct from
+ * `parseAdWindows` which reads the ads actually stitched in. Reads
+ * `#EXT-X-DATERANGE` lines carrying `SCTE35-OUT` with an absolute `START-DATE`
+ * and `PLANNED-DURATION`.
+ */
+export function parseScteAvails(manifest: string): ScteAvail[] {
+  const out: ScteAvail[] = [];
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:")) continue;
+    if (!/SCTE35-OUT/i.test(line)) continue;
+    const attr = (k: string): string | undefined =>
+      line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("PLANNED-DURATION") || attr("DURATION");
+    const id = attr("ID") || "brk";
+    if (!startDate || !dur) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ id, start, end: start + seconds * 1000, durationSec: seconds });
+  }
+  return out;
+}
+
+// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+const QUARTILES: [number, AdBeacon][] = [
+  [0, "ad_impression"],
+  [0, "ad_start"],
+  [0.25, "ad_first_quartile"],
+  [0.5, "ad_midpoint"],
+  [0.75, "ad_third_quartile"],
+  [1, "ad_complete"],
+];
+
+/**
+ * Watch the wall-clock playhead against the stitched manifest's ad windows and fire quartile
+ * beacons as each ad plays. `playheadDate()` returns the current playhead as epoch ms (from
+ *
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+n;
+    const stop = startAdBeaconWatcher({
+      sessionId: ssaiSessionId,
+      manifestUrl: hlsUrl,
+      playheadDate: () => {
+        const d = playerRef.current?.getPlayheadTimeAsDate?.();
+        return d ? d.getTime() : null;
+      },
+    });
+    return stop;
+  }, [ssaiSessionId, hlsUrl]);
+
+  // Tear down Shaka only on unmount.
+  useEffect(() => {
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.destroy().catch(() => {});
+        playerRef.current = null;
+      }
+    };
+  }, []);
+
+  return (
+    <>
+      <video
+        ref={videoRef}
+        playsInline
+        autoPlay
+        muted={muted}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          background: "#000",
+        }}
+      />
+      {status === "slate" ? (
+        <Slate channelName={channelName} channelBug={channelBug} />
+      ) : status === "loading" || status === "recovering" ? (
+        <FaultOverlay status={status} />
+      ) : null}
+    </>
+  );
+}
+
+function FaultOverlay({ status }: { status: PlayerStatus }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 16,
+        background: "#000",
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        className="fw-spin"
+        style={{
+          width: 26,
+          height: 26,
+          border: "2px solid rgba(245,243,241,.25)",
+          borderTopColor: "#ec3013",
+          borderRadius: "50%",
+        }}
+      />
+      <div style={{ font: "600 11px/1 var(--mono)", letterSpacing: ".14em", color: "rgba(245,243,241,.6)" }}>
+        {status === "loading" ? "TUNING CHANNEL" : "WE'RE RESTORING THIS CHANNEL"}
+      </div>
+    </div>
+  );
+}
+
+// ChannelForge fallback slate — failure should look intentional, like broadcast.
+function Slate({ channelName, channelBug }: { channelName: string; channelBug: string }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 20,
+        background: "linear-gradient(150deg,#141210 0%,#0a0908 100%)",
+        pointerEvents: "none",
+        textAlign: "center",
+        padding: 24,
+      }}
+    >
+      <div style={{ fontWeight: 700, fontSize: "clamp(20px,5vw,40px)", letterSpacing: ".04em", color: "rgba(255,255,255,.16)", whiteSpace: "pre-line", lineHeigh
+t: 1.05 }}>
+        {channelBug}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span className="fw-pulse" style={{ width: 7, height: 7, background: "#ec3013", borderRadius: "50%" }} />
+        <span style={{ font: "700 11px/1 var(--mono)", letterSpacing: ".18em", color: "#ec3013" }}>STANDBY</span>
+      </div>
+      <div style={{ font: "600 10px/1.5 var(--mono)", letterSpacing: ".14em", color: "rgba(245,243,241,.5)" }}>
+        CHANNELFORGE · RESTORING {channelName.toUpperCase()}
+      </div>
+    </div>
+  );
+}
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
+/logs:
+total 8
+drwxr-xr-x    5 root     root          4096 Sep  7 17:06 .
+drwxr-xr-x    1 root     root          4096 Sep  7 17:06 ..
+drwxrwxrwx    5 root     root           160 Sep  7 17:06 agent
+drwxr-xr-x    2 root     root            64 Sep  7 17:06 artifacts
+drwxrwxrwx    2 root     root            64 Sep  7 17:06 verifier
+
+/run:
+total 12
+drwxr-xr-x    3 root     root          4096 Jun 13 16:39 .
+drwxr-xr-x    1 root     root          4096 Sep  7 17:06 ..
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 lock
+ASCIINEMA_REC=1
+ASCIINEMA_SESSION=a68c8938978b5822836dbc791eebc46d
+CHARSET=UTF-8
+COLORTERM=truecolor
+FAST_HLS_101=http://localhost:4010/v1/hls/world/channel_101/index.m3u8
+FAST_HLS_102=http://localhost:4010/v1/hls/world/channel_102/index.m3u8
+HOME=/root
+HOSTNAME=04463b8c374a
+LANG=C.UTF-8
+LC_COLLATE=C
+NODE_VERSION=22.23.2
+PAGER=less
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/app
+SHELL=/bin/bash
+SHLVL=3
+TERM=tmux-256color
+TERM_PROGRAM=tmux
+TERM_PROGRAM_VERSION=3.7c
+TMUX=/tmp/tmux-0/default,95,0
+TMUX_PANE=%0
+YARN_VERSION=1.22.22
+_=/usr/bin/env
+04463b8c374a:/app#

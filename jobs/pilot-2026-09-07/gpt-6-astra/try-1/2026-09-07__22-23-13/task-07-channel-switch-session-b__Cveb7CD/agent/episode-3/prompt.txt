@@ -1,0 +1,132 @@
+New Terminal Output:
+
+86be0505c7a7:/app# find packages/persistence/src -type f; grep -rn -E 'sessions|upsertSession|sessionRepo' packages/persistence/src packages/control-plane/src/s
+erver.ts packages/data-plane/src; cat packages/persistence/package.json packages/control-plane/package.json packages/data-plane/package.json
+packages/persistence/src/map.ts
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/reconciliation.test.ts
+packages/persistence/src/index.ts
+packages/persistence/src/analytics.test.ts
+packages/persistence/src/cli/migrate.ts
+packages/persistence/src/cli/seed.ts
+packages/persistence/src/migrate.ts
+packages/persistence/src/seed.ts
+packages/persistence/src/db.ts
+packages/persistence/src/analytics.ts
+packages/persistence/src/pod-cache.test.ts
+packages/persistence/src/reconciliation.ts
+packages/persistence/src/pod-cache.ts
+packages/persistence/src/repositories/opportunities.ts
+packages/persistence/src/repositories/channels.ts
+packages/persistence/src/repositories/events.ts
+packages/persistence/src/repositories/slates.ts
+packages/persistence/src/repositories/creatives.ts
+packages/persistence/src/repositories/decisions.ts
+packages/persistence/src/repositories/sessions.ts
+packages/persistence/src/repositories/beacons.ts
+packages/persistence/src/repositories/campaigns.ts
+packages/persistence/src/repositories.test.ts:10:import { ensureSession, getSession } from "./repositories/sessions.js";
+packages/persistence/src/reconciliation.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/reconciliation.test.ts:115:  it("aggregates ad seconds + impressions across multiple viewer sessions of one break", async () => {
+packages/persistence/src/index.ts:13:export * as sessions from "./repositories/sessions.js";
+packages/persistence/src/analytics.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/analytics.test.ts:127:    expect(a.streaming.sessionsByChannel).toEqual([{ channelId: "channel_food", sessions: 1 }]);
+packages/persistence/src/analytics.ts:14:    sessionsByChannel: { channelId: string; sessions: number }[];
+packages/persistence/src/analytics.ts:63:      "SELECT channel_id, created_at, last_activity_at FROM playback_sessions",
+packages/persistence/src/analytics.ts:128:      sessionsByChannel: [...byChannel.entries()]
+packages/persistence/src/analytics.ts:129:        .map(([channelId, sessions]) => ({ channelId, sessions }))
+packages/persistence/src/repositories/sessions.ts:39:    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent
+)
+packages/persistence/src/repositories/sessions.ts:55:  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+packages/persistence/src/repositories/sessions.ts:71:  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/sessions.ts:77:    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [
+limit])
+packages/control-plane/src/server.ts:3:// Owns campaigns, creatives, channels, sessions, ad decisioning, event
+packages/control-plane/src/server.ts:25:  sessions as sessionsRepo,
+packages/control-plane/src/server.ts:97:    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+packages/control-plane/src/server.ts:128:  app.post("/v1/sessions", async (req, reply) => {
+packages/control-plane/src/server.ts:133:    await sessionsRepo.ensureSession(pool, {
+packages/control-plane/src/server.ts:156:  app.get("/v1/sessions/:id", async (req, reply) => {
+packages/control-plane/src/server.ts:158:    const session = await sessionsRepo.getSession(pool, id);
+packages/control-plane/src/server.ts:210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+packages/control-plane/src/server.ts:266:    for (const sid of touched) await sessionsRepo.touchSession(pool, sid);
+packages/control-plane/src/server.ts:304:  app.get("/v1/sessions", async (req) => {
+packages/control-plane/src/server.ts:306:    return sessionsRepo.listSessions(pool, q.limit ? Number(q.limit) : undefined);
+packages/control-plane/src/server.ts:313:      sessionsRepo.getSession(pool, id),
+{
+  "name": "@ssai/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI persistence — Postgres repositories, migration runner, and the Redis pod cache that bridges control plane and data plane.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5"
+  }
+}
+{
+  "name": "@ssai/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI control plane — campaigns, creatives, channels, sessions, ad decisioning, events, analytics, debug APIs.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fast-xml-parser": "^4.5.7",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.1"
+  }
+}
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+86be0505c7a7:/app#

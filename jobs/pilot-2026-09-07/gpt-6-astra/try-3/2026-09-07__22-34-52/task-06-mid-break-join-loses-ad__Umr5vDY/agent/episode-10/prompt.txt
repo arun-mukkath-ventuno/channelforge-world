@@ -1,0 +1,210 @@
+New Terminal Output:
+
+17c9e64e2bb8:/app# cat packages/data-plane/dist/server.js | head -115; cat packages/storage/src/factory.ts; cat packages/persistence/src/pod-cache.ts; wget -qO-
+ http://localhost:8080/ 2>&1 | head -20
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+import Fastify from "fastify";
+import { verifySession } from "@ssai/core";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider } from "./decider.js";
+export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+const CONTENT_TYPES = {
+    ts: "video/mp2t",
+    m3u8: "application/vnd.apple.mpegurl",
+    m4s: "video/iso.segment",
+    mp4: "video/mp4",
+    aac: "audio/aac",
+};
+export function buildServer(deps) {
+    // Signed tokens are long — raise the route param length limit (default 100).
+    const app = Fastify({ logger: deps.logger ?? true, maxParamLength: 4096 });
+    const { podCache, origin, decider, store } = deps;
+    const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+    app.get("/health", async () => ({ status: "ok", plane: "data" }));
+    // Personalized media playlist (PRD §11, §22, §24, §52).
+    app.get("/v1/hls/:token/:channel/:variant.m3u8", async (req, reply) => {
+        const { token, channel, variant } = req.params;
+        // Verify the signed playback token (PRD §57) before doing any work.
+        const claims = verifySession(token, sessionSecret);
+        if (!claims)
+            return reply.code(403).send({ error: "invalid_session_token" });
+        if (claims.ch !== channel)
+            return reply.code(403).send({ error: "channel_mismatch" });
+        const session = claims.sid;
+        let originResult;
+        try {
+            originResult = await origin.fetchMediaPlaylist(channel, variant);
+        }
+        catch (err) {
+            req.log.error({ err }, "origin fetch failed with no cached copy");
+            return reply.code(502).send({ error: "origin_unavailable" });
+        }
+        // Absolutize the origin's relative content URIs against the real origin URL so the player
+        // pulls content straight from ChannelForge (ad segments stay absolute SSAI paths).
+        const originBody = absolutizeManifest(originResult.body, origin.originUrlFor(channel, variant));
+        const avails = detectAvails(originBody, channel);
+        // Resolve a pod for each avail (cache, else decide once), then resolve its
+        // media from the store into concrete segments.
+        const rendered = new Map();
+        for (const avail of avails) {
+            let pod;
+            const cached = await podCache.get(session, avail.opportunityId);
+            if (cached)
+                pod = cached.pod;
+            else if (decider) {
+                const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+                if (decided)
+                    pod = decided;
+            }
+            if (pod)
+                rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+        }
+        const { manifest, stitched } = stitchManifest(originBody, avails, rendered);
+        reply.header("content-type", "application/vnd.apple.mpegurl");
+        reply.header("x-ssai-avails", String(avails.length));
+        reply.header("x-ssai-stitched", String(stitched.length));
+        if (originResult.stale)
+            reply.header("x-ssai-origin", "stale");
+        return manifest;
+    });
+    // Serve prepared creative segments the stitched manifest points at (PRD §14).
+    app.get("/v1/segments/:creativeId/:file", async (req, reply) => {
+        const { creativeId, file } = req.params;
+        if (!SAFE_ID.test(creativeId) || !SAFE_FILE.test(file)) {
+            return reply.code(400).send({ error: "invalid segment path" });
+        }
+        return serveStored(reply, store, `creatives/${creativeId}/${file}`, file);
+    });
+    // Serve prepared slate segments (PRD §20).
+    app.get("/v1/slate/:slateId/:file", async (req, reply) => {
+        const { slateId, file } = req.params;
+        if (!SAFE_ID.test(slateId) || !SAFE_FILE.test(file)) {
+            return reply.code(400).send({ error: "invalid segment path" });
+        }
+        return serveStored(reply, store, `slates/${slateId}/${file}`, file);
+    });
+    return app;
+}
+async function serveStored(reply, store, key, file) {
+    try {
+        const data = await store.get(key);
+        const ext = file.split(".").pop();
+        reply.header("content-type", CONTENT_TYPES[ext] ?? "application/octet-stream");
+        reply.header("cache-control", "public, max-age=31536000, immutable");
+        return reply.send(data);
+    }
+    catch {
+        return reply.code(404).send({ error: "segment_not_found" });
+    }
+}
+if (import.meta.url === `file://${process.argv[1]}`) {
+    const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+    const { createObjectStoreFromEnv } = await import("@ssai/storage");
+    const podCache = new RedisPodCache(createRedis());
+    const origin = new OriginClient();
+    const store = await createObjectStoreFromEnv();
+// Choose an ObjectStore from the environment: S3/MinIO when S3_BUCKET is set,
+// otherwise the filesystem store (the zero-infra default for dev / RL).
+
+import type { ObjectStore } from "./storage.js";
+import { FilesystemObjectStore } from "./storage.js";
+
+export async function createObjectStoreFromEnv(): Promise<ObjectStore> {
+  if (process.env.S3_BUCKET) {
+    const { createS3ObjectStore } = await import("./s3.js");
+    return createS3ObjectStore({
+      bucket: process.env.S3_BUCKET,
+      ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT } : {}),
+      ...(process.env.S3_REGION ? { region: process.env.S3_REGION } : {}),
+      ...(process.env.S3_ACCESS_KEY ? { accessKeyId: process.env.S3_ACCESS_KEY } : {}),
+      ...(process.env.S3_SECRET_KEY ? { secretAccessKey: process.env.S3_SECRET_KEY } : {}),
+      forcePathStyle: true,
+      ...(process.env.CREATIVE_STORE_BASE_URL ? { publicBaseUrl: process.env.CREATIVE_STORE_BASE_URL } : {}),
+    });
+  }
+  return new FilesystemObjectStore(process.env.CREATIVE_STORE_ROOT ?? "./storage/creatives");
+}
+// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+// plane reads it on the manifest hot path and never recomputes. Keyed by
+// (session, opportunity).
+//
+// Two implementations behind one interface: Redis for real deployments, and an
+// in-memory Map for tests and single-process dev.
+
+import type { PodItem } from "@ssai/core";
+import { Redis } from "ioredis";
+
+export interface CachedPod {
+  sessionId: string;
+  opportunityId: string;
+  channelId: string;
+  breakDuration: number;
+  pod: PodItem[];
+}
+
+export interface PodCache {
+  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+  set(entry: CachedPod, ttlSeconds?: number): Promise<void>;
+  del(sessionId: string, opportunityId: string): Promise<void>;
+}
+
+function key(sessionId: string, opportunityId: string): string {
+  return `pod:${sessionId}:${opportunityId}`;
+}
+
+/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+export const DEFAULT_POD_TTL_SECONDS = 900;
+
+export class RedisPodCache implements PodCache {
+  constructor(private readonly redis: Redis) {}
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    const raw = await this.redis.get(key(sessionId, opportunityId));
+    return raw ? (JSON.parse(raw) as CachedPod) : null;
+  }
+
+  async set(entry: CachedPod, ttlSeconds = DEFAULT_POD_TTL_SECONDS): Promise<void> {
+    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    await this.redis.del(key(sessionId, opportunityId));
+  }
+}
+
+export class MemoryPodCache implements PodCache {
+  private readonly store = new Map<string, CachedPod>();
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    return this.store.get(key(sessionId, opportunityId)) ?? null;
+  }
+
+  async set(entry: CachedPod): Promise<void> {
+    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    this.store.delete(key(sessionId, opportunityId));
+  }
+}
+
+export function createRedis(url = process.env.REDIS_URL): Redis {
+  if (!url) throw new Error("REDIS_URL is not set");
+  return new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+}
+wget: can't connect to remote host: Connection refused
+17c9e64e2bb8:/app#

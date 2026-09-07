@@ -1,0 +1,14 @@
+{
+  "analysis": "The control-plane endpoint creates a new opportunity with breakStart set to the request time on every call, then always runs decide() and saves a new decision. This is the actual defect: a late first manifest request describes the already-running break as starting now, so the decision path treats it as a fresh opportunity window and the resulting pod/cache timing cannot represent the original break. It also explains reconnects: the same session/opportunity is not reused by the decision endpoint. The data plane correctly preserves the common cache-hit path and should not change ad detection or normal continuous polling behavior.",
+  "plan": "Inspect the remaining cache implementation and the decision endpoint response/cache write to confirm the exact fields and TTL. Then make a minimal control-plane fix: before deciding, look up an existing decision for the same session and opportunity and return its pod, ensuring reconnects and late first requests reuse the original decision. For a genuinely new opportunity, retain the existing decision flow unchanged. Add no test-suite changes, run existing tests/typecheck, and restart the service process/container after the patch.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/persistence/src/pod-cache.ts | sed -n '1,180p'; printf '\\n===== decision endpoint =====\\n'; nl -ba packages/control-plane/src/server.ts | sed -n '130,275p'; printf '\\n===== decision repository start =====\\n'; nl -ba packages/persistence/src/repositories/decisions.ts | sed -n '1,145p'\n",
+      "duration": 0.8
+    },
+    {
+      "keystrokes": "find packages -type f -name '*.ts' -not -path '*/node_modules/*' -print0 | xargs -0 grep -nE -e 'podCache\\.set' -e 'getDecisionsBySession' -e 'getDecisionsByOpportunity' -e 'RedisPodCache' -e 'MemoryPodCache' | sed -n '1,240p'\n",
+      "duration": 0.8
+    }
+  ]
+}

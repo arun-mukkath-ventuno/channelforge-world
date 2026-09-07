@@ -1,0 +1,22 @@
+{
+  "analysis": "The avail detector has a clear state-leak candidate: `blockBreakId` is declared outside the playlist loop and is set whenever a DATERANGE ID is seen, but the shown code does not clear it at a segment boundary or after the associated avail. Thus, a subsequent CUE-OUT without a new DATERANGE can inherit the prior break ID; more importantly, the exact back-to-back behavior depends on how tags are ordered and whether a new CUE-OUT is accepted while `open` is still active. The comments claim per-block clearing, but the displayed implementation has not yet shown such a reset. I need inspect the remainder of `avails.ts` and exact tests before patching, then add no tests per the instruction and validate with an inline reproduction.",
+  "plan": "Read the complete avail detector and all avail tests in bounded chunks. Inspect the origin playlist processing to understand whether adjacent CUE-IN/CUE-OUT markers are in the same segment/tag block. Then make the minimal state fix: ensure a DATERANGE ID is scoped to the correct marker/block and cannot survive into the next break, while preserving all existing marker syntaxes. Build and run the existing focused tests, use a temporary Node/tsx inline reproduction rather than modifying tests, and rebuild/restart the data-plane service.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.ts | sed -n '1,260p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.test.ts | sed -n '1,360p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/origin.ts | sed -n '1,360p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/origin-rewrite.ts | sed -n '1,360p'\n",
+      "duration": 0.2
+    }
+  ]
+}

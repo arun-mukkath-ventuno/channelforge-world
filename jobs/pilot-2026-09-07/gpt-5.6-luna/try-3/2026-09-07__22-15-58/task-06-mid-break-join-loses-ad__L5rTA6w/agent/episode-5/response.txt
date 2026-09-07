@@ -1,0 +1,22 @@
+{
+  "analysis": "The output truncation hid the critical middle/end of server.ts, and the final grep again used unsupported GNU syntax. We have confirmed the data plane currently documents and likely implements a session/opportunity cache lookup, but not yet the exact fallback behavior. The next inspection must avoid output truncation and BusyBox-incompatible options.",
+  "plan": "Print server.ts in separate chunks and the complete pod-cache.ts. Then inspect control-plane ad-decision handling to see whether prior decisions can be retrieved by opportunity and whether the data plane can repopulate a new session's cache. I will use find plus xargs/grep-compatible syntax only.",
+  "commands": [
+    {
+      "keystrokes": "echo '===== server 1 ====='; sed -n '1,180p' packages/data-plane/src/server.ts; echo '===== server 2 ====='; sed -n '181,380p' packages/data-plane/src/server.ts\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "echo '===== pod-cache ====='; cat packages/persistence/src/pod-cache.ts; echo '===== persistence index ====='; cat packages/persistence/src/index.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "find packages/control-plane/src packages/data-plane/src packages/persistence/src -type f -name '*.ts' -exec grep -nHE 'ad-decision|PodCache|podCache|getDecisionsBy|opportunityId|sessionId' {} + | head -500\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "find . -maxdepth 3 -type f \\( -name 'docker-compose*.yml' -o -name 'compose*.yml' -o -name 'Dockerfile*' -o -name '*.service' \\) -print\n",
+      "duration": 0.2
+    }
+  ]
+}

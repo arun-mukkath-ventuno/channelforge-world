@@ -1,0 +1,26 @@
+{
+  "analysis": "The parser itself preserves DATERANGE IDs and already supports the existing CUE-OUT syntax. The likely defect is downstream state handling: adjacent marker processing may carry the previous external break ID into the next opportunity, especially when no intervening regular segment resets state. The persistence COALESCE is intentional for updates that omit an ID and is not yet the demonstrated root cause. I need inspect avail extraction and manifest rewrite state, especially how a new marker inherits or clears IDs.",
+  "plan": "Read avails.ts, origin/segment/stitch code, and their tests. Trace each detected marker into an AdOpportunity and identify whether the current break ID is stored globally and not replaced on a new break. Then inspect server startup/restart conventions. After the targeted source fix, run focused tests and typecheck/build, rebuild the affected package, and restart the data-plane service.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- avails source --' && sed -n '1,320p' packages/data-plane/src/avails.ts && printf '%s\\n' '-- avails tests --' && sed -n '1,360p' packages/data-plane/src/avails.test.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- origin source --' && sed -n '1,360p' packages/data-plane/src/origin.ts && printf '%s\\n' '-- origin rewrite --' && sed -n '1,360p' packages/data-plane/src/origin-rewrite.ts && printf '%s\\n' '-- segment --' && sed -n '1,300p' packages/data-plane/src/segment.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- stitch source --' && sed -n '1,400p' packages/data-plane/src/stitch.ts && printf '%s\\n' '-- decider --' && sed -n '1,300p' packages/data-plane/src/decider.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- all relevant call sites --' && find packages -type f -name '*.ts' -not -path '*/dist/*' -exec grep -nHE 'parseMarkerLine|externalBreakId|upsertOpportunity|AdOpportunity|current.*break|active.*break|last.*break' {} + | head -600\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- running processes --' && ps aux && printf '%s\\n' '-- compose/service files --' && find . -maxdepth 3 -type f \\( -iname '*compose*' -o -iname 'Dockerfile*' -o -iname '*.service' -o -name 'Makefile' \\) -print\n",
+      "duration": 0.2
+    }
+  ]
+}

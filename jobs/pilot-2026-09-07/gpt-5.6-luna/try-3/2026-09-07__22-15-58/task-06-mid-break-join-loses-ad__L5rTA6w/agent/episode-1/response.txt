@@ -1,0 +1,14 @@
+{
+  "analysis": "The repository is a small Node/TypeScript monorepo under /app, with dependencies installed and no existing git changes. The initial file listing was dominated by node_modules and did not yet reveal application files because of the output limit. The next step is to inspect package metadata and enumerate only packages source files, tests, and service/runtime configuration.",
+  "plan": "Read package.json files and list the packages tree while excluding node_modules. Search application source for manifest, session, break, ad, decision, and reconnect terminology. This should identify the affected service and the stateful code path before making any edits.",
+  "commands": [
+    {
+      "keystrokes": "cat package.json && printf '\\n-- packages --\\n' && find packages -maxdepth 4 -type f | sort\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- source keyword hits --' && grep -RInE 'manifest|ad.?break|decision|session|reconnect|splice|avail' packages --exclude-dir=node_modules | head -400\n",
+      "duration": 0.5
+    }
+  ]
+}

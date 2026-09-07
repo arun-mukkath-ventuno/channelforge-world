@@ -1,0 +1,18 @@
+{
+  "analysis": "The monorepo has a data-plane service with source and tests, including decider.ts, origin.ts, stitch.ts, and server.ts. The first search failed because this BusyBox grep does not support GNU long options; no source was changed. The reported behavior strongly points to per-session break state being initialized from the first request's current position and not being reused correctly on reconnect.",
+  "plan": "Inspect the data-plane package scripts and relevant source/tests. Trace manifest request flow into origin/stitch/decider and locate session/break state keys and initialization. Then patch the smallest application-source defect, run data-plane tests and typecheck, and identify/restart the running data-plane service.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/data-plane/package.json; printf '\\n-- source list --\\n'; find packages/data-plane/src -maxdepth 1 -type f -print | sort\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '\\n-- relevant source --\\n'; grep -RInE '(manifest|break|decision|session|reconnect|stitch|ad)' packages/data-plane/src | head -500\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '\\n-- origin --\\n'; sed -n '1,260p' packages/data-plane/src/origin.ts; printf '\\n-- stitch --\\n'; sed -n '1,260p' packages/data-plane/src/stitch.ts; printf '\\n-- decider --\\n'; sed -n '1,220p' packages/data-plane/src/decider.ts\n",
+      "duration": 0.5
+    }
+  ]
+}

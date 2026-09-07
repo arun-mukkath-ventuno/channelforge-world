@@ -1,0 +1,22 @@
+{
+  "analysis": "The attempted edit did not occur because Python and git are unavailable in this minimal container. Typecheck/build passed only because the source was unchanged, and the direct check still returns no avail, confirming the defect remains. I will use Node (already available) to perform the source-only edit.",
+  "plan": "Use a Node one-liner to replace the detector comment and insert an end-of-playlist flush for an open avail. Rebuild and directly verify partial detection, then run the existing data-plane tests (the old test asserting ignored incomplete avails is expected to fail because it encodes the buggy behavior), run typecheck, inspect running processes, and restart the data-plane service using the available process/container mechanism.",
+  "commands": [
+    {
+      "keystrokes": "node <<'NODE'\nconst fs = require('fs');\nconst p = 'packages/data-plane/src/avails.ts';\nlet s = fs.readFileSync(p, 'utf8');\ns = s.replace('/** Detect all complete avails in the manifest. Incomplete trailing avails (a\\n *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */', '/** Detect all avails visible in the manifest, including an active trailing\\n * avail whose CUE-IN has not entered the live window yet. */');\nconst needle = '  return avails;\\n}';\nconst replacement = `  // A live playlist may end while a break is in progress, so its CUE-IN\\n  // can be outside this window. Keep the same start-sequence opportunity id\\n  // so reconnecting sessions can reuse an earlier decision.\\n  if (open) {\\n    const declared = open.declaredDuration;\\n    avails.push({\\n      opportunityId: \\`opp_\\${channelId}_\\${open.startSequence}\\`,\\n      channelId,\\n      ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),\\n      duration: declared ?? open.measuredDuration,\\n      ...(declared === undefined ? {} : { declaredDuration: declared }),\\n      measuredDuration: open.measuredDuration,\\n      startSequence: open.startSequence,\\n      ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),\\n      startLine: open.startLine,\\n      endLine: lines.length - 1,\\n    });\\n  }\\n\\n  return avails;\\n}`;\nif (!s.includes(needle)) throw new Error('target not found');\ns = s.replace(needle, replacement);\nfs.writeFileSync(p, s);\nNODE\nsed -n '34,48p;118,165p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm run typecheck && npm run build --workspace @ssai/data-plane\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "node --input-type=module -e \"import('./packages/data-plane/dist/avails.js').then(({detectAvails})=>console.log(JSON.stringify(detectAvails('#EXT-X-MEDIA-SEQUENCE:100\\\\n#EXT-X-CUE-OUT:30\\\\n#EXTINF:6.000,\\\\nslate.ts','ch'),null,2)))\"\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "npm test -- --run packages/data-plane/src/avails.test.ts\n",
+      "duration": 1.0
+    }
+  ]
+}

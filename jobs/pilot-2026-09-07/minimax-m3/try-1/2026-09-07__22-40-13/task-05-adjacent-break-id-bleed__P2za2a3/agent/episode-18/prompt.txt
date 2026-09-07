@@ -1,0 +1,31 @@
+New Terminal Output:
+
+d55ac9bae4ee:/app# cat packages/persistence/src/repositories/opportunities.ts
+// Ad opportunity repository (PRD §10, §45).
+
+import type { AdOpportunity } from "@ssai/core";
+import type { Queryable } from "../db.js";
+
+export async function upsertOpportunity(db: Queryable, opp: AdOpportunity): Promise<void> {
+  await db.query(
+    `INSERT INTO ad_opportunities (id, channel_id, external_break_id, program_id, start_time, duration, marker_type, marker_payload, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'detected')
+     ON CONFLICT (id) DO UPDATE SET
+       duration = EXCLUDED.duration,
+       marker_type = EXCLUDED.marker_type,
+       marker_payload = EXCLUDED.marker_payload,
+       -- keep a previously-captured break id if a later decision omits it (COALESCE new-first).
+       external_break_id = COALESCE(EXCLUDED.external_break_id, ad_opportunities.external_break_id)`,
+    [
+      opp.opportunityId,
+      opp.channelId,
+      opp.externalBreakId ?? null,
+      opp.programId ?? null,
+      opp.breakStart,
+      opp.breakDuration,
+      opp.signalType,
+      opp.source,
+    ],
+  );
+}
+d55ac9bae4ee:/app#

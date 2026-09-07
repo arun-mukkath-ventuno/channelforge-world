@@ -1,0 +1,41 @@
+Current Terminal Screen:
+app/models/asset.py:50:    # Series/season hierarchy (nullable FKs; ON DELETE SET NULL keeps the asset if a series
+app/models/asset.py:52:    series_id: Mapped[uuid.UUID | None] = mapped_column(
+app/models/asset.py:53:        Uuid, ForeignKey("series.id", ondelete="SET NULL"), index=True, nullable=True
+app/models/collection.py:20:    # Dynamic-filter criteria (tags, series, content_type, language, duration range,
+app/models/__init__.py:56:from app.models.series import Season, Series
+app/models/rights.py:5:attaches a policy to an asset / series / collection / channel / distribution agreement.
+app/models/rights.py:76:    """Attaches a policy to a scope (asset/series/collection/channel/agreement) (§8, ADR-5).
+app/models/rights.py:88:    # One of: asset | series | collection | channel | agreement
+app/models/rights.py:89:    scope_type: Mapped[str] = mapped_column(String(20), nullable=False)
+app/models/rights.py:90:    scope_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True, nullable=False)
+app/models/rights.py:96:    """An emergency takedown on an asset or series (PRD 3.0 §8.3, ADR-5).
+app/models/rights.py:106:    scope_type: Mapped[str] = mapped_column(String(20), nullable=False)  # asset | series
+app/models/rights.py:107:    scope_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True, nullable=False)
+app/models/series.py:12:    """A reusable programme series, independent of filenames (PRD 3.0 §6.1, §7.1).
+app/models/series.py:14:    Assets link to a series (and optionally a season) so repeat-separation, episode-sequence
+app/models/series.py:15:    rules, and EPG series identity have a stable hierarchy rather than the free-text
+app/models/series.py:16:    ``Asset.series`` string that 1.x carried. The legacy string is kept as a fallback until
+app/models/series.py:20:    __tablename__ = "series"
+app/models/series.py:24:            name="uq_series_external_ref",
+app/models/series.py:32:    # for bulk import (PRD 3.0 §7.2). Both nullable for series created directly in the UI.
+app/models/series.py:38:    """A season within a series (PRD 3.0 §6.1). Season number is unique within its series."""
+app/models/series.py:42:        UniqueConstraint("series_id", "season_number", name="uq_season_number"),
+app/models/series.py:46:    series_id: Mapped[uuid.UUID] = mapped_column(
+app/models/series.py:47:        Uuid, ForeignKey("series.id", ondelete="CASCADE"), index=True, nullable=False
+app/api/channels.py:231:    """Concurrents series + availability (PRD 2.0 §4.4)."""
+app/api/channels.py:236:    points = audience_service.series(
+app/api/rights.py:67:        scope_type=payload.scope_type, scope_id=payload.scope_id, priority=payload.priority,
+app/api/rights.py:87:    scope_type: str,
+app/api/rights.py:88:    scope_id: uuid.UUID,
+app/api/rights.py:93:        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id
+app/api/rights.py:110:        db, org_id=org_id, actor_id=principal.user_id, scope_type=payload.scope_type,
+app/api/rights.py:111:        scope_id=payload.scope_id, reason=payload.reason, meta=meta,
+app/api/library.py:56:    result = library_import.import_series(
+app/api/library.py:62:        series=payload.series.model_dump(),
+app/api/library.py:67:        series_id=result.series_id,
+app/api/library.py:68:        series_action=result.series_action,
+app/api/media.py:166:        series=asset.series,
+app/api/media.py:187:    """Partial asset update: curation metadata (title/tags/series/rights/…) and/or the
+app/api/media.py:198:        description=asset.description, series=asset.series, season=asset.season,
+root@d6b56ecad4a0:/app#

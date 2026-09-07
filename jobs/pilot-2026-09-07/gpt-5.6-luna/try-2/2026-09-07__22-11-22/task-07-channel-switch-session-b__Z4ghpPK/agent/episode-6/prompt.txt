@@ -1,0 +1,252 @@
+New Terminal Output:
+
+51e93080a3b4:/app# sed -n '180,285p' packages/control-plane/src/server.ts && printf '\nRepository test setup and imports:\n' && sed -n '1,220p' packages/persist
+ence/src/repositories.test.ts
+      channelId: body.channel_id,
+      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+      breakStart: now,
+      breakDuration: body.duration,
+      source: "cue_out",
+      signalType: "cue_out",
+    };
+    const session: SessionContext = { sessionId, channelId: body.channel_id };
+
+    // Inventory from Postgres.
+    const [creatives, campaignMap] = await Promise.all([
+      creativesRepo.listCreatives(pool),
+      campaignsRepo.campaignsAsMap(pool),
+    ]);
+
+    const seed = body.seed ?? process.env.AD_DECISION_SEED;
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns: campaignMap,
+      now,
+      ...(seed ? { seed } : {}),
+    });
+
+    const decisionId = `dec_${randomUUID()}`;
+    const podId = `pod_${randomUUID()}`;
+
+    // Persist opportunity + session + decision atomically (PRD §46, §47).
+    await withTransaction(pool, async (tx) => {
+      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+      await oppsRepo.upsertOpportunity(tx, opportunity);
+      await decisionsRepo.saveDecision(tx, {
+        decisionId,
+        podId,
+        decision,
+        requestedAt: now,
+        completedAt: new Date().toISOString(),
+      });
+      for (const [type, extra] of [
+        ["ad_opportunity_detected", {}],
+        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+      ] as const) {
+        await eventsRepo.appendEvent(tx, {
+          eventId: randomUUID(),
+          eventType: type,
+          sessionId,
+          channelId: body.channel_id,
+          opportunityId: body.opportunity_id,
+          podId,
+          payload: extra,
+        });
+      }
+    });
+
+    // Cache the pod for the data plane (PRD §48).
+    await podCache.set({
+      sessionId,
+      opportunityId: body.opportunity_id,
+      channelId: body.channel_id,
+      breakDuration: body.duration,
+      pod: decision.pod,
+    });
+
+    return { decision_id: decisionId, pod_id: podId, ...decision };
+  });
+
+  // ── Player telemetry ingestion (PRD §26B, §28) ───────────────────────────
+  // Accepts one event or a small batch; maps quartile beacons to canonical ad
+  // event types and dedups duplicate beacons (PRD §60 task 6).
+  app.post("/v1/events", async (req, reply) => {
+    const body = req.body as Record<string, unknown> | Array<Record<string, unknown>>;
+    const list = Array.isArray(body) ? body : [body];
+    const touched = new Set<string>();
+
+    let enqueued = 0;
+    for (const raw of list) {
+      const normalized = normalizeEvent(raw);
+      if ("error" in normalized) return reply.code(400).send({ error: normalized.error });
+      await eventsRepo.appendEvent(pool, normalized);
+      if (normalized.sessionId) touched.add(normalized.sessionId);
+      // Server-side VAST tracking: relay the ad's third-party beacons ourselves (deduped).
+      enqueued += await enqueueEventBeacons(pool, normalized);
+    }
+    // Telemetry keeps a session "active" for streaming analytics.
+    for (const sid of touched) await sessionsRepo.touchSession(pool, sid);
+    // Fire any newly-queued beacons out of band — never block the player's request on third parties.
+    if (enqueued > 0) void fireBeacons(pool).catch(() => {});
+
+    return reply.code(202).send({ accepted: list.length });
+  });
+
+  // ── Analytics (PRD §31, §32) ─────────────────────────────────────────────
+  app.get("/v1/analytics", async (req) => {
+    const q = req.query as { active_window_seconds?: string };
+    const activeWindowSeconds = q.active_window_seconds ? Number(q.active_window_seconds) : undefined;
+    return getAnalytics(pool, activeWindowSeconds ? { activeWindowSeconds } : {});
+  });
+
+  // Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+  // Admin-gated (not in the public allowlist above). One row per opportunity, keyed by the
+  // producer's external_break_id so ChannelForge can attach delivery to its planned break (§17).
+  app.get("/v1/reconciliation/breaks", async (req) => {
+    const q = req.query as { since?: string; channel?: string };
+    const breaks = await getBreakDeliveries(pool, {
+
+Repository test setup and imports:
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { newDb } from "pg-mem";
+import type { Queryable } from "./db.js";
+import { seedDatabase } 
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+   const creatives = await listCreatives(db);
+    const campaigns = await campaignsAsMap(db);
+
+    const opportunity: AdOpportunity = {
+      opportunityId: "opp_1",
+      channelId: "channel_food",
+      breakStart: "2026-08-29T12:15:00Z",
+      breakDuration: 60,
+      source: "cue_out",
+      signalType: "cue_out",
+    };
+    const session: SessionContext = { sessionId: "sess_1", channelId: "channel_food" };
+
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns,
+      now: "2026-08-29T12:15:00Z",
+      seed: "demo",
+    });
+
+    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+    await upsertOpportunity(db, opportunity);
+    await saveDecision(db, {
+      decisionId: "dec_1",
+      podId: "pod_1",
+      decision,
+      requestedAt: "2026-08-29T12:15:00Z",
+      completedAt: "2026-08-29T12:15:00Z",
+    });
+
+    const stored = await getDecisionsBySession(db, "sess_1");
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.selectedCount).toBe(decision.pod.filter((p) => p.type === "ad").length);
+    // Full payload reconstructable (RL evaluation, PRD §56).
+    expect(stored[0]!.decision.pod).toEqual(decision.pod);
+    expect(stored[0]!.decision.breakDuration).toBe(60);
+
+    const sess = await getSession(db, "sess_1");
+    expect(sess).toMatchObject({ channelId: "channel_food", deviceType: "web", country: "IN" });
+  });
+});
+
+describe("event stream (PRD §26, §29, §30)", () => {
+  it("appends and reads events by session, ignoring duplicate event ids", async () => {
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1", adId: "cr_food_a_30" });
+    await appendEvent(db, { eventId: "e2", eventType: "ad_complete", sessionId: "sess_1", adId: "cr_food_a_30" });
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1" }); // dup
+
+    const events = await getEventsBySession(db, "sess_1");
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.eventType)).toEqual(["ad_impression", "ad_complete"]);
+  });
+});
+51e93080a3b4:/app# python3 - <<'PY'
+> from pathlib import Path
+> p = Path('packages/persistence/src/repositories/sessions.ts')
+> s = p.read_text()
+> old = 'ON CONFLICT (id) DO NOTHING'
+> new = 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id'
+> if old not in s:
+>     raise SystemExit('expected SQL clause not found')
+> p.write_text(s.replace(old, new, 1))
+> PY
+bash: python3: command not found
+51e93080a3b4:/app#
+51e93080a3b4:/app# git diff -- packages/persistence/src/repositories/sessions.ts
+bash: git: command not found
+51e93080a3b4:/app# npm test -- --run packages/persistence/src/repositories.test.ts
+
+> ssaiadserver@0.1.0 test
+> vitest run --run packages/persistence/src/repositories.test.ts
+
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/persistence/src/repositories.test.ts (4)
+   ✓ seed + inventory repositories (2)
+     ✓ seeds 5 channels and assembles campaign target channels
+     ✓ returns creatives with numeric duration/priority/weight
+   ✓ decision persistence round-trip (PRD §46, §47) (1)
+     ✓ persists a decided pod and reads the full payload back
+   ✓ event stream (PRD §26, §29, §30) (1)
+     ✓ appends and reads events by session, ignoring duplicate event ids
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  16:42:18
+   Duration  531ms (transform 145ms, setup 0ms, collect 233ms, tests 184ms, environment 0ms, prepare 31ms)
+
+51e93080a3b4:/app# npm run typecheck && npm test
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/control-plane/src/beacons.test.ts (6)
+ ✓ packages/control-plane/src/events-normalize.test.ts (7)
+ ✓ packages/control-plane/src/server.test.ts (15) 364ms
+ ✓ packages/control-plane/src/vast-fetch.test.ts (5)
+ ✓ packages/control-plane/src/vast-inventory.test.ts (4)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/core/src/eligibility.test.ts (9)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/core/src/session-token.test.ts (6)
+ ✓ packages/creative-worker/src/validate.test.ts (6)
+ ✓ packages/creative-worker/src/worker.test.ts (5)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+ ✓ packages/persistence/src/analytics.test.ts (5)
+ ✓ packages/persistence/src/pod-cache.test.ts (3)
+ ✓ packages/persistence/src/reconciliation.test.ts (4)
+ ✓ packages/persistence/src/repositories.test.ts (4)
+ ✓ packages/storage/src/s3.test.ts (4)
+
+ Test Files  22 passed (22)
+      Tests  142 passed (142)
+   Start at  16:42:20
+   Duration  4.46s (transform 331ms, setup 0ms, collect 1.10s, tests 1.21s, environment 3ms, prepare 651ms)
+
+51e93080a3b4:/app#

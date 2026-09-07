@@ -1,0 +1,63 @@
+New Terminal Output:
+
+6f61bf7d2dec:/app# node --import tsx --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import {buildServer} from './packages/data-plane/src/server.ts';
+> import {detectAvails} from './packages/data-plane/src/avails.ts';
+> import {OriginClient} from './packages/data-plane/src/origin.ts';
+> import {MemoryPodCache} from '@ssai/persistence';
+> import {signSession} from '@ssai/core';
+> const pod=[{type:'ad',creativeId:'ad',duration:30,position:0,startOffset:0,endOffset:30}];
+> const cache=new MemoryPodCache();
+> let calls=0;
+> let body='';
+> const make=(seq,marker,count=3,closed=true)=>['#EXTM3U','#EXT-X-TARGETDURATION:6',`#EXT-X-MEDIA-SEQUENCE:${seq}`,marker,...Array.from({length:count},(_,i)=>`#
+EXTINF:6,\nslate${i}.ts`),...(closed?['#EXT-X-CUE-IN','#EXTINF:6,','content.ts']:[])].join('\n');
+> const app=buildServer({logger:false,sessionSecret:'secret',podCache:cache,origin:new OriginClient({ttlMs:0,fetchImpl:async()=>new Response(body)}),store:{get:
+async k=>{if(k!=='creatives/ad/ad.m3u8')throw Error('missing');return Buffer.from(['#EXTM3U',...Array.from({length:5},(_,i)=>`#EXTINF:6,\nad${i}.ts`)].join('\n'
+));},put:async()=>{},list:async()=>[],url:k=>k},decider:{decide:async({sessionId,avail})=>{calls++;assert.equal(avail.opportunityId,'opp_ch_100');assert.equal(a
+vail.duration,30);await cache.set({sessionId,opportunityId:avail.opportunityId,channelId:'ch',breakDuration:30,pod});return pod;}}});
+> for(const marker of ['#EXT-X-CUE-OUT-CONT:12/30','#EXT-X-CUE-OUT-CONT:ElapsedTime=12,Duration=30,SCTE35=0xFC']){
+>  body=make(102,marker);
+>  assert.equal(detectAvails(body,'ch')[0]?.opportunityId,'opp_ch_100');
+>  const token=signSession({sid:marker,ch:'ch'},'secret');
+>  for(let i=0;i<2;i++){
+>  const r=await app.inject(`/v1/hls/${token}/ch/index.m3u8`);
+>  assert.equal(r.statusCode,200);assert.equal(r.headers['x-ssai-stitched'],'1');
+>  assert.ok(r.body.includes('/v1/segments/ad/ad2.ts'));assert.ok(r.body.includes('/v1/segments/ad/ad4.ts'));assert.ok(!r.body.includes('ad0.ts'));assert.ok(!r.
+body.includes('slate'));assert.ok(r.body.includes('content.ts'));
+>  }
+> }
+> assert.equal(calls,2);
+> body=make(103,'#EXT-X-CUE-OUT-CONT:18/30',1,false);
+> assert.equal(detectAvails(body,'ch')[0]?.opportunityId,'opp_ch_100');
+> const r=await app.inject(`/v1/hls/${signSession({sid:'#EXT-X-CUE-OUT-CONT:12/30',ch:'ch'},'secret')}/ch/index.m3u8`);
+> assert.ok(r.body.includes('ad3.ts'));assert.ok(!r.body.includes('ad4.ts'));assert.equal(calls,2);
+> assert.deepEqual(detectAvails(make(102,'#EXT-X-CUE-OUT-CONT:bad'),'ch'),[]);
+> assert.deepEqual(detectAvails(make(100,'#EXT-X-CUE-OUT:30',1,false),'ch'),[]);
+> assert.equal(detectAvails(make(100,'#EXT-X-CUE-OUT:30',5),'ch')[0]?.elapsed,undefined);
+> await app.close();
+> console.log('PASS: fresh late join, reconnect cache hit, both marker formats, sliding/trailing windows, malformed fallback, ordinary detection');
+> JS
+node:internal/crypto/keys:684
+    throw new ERR_INVALID_ARG_TYPE(
+          ^
+
+TypeError [ERR_INVALID_ARG_TYPE]: The "key" argument must be of type string or an instance of ArrayBuffer, Buffer, TypedArray, DataView, KeyObject, or CryptoKey
+. Received undefined
+    at prepareSecretKey (node:internal/crypto/keys:684:11)
+    at new Hmac (node:internal/crypto/hash:166:9)
+    at createHmac (node:crypto:163:10)
+    at signSession (/app/packages/core/src/session-token.ts:33:15)
+    at file:///app/[eval1]:16:14
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  code: 'ERR_INVALID_ARG_TYPE'
+}
+
+Node.js v22.23.2
+6f61bf7d2dec:/app# npx vitest run packages/data-plane/src packages/core/src/scte.test.ts --reporter=dot > /dev/stdout 2>&1
+
+ RUN  v2.1.9 /app
+
+·································
+

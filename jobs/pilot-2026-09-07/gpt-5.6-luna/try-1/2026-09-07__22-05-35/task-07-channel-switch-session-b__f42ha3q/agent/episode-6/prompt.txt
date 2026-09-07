@@ -1,0 +1,53 @@
+Current terminal state:
+New Terminal Output:
+
+99639b685900:/app# sed -i 's/ON CONFLICT (id) DO NOTHING/ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id/' packages/persistence/src/repositories
+/sessions.ts
+99639b685900:/app# sed -n '34,50p' packages/persistence/src/repositories/sessions.ts
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+99639b685900:/app# npm test --workspace @ssai/persistence
+
+> @ssai/persistence@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app/packages/persistence
+
+ ✓ src/reconciliation.test.ts (4)
+ ✓ src/analytics.test.ts (5)
+ ✓ src/pod-cache.test.ts (3)
+ ✓ src/reconciliation.test.ts (4)
+ ✓ src/repositories.test.ts (4)
+
+ Test Files  4 passed (4)
+      Tests  16 passed (16)
+   Start at  16:36:40
+   Duration  1.30s (transform 177ms, setup 0ms, collect 400ms, tests 493ms, environment 1ms, prepare 116ms)
+
+99639b685900:/app# npm run build --workspace @ssai/persistence
+
+> @ssai/persistence@0.1.0 build
+> tsc --build
+
+grep -n -A4 -B3 'ON CONFLICT' packages/persistence/src/repositories/sessions.ts; ps -eo pid=,args= | awk '/(control-plane|data-plane|dist\/server\.js|tsx watch
+src\/server\.ts)/ && !/awk/ {print}'
+
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

@@ -1,0 +1,80 @@
+New Terminal Output:
+
+86be0505c7a7:/app# node --import tsx --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import fs from 'node:fs';
+> import { newDb } from 'pg-mem';
+> import { ensureSession, getSession } from './packages/persistence/src/repositories/sessions.ts';
+> const mem = newDb();
+> for (const f of fs.readdirSync('migrations').filter(f => f.endsWith('.sql')).sort()) mem.public.none(fs.readFileSync(`migrations/${f}`, 'utf8'));
+> const { Pool } = mem.adapters.createPg();
+> const db = new Pool();
+> await ensureSession(db, { id: 'switch-check', channelId: 'channel-a', deviceType: 'web', country: 'IN', anonymousId: 'viewer', ipHash: 'hash', userAgent: 'age
+nt' });
+> const original = (await db.query('SELECT * FROM playback_sessions WHERE id = $1', ['switch-check'])).rows[0];
+> for (const channelId of ['channel-a', 'channel-b', 'channel-c', 'channel-a']) {
+>   await ensureSession(db, { id: 'switch-check', channelId });
+>   assert.equal((await getSession(db, 'switch-check')).channelId, channelId);
+>   const current = (await db.query('SELECT * FROM playback_sessions WHERE id = $1', ['switch-check'])).rows[0];
+>   assert.deepEqual(current, { ...original, channel_id: channelId });
+> }
+> assert.equal((await db.query('SELECT count(*) FROM playback_sessions')).rows[0].count, 1);
+> await db.end();
+> console.log('PASS: latest channel wins; same-channel calls are idempotent; all other session fields are preserved.');
+> JS
+/app/node_modules/pg-mem/src/constraints/foreign-key.ts:160
+                throw new QueryError(`insert or update on table "${ftable.name}" violates foreign key constraint on table "${this.name}"`);
+                      ^
+
+QueryError: insert or update on table "channels" violates foreign key constraint on table "playback_sessions_channel_id_fk"
+
+🐜 This seems to be an execution error, which means that your request syntax seems okay,
+    but the resulting statement cannot be executed → Probably not a pg-mem error.
+
+*️⃣ Failed SQL statement: INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ('switch-check', 'channel-a', 'web', 'IN', 'viewer', 'hash', 'agent')
+     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id;
+
+👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+
+
+    at <anonymous> (/app/node_modules/pg-mem/src/constraints/foreign-key.ts:160:23)
+    at Object.before (/app/node_modules/pg-mem/src/table.ts:419:25)
+    at MemoryTable.doInsert (/app/node_modules/pg-mem/src/table.ts:330:20)
+    at Insert.performMutation (/app/node_modules/pg-mem/src/execution/records-mutations/insert.ts:182:44)
+    at Insert._doExecuteOnce (/app/node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:60:29)
+    at Insert.enumerate (/app/node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:72:29)
+    at enumerate.next (<anonymous>)
+    at SelectExec.execute (/app/node_modules/pg-mem/src/execution/select.ts:279:41)
+    at <anonymous> (/app/node_modules/pg-mem/src/execution/statement-exec.ts:210:42)
+    at pushExecutionCtx (/app/node_modules/pg-mem/src/utils.ts:404:16) {
+  data: {
+    error: 'insert or update on table "channels" violates foreign key constraint on table "playback_sessions_channel_id_fk"',
+    code: undefined
+  },
+  code: undefined,
+  location: { start: 0, end: 0 },
+  [Symbol(errorDetailsIncluded)]: true
+}
+
+Node.js v22.23.2
+86be0505c7a7:/app# nohup node --import tsx --input-type=module -e 'import { registerHooks } from "node:module"; import { pathToFileURL } from "node:url"; const
+oldUrl = pathToFileURL("/app/packages/persistence/dist/repositories/sessions.js").href; const newUrl = pathToFileURL("/app/packages/persistence/src/repositories
+/sessions.ts").href; registerHooks({ resolve(specifier, context, nextResolve) { const result = nextResolve(specifier, context); return result.url === oldUrl ? {
+ ...result, url: newUrl } : result; } }); process.argv[1] = "/app/packages/control-plane/src/server.ts"; await import(process.argv[1]);' >/dev/null 2>&1 &
+[1] 378
+86be0505c7a7:/app# sleep 1; ps aux; wget -qO- http://127.0.0.1:4000/health
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   93 root      0:00 [tmux: client]
+   94 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   95 root      0:00 bash --login
+   96 root      0:00 cat
+  109 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  113 root      0:00 /bin/bash
+  319 root      0:00 [esbuild]
+  361 root      0:00 [esbuild]
+  378 root      0:00 node --import tsx --input-type=module -e import { registerHooks } from "node:module"; import { pathToFileURL } from "node:url"; const oldU
+  387 root      0:00 /app/node_modules/@esbuild/linux-arm64/bin/esbuild --service=0.28.2 --ping
+  401 root      0:00 ps aux
+{"status":"ok","plane":"control"}86be0505c7a7:/app#

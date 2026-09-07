@@ -1,0 +1,10 @@
+{
+  "analysis": "All 63 existing core/data-plane tests passed. The restarted data-plane now reports that it is listening on port 4010 using the modified source.",
+  "plan": "Verify the running service's health endpoint and detach the background process from shell job management.",
+  "commands": [
+    {
+      "keystrokes": "wget -qO- http://127.0.0.1:4010/health; printf '\\n'; disown %2\n",
+      "duration": 0.1
+    }
+  ]
+}

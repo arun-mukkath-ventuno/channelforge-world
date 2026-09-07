@@ -1,0 +1,14 @@
+{
+  "analysis": "The defect is in ensureSession: an existing session ignores every later channel association. Both session creation and ad-decision requests use this repository method. Updating only channel_id on conflict will fix the session record without changing decision or event attribution.",
+  "plan": "Confirm the request flow and existing tests, then change only the session upsert and its explanatory comment.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '100,260p' packages/control-plane/src/server.ts; ls packages/persistence/src; find packages/persistence/src -name '*test*'; cat packages/persistence/tsconfig.json; cat tsconfig.base.json; grep -n 'health' packages/control-plane/src/server.ts; grep -n -A25 'CREATE TABLE playback_sessions' migrations/*\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\np = 'packages/persistence/src/repositories/sessions.ts'\nwith open(p) as f:\n    s = f.read()\ns = s.replace('/** Create the session if absent; idempotent so ad-decision can ensure it exists. */', '/** Create the session if absent; otherwise refresh its current channel. */')\ns = s.replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id')\nwith open(p, 'w') as f:\n    f.write(s)\nPY\n",
+      "duration": 0.1
+    }
+  ]
+}

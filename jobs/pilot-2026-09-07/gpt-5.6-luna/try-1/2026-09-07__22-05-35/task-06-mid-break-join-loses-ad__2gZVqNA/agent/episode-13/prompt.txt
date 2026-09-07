@@ -1,0 +1,204 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# nl -ba packages/data-plane/src/avails.test.ts | sed -n '1,115p'; printf '\n===== media types =====\n'; nl -ba packages/data-plane/src/media.t
+s | sed -n '1,220p'
+     1	import { describe, it, expect } from "vitest";
+     2	import { detectAvails } from "./avails.js";
+     3	
+     4	function manifest(lines: string[]): string {
+     5	  return lines.join("\n");
+     6	}
+     7	
+     8	describe("detectAvails (PRD §9, §41)", () => {
+     9	  it("derives a deterministic opportunity id from channel + media sequence", () => {
+    10	    const m = manifest([
+    11	      "#EXT-X-MEDIA-SEQUENCE:100",
+    12	      "#EXTINF:6.000,",
+    13	      "s100.ts",
+    14	      "#EXTINF:6.000,",
+    15	      "s101.ts",
+    16	      "#EXT-X-CUE-OUT:30",
+    17	      "#EXTINF:6.000,",
+    18	      "slate.ts",
+    19	      "#EXT-X-CUE-IN",
+    20	    ]);
+    21	    const avails = detectAvails(m, "channel_food");
+    22	    expect(avails).toHaveLength(1);
+    23	    // Two segments consumed (100, 101), so the avail's first segment is 102.
+    24	    expect(avails[0]).toMatchObject({
+    25	      opportunityId: "opp_channel_food_102",
+    26	      channelId: "channel_food",
+    27	      duration: 30,
+    28	      declaredDuration: 30,
+    29	      startSequence: 102,
+    30	    });
+    31	  });
+    32	
+    33	  it("is stable across playlist refreshes (same avail → same id as the window slides)", () => {
+    34	    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN
+"]);
+    35	    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    36	    const a = detectAvails(before, "ch")[0]!;
+    37	    const b = detectAvails(after, "ch")[0]!;
+    38	    expect(a.opportunityId).toBe(b.opportunityId); // opp_ch_101 in both
+    39	  });
+    40	
+    41	  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+    42	    const m = manifest([
+    43	      "#EXT-X-MEDIA-SEQUENCE:0",
+    44	      "#EXT-X-CUE-OUT:oops",
+    45	      "#EXTINF:6.000,",
+    46	      "slate1.ts",
+    47	      "#EXTINF:6.000,",
+    48	      "slate2.ts",
+    49	      "#EXT-X-CUE-IN",
+    50	    ]);
+    51	    const avails = detectAvails(m, "ch");
+    52	    expect(avails[0]!.declaredDuration).toBeUndefined();
+    53	    expect(avails[0]!.measuredDuration).toBe(12);
+    54	    expect(avails[0]!.duration).toBe(12);
+    55	  });
+    56	
+    57	  it("captures PROGRAM-DATE-TIME preceding the avail", () => {
+    58	    const m = manifest([
+    59	      "#EXT-X-MEDIA-SEQUENCE:0",
+    60	      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+    61	      "#EXT-X-CUE-OUT:30",
+    62	      "#EXTINF:6.000,",
+    63	      "slate.ts",
+    64	      "#EXT-X-CUE-IN",
+    65	    ]);
+    66	    expect(detectAvails(m, "ch")[0]!.programDateTime).toBe("2026-08-29T12:15:00.000Z");
+    67	  });
+    68	
+    69	  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+    70	    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+    71	    expect(detectAvails(m, "ch")).toEqual([]);
+    72	  });
+    73	
+    74	  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+    75	    const m = manifest([
+    76	      "#EXT-X-MEDIA-SEQUENCE:200",
+    77	      "#EXTINF:6.000,",
+    78	      "s200.ts",
+    79	      "#EXT-X-CUE-OUT:90",
+    80	      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+    81	      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+    82	      "#EXTINF:6.000,",
+    83	      "slate.ts",
+    84	      "#EXT-X-CUE-IN",
+    85	    ]);
+    86	    const avails = detectAvails(m, "channel_yoga");
+    87	    expect(avails).toHaveLength(1);
+    88	    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+    89	  });
+    90	
+    91	  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+    92	    const m = manifest([
+    93	      "#EXT-X-MEDIA-SEQUENCE:0",
+    94	      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+    95	      "#EXT-X-CUE-OUT:30",
+    96	      "#EXTINF:6.000,",
+    97	      "slate.ts",
+    98	      "#EXT-X-CUE-IN",
+    99	    ]);
+   100	    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+   101	  });
+   102	
+   103	  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+   104	    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+   105	    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+   106	  });
+   107	
+   108	  it("does not leak one break's id onto a later break that has none", () => {
+   109	    const m = manifest([
+   110	      "#EXT-X-MED
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ {
+   111	  slateId: string;
+   112	  base: string;
+   113	  segments: RenderedSegment[]; // one loop of the slate, uris already absolute
+   114	}
+   115	
+   116	async function loadSlateVariant(slateIds: string[], store: ObjectStore, base: string): Promise<SlateClip | null> {
+   117	  for (const slateId of slateIds) {
+   118	    try {
+   119	      const playlist = (await store.get(`slates/${slateId}/${slateId}.m3u8`)).toString("utf8");
+   120	      const segs = parseVariantPlaylist(playlist);
+   121	      if (segs.length > 0) {
+   122	        return {
+   123	          slateId,
+   124	          base,
+   125	          segments: segs.map((s) => ({ duration: s.duration, uri: `${base}/${slateId}/${s.uri}` })),
+   126	        };
+   127	      }
+   128	    } catch {
+   129	      // try the next fallback
+   130	    }
+   131	  }
+   132	  return null;
+   133	}
+   134	
+   135	/** Loop the slate clip's segments to cover `duration` (exact when duration is a
+   136	 *  multiple of the clip length; otherwise overshoots by at most one segment). */
+   137	function fillWithSlate(clip: SlateClip, duration: number): RenderedSegment[] {
+   138	  const out: RenderedSegment[] = [];
+   139	  let total = 0;
+   140	  let i = 0;
+   141	  const guard = clip.segments.length * 10000;
+   142	  while (total < duration - 0.01 && i < guard) {
+   143	    const seg = clip.segments[i % clip.segments.length]!;
+   144	    out.push(seg);
+   145	    total += seg.duration;
+   146	    i++;
+   147	  }
+   148	  return out;
+   149	}
+   150	
+   151	async function loadCreativeSegments(creativeId: string, store: ObjectStore, base: string): Promise<RenderedSegment[]> {
+   152	  try {
+   153	    const playlist = (await store.get(`creatives/${creativeId}/${creativeId}.m3u8`)).toString("utf8");
+   154	    return parseVariantPlaylist(playlist).map((s) => ({
+   155	      duration: s.duration,
+   156	      uri: `${base}/${creativeId}/${s.uri}`,
+   157	    }));
+   158	  } catch {
+   159	    return [];
+   160	  }
+   161	}
+   162	
+   163	/** Slate has no prepared media yet; emit synthetic segment refs. */
+   164	function synthesizeSlate(duration: number, segDur: number, base: string): RenderedSegment[] {
+   165	  return segmentDurations(duration, segDur).map((d, i) => ({
+   166	    duration: d,
+   167	    uri: `${base}/_slate/slate_${String(i).padStart(3, "0")}.ts`,
+   168	  }));
+   169	}
+727f8e3dc8f6:/app# node <<'NODE'
+> const fs = require('fs');
+> const p = 'packages/data-plane/src/avails.ts';
+> let s = fs.readFileSync(p, 'utf8');
+> const old = `    if (marker?.kind === "cue_in" && open) {\n      const declared = open.declaredDuration;\n      avails.push({\n        opportunityId: \`opp_\$
+{channelId}_\${open.startSequence}\`,\n        channelId,\n        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),\n
+      duration: declared ?? open.measuredDuration,\n        ...(declared === undefined ? {} : { declaredDuration: declared }),\n        measuredDuration: open.m
+easuredDuration,\n        startSequence: open.startSequence,\n        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),\n        startLine: open
+.startLine,\n        endLine: i,\n      });\n      open = null;\n      continue;\n    }`;
+> const replacement = `    if (marker?.kind === "cue_in" && open) {\n      finishAvail(open, i);\n      open = null;\n      continue;\n    }`;
+> if (!s.includes(old)) throw new Error('cue-in block not found');
+> s = s.replace(old, replacement);
+> const end = `  return avails;\n}`;
+> const endReplacement = `  // A late tune-in can see the middle of a break without its CUE-IN: the\n  // origin window ends before the break does. Treat the vi
+sible portion as an\n  // active avail so it uses the same deterministic opportunity id and session\n  // decision/cache path as a continuously-polling viewer.\
+n  if (open) {\n    finishAvail(open, lines.length - 1);\n  }\n\n  return avails;\n\n  function finishAvail(state: NonNullable<typeof open>, endLine: number): v
+oid {\n    const declared = state.declaredDuration;\n    avails.push({\n      opportunityId: \`opp_\${channelId}_\${state.startSequence}\`,\n      channelId,\n
+     ...(state.externalBreakId === undefined ? {} : { externalBreakId: state.externalBreakId }),\n      duration: declared ?? state.measuredDuration,\n      ...
+(declared === undefined ? {} : { declaredDuration: declared }),\n      measuredDuration: state.measuredDuration,\n      startSequence: state.startSequence,\n
+   ...(state.pdt === undefined ? {} : { programDateTime: state.pdt }),\n      startLine: state.startLine,\n      endLine,\n    });\n  }\n}`;
+> if (!s.includes(end)) throw new Error('return block not found');
+> s = s.replace(end, endReplacement);
+> fs.writeFileSync(p, s);
+> NODE
+727f8e3dc8f6:/app#
+727f8e3dc8f6:/app# git diff -- packages/data-plane/src/avails.ts
+bash: git: command not found
+727f8e3dc8f6:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts

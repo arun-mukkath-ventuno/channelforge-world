@@ -1,0 +1,304 @@
+New Terminal Output:
+
+17c9e64e2bb8:/app# cat packages/data-plane/src/avails.test.ts
+import { describe, it, expect } from "vitest";
+import { detectAvails } from "./avails.js";
+
+function manifest(lines: string[]): string {
+  return lines.join("\n");
+}
+
+describe("detectAvails (PRD §9, §41)", () => {
+  it("derives a deterministic opportunity id from channel + media sequence", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:100",
+      "#EXTINF:6.000,",
+      "s100.ts",
+      "#EXTINF:6.000,",
+      "s101.ts",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "channel_food");
+    expect(avails).toHaveLength(1);
+    // Two segments consumed (100, 101), so the avail's first segment is 102.
+    expect(avails[0]).toMatchObject({
+      opportunityId: "opp_channel_food_102",
+      channelId: "channel_food",
+      duration: 30,
+      declaredDuration: 30,
+      startSequence: 102,
+    });
+  });
+
+  it("is stable across playlist refreshes (same avail → same id as the window slides)", () => {
+    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    const a = detectAvails(before, "ch")[0]!;
+    const b = detectAvails(after, "ch")[0]!;
+    expect(a.opportunityId).toBe(b.opportunityId); // opp_ch_101 in both
+  });
+
+  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:oops",
+      "#EXTINF:6.000,",
+      "slate1.ts",
+      "#EXTINF:6.000,",
+      "slate2.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails[0]!.declaredDuration).toBeUndefined();
+    expect(avails[0]!.measuredDuration).toBe(12);
+    expect(avails[0]!.duration).toBe(12);
+  });
+
+  it("captures PROGRAM-DATE-TIME preceding the avail", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    expect(detectAvails(m, "ch")[0]!.programDateTime).toBe("2026-08-29T12:15:00.000Z");
+  });
+
+  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+    expect(detectAvails(m, "ch")).toEqual([]);
+  });
+
+  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:200",
+      "#EXTINF:6.000,",
+      "s200.ts",
+      "#EXT-X-CUE-OUT:90",
+      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "channel_yoga");
+    expect(avails).toHaveLength(1);
+    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+  });
+
+  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+  });
+
+  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+  });
+
+  it("does not leak one break's id onto a later break that has none", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-OUT:15",
+      "#EXTINF:6.000,",
+      "c.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails).toHaveLength(2);
+    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+    expect(avails[1]!.externalBreakId).toBeUndefined();
+  });
+
+  it("detects multiple avails in one window", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-OUT:15",
+      "#EXTINF:6.000,",
+      "c.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails.ma
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+sai/core";
+import type { ObjectStore } from "@ssai/storage";
+import { segmentDurations } from "./segment.js";
+
+export interface RenderedSegment {
+  duration: number;
+  uri: string;
+}
+
+export interface RenderedPodItem {
+  type: "ad" | "slate";
+  creativeId?: string;
+  campaignId?: string;
+  duration: number;
+  startOffset: number;
+  segments: RenderedSegment[];
+}
+
+export interface ResolveOptions {
+  /** Channel id, used to pick the channel slate (PRD §21). */
+  channelId?: string;
+  /** URL prefix the data plane serves stored creative segments from. */
+  segmentBaseUrl?: string;
+  /** URL prefix the data plane serves stored slate segments from. */
+  slateBaseUrl?: string;
+  /** Slate ids to try in order; defaults to [channelId, "default"]. */
+  slateFallbacks?: string[];
+  /** Fallback slate segment length when no slate media exists at all. */
+  slateSegmentDuration?: number;
+}
+
+/** Extract EXTINF duration + segment filename pairs from a media playlist. */
+export function parseVariantPlaylist(m3u8: string): RenderedSegment[] {
+  const lines = m3u8.split("\n");
+  const out: RenderedSegment[] = [];
+  let pendingDuration: number | null = null;
+  for (const raw of lines) {
+    const line = raw.trim();
+    const inf = line.match(/^#EXTINF:([\d.]+)/);
+    if (inf) {
+      pendingDuration = Number(inf[1]);
+      continue;
+    }
+    if (line.length > 0 && !line.startsWith("#")) {
+      out.push({ duration: pendingDuration ?? 0, uri: line });
+      pendingDuration = null;
+    }
+  }
+  return out;
+}
+
+export async function resolvePodSegments(
+  pod: PodItem[],
+  store: ObjectStore,
+  opts: ResolveOptions = {},
+): Promise<RenderedPodItem[]> {
+  const base = (opts.segmentBaseUrl ?? "/v1/segments").replace(/\/$/, "");
+  const slateBase = (opts.slateBaseUrl ?? "/v1/slate").replace(/\/$/, "");
+  const slateSegDur = opts.slateSegmentDuration ?? 6;
+  const slateIds = opts.slateFallbacks ?? [opts.channelId, "default"].filter((x): x is string => !!x);
+  const rendered: RenderedPodItem[] = [];
+
+  // Load the slate clip once per pod (reused across slate items).
+  const slateClip = await loadSlateVariant(slateIds, store, slateBase);
+
+  for (const item of pod) {
+    if (item.type === "ad" && item.creativeId) {
+      const segments = await loadCreativeSegments(item.creativeId, store, base);
+      if (segments.length > 0) {
+        rendered.push({
+          type: "ad",
+          creativeId: item.creativeId,
+          ...(item.campaignId ? { campaignId: item.campaignId } : {}),
+          duration: item.duration,
+          startOffset: item.startOffset,
+          segments,
+        });
+        continue;
+      }
+      // Creative not prepared/stored → degrade this slot to slate (PRD §42).
+    }
+
+    rendered.push({
+      type: "slate",
+      duration: item.duration,
+      startOffset: item.startOffset,
+      segments: slateClip
+        ? fillWithSlate(slateClip, item.duration)
+        : synthesizeSlate(item.duration, slateSegDur, slateBase),
+    });
+  }
+
+  return rendered;
+}
+
+interface SlateClip {
+  slateId: string;
+  base: string;
+  segments: RenderedSegment[]; // one loop of the slate, uris already absolute
+}
+
+async function loadSlateVariant(slateIds: string[], store: ObjectStore, base: string): Promise<SlateClip | null> {
+  for (const slateId of slateIds) {
+    try {
+      const playlist = (await store.get(`slates/${slateId}/${slateId}.m3u8`)).toString("utf8");
+      const segs = parseVariantPlaylist(playlist);
+      if (segs.length > 0) {
+        return {
+          slateId,
+          base,
+          segments: segs.map((s) => ({ duration: s.duration, uri: `${base}/${slateId}/${s.uri}` })),
+        };
+      }
+    } catch {
+      // try the next fallback
+    }
+  }
+  return null;
+}
+
+/** Loop the slate clip's segments to cover `duration` (exact when duration is a
+ *  multiple of the clip length; otherwise overshoots by at most one segment). */
+function fillWithSlate(clip: SlateClip, duration: number): RenderedSegment[] {
+  const out: RenderedSegment[] = [];
+  let total = 0;
+  let i = 0;
+  const guard = clip.segments.length * 10000;
+  while (total < duration - 0.01 && i < guard) {
+    const seg = clip.segments[i % clip.segments.length]!;
+    out.push(seg);
+    total += seg.duration;
+    i++;
+  }
+  return out;
+}
+
+async function loadCreativeSegments(creativeId: string, store: ObjectStore, base: string): Promise<RenderedSegment[]> {
+  try {
+    const playlist = (await store.get(`creatives/${creativeId}/${creativeId}.m3u8`)).toString("utf8");
+    return parseVariantPlaylist(playlist).map((s) => ({
+      duration: s.duration,
+      uri: `${base}/${creativeId}/${s.uri}`,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/** Slate has no prepared media yet; emit synthetic segment refs. */
+function synthesizeSlate(duration: number, segDur: number, base: string): RenderedSegment[] {
+  return segmentDurations(duration, segDur).map((d, i) => ({
+    duration: d,
+    uri: `${base}/_slate/slate_${String(i).padStart(3, "0")}.ts`,
+  }));
+}
+17c9e64e2bb8:/app#

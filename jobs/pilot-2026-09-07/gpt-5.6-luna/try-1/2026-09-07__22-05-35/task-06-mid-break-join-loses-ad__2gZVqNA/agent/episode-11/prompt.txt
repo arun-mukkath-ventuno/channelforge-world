@@ -1,0 +1,232 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# nl -ba packages/data-plane/src/avails.ts; printf '\n===== stitch =====\n'; nl -ba packages/data-plane/src/stitch.ts; printf '\n===== avails/s
+titch tests =====\n'; nl -ba packages/data-plane/src/avails.test.ts; nl -ba packages/data-plane/src/stitch.test.ts
+     1	// Avail detection over an origin media playlist (PRD §9, §22, §41).
+     2	//
+     3	// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+     4	// *deterministic* opportunity id derived from the channel + the media sequence
+     5	// of the avail's first segment. Determinism matters: every viewer's data-plane
+     6	// request and the decisioning path must agree on the same opportunity id for a
+     7	// given break without coordinating, so the cached pod is found on the hot path.
+     8	
+     9	import { parseMarkerLine } from "@ssai/core";
+    10	
+    11	export interface Avail {
+    12	  opportunityId: string;
+    13	  channelId: string;
+    14	  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+    15	   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+    16	   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+    17	   *  by contrast, is a media-sequence-derived id independent of the producer). */
+    18	  externalBreakId?: string;
+    19	  /** Break duration: the marker's declared duration, or the summed segment time. */
+    20	  duration: number;
+    21	  /** Declared duration from the marker, if it carried a valid one. */
+    22	  declaredDuration?: number;
+    23	  /** Actual duration summed from the segments inside the avail. */
+    24	  measuredDuration: number;
+    25	  /** Media sequence number of the first segment inside the avail. */
+    26	  startSequence: number;
+    27	  programDateTime?: string;
+    28	  /** Line index of the CUE-OUT marker. */
+    29	  startLine: number;
+    30	  /** Line index of the CUE-IN marker. */
+    31	  endLine: number;
+    32	}
+    33	
+    34	const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+    35	const EXTINF = /^#EXTINF:([\d.]+)/;
+    36	const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+    37	
+    38	/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+    39	 *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+    40	export function detectAvails(manifest: string, channelId: string): Avail[] {
+    41	  const lines = manifest.split("\n");
+    42	
+    43	  let mediaSequence = 0;
+    44	  let lastPdt: string | undefined;
+    45	  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    46	  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    47	  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    48	  let blockBreakId: string | undefined;
+    49	  const avails: Avail[] = [];
+    50	
+    51	  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    52	  let open: {
+    53	    startLine: number;
+    54	    startSequence: number;
+    55	    declaredDuration?: number;
+    56	    measuredDuration: number;
+    57	    pdt?: string;
+    58	    externalBreakId?: string;
+    59	  } | null = null;
+    60	
+    61	  for (let i = 0; i < lines.length; i++) {
+    62	    const line = lines[i]!;
+    63	    const trimmed = line.trim();
+    64	
+    65	    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    66	    if (seqMatch) {
+    67	      mediaSequence = Number(seqMatch[1]);
+    68	      continue;
+    69	    }
+    70	
+    71	    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    72	    if (pdtMatch) {
+    73	      lastPdt = pdtMatch[1]!.trim();
+    74	      // continue — PDT applies to the next segment.
+    75	    }
+    76	
+    77	    const marker = parseMarkerLine(line, i);
+    78	    if (marker?.kind === "daterange" && marker.id) {
+    79	      blockBreakId = marker.id;
+    80	      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+    81	      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+    82	      continue;
+    83	    }
+    84	    if (marker?.kind === "cue_out" && !open) {
+    85	      open = {
+    86	        startLine: i,
+    87	        startSequence: mediaSequence,
+    88	        measuredDuration: 0,
+    89	        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+   
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+manifest([
+   110	      "#EXT-X-MEDIA-SEQUENCE:0",
+   111	      "#EXT-X-CUE-OUT:30",
+   112	      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+   113	      "#EXTINF:6.000,",
+   114	      "a.ts",
+   115	      "#EXT-X-CUE-IN",
+   116	      "#EXTINF:6.000,",
+   117	      "b.ts",
+   118	      "#EXT-X-CUE-OUT:15",
+   119	      "#EXTINF:6.000,",
+   120	      "c.ts",
+   121	      "#EXT-X-CUE-IN",
+   122	    ]);
+   123	    const avails = detectAvails(m, "ch");
+   124	    expect(avails).toHaveLength(2);
+   125	    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+   126	    expect(avails[1]!.externalBreakId).toBeUndefined();
+   127	  });
+   128	
+   129	  it("detects multiple avails in one window", () => {
+   130	    const m = manifest([
+   131	      "#EXT-X-MEDIA-SEQUENCE:0",
+   132	      "#EXT-X-CUE-OUT:30",
+   133	      "#EXTINF:6.000,",
+   134	      "a.ts",
+   135	      "#EXT-X-CUE-IN",
+   136	      "#EXTINF:6.000,",
+   137	      "b.ts",
+   138	      "#EXT-X-CUE-OUT:15",
+   139	      "#EXTINF:6.000,",
+   140	      "c.ts",
+   141	      "#EXT-X-CUE-IN",
+   142	    ]);
+   143	    const avails = detectAvails(m, "ch");
+   144	    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+   145	  });
+   146	});
+     1	import { describe, it, expect } from "vitest";
+     2	import { stitchManifest } from "./stitch.js";
+     3	import { detectAvails } from "./avails.js";
+     4	import type { RenderedPodItem } from "./media.js";
+     5	
+     6	const ORIGIN = [
+     7	  "#EXTM3U",
+     8	  "#EXT-X-VERSION:3",
+     9	  "#EXT-X-TARGETDURATION:6",
+    10	  "#EXT-X-MEDIA-SEQUENCE:100",
+    11	  "#EXTINF:6.000,",
+    12	  "segment100.ts",
+    13	  "#EXTINF:6.000,",
+    14	  "segment101.ts",
+    15	  "#EXT-X-CUE-OUT:30",
+    16	  "#EXTINF:6.000,",
+    17	  "slate001.ts",
+    18	  "#EXTINF:6.000,",
+    19	  "slate002.ts",
+    20	  "#EXT-X-CUE-IN",
+    21	  "#EXTINF:6.000,",
+    22	  "segment105.ts",
+    23	  "",
+    24	].join("\n");
+    25	
+    26	const AD_MEDIA: RenderedPodItem[] = [
+    27	  {
+    28	    type: "ad",
+    29	    creativeId: "cr_a",
+    30	    campaignId: "camp_a",
+    31	    duration: 30,
+    32	    startOffset: 0,
+    33	    segments: [
+    34	      { duration: 8.333, uri: "/v1/segments/cr_a/cr_a_000.ts" },
+    35	      { duration: 8.333, uri: "/v1/segments/cr_a/cr_a_001.ts" },
+    36	    ],
+    37	  },
+    38	];
+    39	
+    40	function renderedFor(oppId: string, items: RenderedPodItem[]): Map<string, RenderedPodItem[]> {
+    41	  return new Map([[oppId, items]]);
+    42	}
+    43	
+    44	describe("stitchManifest (PRD §22-25)", () => {
+    45	  it("replaces the avail region with real creative segment URLs", () => {
+    46	    const avails = detectAvails(ORIGIN, "channel_food");
+    47	    const { manifest, stitched } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+    48	    expect(stitched).toEqual([avails[0]!.opportunityId]);
+    49	    expect(manifest).not.toContain("slate001.ts");
+    50	    expect(manifest).not.toContain("#EXT-X-CUE-OUT");
+    51	    expect(manifest).toContain("/v1/segments/cr_a/cr_a_000.ts");
+    52	    expect(manifest).toContain("#EXTINF:8.333,");
+    53	    // Surrounding content preserved.
+    54	    expect(manifest).toContain("segment101.ts");
+    55	    expect(manifest).toContain("segment105.ts");
+    56	  });
+    57	
+    58	  it("emits discontinuities and ad metadata (PRD §24, §25)", () => {
+    59	    const avails = detectAvails(ORIGIN, "channel_food");
+    60	    const { manifest } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+    61	    expect(manifest).toContain("#EXT-X-DISCONTINUITY");
+    62	    expect(manifest).toContain('X-AD-ID="cr_a"');
+    63	    expect(manifest).toContain('X-CAMPAIGN-ID="camp_a"');
+    64	  });
+    65	
+    66	  it("leaves an avail untouched when no media is resolved (origin slate plays, §42)", () => {
+    67	    const avails = detectAvails(ORIGIN, "channel_food");
+    68	    const { manifest, stitched } = stitchManifest(ORIGIN, avails, new Map());
+    69	    expect(stitched).toEqual([]);
+    70	    expect(manifest).toContain("slate001.ts");
+    71	    expect(manifest).toBe(ORIGIN);
+    72	  });
+    73	});
+727f8e3dc8f6:/app# printf '%s\n' 'Git status:'; git status --short 2>/dev/null || true; printf '%s\n' 'Relevant scripts/processes:'; ps -ef 2>/dev/null | sed -n
+ '1,120p'; printf '%s\n' 'Node:'; node --version
+Git status:
+Relevant scripts/processes:
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   95 root      0:00 [tmux: client]
+   96 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   97 root      0:00 bash --login
+   98 root      0:00 cat
+  111 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  115 root      0:00 /bin/bash
+  530 root      0:00 ps -ef
+  531 root      0:00 sed -n 1,120p
+Node:
+v22.23.2
+727f8e3dc8f6:/app#

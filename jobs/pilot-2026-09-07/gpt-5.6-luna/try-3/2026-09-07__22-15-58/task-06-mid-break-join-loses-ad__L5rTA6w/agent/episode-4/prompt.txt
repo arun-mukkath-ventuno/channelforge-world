@@ -1,0 +1,222 @@
+New Terminal Output:
+
+703450db135d:/app# printf '%s\n' '-- data-plane files --'; find packages/data-plane/src -type f -maxdepth 3 | sort; printf '%s\n' '-- persistence cache files --
+'; find packages/persistence/src -type f | sort | grep -E 'cache|decision|session|index|db'
+-- data-plane files --
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/avails.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/segment.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/stitch.ts
+-- persistence cache files --
+packages/persistence/src/db.ts
+packages/persistence/src/index.ts
+packages/persistence/src/pod-cache.test.ts
+packages/persistence/src/pod-cache.ts
+packages/persistence/src/repositories/decisions.ts
+packages/persistence/src/repositories/sessions.ts
+703450db135d:/app# find packages/data-plane/src -type f -maxdepth 3 -exec grep -nHE 'manifest|CUE|cue|opportunity|session|pod|decision|cache|break' {} +
+packages/data-plane/src/avails.ts:3:// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+packages/data-plane/src/avails.ts:4:// *deterministic* opportunity id derived from the channel + the media sequence
+packages/data-plane/src/avails.ts:6:// request and the decisioning path must agree on the same opportunity id for a
+packages/data-plane/src/avails.ts:7:// given break without coordinating, so the cached pod is found on the hot path.
+packages/data-plane/src/avails.ts:12:  opportunityId: string;
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:15:   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+packages/data-plane/src/avails.ts:16:   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+packages/data-plane/src/avails.ts:28:  /** Line index of the CUE-OUT marker. */
+packages/data-plane/src/avails.ts:30:  /** Line index of the CUE-IN marker. */
+packages/data-plane/src/avails.ts:38:/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+packages/data-plane/src/avails.ts:39: *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+packages/data-plane/src/avails.ts:40:export function detectAvails(manifest: string, channelId: string): Avail[] {
+packages/data-plane/src/avails.ts:41:  const lines = manifest.split("\n");
+packages/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/src/avails.ts:47:  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+packages/data-plane/src/avails.ts:51:  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+packages/data-plane/src/avails.ts:80:      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+packages/data-plane/src/avails.ts:84:    if (marker?.kind === "cue_out" && !open) {
+packages/data-plane/src/avails.ts:91:        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+packages/data-plane/src/avails.ts:96:    if (marker?.kind === "cue_in" && open) {
+packages/data-plane/src/avails.ts:99:        opportunityId: `opp_${channelId}_${open.startSequence}`,
+packages/data-plane/src/origin.ts:2:// playlist with a short TTL cache (a live playlist changes every segment) and
+packages/data-plane/src/origin.ts:9:  /** True when the origin failed and a previously cached copy was served. */
+packages/data-plane/src/origin.ts:47:  private readonly cache = new Map<string, CacheEntry>();
+packages/data-plane/src/origin.ts:75:    const hit = this.cache.get(url);
+packages/data-plane/src/origin.ts:92:      this.cache.set(url, { body, at: now });
+packages/data-plane/src/media.test.ts:44:  const pod: PodItem[] = [
+packages/data-plane/src/media.test.ts:51:    const rendered = await resolvePodSegments(pod, store);
+packages/data-plane/src/media.test.ts:64:    const rendered = await resolvePodSegments(pod, store);
+packages/data-plane/src/stitch.ts:2:// avails, and the *resolved* pod media for each avail, replace each avail's
+packages/data-plane/src/stitch.ts:3:// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+packages/data-plane/src/stitch.ts:19:  manifest: string;
+packages/data-plane/src/stitch.ts:24:/** Replace each avail that has resolved pod media; leave the rest untouched. */
+packages/data-plane/src/stitch.ts:42:    const pod = avail ? rendered.get(avail.opportunityId) : undefined;
+packages/data-plane/src/stitch.ts:44:    if (avail && pod && pod.length > 0) {
+packages/data-plane/src/stitch.ts:45:      out.pus
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ionId: string, opportunityId: string): Promise<CachedPod | null> {
+    return this.store.get(key(sessionId, opportunityId)) ?? null;
+  }
+
+  async set(entry: CachedPod): Promise<void> {
+    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    this.store.delete(key(sessionId, opportunityId));
+  }
+}
+
+export function createRedis(url = process.env.REDIS_URL): Redis {
+  if (!url) throw new Error("REDIS_URL is not set");
+  return new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+}
+===== packages/persistence/src/repositories/decisions.ts =====
+// Ad decision + pod persistence (PRD §46, §47). The full decision payload is
+// retained (JSONB) for debugging and RL evaluation.
+
+import type { AdDecision } from "@ssai/core";
+import type { Queryable } from "../db.js";
+
+export interface SaveDecisionInput {
+  decisionId: string;
+  podId: string;
+  decision: AdDecision;
+  requestedAt: string;
+  completedAt: string;
+}
+
+export async function saveDecision(db: Queryable, input: SaveDecisionInput): Promise<void> {
+  const { decision } = input;
+  const selectedCount = decision.pod.filter((p) => p.type === "ad").length;
+
+  await db.query(
+    `INSERT INTO ad_decisions
+       (id, opportunity_id, session_id, requested_at, completed_at, eligible_count, selected_count, seed, decision_payload)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
+    [
+      input.decisionId,
+      decision.opportunityId,
+      decision.sessionId,
+      input.requestedAt,
+      input.completedAt,
+      decision.eligible.length,
+      selectedCount,
+      decision.seed ?? null,
+      JSON.stringify(decision),
+    ],
+  );
+
+  await db.query(
+    `INSERT INTO ad_pods (id, decision_id, break_duration, ad_seconds, slate_seconds)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [input.podId, input.decisionId, decision.breakDuration, decision.adSeconds, decision.slateSeconds],
+  );
+
+  for (const item of decision.pod) {
+    await db.query(
+      `INSERT INTO ad_pod_items (pod_id, position, item_type, creative_id, duration, start_offset, end_offset)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        input.podId,
+        item.position,
+        item.type === "ad" ? "AD" : "SLATE",
+        item.creativeId ?? null,
+        item.duration,
+        item.startOffset,
+        item.endOffset,
+      ],
+    );
+  }
+}
+
+export interface StoredDecision {
+  id: string;
+  opportunityId: string;
+  sessionId: string;
+  eligibleCount: number;
+  selectedCount: number;
+  decision: AdDecision;
+}
+
+interface DecisionRow {
+  id: string;
+  opportunity_id: string;
+  session_id: string;
+  eligible_count: number;
+  selected_count: number;
+  decision_payload: unknown;
+}
+
+function toStored(r: DecisionRow): StoredDecision {
+  return {
+    id: r.id,
+    opportunityId: r.opportunity_id,
+    sessionId: r.session_id,
+    eligibleCount: Number(r.eligible_count),
+    selectedCount: Number(r.selected_count),
+    decision: (typeof r.decision_payload === "string"
+      ? JSON.parse(r.decision_payload)
+      : r.decision_payload) as AdDecision,
+  };
+}
+
+const DECISION_COLS =
+  "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+
+export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {
+  const rows = (
+    await db.query<DecisionRow>(
+      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE session_id = $1 ORDER BY requested_at`,
+      [sessionId],
+    )
+  ).rows;
+  return rows.map(toStored);
+}
+
+export async function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<StoredDecision[]> {
+  const rows = (
+    await db.query<DecisionRow>(
+      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+      [opportunityId],
+    )
+  ).rows;
+  return rows.map(toStored);
+}
+===== packages/persistence/src/repositories/opportunities.ts =====
+// Ad opportunity repository (PRD §10, §45).
+
+import type { AdOpportunity } from "@ssai/core";
+import type { Queryable } from "../db.js";
+
+export async function upsertOpportunity(db: Queryable, opp: AdOpportunity): Promise<void> {
+  await db.query(
+    `INSERT INTO ad_opportunities (id, channel_id, external_break_id, program_id, start_time, duration, marker_type, marker_payload, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'detected')
+     ON CONFLICT (id) DO UPDATE SET
+       duration = EXCLUDED.duration,
+       marker_type = EXCLUDED.marker_type,
+       marker_payload = EXCLUDED.marker_payload,
+       -- keep a previously-captured break id if a later decision omits it (COALESCE new-first).
+       external_break_id = COALESCE(EXCLUDED.external_break_id, ad_opportunities.external_break_id)`,
+    [
+      opp.opportunityId,
+      opp.channelId,
+      opp.externalBreakId ?? null,
+      opp.programId ?? null,
+      opp.breakStart,
+      opp.breakDuration,
+      opp.signalType,
+      opp.source,
+    ],
+  );
+}
+703450db135d:/app#

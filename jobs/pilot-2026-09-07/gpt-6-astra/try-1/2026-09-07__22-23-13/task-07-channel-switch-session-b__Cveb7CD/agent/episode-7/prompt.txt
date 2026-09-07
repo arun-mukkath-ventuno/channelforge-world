@@ -1,0 +1,67 @@
+New Terminal Output:
+
+{"status":"ok","plane":"control"}86be0505c7a7:/app# node --import tsx --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import fs from 'node:fs';
+> import { newDb } from 'pg-mem';
+> import { seedDatabase } from './packages/persistence/src/seed.ts';
+> import { ensureSession, getSession } from './packages/persistence/src/repositories/sessions.ts';
+> import { createPool } from './packages/persistence/src/db.ts';
+> async function check(db, channels) {
+>   const id = `switch-check-${crypto.randomUUID()}`;
+>   await ensureSession(db, { id, channelId: channels[0], deviceType: 'web', country: 'IN', anonymousId: 'viewer', ipHash: 'hash', userAgent: 'agent' });
+>   const original = (await db.query('SELECT * FROM playback_sessions WHERE id = $1', [id])).rows[0];
+>   for (const channelId of [channels[0], channels[1], channels[2], channels[0]]) {
+>     await ensureSession(db, { id, channelId });
+>     assert.equal((await getSession(db, id)).channelId, channelId);
+>     const current = (await db.query('SELECT * FROM playback_sessions WHERE id = $1', [id])).rows[0];
+>     assert.deepEqual(current, { ...original, channel_id: channelId });
+>   }
+> }
+> const mem = newDb();
+> for (const f of fs.readdirSync('migrations').filter(f => f.endsWith('.sql')).sort()) mem.public.none(fs.readFileSync(`migrations/${f}`, 'utf8'));
+> const { Pool } = mem.adapters.createPg();
+> const db = new Pool();
+> await seedDatabase(db);
+> await check(db, (await db.query('SELECT id FROM channels LIMIT 3')).rows.map(r => r.id));
+> await db.end();
+> console.log('PASS: in-memory channel switches and metadata preservation');
+> const pool = createPool();
+> const client = await pool.connect();
+> try {
+>   await client.query('BEGIN');
+>   const channels = (await client.query('SELECT id FROM channels LIMIT 3')).rows.map(r => r.id);
+>   assert.equal(channels.length, 3);
+>   await check(client, channels);
+>   console.log('PASS: PostgreSQL channel switches and metadata preservation');
+> } finally {
+>   await client.query('ROLLBACK');
+>   client.release();
+>   await pool.end();
+> }
+> JS
+PASS: in-memory channel switches and metadata preservation
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+0 !== 3
+
+    at file:///app/[eval1]:31:10
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: 3,
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v22.23.2
+86be0505c7a7:/app# npx vitest run packages/persistence/src packages/control-plane/src
+
+ RUN  v2.1.9 /app
+
+

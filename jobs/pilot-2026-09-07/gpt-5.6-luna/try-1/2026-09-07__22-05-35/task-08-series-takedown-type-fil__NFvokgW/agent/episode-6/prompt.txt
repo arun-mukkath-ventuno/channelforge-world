@@ -1,0 +1,53 @@
+New Terminal Output:
+= sc
+root@d6b56ecad4a0:/app# python3 - <<'PY'
+> from pathlib import Path
+> for name in ('app/repositories/rights.py', 'app/repositories/rights.py.orig'):
+>     text = Path(name).read_text()
+>     start = text.index('def active_takedown_for_asset')
+>     end = text.index('\ndef ', start + 4)
+>     print(f'--- {name} ---')
+>     print(text[start:end])
+> PY
+--- app/repositories/rights.py ---
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+
+--- app/repositories/rights.py.orig ---
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset directly or via its series, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+
+root@d6b56ecad4a0:/app# git status --short; git diff --no-ext-diff -- app/repositories/rights.py; ls -l app/repositories/rights.py app/repositories/rights.py.or
+ig
+bash: git: command not found
+bash: git: command not found
+-rw-r--r-- 1 root root 6694 Sep  6 14:22 app/repositories/rights.py
+-rw-r--r-- 1 root root 6671 Sep  5 07:37 app/repositories/rights.py.orig
+root@d6b56ecad4a0:/app#

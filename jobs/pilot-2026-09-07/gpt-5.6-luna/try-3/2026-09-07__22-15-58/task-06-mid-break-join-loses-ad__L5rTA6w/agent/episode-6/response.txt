@@ -1,0 +1,22 @@
+{
+  "analysis": "The critical defect is now visible in the data-plane request path: it only checks the pod cache using the current session and opportunity, and on a miss calls the decider. The cache interface has no lookup by opportunity, while persistence does support decisions by opportunity. However, the exact control-plane behavior and cache population still need inspection. The symptom that even a previously decided session fails after reconnect strongly suggests the cache key is being treated as transient request/session state or the decision path does not repopulate the cache consistently. I will inspect the complete ad-decision route and startup wiring, then compare the intended cache semantics in tests.",
+  "plan": "Read control-plane server sections around /v1/ad-decision, data-plane startup wiring, and all pod-cache tests. Determine whether the control plane reuses an existing decision by opportunity/session and whether it writes the pod cache. Then implement the smallest application-source change, likely changing the data-plane lookup/fallback or cache API, while preserving the normal session-scoped cache hit path.",
+  "commands": [
+    {
+      "keystrokes": "grep -nE 'ad-decision|ad decision|decision|podCache|MemoryPodCache|RedisPodCache|buildServer|createRedis' packages/control-plane/src/server.ts packages/data-plane/src/server.ts packages/control-plane/src/*.ts packages/data-plane/src/*.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "sed -n '1,260p' packages/control-plane/src/server.ts; sed -n '260,560p' packages/control-plane/src/server.ts\n",
+      "duration": 0.7
+    },
+    {
+      "keystrokes": "cat packages/data-plane/src/index.ts 2>/dev/null || true; grep -RInE 'new RedisPodCache|MemoryPodCache|buildServer\\(' packages --exclude='*.map' --exclude='*.js' 2>/dev/null || true\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "cat packages/persistence/src/pod-cache.test.ts; cat packages/control-plane/src/server.test.ts\n",
+      "duration": 0.6
+    }
+  ]
+}

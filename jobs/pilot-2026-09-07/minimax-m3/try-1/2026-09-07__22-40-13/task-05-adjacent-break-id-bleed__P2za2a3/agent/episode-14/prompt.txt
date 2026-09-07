@@ -1,0 +1,139 @@
+New Terminal Output:
+
+d55ac9bae4ee:/app# cat packages/persistence/src/reconciliation.ts
+// Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+//
+// The global /v1/analytics aggregate can't tell ChannelForge whether a *specific* planned break was
+// filled. This assembles one row per ad opportunity — keyed by the producer's own break id
+// (external_break_id, captured from the origin DATERANGE) — with fill, ad/slate seconds and the
+// impression/quartile/error counts drawn from the event stream. ChannelForge maps external_break_id
+// back to its break_id and feeds §17 reconciliation.
+//
+// Aggregation is done in JS (fetch rows, fold) so the same code runs under pg-mem in tests, matching
+// analytics.ts — it deliberately avoids FILTER / EXTRACT EPOCH / interval literals.
+
+import type { Queryable } from "./db.js";
+import { num } from "./map.js";
+
+export interface BreakDelivery {
+  opportunityId: string;
+  /** ChannelForge's break_id, when the origin carried a DATERANGE ID. Null → not reconcilable. */
+  externalBreakId: string | null;
+  channelId: string;
+  startTime: string;
+  /** True when any delivered pod for this break contained ads. */
+  filled: boolean;
+  adSeconds: number;
+  slateSeconds: number;
+  impressions: number;
+  quartiles: { start: number; first: number; midpoint: number; third: number; complete: number };
+  errors: number;
+}
+
+export interface BreakDeliveryOptions {
+  /** ISO-8601 lower bound on opportunity start_time. Omit for no time filter. */
+  since?: string;
+  /** Restrict to one channel. Omit for all channels. */
+  channelId?: string;
+}
+
+interface OppRow {
+  id: string;
+  external_break_id: string | null;
+  channel_id: string;
+  start_time: unknown;
+}
+
+export async function getBreakDeliveries(
+  db: Queryable,
+  opts: BreakDeliveryOptions = {},
+): Promise<BreakDelivery[]> {
+  // ── Opportunities in scope (time/channel filtered) ─────────────────────────
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (opts.since) {
+    params.push(opts.since);
+    where.push(`start_time >= $${params.length}`);
+  }
+  if (opts.channelId) {
+    params.push(opts.channelId);
+    where.push(`channel_id = $${params.length}`);
+  }
+  const oppRows = (
+    await db.query<OppRow>(
+      `SELECT id, external_break_id, channel_id, start_time FROM ad_opportunities
+       ${where.length ? `WHERE ${where.join(" AND ")}` : ""}`,
+      params,
+    )
+  ).rows;
+  if (oppRows.length === 0) return [];
+  const inScope = new Set(oppRows.map((o) => o.id));
+
+  // ── Fill: pods → decision → opportunity, summed per opportunity ────────────
+  const decisionRows = (
+    await db.query<{ id: string; opportunity_id: string }>(
+      "SELECT id, opportunity_id FROM ad_decisions",
+    )
+  ).rows;
+  const decisionToOpp = new Map<string, string>();
+  for (const d of decisionRows) {
+    if (inScope.has(d.opportunity_id)) decisionToOpp.set(d.id, d.opportunity_id);
+  }
+  const podRows = (
+    await db.query<{ decision_id: string; ad_seconds: number; slate_seconds: number }>(
+      "SELECT decision_id, ad_seconds, slate_seconds FROM ad_pods",
+    )
+  ).rows;
+  const adByOpp = new Map<string, number>();
+  const slateByOpp = new Map<string, number>();
+  for (const p of podRows) {
+    const opp = decisionToOpp.get(p.decision_id);
+    if (!opp) continue;
+    adByOpp.set(opp, (adByOpp.get(opp) ?? 0) + num(p.ad_seconds));
+    slateByOpp.set(opp, (slateByOpp.get(opp) ?? 0) + num(p.slate_seconds));
+  }
+
+  // ── Impressions / quartiles / errors from the event stream, per opportunity ─
+  const eventRows = (
+    await db.query<{ opportunity_id: string | null; event_type: string; c: number }>(
+      `SELECT opportunity_id, event_type, COUNT(*) AS c FROM events
+       WHERE event_type LIKE 'ad_%' AND opportunity_id IS NOT NULL
+       GROUP BY opportunity_id, event_type`,
+    )
+  ).rows;
+  const eventsByOpp = new Map<string, Map<string, number>>();
+  for (const e of eventRows) {
+    if (!e.opportunity_id || !inScope.has(e.opportunity_id)) continue;
+    const m = eventsByOpp.get(e.opportunity_id) ?? new Map<string, number>();
+    m.set(e.event_type, num(e.c));
+    eventsByOpp.set(e.opportunity_id, m);
+  }
+
+  return oppRows
+    .map((o): BreakDelivery => {
+      const ad = adByOpp.get(o.id) ?? 0;
+      const slate = slateByOpp.get(o.id) ?? 0;
+      const ev = eventsByOpp.get(o.id) ?? new Map<string, number>();
+      const g = (t: string) => ev.get(t) ?? 0;
+      return {
+        opportunityId: o.id,
+        externalBreakId: o.external_break_id ?? null,
+        channelId: o.channel_id,
+        startTime: new Date(o.start_time as string | Date).toISOString(),
+        filled: ad > 0,
+        adSeconds: ad,
+        slateSeconds: slate,
+        impressions: g("ad_impression"),
+        quartiles: {
+          start: g("ad_start"),
+          first: g("ad_first_quartile"),
+          midpoint: g("ad_midpoint"),
+          third: g("ad_third_quartile"),
+          complete: g("ad_complete"),
+        },
+        errors: g("ad_error"),
+      };
+    })
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+d55ac9bae4ee:/app#

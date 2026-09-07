@@ -1,0 +1,22 @@
+{
+  "analysis": "The read-only ingestion service is available at /reference/ssaiadserver, specifically control-plane/events-normalize.ts and persistence/repositories/events.ts. The prior source-content loop found no literal matches in src, while generated output contained the relevant ad-beacon text, suggesting the implementation may use indirect names or the source search was affected by the truncated command execution. The next step is to read the reference contract and inspect ssai.ts, fast-client.ts, event route, and package scripts directly.",
+  "plan": "Read the ingestion normalizer and repository to determine the exact deduplication key and required event fields. Then inspect all application files related to SSAI, client telemetry, and event ingestion, including numbered full files and focused symbol searches. Compare the current emitted identity with the contract before editing.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '--- /reference/ssaiadserver/control-plane/events-normalize.ts'; sed -n '1,320p' /reference/ssaiadserver/control-plane/events-normalize.ts; printf '%s\\n' '--- /reference/ssaiadserver/persistence/repositories/events.ts'; sed -n '1,360p' /reference/ssaiadserver/persistence/repositories/events.ts\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' '--- src/lib/ssai.ts'; nl -ba src/lib/ssai.ts; printf '%s\\n' '--- src/lib/fast-client.ts'; nl -ba src/lib/fast-client.ts; printf '%s\\n' '--- src/app/api/fast/events/route.ts'; nl -ba src/app/api/fast/events/route.ts\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'All source references to event APIs and ad fields:'; grep -RInE --exclude='*.test.*' --exclude-dir=.next --exclude-dir=node_modules 'fast/events|/events|emit\\(|eventType|eventName|ad[A-Z]|ad_|creative|airing|quartile|completion|impression|sessionId|playback' src || true; printf '%s\\n' 'Package:'; cat package.json\n",
+      "duration": 0.8
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Reference service relevant symbols:'; grep -RInE 'dedup|creative|airing|impression|quartile|completion|sessionId|eventId|event_type|eventType' /reference/ssaiadserver --exclude-dir=node_modules 2>/dev/null | head -400\n",
+      "duration": 1.0
+    }
+  ]
+}

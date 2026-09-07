@@ -1,0 +1,33 @@
+New Terminal Output:
+
+5d6083492e48:/app# sed -n '55,80p' migrations/001_init.sql
+  hls_path          TEXT NOT NULL,
+  segment_duration  NUMERIC
+);
+
+CREATE TABLE playback_sessions (
+  id                TEXT PRIMARY KEY,
+  channel_id        TEXT NOT NULL REFERENCES channels(id),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_activity_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  device_type       TEXT,
+  country           TEXT,
+  user_id           TEXT,
+  anonymous_id      TEXT,
+  ip_hash           TEXT,
+  user_agent        TEXT
+);
+
+-- PRD §45.
+CREATE TABLE ad_opportunities (
+  id                TEXT PRIMARY KEY,
+  channel_id        TEXT NOT NULL REFERENCES channels(id),
+  program_id        TEXT,
+  start_time        TIMESTAMPTZ NOT NULL,
+  duration          NUMERIC NOT NULL,
+  marker_type       TEXT NOT NULL,             -- 'cue_out' | 'daterange' | 'scte35'
+  marker_payload    TEXT,
+5d6083492e48:/app# grep -n 'ensureSession' packages/persistence/src/repositories.test.ts | head -20
+10:import { ensureSession, getSession } from "./repositories/sessions.js";
+81:    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+5d6083492e48:/app#

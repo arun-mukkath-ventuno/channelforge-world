@@ -1,0 +1,28 @@
+New Terminal Output:
+
+2c0f333a5b7b:/app# pnpm test --reporter=dot 2>&1 | tail -n 18
+      5| import { fileURLToPath } from "url";
+      6|
+      7| import { GET as channelById } from "@/app/api/fast/channels/[id]/route…
+       | ^
+      8| import { GET as hlsGet, OPTIONS as hlsOptions } from "@/app/api/fast/h…
+      9| import { POST as eventsPost } from "@/app/api/fast/events/route";
+
+Caused by: Error: Failed to load url @/app/api/fast/channels/[id]/route (resolved id: @/app/api/fast/channels/[id]/route) in /app/src/app/api/fast/routes.test.t
+s. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  10 failed | 1 passed (11)
+      Tests  2 passed (2)
+   Start at  16:58:58
+   Duration  1.47s (transform 92ms, setup 0ms, collect 16ms, tests 5ms, environment 1ms, prepare 426ms)
+
+2c0f333a5b7b:/app# nohup pnpm start --hostname 0.0.0.0 > /dev/null 2>&1 &
+[1] 1127
+2c0f333a5b7b:/app# ps aux; node -e "fetch('http://127.0.0.1:3000/fast-world/live').then(r => { console.log('Live page HTTP status:', r.status); if (!r.ok) proce
+ss.exitCode = 1; }).catch(e => { console.error(e); process.exitCode = 1; })"
+bash: !r.ok: event not found
+2c0f333a5b7b:/app#

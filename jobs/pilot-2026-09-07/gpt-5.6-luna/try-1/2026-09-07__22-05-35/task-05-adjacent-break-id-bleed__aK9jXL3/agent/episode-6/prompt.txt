@@ -1,0 +1,164 @@
+New Terminal Output:
+
+c5e0ec7d0eb6:/app# nl -ba packages/data-plane/src/avails.ts | sed -n '1,260p'; printf '%s\n' '### avails tests'; nl -ba packages/data-plane/src/avails.test.ts |
+ sed -n '1,260p'
+     1	// Avail detection over an origin media playlist (PRD §9, §22, §41).
+     2	//
+     3	// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+     4	// *deterministic* opportunity id derived from the channel + the media sequence
+     5	// of the avail's first segment. Determinism matters: every viewer's data-plane
+     6	// request and the decisioning path must agree on the same opportunity id for a
+     7	// given break without coordinating, so the cached pod is found on the hot path.
+     8	
+     9	import { parseMarkerLine } from "@ssai/core";
+    10	
+    11	export interface Avail {
+    12	  opportunityId: string;
+    13	  channelId: string;
+    14	  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+    15	   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+    16	   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+    17	   *  by contrast, is a media-sequence-derived id independent of the producer). */
+    18	  externalBreakId?: string;
+    19	  /** Break duration: the marker's declared duration, or the summed segment time. */
+    20	  duration: number;
+    21	  /** Declared duration from the marker, if it carried a valid one. */
+    22	  declaredDuration?: number;
+    23	  /** Actual duration summed from the segments inside the avail. */
+    24	  measuredDuration: number;
+    25	  /** Media sequence number of the first segment inside the avail. */
+    26	  startSequence: number;
+    27	  programDateTime?: string;
+    28	  /** Line index of the CUE-OUT marker. */
+    29	  startLine: number;
+    30	  /** Line index of the CUE-IN marker. */
+    31	  endLine: number;
+    32	}
+    33	
+    34	const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+    35	const EXTINF = /^#EXTINF:([\d.]+)/;
+    36	const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+    37	
+    38	/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+    39	 *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+    40	export function detectAvails(manifest: string, channelId: string): Avail[] {
+    41	  const lines = manifest.split("\n");
+    42	
+    43	  let mediaSequence = 0;
+    44	  let lastPdt: string | undefined;
+    45	  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    46	  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    47	  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    48	  let blockBreakId: string | undefined;
+    49	  const avails: Avail[] = [];
+    50	
+    51	  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    52	  let open: {
+    53	    startLine: number;
+    54	    startSequence: number;
+    55	    declaredDuration?: number;
+    56	    measuredDuration: number;
+    57	    pdt?: string;
+    58	    externalBreakId?: string;
+    59	  } | null = null;
+    60	
+    61	  for (let i = 0; i < lines.length; i++) {
+    62	    const line = lines[i]!;
+    63	    const trimmed = line.trim();
+    64	
+    65	    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    66	    if (seqMatch) {
+    67	      mediaSequence = Number(seqMatch[1]);
+    68	      continue;
+    69	    }
+    70	
+    71	    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    72	    if (pdtMatch) {
+    73	      lastPdt = pdtMatch[1]!.trim();
+    74	      // continue — PDT applies to the next segment.
+    75	    }
+    76	
+    77	    const marker = parseMarkerLine(line, i);
+    78	    if (marker?.kind === "daterange" && marker.id) {
+    79	      blockBreakId = marker.id;
+    80	      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+    81	      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+    82	      continue;
+    83	    }
+    84	    if (marker?.kind === "cue_out" && !open) {
+    85	      open = {
+    86	        startLine: i,
+    87	        startSequence: mediaSequence,
+    88	        measuredDuration: 0,
+    89	        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+    99	        opportunityId: `opp_${channelId}_${open.startSequence}`,
+   100	        channelId,
+   
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+of
+ill-0001" });
+packages/persistence/src/reconciliation.test.ts:116:    await upsertOpportunity(db, opp({ opportunityId: "opp_multi", externalBreakId: "BRK-multi" }));
+packages/persistence/src/reconciliation.test.ts:139:    await upsertOpportunity(db, opp({ opportunityId: "opp_yoga", externalBreakId: "BRK-yoga", breakStart: "2
+026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:140:    await upsertOpportunity(db, opp({ opportunityId: "opp_food", channelId: "channel_food", externalBreakId:
+ "BRK-food", breakStart: "2026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:141:    await upsertOpportunity(db, opp({ opportunityId: "opp_old", externalBreakId: "BRK-old", breakStart: "202
+0-01-01T00:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:144:    expect(yoga.map((b) => b.externalBreakId).sort()).toEqual(["BRK-old", "BRK-yoga"]);
+packages/persistence/src/reconciliation.test.ts:147:    expect(recent.map((b) => b.externalBreakId)).toEqual(["BRK-yoga"]);
+packages/persistence/src/reconciliation.ts:18:  externalBreakId: string | null;
+packages/persistence/src/reconciliation.ts:117:        externalBreakId: o.external_break_id ?? null,
+packages/persistence/src/repositories/opportunities.ts:19:      opp.externalBreakId ?? null,
+packages/core/src/types.ts:11:  externalBreakId?: string;
+c5e0ec7d0eb6:/app# printf '%s\n' '### marker parser callers'; find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -name '*.ts' -print | xarg
+s grep -nE 'parseMarkerLine|marker\.kind|cue_out|daterange' 2>/dev/null; printf '%s\n' '### git status'; git status --short 2>/dev/null || true
+### marker parser callers
+packages/control-plane/src/server.ts:184:      source: "cue_out",
+packages/control-plane/src/server.ts:185:      signalType: "cue_out",
+packages/data-plane/src/avails.ts:9:import { parseMarkerLine } from "@ssai/core";
+packages/data-plane/src/avails.ts:77:    const marker = parseMarkerLine(line, i);
+packages/data-plane/src/avails.ts:78:    if (marker?.kind === "daterange" && marker.id) {
+packages/data-plane/src/avails.ts:84:    if (marker?.kind === "cue_out" && !open) {
+packages/persistence/src/repositories.test.ts:67:      source: "cue_out",
+packages/persistence/src/repositories.test.ts:68:      signalType: "cue_out",
+packages/persistence/src/reconciliation.test.ts:37:    source: "cue_out",
+packages/persistence/src/reconciliation.test.ts:38:    signalType: "cue_out",
+packages/persistence/src/analytics.test.ts:37:  source: "cue_out",
+packages/persistence/src/analytics.test.ts:38:  signalType: "cue_out",
+packages/core/src/scte.ts:15:  kind: "cue_out" | "cue_in" | "daterange";
+packages/core/src/scte.ts:32:export function parseMarkerLine(line: string, lineIndex: number): ParsedMarker | null {
+packages/core/src/scte.ts:46:      kind: "cue_out",
+packages/core/src/scte.ts:59:      kind: "daterange",
+packages/core/src/scte.test.ts:2:import { parseMarkerLine } from "./scte.js";
+packages/core/src/scte.test.ts:4:describe("parseMarkerLine — cue markers (PRD §9, §60 task 3)", () => {
+packages/core/src/scte.test.ts:6:    const m = parseMarkerLine("#EXT-X-CUE-OUT:60", 5);
+packages/core/src/scte.test.ts:7:    expect(m).toMatchObject({ kind: "cue_out", duration: 60, lineIndex: 5 });
+packages/core/src/scte.test.ts:11:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=60", 0);
+packages/core/src/scte.test.ts:12:    expect(m).toMatchObject({ kind: "cue_out", duration: 60 });
+packages/core/src/scte.test.ts:16:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=90,SCTE35=abc", 0);
+packages/core/src/scte.test.ts:21:    const m = parseMarkerLine("#EXT-X-CUE-OUT:29.97", 0);
+packages/core/src/scte.test.ts:26:    const m = parseMarkerLine("#EXT-X-CUE-IN", 9);
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/src/scte.test.ts:37:    const m = parseMarkerLine("#EXT-X-CUE-OUT:oops", 0);
+packages/core/src/scte.test.ts:38:    expect(m).toMatchObject({ kind: "cue_out", invalidDuration: true });
+packages/core/src/scte.test.ts:43:    expect(parseMarkerLine("#EXTINF:6.0,", 0)).toBeNull();
+packages/core/src/scte.test.ts:44:    expect(parseMarkerLine("segment100.ts", 0)).toBeNull();
+packages/core/src/scte.test.ts:49:    const m = parseMarkerLine(line, 3);
+packages/core/src/scte.test.ts:50:    expect(m).toMatchObject({ kind: "daterange", duration: 30 });
+packages/core/src/scte.test.ts:55:    const m = parseMarkerLine(line, 7);
+packages/core/src/scte.test.ts:56:    expect(m).toMatchObject({ kind: "daterange", id: "BRK-a11e5310-0003", duration: 90 });
+packages/core/src/scte.test.ts:60:    const m = parseMarkerLine("#EXT-X-DATERANGE:DURATION=30", 0);
+packages/core/src/scte.test.ts:61:    expect(m?.kind).toBe("daterange");
+packages/core/src/types.ts:16:  source: "scte35" | "cue_out" | "daterange";
+packages/core/src/types.ts:17:  signalType: "cue_out" | "cue_in" | "daterange";
+### git status
+c5e0ec7d0eb6:/app#

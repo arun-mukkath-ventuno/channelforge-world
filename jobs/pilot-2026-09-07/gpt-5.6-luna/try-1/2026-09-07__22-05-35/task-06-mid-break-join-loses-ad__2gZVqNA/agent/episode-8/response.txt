@@ -1,0 +1,14 @@
+{
+  "analysis": "The cache is written only by the control plane after every decision, with a fixed 900-second TTL. The data plane's cache-miss call therefore causes the control plane to create a new decision for the same opportunity instead of reusing the prior one. More importantly, the request payload has no break-start timestamp, so the control plane cannot distinguish a late request from a newly occurring break. The minimal targeted fix is to make the ad-decision endpoint idempotent for (session_id, opportunity_id): look up an existing stored decision before running eligibility/decisioning, restore its pod to the cache, and return it. This preserves the continuous polling cache-hit path and does not bypass decisioning for new opportunities.",
+  "plan": "Inspect the exact response shape and imports around the endpoint, then patch server.ts to query the existing decision before constructing a new opportunity. Since StoredDecision contains the full AdDecision including pod and break metadata, cache the existing pod with the current channel and duration and return the same pod. Ensure the lookup is only for an explicitly supplied session_id and opportunity_id, so generated sessions/new requests retain current behavior. Run typecheck and tests, then identify and restart the running service.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/control-plane/src/server.ts | sed -n '1,70p'; nl -ba packages/control-plane/src/server.ts | sed -n '160,255p'; nl -ba packages/control-plane/src/server.ts | sed -n '255,330p'\n",
+      "duration": 0.6
+    },
+    {
+      "keystrokes": "cat packages/control-plane/package.json; printf '\\n===== exports =====\\n'; grep -RIn -E 'repositories/decisions|decisionsRepo|export.*decisions' packages/persistence/src packages/control-plane/src --exclude='*.test.ts' | sed -n '1,160p'\n",
+      "duration": 0.5
+    }
+  ]
+}

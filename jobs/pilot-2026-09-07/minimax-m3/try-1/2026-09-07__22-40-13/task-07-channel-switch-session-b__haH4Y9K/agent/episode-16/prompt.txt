@@ -1,0 +1,11 @@
+New Terminal Output:
+
+5d6083492e48:/app# ls migrations/
+001_init.sql                           003_opportunity_external_break_id.sql  005_beacons.sql
+002_creative_prep.sql                  004_vast.sql
+5d6083492e48:/app# grep -n 'playback_sessions' migrations/*
+migrations/001_init.sql:59:CREATE TABLE playback_sessions (
+migrations/001_init.sql:89:  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+migrations/001_init.sql:120:  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+migrations/001_init.sql:151:CREATE INDEX idx_sessions_channel ON playback_sessions (channel_id, created_at);
+5d6083492e48:/app#

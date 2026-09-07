@@ -1,0 +1,18 @@
+{
+  "analysis": "The relevant implementation is in @ssai/core (SCTE cue parsing) and persistence reconciliation, with data-plane avails/origin handling. The grep pattern unexpectedly found nothing despite the package description, so I will read the focused files directly and inspect tests that define marker syntax and producer-id attribution.",
+  "plan": "Read core SCTE types/parser, data-plane avail/origin logic, and persistence reconciliation plus their tests. Trace how adjacent cue events are keyed and how producer break IDs flow into delivery records. Then identify the smallest source-only change and validate it with the existing focused test suites.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '### core scte.ts'; sed -n '1,260p' packages/core/src/scte.ts; printf '%s\\n' '### core types.ts'; sed -n '1,280p' packages/core/src/types.ts; printf '%s\\n' '### core scte tests'; sed -n '1,320p' packages/core/src/scte.test.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '### data-plane avails.ts'; sed -n '1,320p' packages/data-plane/src/avails.ts; printf '%s\\n' '### data-plane origin.ts'; sed -n '1,360p' packages/data-plane/src/origin.ts; printf '%s\\n' '### origin tests'; sed -n '1,360p' packages/data-plane/src/origin.test.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '### persistence reconciliation.ts'; sed -n '1,360p' packages/persistence/src/reconciliation.ts; printf '%s\\n' '### reconciliation tests'; sed -n '1,420p' packages/persistence/src/reconciliation.test.ts\n",
+      "duration": 0.5
+    }
+  ]
+}

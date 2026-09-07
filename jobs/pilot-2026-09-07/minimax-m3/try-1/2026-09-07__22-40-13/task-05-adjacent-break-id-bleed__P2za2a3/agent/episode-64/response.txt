@@ -1,0 +1,11 @@
+{
+  "analysis": "The fix is in both source and dist versions, and the data-plane service is running with the fix.\n\nLet me do a final summary of what was done:\n\n1. **Bug identification**: In `packages/data-plane/src/avails.ts`, the `blockBreakId` variable tracks the DATERANGE ID seen in the current segment's tag block. It was cleared only when a media URI line was encountered. For back-to-back ad breaks (no media URI between the first break's CUE-IN and the second break's CUE-OUT), `blockBreakId` from the first break's DATERANGE persisted and got attributed to the second break.\n\n2. **The fix**: Clear `blockBreakId` when CUE-IN closes an avail. This is the natural point: the DATERANGE belonged to the just-closed avail, so we shouldn't carry it forward to the next one.\n\n3. **The fix is minimal and targeted**: Only adds one line (`blockBreakId = undefined;`) plus a comment explaining why.\n\n4. **All marker syntax still supported**: \n   - CUE-OUT then DATERANGE in same block (still works)\n   - DATERANGE before CUE-OUT in same block (still works)\n   - CUE-OUT-CONT (continuation, ignored)\n   - CUE-IN (still works)\n   - Isolated breaks (still work)\n   - Back-to-back breaks (now fixed)\n\n5. **Tests pass**: All 29 existing data-plane tests pass, plus 34 core tests.\n\n6. **Service restarted**: The data-plane service was built and is now running with the fix.",
+  "plan": "The fix is complete. The data-plane service is running. Task is done.",
+  "commands": [
+    {
+      "keystrokes": "echo \"Fix complete. Data-plane service running with the fix at port 4010.\"\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": true
+}

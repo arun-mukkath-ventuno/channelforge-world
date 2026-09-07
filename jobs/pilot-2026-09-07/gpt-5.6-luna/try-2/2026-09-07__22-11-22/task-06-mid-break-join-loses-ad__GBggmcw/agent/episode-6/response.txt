@@ -1,0 +1,18 @@
+{
+  "analysis": "The key path is now narrowed to avails detection. The prior command output omitted the detector contents due truncation, while the server confirms no fallback lookup occurs when no avail is detected. The control plane correctly persists decisions by the supplied opportunity ID, so the targeted fix should be in data-plane avail detection. I need inspect that file and its tests directly, then patch it.",
+  "plan": "Read avails.ts and avails.test.ts in separate commands to avoid truncation. Pay particular attention to whether a trailing CUE-OUT without a visible CUE-IN is discarded, and whether DATERANGE IDs are retained. Implement a minimal change that emits an in-progress avail through the playlist end, using the stable break identity and endLine at the last available line, while preserving complete-avail behavior. Run tests and typecheck, then rebuild/restart data plane.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/data-plane/src/avails.ts\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "cat packages/data-plane/src/avails.test.ts\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "cat packages/persistence/src/pod-cache.ts; printf '\\n-- git status --\\n'; git status --short 2>/dev/null || true\n",
+      "duration": 0.3
+    }
+  ]
+}

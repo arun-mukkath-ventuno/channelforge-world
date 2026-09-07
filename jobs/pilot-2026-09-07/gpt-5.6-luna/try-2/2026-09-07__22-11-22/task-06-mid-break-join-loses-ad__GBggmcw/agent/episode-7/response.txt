@@ -1,0 +1,10 @@
+{
+  "analysis": "The defect is explicit in avails.ts: detectAvails intentionally ignores incomplete trailing avails with no CUE-IN. A playlist fetched mid-break commonly ends before the break's CUE-IN, so the affected session gets zero avails and never attempts cache lookup or decision. This also explains reconnects after an earlier decision. The fix should emit an open avail through the current playlist boundary, while retaining the existing complete-avail path unchanged. Before editing, I need the omitted tail of avails.ts and the full test beginning to confirm URI/sequence accounting and choose the correct endLine.",
+  "plan": "Inspect the remaining detector code with line numbers. Then modify only avails.ts: factor avail construction or add an end-of-loop flush for open, setting endLine to the final line index and preserving measured/declarative duration, stable start sequence, PDT, and external break ID. Since stitching an incomplete break must replace only content currently in the playlist, the endLine should be the last line, and the opportunity ID remains start-sequence based. Run the data-plane tests, typecheck, and build; then restart the data-plane service.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.ts | sed -n '1,240p'; printf '\\n-- tests 1-180 --\\n'; nl -ba packages/data-plane/src/avails.test.ts | sed -n '1,180p'\n",
+      "duration": 0.4
+    }
+  ]
+}

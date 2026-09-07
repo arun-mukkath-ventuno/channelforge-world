@@ -1,0 +1,208 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# npm test
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/control-plane/src/beacons.test.ts (0)
+ ✓ packages/control-plane/src/events-normalize.test.ts (7)
+ ❯ packages/control-plane/src/server.test.ts (0)
+ ✓ packages/control-plane/src/vast-fetch.test.ts (5)
+ ❯ packages/control-plane/src/vast-inventory.test.ts (0)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/core/src/eligibility.test.ts (9)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/core/src/session-token.test.ts (6)
+ ✓ packages/creative-worker/src/validate.test.ts (6)
+ ❯ packages/creative-worker/src/worker.test.ts (5)
+   ❯ prepareCreative — state machine (PRD §14) (5)
+     × validates, transcodes, stores HLS and marks the creative ready
+       ⠸ [ beforeEach ]
+       ⠸ [ afterEach ]
+     × fails the creative on a duration mismatch, recording the reason (§40)
+       ⠸ [ beforeEach ]
+       ⠸ [ afterEach ]
+     × fails cleanly when transcoding throws
+       ⠸ [ beforeEach ]
+       ⠸ [ afterEach ]
+     × prepares from a source stored in the object store (uploaded via API)
+       ⠸ [ beforeEach ]
+       ⠸ [ afterEach ]
+     × fails when no source is set
+       ⠸ [ beforeEach ]
+       ⠸ [ afterEach ]
+ ❯ packages/persistence/src/analytics.test.ts (0)
+ ✓ packages/persistence/src/pod-cache.test.ts (3)
+ ❯ packages/persistence/src/reconciliation.test.ts (0)
+ ❯ packages/persistence/src/repositories.test.ts (0)
+ ❯ packages/data-plane/src/avails.test.ts (10)
+   ❯ detectAvails (PRD §9, §41) (10)
+     ✓ derives a deterministic opportunity id from channel + media sequence
+     ✓ is stable across playlist refreshes (same avail → same id as the window slides)
+     ✓ falls back to measured duration when the marker duration is invalid (PRD §41)
+     ✓ captures PROGRAM-DATE-TIME preceding the avail
+     × ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)
+     ✓ captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)
+     ✓ captures the id when the producer emits DATERANGE before CUE-OUT in the same block
+     ✓ leaves externalBreakId undefined when the origin carried no DATERANGE id
+     ✓ does not leak one break's id onto a later break that has none
+     ✓ detects multiple avails in one window
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+ ✓ packages/storage/src/s3.test.ts (4)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 6 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/control-plane/src/beacons.test.ts [ packages/control-plane/src/beacons.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/control-plane/src/beacons.test.ts:17:16
+     15| const here = dirname(fileURLToPath(import.meta.url));
+     16| const MIG_DIR = resolve(here, "../../../migrations");
+     17| const SCHEMA = readdirSync(MIG_DIR)
+       |                ^
+     18|   .filter((f) => f.endsWith(".sql")).sort()
+     19|   .map((f) => readFileSync(join(MIG_DIR, f), "utf8")).join("\n");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+ FAIL  packages/control-plane/src/server.test.ts [ packages/control-plane/src/server.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/control-plane/src/server.test.ts:13:16
+     11| const here = dirname(fileURLToPath(import.meta.url));
+     12| const MIG_DIR = resolve(here, "../../../migrations");
+     13| const SCHEMA = readdirSync(MIG_DIR)
+       |                ^
+     14|   .filter((f) => f.endsWith(".sql"))
+     15|   .sort()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+[
+[... output limited to 10000 bytes; 69 interior bytes omitted ...]
+ROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+37-
+38:/** Detect complete avails and an active trailing avail visible at the end of the manifest. */
+39-export function detectAvails(manifest: string, channelId: string): Avail[] {
+40-  const lines = manifest.split("\n");
+41-
+42-  let mediaSequence = 0;
+43-  let lastPdt: string | undefined;
+44-  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+45-  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+46-  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+47-  let blockBreakId: string | undefined;
+48-  const avails: Avail[] = [];
+49-
+50-  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+51-  let open: {
+52-    startLine: number;
+53-    startSequence: number;
+54-    declaredDuration?: number;
+55-    measuredDuration: number;
+56-    pdt?: string;
+57-    externalBreakId?: string;
+58-  } | null = null;
+59-
+60-  for (let i = 0; i < lines.length; i++) {
+61-    const line = lines[i]!;
+62-    const trimmed = line.trim();
+63-
+64-    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+65-    if (seqMatch) {
+66-      mediaSequence = Number(seqMatch[1]);
+67-      continue;
+68-    }
+69-
+70-    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+71-    if (pdtMatch) {
+72-      lastPdt = pdtMatch[1]!.trim();
+73-      // continue — PDT applies to the next segment.
+--
+106-      // The URI line follows; advance the sequence when we consume it below.
+107-    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+108-      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+109-      mediaSequence += 1;
+110-      blockBreakId = undefined;
+111-    }
+112-  }
+113-
+114:  // A late tune-in can see the middle of a break without its CUE-IN: the
+115-  // origin window ends before the break does. Treat the visible portion as an
+116-  // active avail so it uses the same deterministic opportunity id and session
+117-  // decision/cache path as a continuously-polling viewer.
+118-  if (open) {
+119-    finishAvail(open, lines.length - 1);
+120-  }
+121-
+122-  return avails;
+123-
+124:  function finishAvail(state: NonNullable<typeof open>, endLine: number): void {
+125-    const declared = state.declaredDuration;
+126-    avails.push({
+127-      opportunityId: `opp_${channelId}_${state.startSequence}`,
+128-      channelId,
+129-      ...(state.externalBreakId === undefined ? {} : { externalBreakId: state.externalBreakId }),
+130-      duration: declared ?? state.measuredDuration,
+131-      ...(declared === undefined ? {} : { declaredDuration: declared }),
+132-      measuredDuration: state.measuredDuration,
+133-      startSequence: state.startSequence,
+134-      ...(state.pdt === undefined ? {} : { programDateTime: state.pdt }),
+135-      startLine: state.startLine,
+136-      endLine,
+137-    });
+138-  }
+139-}
+
+Compiled detector markers:
+71-            // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+72-            mediaSequence += 1;
+73-            blockBreakId = undefined;
+74-        }
+75-    }
+76:    // A late tune-in can see the middle of a break without its CUE-IN: the
+77-    // origin window ends before the break does. Treat the visible portion as an
+78-    // active avail so it uses the same deterministic opportunity id and session
+79-    // decision/cache path as a continuously-polling viewer.
+80-    if (open) {
+81-        finishAvail(open, lines.length - 1);
+82-    }
+83-    return avails;
+84:    function finishAvail(state, endLine) {
+85-        const declared = state.declaredDuration;
+86-        avails.push({
+87-            opportunityId: `opp_${channelId}_${state.startSequence}`,
+88-            channelId,
+89-            ...(state.externalBreakId === undefined ? {} : { externalBreakId: state.externalBreakId }),
+90-            duration: declared ?? state.measuredDuration,
+91-            ...(declared === undefined ? {} : { declaredDuration: declared }),
+92-            measuredDuration: state.measuredDuration,
+93-            startSequence: state.startSequence,
+94-            ...(state.pdt === undefined ? {} : { programDateTime: state.pdt }),
+95-            startLine: state.startLine,
+96-            endLine,
+97-        });
+98-    }
+99-}
+100-//# sourceMappingURL=avails.js.map
+
+Processes:
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   95 root      0:00 [tmux: client]
+   96 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   97 root      0:00 bash --login
+   98 root      0:00 cat
+  111 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  115 root      0:00 /bin/bash
+  818 root      0:00 [esbuild]
+  928 root      0:00 [esbuild]
+ 1400 root      0:00 [esbuild]
+ 1466 root      0:00 ps -ef
+ 1467 root      0:00 sed -n 1,80p
+727f8e3dc8f6:/app#

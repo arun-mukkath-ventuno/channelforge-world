@@ -1,0 +1,22 @@
+{
+  "analysis": "The relevant code is now clear. `parseAdWindows` currently prefers `X-AD-ID`, which is the creative identifier (for example, the same house creative can appear in multiple airings), over the HLS DATERANGE `ID`, which identifies the individual ad-window occurrence. `sendAdBeacon` sends that value as `ad_id`, and the ingestion service deduplicates using the session/event/ad identity. Therefore later airings of the same creative reuse the same dedup key and disappear, while manifest-refresh retransmissions should continue collapsing because the DATERANGE ID remains stable for that airing. The minimal fix is to use `ID` first and retain `X-AD-ID` only as a fallback.",
+  "plan": "Change only the ad-window parser's identifier precedence from X-AD-ID-first to ID-first. Run the SSAI tests and full test suite, then run lint/build to verify TypeScript and production compilation. Since no service process is running, start the built Next service in the background after validation so the running application reflects the fix.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\np='src/lib/ssai.ts'\ns=open(p).read()\nold='const adId = attr(\"X-AD-ID\") || attr(\"ID\");'\nnew='// DATERANGE ID identifies this airing; X-AD-ID identifies the creative.\\n    // The ingestion service deduplicates by ad_id, so use the occurrence ID\\n    // to keep separate airings distinct while refreshes of one airing remain stable.\\n    const adId = attr(\"ID\") || attr(\"X-AD-ID\");'\nif old not in s:\n    raise SystemExit('target line not found')\nopen(p,'w').write(s.replace(old,new,1))\nPY\nsed -n '66,84p' src/lib/ssai.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "pnpm exec vitest run src/lib/ssai.test.ts",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "pnpm test",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "pnpm run lint && pnpm run build",
+      "duration": 8.0
+    }
+  ]
+}

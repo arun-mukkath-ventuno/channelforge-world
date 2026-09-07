@@ -1,0 +1,18 @@
+{
+  "analysis": "The reference source is present at `/reference/ssaiadserver` with the exact relevant files now identified. The application confirms the likely defect: `startAdBeaconWatcher` correctly tracks `${adId}:${start}:${beacon}` locally but calls `sendAdBeacon` with only `w.adId`, losing the airing start before ingestion. I must verify the external normalization/dedup key and its expected payload field before patching.",
+  "plan": "Read both reference files completely, especially the normalized event identity and repository uniqueness/dedup logic. Then inspect the existing SSAI test file and player watcher integration. Based on the contract, patch the sender/watcher so the same creative gets a distinct occurrence ID per ad window while repeated beacons for the same window remain identical. Run focused tests, lint/type validation, rebuild, and restart the Next service.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- normalize reference --' && sed -n '1,360p' /reference/ssaiadserver/control-plane/events-normalize.ts && printf '%s\\n' '-- persistence reference --' && sed -n '1,420p' /reference/ssaiadserver/persistence/repositories/events.ts\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- SSAI tests --' && sed -n '1,320p' src/lib/ssai.test.ts && printf '%s\\n' '-- player watcher integration --' && sed -n '160,235p' src/components/fast/FastPlayer.tsx && printf '%s\\n' '-- client session integration --' && sed -n '195,245p' src/app/fast-world/live/LiveClient.tsx\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- reference identity terms --' && grep -RInE '(unique|conflict|duplicate|dedup|idempot|session_id|ad_id|event|creative|airing|occurrence|impression)' /reference/ssaiadserver 2>/dev/null | sed -n '1,320p'\n",
+      "duration": 0.5
+    }
+  ]
+}

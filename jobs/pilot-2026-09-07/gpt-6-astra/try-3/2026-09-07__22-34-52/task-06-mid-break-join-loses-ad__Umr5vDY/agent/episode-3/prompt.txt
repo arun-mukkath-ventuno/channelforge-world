@@ -1,0 +1,68 @@
+New Terminal Output:
+
+17c9e64e2bb8:/app# cat packages/data-plane/package.json; find packages/data-plane/src -type f; grep -R -n 'decid\|opportunit\|CUE-OUT\|break' packages/data-plan
+e/src --include='*.ts' | head -100
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+packages/data-plane/src/avails.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/stitch.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/segment.ts
+grep: unrecognized option: include=*.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+17c9e64e2bb8:/app#

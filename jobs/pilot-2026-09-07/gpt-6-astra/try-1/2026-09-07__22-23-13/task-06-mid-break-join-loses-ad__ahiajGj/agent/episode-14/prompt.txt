@@ -1,0 +1,87 @@
+New Terminal Output:
+
+········································
+
+ Test Files  6 passed (6)
+      Tests  40 passed (40)
+   Start at  16:59:18
+   Duration  776ms (transform 95ms, setup 0ms, collect 135ms, tests 23ms, environment 1ms, prepare 186ms)
+
+6f61bf7d2dec:/app# head -40 packages/core/src/session-token.ts; cat tsconfig.base.json; ps aux
+// Signed playback session tokens (PRD §57). The control plane mints a token the
+// player uses in its playback URL; the data plane verifies it before serving a
+// manifest, so a viewer cannot forge or tamper with a session id (or watch a
+// channel the token wasn't issued for). HMAC-SHA256, constant-time compare.
+
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export interface SessionClaims {
+  /** The real session id (used as the pod-cache key). */
+  sid: string;
+  /** The channel the token is valid for. */
+  ch: string;
+  /** Optional expiry, unix seconds. */
+  exp?: number;
+}
+
+export interface SignOptions {
+  ttlSeconds?: number;
+  /** Injected clock (ms) for deterministic tests. */
+  now?: number;
+}
+
+const PREFIX = "v1";
+
+/** Produce `v1.<payload>.<sig>` — payload and signature are base64url. */
+export function signSession(sessionId: string, channelId: string, secret: string, opts: SignOptions = {}): string {
+  const claims: SessionClaims = { sid: sessionId, ch: channelId };
+  if (opts.ttlSeconds && opts.ttlSeconds > 0) {
+    claims.exp = Math.floor((opts.now ?? Date.now()) / 1000) + opts.ttlSeconds;
+  }
+  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+  const body = `${PREFIX}.${payload}`;
+  const sig = createHmac("sha256", secret).update(body).digest().toString("base64url");
+  return `${body}.${sig}`;
+}
+
+/** Verify a token; returns the claims or null if invalid/expired/tampered. */
+export function verifySession(token: string, secret: string, opts: { now?: number } = {}): SessionClaims | null {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== PREFIX) return null;
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  }
+}
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   93 root      0:00 [tmux: client]
+   94 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   95 root      0:00 bash --login
+   96 root      0:00 cat
+  109 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  113 root      0:00 /bin/bash
+  478 root      0:00 [esbuild]
+  681 root      0:00 [esbuild]
+  865 root      0:00 [esbuild]
+  941 root      0:00 [esbuild]
+ 1077 root      0:00 ps aux
+6f61bf7d2dec:/app#

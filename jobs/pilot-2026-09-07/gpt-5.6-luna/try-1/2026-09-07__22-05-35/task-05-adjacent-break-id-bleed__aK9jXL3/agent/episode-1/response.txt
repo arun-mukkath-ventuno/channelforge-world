@@ -1,0 +1,18 @@
+{
+  "analysis": "The initial listing shows only package metadata at shallow depth; no application files were found within two levels, and the keyword search returned nothing because the source is likely hidden deeper, ignored, or mounted in an unexpected directory. I need inspect all entries, package scripts, and the full directory tree while excluding node_modules.",
+  "plan": "Check hidden files and package.json to identify the workspace/service layout. Then locate tracked or non-node_modules source files and search them for marker and producer-break logic. If the repository is a monorepo, inspect workspace packages and service startup configuration before editing.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- all root entries --'; ls -la; printf '%s\\n' '-- package.json --'; cat package.json; printf '%s\\n' '-- git status/root --'; git status --short 2>/dev/null || true; git rev-parse --show-toplevel 2>/dev/null || true\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- files excluding dependencies --'; find . -path './node_modules' -prune -o -type f -print | sort | sed -n '1,300p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- directories excluding dependencies --'; find . -path './node_modules' -prune -o -type d -print | sort | sed -n '1,200p'\n",
+      "duration": 0.5
+    }
+  ]
+}

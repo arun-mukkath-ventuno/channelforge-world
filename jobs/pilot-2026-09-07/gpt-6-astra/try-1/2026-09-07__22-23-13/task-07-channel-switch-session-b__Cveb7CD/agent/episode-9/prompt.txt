@@ -1,0 +1,49 @@
+New Terminal Output:
+
+86be0505c7a7:/app# node --import tsx --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import { registerHooks } from 'node:module';
+> import { pathToFileURL } from 'node:url';
+> const oldUrl = pathToFileURL('/app/packages/persistence/dist/repositories/sessions.js').href;
+> const newUrl = pathToFileURL('/app/packages/persistence/src/repositories/sessions.ts').href;
+> registerHooks({ resolve(specifier, context, nextResolve) { const result = nextResolve(specifier, context); return result.url === oldUrl ? { ...result, url: ne
+wUrl } : result; } });
+> const { createPool, sessions } = await import('@ssai/persistence');
+> assert.match(sessions.ensureSession.toString(), /DO UPDATE SET channel_id = EXCLUDED.channel_id/);
+> const pool = createPool();
+> const db = await pool.connect();
+> try {
+>   await db.query('BEGIN');
+>   const id = `check-${crypto.randomUUID()}`;
+>   const channels = [id + '-a', id + '-b', id + '-c'];
+>   for (const channel of channels) await db.query('INSERT INTO channels (id, name, origin_url) VALUES ($1, $1, $2)', [channel, 'https://example.invalid/master.
+m3u8']);
+>   await sessions.ensureSession(db, { id, channelId: channels[0], deviceType: 'web', country: 'IN', anonymousId: 'viewer', ipHash: 'hash', userAgent: 'agent' }
+);
+>   const original = (await db.query('SELECT * FROM playback_sessions WHERE id = $1', [id])).rows[0];
+>   for (const channelId of [channels[0], channels[1], channels[2], channels[0]]) {
+>     await sessions.ensureSession(db, { id, channelId });
+>     assert.equal((await sessions.getSession(db, id)).channelId, channelId);
+>     const current = (await db.query('SELECT * FROM playback_sessions WHERE id = $1', [id])).rows[0];
+>     assert.deepEqual(current, { ...original, channel_id: channelId });
+>   }
+>   console.log('PASS: runtime imports corrected source; PostgreSQL records latest channel and preserves other session fields.');
+> } finally {
+>   await db.query('ROLLBACK');
+>   db.release();
+>   await pool.end();
+> }
+> JS
+PASS: runtime imports corrected source; PostgreSQL records latest channel and preserves other session fields.
+86be0505c7a7:/app# wget -qO- http://127.0.0.1:4000/health; printf '\n'; sed -n '35,43p' packages/persistence/src/repositories/sessions.ts
+{"status":"ok","plane":"control"}
+
+/** Create the session if absent; otherwise record its most recently associated channel. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id`,
+    [
+      input.id,
+86be0505c7a7:/app#

@@ -1,0 +1,14 @@
+{
+  "analysis": "The defect is confirmed: ensureSession uses ON CONFLICT (id) DO NOTHING, so every later channel association is discarded. Updating only channel_id on conflict will fix the session record without changing metadata or per-decision/event attribution. This container is configured for the control-plane service.",
+  "plan": "Change the shared session upsert and its comment, then run the existing repository tests. Inspect startup and transaction details to validate the fix and launch the control plane without modifying generated files or configuration.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '175,235p' packages/control-plane/src/server.ts; tail -45 packages/control-plane/src/server.ts; head -38 packages/persistence/src/repositories.test.ts; cat packages/persistence/src/db.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "node --input-type=module <<'JS'\nimport fs from 'node:fs';\nconst path = 'packages/persistence/src/repositories/sessions.ts';\nconst source = fs.readFileSync(path, 'utf8');\nconst updated = source.replace('/** Create the session if absent; idempotent so ad-decision can ensure it exists. */', '/** Create the session if absent; otherwise record its most recently associated channel. */').replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id');\nif (updated === source) throw new Error('No change made');\nfs.writeFileSync(path, updated);\nJS\nnpx vitest run packages/persistence/src/repositories.test.ts\n",
+      "duration": 1
+    }
+  ]
+}

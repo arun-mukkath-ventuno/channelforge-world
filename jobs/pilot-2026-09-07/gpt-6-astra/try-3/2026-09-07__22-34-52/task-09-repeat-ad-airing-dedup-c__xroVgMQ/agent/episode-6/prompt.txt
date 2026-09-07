@@ -1,0 +1,76 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+ ELIFECYCLE  Test failed. See above for more details.
+04463b8c374a:/app# node <<'JS'
+> const fs = require('fs');
+> const ts = require('typescript');
+> const vm = require('vm');
+> const assert = require('node:assert/strict');
+> function load(path, globals = {}) {
+>   const exports = {};
+>   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).ou
+tputText, {exports, require, process, ...globals});
+>   return exports;
+> }
+> (async () => {
+>   const {normalizeEvent} = load('/reference/ssaiadserver/control-plane/events-normalize.ts');
+>   for (const useBeacon of [true, false]) {
+>     let now;
+>     const timers = new Map();
+>     const bodies = [];
+>     const start = Date.parse('2026-09-03T05:00:00Z');
+>     const starts = [start, start + 60000];
+>     const manifest = starts.map(t => `#EXT-X-DATERANGE:ID="house",CLASS="com.fastworld.ad",START-DATE="${new Date(t).toISOString()}",DURATION=20,X-AD-ID="hous
+e"`).join('\n');
+>     const client = load('/app/src/lib/ssai.ts', {
+>       Blob,
+>       navigator: useBeacon ? {sendBeacon: (url, blob) => {bodies.push(blob.text()); return true;}} : {},
+>       fetch: async (url, opts) => {
+>         if (opts.method === 'POST') {bodies.push(Promise.resolve(opts.body)); return {ok: true};}
+>         return {ok: true, text: async () => manifest};
+>       },
+>       setInterval: (fn, ms) => {timers.set(ms, fn); return ms;},
+>       clearInterval: id => timers.delete(id),
+>     });
+>     const run = async () => {
+>       const stop = client.startAdBeaconWatcher({sessionId: 'session', manifestUrl: 'manifest', playheadDate: () => now});
+>       await new Promise(resolve => setImmediate(resolve));
+>       for (const t of starts) {
+>         for (const offset of [0, 5000, 10000, 15000, 20000]) {now = t + offset; timers.get(1000)();}
+>         await timers.get(10000)();
+>         timers.get(1000)();
+>       }
+>       stop();
+>     };
+>     await run();
+>     assert.equal(bodies.length, 12, 'six events per airing, no extras on refresh');
+>     await run();
+>     const raw = (await Promise.all(bodies)).map(JSON.parse);
+>     assert.equal(raw.length, 24);
+>     assert(raw.every(e => e.ad_id === 'house' && e.session_id === 'session'));
+>     assert.equal(new Set(raw.map(e => e.pod_id)).size, 2);
+>     assert.equal(new Set(raw.map(e => normalizeEvent(e).eventId)).size, 12, 'different airings count; replayed same-airing beacons collapse');
+>     console.log(`${useBeacon ? 'sendBeacon' : 'fetch'}: two airings, manifest refresh, and watcher restart passed against reference normalizer`);
+>   }
+> })().catch(e => {console.error(e); process.exitCode = 1;});
+> JS
+sendBeacon: two airings, manifest refresh, and watcher restart passed against reference normalizer
+fetch: two airings, manifest refresh, and watcher restart passed against reference normalizer
+04463b8c374a:/app# pnpm build
+
+> fast-world-tv@0.1.0 build /app
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.ts took 36ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+  Creating an optimized production build ...
+

@@ -1,0 +1,10 @@
+{
+  "analysis": "The defect is in data-plane avail discovery, not ad decisioning. A leading CUE-OUT-CONT is ignored after the original CUE-OUT leaves the live window. I will add recovery only for orphaned continuation markers, retain the full-break cache key and decision duration, and slice rendered media to the visible break interval. Existing CUE-OUT/CUE-IN handling will remain unchanged.",
+  "plan": "Add validated continuation parsing for elapsed/total and attribute forms. Recover the original sequence for segment-aligned continuations, track the visible elapsed offset, and bound stitching to the visible region. Invalid or ambiguous continuation data will preserve origin content.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '16,36p' packages/data-plane/src/media.ts; cat packages/persistence/src/pod-cache.ts | head -65; printenv | grep -E 'PORT|URL|REDIS|STORE|CHANNEL'; which python3\n",
+      "duration": 0.1
+    }
+  ]
+}

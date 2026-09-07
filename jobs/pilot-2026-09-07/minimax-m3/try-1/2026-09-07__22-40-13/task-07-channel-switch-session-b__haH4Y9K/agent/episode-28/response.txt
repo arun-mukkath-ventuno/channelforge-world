@@ -1,0 +1,14 @@
+{
+  "analysis": "Let me check if there's a service manager in the docker init scripts.",
+  "plan": "Check for init scripts and what services exist.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /docker-entrypoint* /entrypoint* /start* /run* 2>/dev/null\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find / -name '*.sh' -not -path '/proc/*' -not -path '/sys/*' 2>/dev/null | xargs grep -l 'control-plane\\|data-plane' 2>/dev/null | head -10\n",
+      "duration": 0.5
+    }
+  ]
+}

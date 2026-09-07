@@ -1,0 +1,14 @@
+{
+  "analysis": "The repository is not yet inspected. The reported defect is specifically in eligibility enforcement for active series-scoped takedowns, rather than takedown management.",
+  "plan": "Locate ChannelForge's application source and inspect takedown enforcement to identify where series membership is omitted.",
+  "commands": [
+    {
+      "keystrokes": "pwd; ls -la\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rg -n 'takedown' --glob '!tests/**' --glob '!node_modules/**' --glob '!package-lock.json' . | head -180\n",
+      "duration": 0.1
+    }
+  ]
+}

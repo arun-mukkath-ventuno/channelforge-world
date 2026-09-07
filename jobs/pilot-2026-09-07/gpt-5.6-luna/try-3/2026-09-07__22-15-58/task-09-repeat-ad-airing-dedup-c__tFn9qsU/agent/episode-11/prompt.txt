@@ -1,0 +1,109 @@
+New Terminal Output:
+
+at /tmp/fast-world-tv.pid)"; ps -o pid,stat,cmd; cat /tmp/fast-world-tv.log
+pid=1444
+ps: bad -o argument 'cmd', supported arguments: user,group,comm,args,pid,ppid,pgid,etime,nice,rgroup,ruser,time,tty,vsz,sid,stat,rss
+
+> fast-world-tv@0.1.0 start /app
+> next start
+
+▲ Next.js 16.3.3
+- Local:         http://localhost:3000
+- Network:       http://172.20.0.2:3000
+✓ Ready in 68ms
+✓ Running next.config.ts took 20ms
+6af9ee0f4d51:/app# python3 -c 'p="src/lib/ssai.ts"; s=open(p).read(); old="    const adId = attr(\"X-AD-ID\") || attr(\"ID\");"; new="    // DATERANGE ID identi
+fies this airing; X-AD-ID identifies the creative.\n    // Use the occurrence ID so separate airings are not deduplicated together.\n    const adId = attr(\"ID\
+") || attr(\"X-AD-ID\");"; assert old in s; open(p,"w").write(s.replace(old,new,1))'
+6af9ee0f4d51:/app# sed -n '70,86p' src/lib/ssai.ts
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+    const attr = (k: string): string | undefined => line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("DURATION");
+    // DATERANGE ID identifies this airing; X-AD-ID identifies the creative.
+    // Use the occurrence ID so separate airings are not deduplicated together.
+    const adId = attr("ID") || attr("X-AD-ID");
+    if (!startDate || !dur || !adId) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ adId, start, end: start + seconds * 1000 });
+  }
+  return out;
+}
+
+6af9ee0f4d51:/app# pnpm exec vitest run src/lib/ssai.test.ts
+
+ RUN  v3.2.7 /app
+
+ ✓ src/lib/ssai.test.ts (2 tests) 3ms
+   ✓ parseAdWindows > extracts ad windows from EXT-X-DATERANGE ad markers 2ms
+   ✓ parseAdWindows > ignores non-ad DATERANGE and content lines 0ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  16:50:37
+   Duration  160ms (transform 48ms, setup 0ms, collect 47ms, tests 3ms, environment 0ms, prepare 35ms)
+
+6af9ee0f4d51:/app# pnpm run build
+
+> fast-world-tv@0.1.0 build /app
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.ts took 13ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1330ms
+✓ Finished TypeScript in 2.2s
+✓ Collecting page data using 7 workers in 1778ms
+✓ Generating static pages using 7 workers (9/9) in 194ms
+✓ Finalizing page optimization in 8ms
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/fast/admin/channels
+├ ƒ /api/fast/admin/channels/[id]
+├ ƒ /api/fast/admin/login
+├ ƒ /api/fast/admin/logout
+├ ƒ /api/fast/admin/reset
+├ ƒ /api/fast/ads/current
+├ ƒ /api/fast/channels
+├ ƒ /api/fast/channels/[id]
+├ ƒ /api/fast/channels/[id]/now
+├ ƒ /api/fast/channels/[id]/schedule
+├ ƒ /api/fast/events
+├ ƒ /api/fast/guide
+├ ƒ /api/fast/hls/[...path]
+├ ƒ /api/fast/status
+├ ƒ /api/fast/xmltv
+├ ○ /fast-world/admin
+├ ○ /fast-world/live
+├ ○ /fast-world/live/ops
+├ ○ /icon.svg
+├ ○ /robots.txt
+└ ○ /sitemap.xml
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+6af9ee0f4d51:/app# if [ -f /tmp/fast-world-tv.pid ]; then kill "$(cat /tmp/fast-world-tv.pid)" 2>/dev/null || true; fi; (pnpm start > /tmp/fast-world-tv.log 2>&
+1 & echo $! > /tmp/fast-world-tv.pid); sleep 3; echo "pid=$(cat /tmp/fast-world-tv.pid)"; ps -o pid,stat,cmd; echo '--- service log ---'; cat /tmp/fast-world-tv
+.log
+pid=1751
+ps: bad -o argument 'cmd', supported arguments: user,group,comm,args,pid,ppid,pgid,etime,nice,rgroup,ruser,time,tty,vsz,sid,stat,rss
+--- service log ---
+
+> fast-world-tv@0.1.0 start /app
+> next start
+
+▲ Next.js 16.3.3
+- Local:         http://localhost:3000
+- Network:       http://172.20.0.2:3000
+✓ Ready in 63ms
+✓ Running next.config.ts took 17ms
+ ELIFECYCLE  Command failed with exit code 143.
+6af9ee0f4d51:/app#

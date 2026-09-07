@@ -1,0 +1,42 @@
+New Terminal Output:
+
+d55ac9bae4ee:/app# npx tsx /tmp/test-back-to-back.ts
+Test 1 - Back-to-back breaks with segments in each break:
+[
+  {
+    "opp": "opp_ch_0",
+    "ext": "BRK-1"
+  },
+  {
+    "opp": "opp_ch_1",
+    "ext": "BRK-2"
+  }
+]
+Expected: BRK-1, BRK-2
+
+Test 2 - Back-to-back breaks with DATERANGE for break 2 BEFORE its CUE-OUT:
+[
+  {
+    "opp": "opp_ch_0",
+    "ext": "BRK-1"
+  },
+  {
+    "opp": "opp_ch_1",
+    "ext": "BRK-2"
+  }
+]
+Expected: BRK-1, BRK-2
+
+Test 3 - Back-to-back breaks with NO segments:
+[
+  {
+    "opp": "opp_ch_0",
+    "ext": "BRK-1"
+  },
+  {
+    "opp": "opp_ch_0",
+    "ext": "BRK-2"
+  }
+]
+Expected: BRK-1, BRK-2
+d55ac9bae4ee:/app#

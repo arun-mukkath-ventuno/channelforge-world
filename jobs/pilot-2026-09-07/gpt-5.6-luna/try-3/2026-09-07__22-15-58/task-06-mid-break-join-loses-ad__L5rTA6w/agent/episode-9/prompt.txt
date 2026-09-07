@@ -1,0 +1,74 @@
+New Terminal Output:
+
+703450db135d:/app# python3 - <<'PY'
+> from pathlib import Path
+> p = Path('packages/data-plane/src/server.ts')
+> s = p.read_text()
+> old = '''      else if (decider) {
+>         const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+>         if (decided) pod = decided;
+>       }
+> '''
+> new = '''      else if (decider) {
+>         const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+>         if (decided) {
+>           pod = decided;
+>           // Persist the miss result for this session/break. Without this write,
+>           // a viewer entering mid-break (or reconnecting) has to decide again
+>           // on every manifest request and can fall back to origin content.
+>           await podCache.set({
+>             sessionId: session,
+>             opportunityId: avail.opportunityId,
+>             channelId: channel,
+>             breakDuration: avail.duration,
+>             pod: decided,
+>           });
+>         }
+>       }
+> '''
+> if old not in s:
+>     raise SystemExit('target block not found')
+> p.write_text(s.replace(old, new))
+> PY
+bash: python3: command not found
+703450db135d:/app#
+703450db135d:/app# git diff -- packages/data-plane/src/server.ts
+bash: git: command not found
+703450db135d:/app# npm run typecheck
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+703450db135d:/app# npm test -- --run
+
+> ssaiadserver@0.1.0 test
+> vitest run --run
+
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/control-plane/src/server.test.ts (0)
+ ❯ packages/creative-worker/src/worker.test.ts (5)
+   ❯ prepareCreative — state machine (PRD §14) (5)
+     × validates, transcodes, stores HLS and marks the creative ready
+       ⠼ [ beforeEach ]
+       ⠼ [ afterEach ]
+     × fails the creative on a duration mismatch, recording the reason (§40)
+       ⠼ [ beforeEach ]
+       ⠼ [ afterEach ]
+     × fails cleanly when transcoding throws
+       ⠼ [ beforeEach ]
+       ⠼ [ afterEach ]
+     × prepares from a source stored in the object store (uploaded via API)
+       ⠼ [ beforeEach ]
+       ⠼ [ afterEach ]
+     × fails when no source is set
+       ⠼ [ beforeEach ]
+       ⠼ [ afterEach ]
+ ❯ packages/persistence/src/reconciliation.test.ts (0)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ❯ packages/persistence/src/analytics.test.ts (0)
+ ❯ packages/control-plane/src/beacons.test.ts (0)
+ ❯ packages/control-plane/src/vast-inventory.test.ts (0)
+

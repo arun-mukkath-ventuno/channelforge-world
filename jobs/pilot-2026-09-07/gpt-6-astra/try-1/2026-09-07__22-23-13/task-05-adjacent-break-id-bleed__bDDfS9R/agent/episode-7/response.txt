@@ -1,0 +1,18 @@
+{
+  "analysis": "All 60 inline adjacent-break cases passed, including generic DATERANGEs and combined OUT/IN markers. The existing test run is still in progress. Only the avail detector source has been edited.",
+  "plan": "Wait for the existing tests to finish, then launch the affected data-plane from the changed source and verify its health endpoint. There was no existing service process to stop.",
+  "commands": [
+    {
+      "keystrokes": "",
+      "duration": 1
+    },
+    {
+      "keystrokes": "nohup node --import tsx /app/packages/data-plane/src/server.ts >/dev/null 2>&1 &\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "wget -qO- http://localhost:4010/health; printf '\\n'; ps aux | grep '[n]ode'; sed -n '73,94p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "analysis": "The defect is in DATERANGE association: closing markers are treated as candidates for a new break's producer ID. With no intervening segment, that cached closing ID seeds the next CUE-OUT, and its correct opening ID cannot replace it. The fix should exclude explicit closing DATERANGEs from ID association while preserving generic DATERANGEs and either opening-marker order.",
+  "plan": "Confirm the existing closing-marker example and reproduce the adjacent-break failure in memory before changing only the avail detector.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '75,132p' packages/data-plane/src/avails.test.ts; cat packages/data-plane/tsconfig.json; cat packages/persistence/src/pod-cache.ts | head -60; cat tsconfig.base.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "node --import tsx --input-type=module <<'JS'\nimport { detectAvails } from './packages/data-plane/src/avails.ts';\nconst m = ['#EXTM3U','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID=\"first\",SCTE35-OUT=0xFC','#EXTINF:6,','a.ts','#EXT-X-CUE-IN','#EXT-X-DATERANGE:ID=\"first\",SCTE35-IN=0xFC','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID=\"second\",SCTE35-OUT=0xFC','#EXTINF:6,','b.ts','#EXT-X-CUE-IN'].join('\\n');\nconsole.log(detectAvails(m, 'ch').map(a => ({id:a.opportunityId, producer:a.externalBreakId})));\nJS\n",
+      "duration": 0.1
+    }
+  ]
+}

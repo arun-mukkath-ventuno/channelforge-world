@@ -1,0 +1,10 @@
+{
+  "analysis": "Rights policy resolution already includes asset.series_id, confirming how series membership is represented. The output was truncated around the critical takedown lookup, so that section needs a narrower read.",
+  "plan": "Inspect the exact lookup and model, then patch only the missing series target if confirmed.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '155,235p' app/repositories/rights.py; sed -n '95,150p' app/models/rights.py; grep -n -C 3 series_id app/models/asset.py; ls tests/*rights*; command -v restart-api\n",
+      "duration": 0.1
+    }
+  ]
+}

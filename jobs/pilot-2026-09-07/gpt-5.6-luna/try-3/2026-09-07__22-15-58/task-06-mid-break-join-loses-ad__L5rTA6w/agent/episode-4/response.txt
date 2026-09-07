@@ -1,0 +1,18 @@
+{
+  "analysis": "The data plane detects complete avails and stitches only when a resolved pod is found. The persistence cache is keyed by (sessionId, opportunityId), which matches the symptom: a reconnect or first mid-break request may use a newly initialized session state and miss the prior decision. The previous output was truncated before showing decider/server and the full cache implementation, so I need inspect those exact files and tests to confirm whether the bug is an overly narrow session-scoped lookup or incorrect break initialization.",
+  "plan": "Read decider.ts, server.ts, avails.ts, stitch.ts, and pod-cache.ts completely, then inspect relevant tests around session continuity and decision reuse. Trace the request flow: manifest fetch, avail detection, decision lookup, cache population, and stitching. The fix must preserve continuous polling while allowing a session entering an already-active break to recover the decision for that exact opportunity, including after reconnect.",
+  "commands": [
+    {
+      "keystrokes": "for f in packages/data-plane/src/decider.ts packages/data-plane/src/server.ts packages/data-plane/src/avails.ts packages/data-plane/src/stitch.ts packages/persistence/src/pod-cache.ts; do echo \"===== $f =====\"; cat \"$f\"; done\n",
+      "duration": 0.7
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- data-plane tests --'; for f in packages/data-plane/src/*.test.ts; do echo \"===== $f =====\"; grep -nHE 'session|decision|pod|avail|manifest|stitch|reconnect|cache|opportunity' \"$f\"; done\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "grep -RInE 'PodCache|podCache|CachedPod|get\\(|set\\(|getDecisionsBy|decide|detectAvails|stitchManifest' packages/data-plane/src packages/control-plane/src packages/persistence/src --include='*.ts'\n",
+      "duration": 0.5
+    }
+  ]
+}

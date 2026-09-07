@@ -1,0 +1,22 @@
+{
+  "analysis": "The source edit was applied successfully: ad beacons now include an optional pod_id derived from the ad window start, while ad_id remains the creative/ad identifier. The validation commands were concatenated because the prior command strings lacked terminating newlines, so they did not run as intended. No test, type-check, or build result is available yet.",
+  "plan": "Run the test suite, TypeScript check, and production build as separate newline-terminated commands. Then inspect the final diff and determine how to restart the service. Since PID 1 is only sleep infinity and no Next process is running, start the production server in the background after a successful build, using the configured port.",
+  "commands": [
+    {
+      "keystrokes": "pnpm test -- --run\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "pnpm exec tsc --noEmit\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "pnpm build\n",
+      "duration": 6.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Final source diff:'; diff -u <(sed -n '1,220p' src/lib/ssai.ts) <(sed -n '1,220p' src/lib/ssai.ts) 2>/dev/null || true; grep -n -A18 -B4 'function sendAdBeacon' src/lib/ssai.ts; grep -n -A8 -B5 'airing_' src/lib/ssai.ts; printf '%s\\n' 'Processes:'; ps aux\n",
+      "duration": 0.5
+    }
+  ]
+}

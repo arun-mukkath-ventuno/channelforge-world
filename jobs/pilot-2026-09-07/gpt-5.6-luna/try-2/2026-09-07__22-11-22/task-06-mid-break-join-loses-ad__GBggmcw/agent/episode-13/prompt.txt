@@ -1,0 +1,228 @@
+New Terminal Output:
+
+26a4261744ce:/app# node <<'NODE'
+> const fs = require('fs');
+> const p = 'packages/data-plane/src/avails.ts';
+> let s = fs.readFileSync(p, 'utf8');
+> s = s.replace(
+>   'const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;',
+>   'const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;\nconst TARGET_DURATION = /^#EXT-X-TARGETDURATION:(\\d+(?:\\.\\d+)?)/;\nconst CUE_OUT_CONT = /^#
+EXT-X-CUE-OUT-CONT:(.*)$/;'
+> );
+> s = s.replace(
+>   '  let mediaSequence = 0;\n  let lastPdt: string | undefined;',
+>   '  let mediaSequence = 0;\n  let targetDuration = 6;\n  let lastPdt: string | undefined;'
+> );
+> s = s.replace(
+>   '    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);',
+>   '    const targetMatch = trimmed.match(TARGET_DURATION);\n    if (targetMatch) {\n      targetDuration = Number(targetMatch[1]);\n      continue;\n    }\n\n
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);'
+> );
+> const anchor = '    if (marker?.kind === "cue_out" && !open) {';
+> const insert = [
+>   '    // A playlist that starts mid-break carries CUE-OUT-CONT instead of the',
+>   '    // original CUE-OUT. Reconstruct the original start sequence so the',
+>   '    // opportunity key remains stable across viewers.',
+>   '    const contMatch = trimmed.match(CUE_OUT_CONT);',
+>   '    if (contMatch && !open) {',
+>   '      const elapsedMatch = contMatch[1].match(/(?:^|,)ElapsedTime=(\\d+(?:\\.\\d+)?)/i);',
+>   '      const durationMatch = contMatch[1].match(/(?:^|,)Duration=(\\d+(?:\\.\\d+)?)/i);',
+>   '      const elapsed = elapsedMatch ? Number(elapsedMatch[1]) : NaN;',
+>   '      const duration = durationMatch ? Number(durationMatch[1]) : NaN;',
+>   '      if (Number.isFinite(elapsed) && targetDuration > 0) {',
+>   '        open = {',
+>   '          startLine: i,',
+>   '          startSequence: mediaSequence - Math.round(elapsed / targetDuration),',
+>   '          measuredDuration: 0,',
+>   '          ...(Number.isFinite(duration) ? { declaredDuration: duration } : {}),',
+>   '          ...(lastPdt === undefined ? {} : { pdt: lastPdt }),',
+>   '          ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),',
+>   '        };',
+>   '      }',
+>   '      continue;',
+>   '    }',
+>   '',
+> ].join('\n');
+> if (!s.includes(anchor)) throw new Error('anchor not found');
+> s = s.replace(anchor, insert + anchor);
+> fs.writeFileSync(p, s);
+> NODE
+26a4261744ce:/app# sed -n '30,115p' packages/data-plane/src/avails.ts
+  /** Line index of the CUE-IN marker. */
+  endLine: number;
+}
+
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+const TARGET_DURATION = /^#EXT-X-TARGETDURATION:(\d+(?:\.\d+)?)/;
+const CUE_OUT_CONT = /^#EXT-X-CUE-OUT-CONT:(.*)$/;
+
+/** Detect all avails visible in the manifest, including an active trailing
+ * avail whose CUE-IN has not entered the live window yet. */
+export function detectAvails(manifest: string, channelId: string): Avail[] {
+  const lines = manifest.split("\n");
+
+  let mediaSequence = 0;
+  let targetDuration = 6;
+  let lastPdt: string | undefined;
+  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+    measuredDuration: number;
+    pdt?: string;
+    externalBreakId?: string;
+  } | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    if (seqMatch) {
+      mediaSequence = Number(seqMatch[1]);
+      continue;
+    }
+
+    const targetMatch = trimmed.match(TARGET_DURATION);
+    if (targetMatch) {
+      targetDuration = Number(targetMatch[1]);
+      continue;
+    }
+
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    if (pdtMatch) {
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    // A playlist that starts mid-break carries CUE-OUT-CONT instead of the
+    // original CUE-OUT. Reconstruct the original start sequence so the
+    // opportunity key remains stable across viewers.
+    const contMatch = trimmed.match(CUE_OUT_CONT);
+    if (contMatch && !open) {
+      const elapsedMatch = contMatch[1].match(/(?:^|,)ElapsedTime=(\d+(?:\.\d+)?)/i);
+      const durationMatch = contMatch[1].match(/(?:^|,)Duration=(\d+(?:\.\d+)?)/i);
+      const elapsed = elapsedMatch ? Number(elapsedMatch[1]) : NaN;
+      const duration = durationMatch ? Number(durationMatch[1]) : NaN;
+      if (Number.isFinite(elapsed) && targetDuration > 0) {
+        open = {
+          startLine: i,
+          startSequence: mediaSequence - Math.round(elapsed / targetDuration),
+          measuredDuration: 0,
+          ...(Number.isFinite(duration) ? { declaredDuration: duration } : {}),
+          ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+          ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+        };
+      }
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+26a4261744ce:/app# npm run typecheck && npm run build --workspace @ssai/data-plane
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+node --input-type=module <<'NODE'
+import { detectAvails } from './packages/data-plane/dist/avails.js';
+const bodies = [
+  '#EXT-X-MEDIA-SEQUENCE:105\n#EXT-X-TARGETDURATION:6\n#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60\n#EXTINF:6.000,\nslate.ts',
+  '#EXT-X-MEDIA-SEQUENCE:100\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nslate.ts'
+];
+for (const body of bodies) console.log(JSON.stringify(detectAvails(body, 'ch')));
+NODE
+packages/data-plane/src/avails.ts:98:28 - error TS2532: Object is possibly 'undefined'.
+
+98       const elapsedMatch = contMatch[1].match(/(?:^|,)ElapsedTime=(\d+(?:\.\d+)?)/i);
+                              ~~~~~~~~~~~~
+
+packages/data-plane/src/avails.ts:99:29 - error TS2532: Object is possibly 'undefined'.
+
+99       const durationMatch = contMatch[1].match(/(?:^|,)Duration=(\d+(?:\.\d+)?)/i);
+                               ~~~~~~~~~~~~
+
+
+Found 2 errors.
+
+26a4261744ce:/app# node --input-type=module <<'NODE'
+> import { detectAvails } from './packages/data-plane/dist/avails.js';
+> const bodies = [
+>   '#EXT-X-MEDIA-SEQUENCE:105\n#EXT-X-TARGETDURATION:6\n#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60\n#EXTINF:6.000,\nslate.ts',
+>   '#EXT-X-MEDIA-SEQUENCE:100\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nslate.ts'
+> ];
+> for (const body of bodies) console.log(JSON.stringify(detectAvails(body, 'ch')));
+> NODE
+[{"opportunityId":"opp_ch_100","channelId":"ch","duration":60,"declaredDuration":60,"measuredDuration":6,"startSequence":100,"startLine":2,"endLine":4}]
+[{"opportunityId":"opp_ch_100","channelId":"ch","duration":30,"declaredDuration":30,"measuredDuration":6,"startSequence":100,"startLine":1,"endLine":3}]
+26a4261744ce:/app# npm test -- --run packages/data-plane/src/avails.test.ts >/tmp/avails-test.log 2>&1; rc=$?; cat /tmp/avails-test.log; echo TEST_EXIT=$rc; npm
+ run typecheck
+
+> ssaiadserver@0.1.0 test
+> vitest run --run packages/data-plane/src/avails.test.ts
+
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/data-plane/src/avails.test.ts (10 tests | 1 failed) 9ms
+   × detectAvails (PRD §9, §41) > ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet) 5ms
+     → expected [ { opportunityId: 'opp_ch_0', …(7) } ] to deeply equal []
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts > detectAvails (PRD §9, §41) > ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)
+AssertionError: expected [ { opportunityId: 'opp_ch_0', …(7) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "channelId": "ch",
++     "declaredDuration": 30,
++     "duration": 30,
++     "endLine": 3,
++     "measuredDuration": 6,
++     "opportunityId": "opp_ch_0",
++     "startLine": 1,
++     "startSequence": 0,
++   },
++ ]
+
+ ❯ packages/data-plane/src/avails.test.ts:71:35
+     69|   it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet…
+     70|     const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30"…
+     71|     expect(detectAvails(m, "ch")).toEqual([]);
+       |                                   ^
+     72|   });
+     73|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 9 passed (10)
+   Start at  16:45:10
+   Duration  264ms (transform 102ms, setup 0ms, collect 95ms, tests 9ms, environment 0ms, prepare 41ms)
+
+TEST_EXIT=1
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+

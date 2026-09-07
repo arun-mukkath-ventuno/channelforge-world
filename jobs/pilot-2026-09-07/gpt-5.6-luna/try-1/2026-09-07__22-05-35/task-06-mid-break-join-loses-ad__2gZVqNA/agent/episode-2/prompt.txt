@@ -1,0 +1,142 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# ls -la; printf '\nPackage manifest:\n'; cat package.json; printf '\nSource-like files (excluding node_modules/.git):\n'; find . -path './node
+_modules' -prune -o -path './.git' -prune -o -type f -print | sort | sed -n '1,240p'
+total 252
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 .
+drwxr-xr-x    1 root     root          4096 Sep  7 16:37 ..
+drwxr-xr-x  226 root     root         12288 Sep  5 09:09 node_modules
+-rw-r--r--    1 root     root        219448 Sep  5 09:09 package-lock.json
+-rw-r--r--    1 root     root           742 Sep  5 08:18 package.json
+drwxr-xr-x    1 root     root          4096 Sep  5 08:18 packages
+-rw-r--r--    1 root     root           608 Sep  5 08:18 tsconfig.base.json
+-rw-r--r--    1 root     root           274 Sep  5 08:18 tsconfig.json
+
+Package manifest:
+{
+  "name": "ssaiadserver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FAST World SSAI Ad Server — server-side ad insertion for ChannelForge linear HLS channels",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --build",
+    "dev:control": "npm run dev --workspace @ssai/control-plane",
+    "dev:data": "npm run dev --workspace @ssai/data-plane",
+    "lint": "tsc --build --pretty false"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
+
+Source-like files (excluding node_modules/.git):
+./package-lock.json
+./package.json
+./packages/admin-web/dist/assets/index-DIH6SRpN.css
+./packages/admin-web/dist/assets/index-RpeE7pin.js
+./packages/admin-web/dist/favicon.svg
+./packages/admin-web/dist/index.html
+./packages/admin-web/index.html
+./packages/admin-web/node_modules/@esbuild/linux-arm64/README.md
+./packages/admin-web/node_modules/@esbuild/linux-arm64/bin/esbuild
+./packages/admin-web/node_modules/@esbuild/linux-arm64/package.json
+./packages/admin-web/node_modules/esbuild/LICENSE.md
+./packages/admin-web/node_modules/esbuild/README.md
+./packages/admin-web/node_modules/esbuild/bin/esbuild
+./packages/admin-web/node_modules/esbuild/install.js
+./packages/admin-web/node_modules/esbuild/lib/main.d.ts
+./packages/admin-web/node_modules/esbuild/lib/main.js
+./packages/admin-web/node_modules/esbuild/package.json
+./packages/admin-web/node_modules/vite/LICENSE.md
+./packages/admin-web/node_modules/vite/README.md
+./packages/admin-web/node_modules/vite/bin/openChrome.applescript
+./packages/admin-web/node_modules/vite/bin/vite.js
+./packages/admin-web/node_modules/vite/client.d.ts
+./packages/admin-web/node_modules/vite/dist/client/client.mjs
+./packages/admin-web/node_modules/vite/dist/client/env.mjs
+./packages/admin-web/node_modules/vite/dist/node-cjs/publicUtils.cjs
+./packages/admin-web/node_modules/vite/dist/node/chunks/dep-3RmXg9uo.js
+./packages/admin-web/node_modules/vite/dist/node/chunks/dep-CV-fz3CQ.js
+./packages/admin-web/node_modules/vite/dist/node/chunks/dep-CvfTChi5.js
+./packages/admin-web/node_modules/vite/dist/node/chunks/dep-DDtvSN7_.js
+./packages/admin-web/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js
+./packages/admin-web/node_modules/vite/dist/node/cli.js
+./packages/admin-web/node_modules/vite/dist/node/constants.js
+./packages/admin-web/node_modules/vite/dist/node/index.d.ts
+./packages/admin-web/node_modules/vite/dist/node/index.js
+./packages/admin-web/node_modules/vite/dist/node/module-runner.d.ts
+./packages/admin-web/node_modules/vite/dist/node/module-runner.js
+./packages/admin-web/node_modules/vite/dist/node/moduleRunnerTransport.d-DJ_mE5sf.d.ts
+./packages/admin-web/node_modules/vite/index.cjs
+./packages/admin-web/node_modules/vite/index.d.cts
+./packages/admin-web/node_modules/vite/misc/false.js
+./packages/admin-web/node_modules/vite/misc/true.js
+./packages/admin-web/node_modules/vite/package.json
+./packages/admin-web/node_modules/vite/types/customEvent.d.ts
+./packages/admin-web/node_modules/vite/types/hmrPayload.d.ts
+./packages/admin-web/node_modules/vite/types/hot.d.ts
+./packages/admin-web/node_modules/vite/types/import-meta.d.ts
+./packages/admin-web/node_modules/vite/types/importGlob.d.ts
+./packages/admin-web/node_modules/vite/types/importMeta.d.ts
+./packages/admin-web/node_modules/vite/types/internal/cssPreprocessorOptions.d.ts
+./packages/admin-web/node_modules/vite/types/internal/lightningcssOptions.d.ts
+./packages/admin-web/node_modules/vite/types/metadata.d.ts
+./packages/admin-web/node_modules/vite/types/package.json
+./packages/admin-web/package.json
+./packages/admin-web/public/favicon.svg
+./packages/admin-web/src/App.tsx
+./packages/admin-web/src/api/client.ts
+./packages/admin-web/src/api/ssai.ts
+./packages/admin-web/src/auth/AuthContext.tsx
+./packages/admin-web/src/auth/ProtectedLayout.tsx
+./packages/admin-web/src/components/PageHeader.tsx
+./packages/admin-web/src/components/Stat.t
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+singabcdefghijklmnopqrstu
+vwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_The source map %q was referenced by the file %q here:http2: Framer %p: failed to decode just-written frameillegal use of AllowIl
+legalReads with ReadMetaHeadersnet/http: CloseNotify called after ServeHTTP finishedtls: unable to generate random session ticket key: %vtls: received unexpecte
+d handshake message of type %Ttls: unexpected server_name extension in server hellotls: client does not support uncompressed connectionstls: HKDF-Expand-Label i
+nvocation failed unexpectedlytls: failed to find any PEM data in certificate inputcrypto/elliptic: attempted operation on invalid pointx509: certificate specifi
+es an incompatible key usagecrypto/ecdh: internal error: mismatched isLess inputschacha20: internal error: wrong dst and/or src lengthfmt: scanning called Unrea
+dRune with no rune available%s[watch] build finished, watching for changes%s...%s
+./packages/admin-web/node_modules/esbuild/bin/esbuild:1101086:        }internal error: expected to be already writing a framehttp2: received GOAWAY %+v, startin
+g graceful shutdownhttp2: handler wrote more than declared Content-Lengthname is not in canonical format (it must end with a .)arch-specific crc32 instruction f
+or IEEE not available"UTF-8" will be used instead of unsupported charset %qcertificate is not valid for requested server name: %wcryptobyte: Builder is exceedin
+g its fixed-size buffertls: server resumed a session with a different versiontls: server accepted 0-RTT with the wrong cipher suitetls: server sent ECH retry co
+nfigs after accepting ECHtls: certificate used with invalid signature algorithmtls: client indicated early data in second ClientHellotls: failed to create ciphe
+r while encrypting ticket: tls: found unknown private key type in PKCS#8 wrappingx509: cannot verify signature: algorithm unimplementedx509: invalid RDNSequence
+: invalid attribute value: %sURI with IP (%q) cannot be matched against constraintsValid values are %s, or %s where N is a version number.[%s] %q filter is not
+a valid Go regular expression: %qThe %q setting is not a valid Go regular expression: %sExternal path %q cannot have more than one "*" wildcardDefine: map[strin
+g]string{"process.env.NODE_ENV": "%s"}Cannot transform with linked or external legal commentsCannot call "resolve" before plugin setup has completedreflect: int
+ernal error: invalid use of makeMethodValuemheap.freeSpanLocked - invalid free of user arena chunkcasfrom_Gscanstatus:top gp->status is not in scan stateA gener
+ator function expression cannot be named "yield"Invalid pattern %q, must have at most one "*" characterbufio.Scanner: SplitFunc returns negative advance countRe
+-export of %q in %q is ambiguous and has been removedhttp2: server: error reading preface from client %v: %vinternal error: can only be writing one frame at a t
+imeeach colon-separated field must have at least one digit
+./packages/admin-web/node_modules/esbuild/bin/esbuild:1101099:tried to trace goroutine with invalid or unsupported statussync/atomic: store of inconsistently ty
+ped value into ValueCannot use an "import" expression here without parentheses:Suspicious use of the "!" operator inside the "in" operatorTop-level return canno
+t be used inside an ECMAScript moduleComparison with NaN using the %q operator here is always %vThe target %q is invalid because it doesn't start with "./"The p
+ackage import %q is not defined in this "imports" map:    Stopping because [%s, %s] is in "fallbackExclusionList"bufio.Scanner: SplitFunc returns advance count
+beyond inputhttp: superfluous response.WriteHeader call from %s (%s:%d)http: response.Write on hijacked connection from %s (%s:%d)tls: server resumed a session
+with a different cipher suitetls: server selected TLS 1.3 using the legacy version fieldtls: server sent an unnecessary HelloRetryRequest key_sharetls: client d
+idn't send one key share in second ClientHellotls: client sent unexpected key share in second ClientHellocrypto/ecdh: private key and public key curves do not m
+atchreflect: call of reflect.Value.Len on ptr to non-array Valuemanual span allocation called with non-manually-managed typeaddr range base and limit are not in
+ the same memory segmentruntime: failed to configure profiling timer; timer_settime(runtime: malformed profBuf buffer - tag and data out of sync%q cannot be bou
+nd multiple times in the same parameter listStrict mode is triggered by the "use strict" directive here:The path %q must not equal "#" and must not start with "
+#/".bytes.Reader.UnreadRune: previous operation was not ReadRune"sideEffects" is false in the enclosing "package.json" file:internal error: attempt to send fram
+e on a closed stream: %vtls: no supported versions satisfy MinVersion and MaxVersiontls: initial handshake had non-empty renegotiation extensiontls: server resu
+med a session with a different EMS extensiontls: client requested unsupported application protocols (%s)runtime: may need to increase max user processes (ulimit
+ -u)
+

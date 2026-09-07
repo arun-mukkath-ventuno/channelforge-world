@@ -1,0 +1,127 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# nl -ba packages/data-plane/src/avails.ts | sed -n '90,190p'; printf '\n===== stitch implementation =====\n'; nl -ba packages/data-plane/src/s
+titch.ts | sed -n '1,260p'
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+    99	        opportunityId: `opp_${channelId}_${open.startSequence}`,
+   100	        channelId,
+   101	        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+   102	        duration: declared ?? open.measuredDuration,
+   103	        ...(declared === undefined ? {} : { declaredDuration: declared }),
+   104	        measuredDuration: open.measuredDuration,
+   105	        startSequence: open.startSequence,
+   106	        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+   107	        startLine: open.startLine,
+   108	        endLine: i,
+   109	      });
+   110	      open = null;
+   111	      continue;
+   112	    }
+   113	
+   114	    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+   115	    const infMatch = trimmed.match(EXTINF);
+   116	    if (infMatch) {
+   117	      const segDur = Number(infMatch[1]);
+   118	      if (open) open.measuredDuration += segDur;
+   119	      // The URI line follows; advance the sequence when we consume it below.
+   120	    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+   121	      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+   122	      mediaSequence += 1;
+   123	      blockBreakId = undefined;
+   124	    }
+   125	  }
+   126	
+   127	  return avails;
+   128	}
+
+===== stitch implementation =====
+     1	// Manifest stitching (PRD §22-25). Given an origin media playlist, its detected
+     2	// avails, and the *resolved* pod media for each avail, replace each avail's
+     3	// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+     4	// synthesized for slate). Avails without resolved media are left as origin (their
+     5	// ChannelForge slate plays) — playback survives ad failure (§42).
+     6	//
+     7	// Pure and synchronous by design: no DB, no transcode, no network. Segment media
+     8	// is resolved beforehand (see media.ts) so this stays a lean string transform.
+     9	
+    10	import type { Avail } from "./avails.js";
+    11	import type { RenderedPodItem } from "./media.js";
+    12	
+    13	export interface StitchOptions {
+    14	  /** Emit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+    15	  emitAdMetadata?: boolean;
+    16	}
+    17	
+    18	export interface StitchResult {
+    19	  manifest: string;
+    20	  /** Opportunity ids that were stitched (had resolved media). */
+    21	  stitched: string[];
+    22	}
+    23	
+    24	/** Replace each avail that has resolved pod media; leave the rest untouched. */
+    25	export function stitchManifest(
+    26	  origin: string,
+    27	  avails: Avail[],
+    28	  rendered: Map<string, RenderedPodItem[]>,
+    29	  opts: StitchOptions = {},
+    30	): StitchResult {
+    31	  const emitMeta = opts.emitAdMetadata ?? true;
+    32	  const lines = origin.split("\n");
+    33	
+    34	  const availByStart = new Map<number, Avail>();
+    35	  for (const a of avails) availByStart.set(a.startLine, a);
+    36	
+    37	  const out: string[] = [];
+    38	  const stitched: string[] = [];
+    39	
+    40	  for (let i = 0; i < lines.length; i++) {
+    41	    const avail = availByStart.get(i);
+    42	    const pod = avail ? rendered.get(avail.opportunityId) : undefined;
+    43	
+    44	    if (avail && pod && pod.length > 0) {
+    45	      out.push(...renderPod(pod, emitMeta, avail.programDateTime));
+    46	      stitched.push(avail.opportunityId);
+    47	      i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+    48	      continue;
+    49	    }
+    50	    out.push(lines[i]!);
+    51	  }
+    52	
+    53	  return { manifest: out.join("\n"), stitched };
+    54	}
+    55	
+    56	function renderPod(pod: RenderedPodItem[], emitMeta: boolean, breakStart?: string): string[] {
+    57	  const out: string[] = [];
+    58	  for (const item of pod) {
+    59	    out.push("#EXT-X-DISCONTINUITY"); // timing/encoding boundary (PRD §24)
+    60	
+    61	    if (item.type === "ad" && emitMeta && item.creativeId) {
+    62	      const start = breakStart
+    63	        ? new Date(new Date(breakStart).getTime() + item.startOffset * 1000).toISOString()
+    64	        : undefined;
+    65	      out.push(
+    66	        `#EXT-X-DATERANGE:ID="${item.creativeId}",CLASS="com.fastworld.ad",` +
+    67	          (start ? `START-DATE="${start}",` : "") +
+    68	          `DURATION=${item.duration},X-AD-ID="${item.creativeId}"` +
+    69	          (item.campaignId ? `,X-CAMPAIGN-ID="${item.campaignId}"` : ""),
+    70	      );
+    71	    }
+    72	
+    73	    for (const seg of item.segments) {
+    74	      out.push(`#EXTINF:${seg.duration.toFixed(3)},`);
+    75	      out.push(seg.uri);
+    76	    }
+    77	  }
+    78	  out.push("#EXT-X-DISCONTINUITY"); // rejoin origin content (PRD §24)
+    79	  return out;
+    80	}
+727f8e3dc8f6:/app# grep -RIn -E 'endLine|detectAvails|incomplete trailing|CUE-IN' packages/data-plane/src --exclude='*.test.ts' 2>/dev/null | sed -n '1,180p'
+727f8e3dc8f6:/app#

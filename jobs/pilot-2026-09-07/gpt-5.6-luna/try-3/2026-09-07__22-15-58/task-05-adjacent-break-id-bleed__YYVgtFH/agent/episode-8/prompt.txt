@@ -1,0 +1,94 @@
+New Terminal Output:
+
+ff6148ea39e4:/app# sed -i '/^      open = null;$/a\      // A CUE-IN closes this avail marker block. Clear the id here because back-to-back\n      // breaks may
+ have no segment URI between this break and the next CUE-OUT.\n      blockBreakId = undefined;' packages/data-plane/src/avails.ts
+ff6148ea39e4:/app# sed -n '100,122p' packages/data-plane/src/avails.ts
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      // A CUE-IN closes this avail marker block. Clear the id here because back-to-back
+      // breaks may have no segment URI between this break and the next CUE-OUT.
+      blockBreakId = undefined;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      // The URI line follows; advance the sequence when we consume it below.
+ff6148ea39e4:/app# npm run test --workspace @ssai/data-plane && npm run build --workspace @ssai/data-plane
+
+> @ssai/data-plane@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app/packages/data-plane
+
+ ✓ src/avails.test.ts (10)
+ ✓ src/media.test.ts (5)
+ ✓ src/origin-slice4.test.ts (7)
+ ✓ src/origin.test.ts (4)
+ ✓ src/stitch.test.ts (3)
+
+ Test Files  5 passed (5)
+      Tests  29 passed (29)
+   Start at  16:47:36
+   Duration  862ms (transform 174ms, setup 0ms, collect 214ms, tests 23ms, environment 1ms, prepare 191ms)
+
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+ff6148ea39e4:/app# grep -n -A8 -B5 'blockBreakId = undefined' packages/data-plane/src/avails.ts; echo '--- service scripts/processes ---'; ps aux | grep -E '[n]
+ode|[t]sx|data-plane' || true
+108-        endLine: i,
+109-      });
+110-      open = null;
+111-      // A CUE-IN closes this avail marker block. Clear the id here because back-to-back
+112-      // breaks may have no segment URI between this break and the next CUE-OUT.
+113:      blockBreakId = undefined;
+114-      continue;
+115-    }
+116-
+117-    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+118-    const infMatch = trimmed.match(EXTINF);
+119-    if (infMatch) {
+120-      const segDur = Number(infMatch[1]);
+121-      if (open) open.measuredDuration += segDur;
+122-      // The URI line follows; advance the sequence when we consume it below.
+123-    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+124-      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+125-      mediaSequence += 1;
+126:      blockBreakId = undefined;
+127-    }
+128-  }
+129-
+130-  return avails;
+131-}
+--- service scripts/processes ---
+ 1003 root      0:00 grep -E [n]ode|[t]sx|data-plane
+ff6148ea39e4:/app# if ps aux | grep -q '[n]ode .*packages/data-plane/dist/server.js'; then pkill -f 'node .*packages/data-plane/dist/server.js'; sleep 0.5; fi;
+if [ -n "${DATA_PLANE_PORT:-}" ] || [ -n "${REDIS_URL:-}" ]; then npm run start --workspace @ssai/data-plane >/tmp/data-plane.log 2>&1 & echo $!; sleep 1; cat /
+tmp/data-plane.log; else echo 'No running data-plane service and required runtime environment is not configured; source/build verification complete.'; fi
+[1] 1012
+1012
+
+> @ssai/data-plane@0.1.0 start
+> node dist/server.js
+
+(node:1024) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for acce
+ssing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1788799660886,"pid":1024,"hostname":"ff6148ea39e4","msg":"Server listening at http://127.0.0.1:4010"}
+{"level":30,"time":1788799660886,"pid":1024,"hostname":"ff6148ea39e4","msg":"Server listening at http://172.21.0.3:4010"}
+ff6148ea39e4:/app#

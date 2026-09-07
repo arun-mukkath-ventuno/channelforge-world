@@ -1,0 +1,14 @@
+{
+  "analysis": "The workspace contains prebuilt artifacts and separate data/control planes. BusyBox grep lacks exclusion flags, so searches will be restricted directly to source directories.",
+  "plan": "Inspect the data-plane source and marker references to identify the parser and its consumers.",
+  "commands": [
+    {
+      "keystrokes": "find packages/data-plane/src -type f; grep -RniE 'cue.?out|cue.?in|producer|breakId|break_id' packages/*/src | head -160\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat packages/data-plane/package.json; cat packages/data-plane/src/server.ts | head -150\n",
+      "duration": 0.1
+    }
+  ]
+}

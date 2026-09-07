@@ -1,0 +1,279 @@
+New Terminal Output:
+
+eb5fd8e45b3d:/app# cat packages/persistence/src/repositories/sessions.ts; cat packages/persistence/package.json; find packages -path '*/src/*' -name '*.ts' ! -n
+ame '*.test.ts' -exec grep -nH -E 'sessions\.|ensureSession|createSession' {} \;; cat packages/persistence/src/db.ts; tail -90 packages/control-plane/src/server
+.ts; env | sort
+// Playback session repository (PRD §11, §12, §44).
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface PlaybackSession {
+  id: string;
+  channelId: string;
+  createdAt: string;
+  lastActivityAt: string;
+  deviceType: string | null;
+  country: string | null;
+  anonymousId: string | null;
+}
+
+interface SessionRow {
+  id: string;
+  channel_id: string;
+  created_at: unknown;
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+  );
+}
+
+export async function touchSession(db: Queryable, id: string): Promise<void> {
+  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+}
+
+function toSession(r: SessionRow): PlaybackSession {
+  return {
+    id: r.id,
+    channelId: r.channel_id,
+    createdAt: toIso(r.created_at),
+    lastActivityAt: toIso(r.last_activity_at),
+    deviceType: r.device_type,
+    country: r.country,
+    anonymousId: r.anonymous_id,
+  };
+}
+
+export async function getSession(db: Queryable, id: string): Promise<PlaybackSession | null> {
+  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+  return rows[0] ? toSession(rows[0]) : null;
+}
+
+export async function listSessions(db: Queryable, limit = 100): Promise<PlaybackSession[]> {
+  const rows = (
+    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [limit])
+  ).rows;
+  return rows.map(toSession);
+}
+{
+  "name": "@ssai/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI persistence — Postgres repositories, migration runner, and the Redis pod cache that bridges control plane and data plane.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5"
+  }
+}
+packages/control-plane/src/server.ts:133:    await sessionsRepo.ensureSession(pool, {
+packages/control-plane/src/server.ts:210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+packages/persistence/src/index.ts:13:export * as sessions from "./repositories/sessions.js";
+packages/persistence/src/repositories/sessions.ts:37:export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+// Postgres connection + a minimal Queryable abstraction so repositories work
+// against both a real `pg.Pool` and the pg-mem adapter used in tests.
+
+import pg from "pg";
+
+const { Pool } = pg;
+
+/** Anything that can run a parameterized query — pg.Pool, pg.PoolClient, pg-mem. */
+export interface Queryable {
+  query<R extends pg.QueryResultRow = pg.QueryResultRow>(
+    text: string,
+    params?: readonly unknown[],
+  ): Promise<pg.QueryResult<R>>;
+}
+
+export type Pool = pg.Pool;
+
+export function createPool(connectionString = process.env.DATABASE_URL): pg.Pool {
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  return new Pool({ connectionString, max: 10 });
+}
+
+/** Run `fn` inside a transaction, rolling back on error. */
+export async function withTransaction<T>(pool: pg.Pool, fn: (tx: Queryable) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+  });
+
+  app.put("/v1/campaigns/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const existing = await campaignsRepo.getCampaign(pool, id);
+    if (!existing) return reply.code(404).send({ error: "not_found" });
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    await campaignsRepo.insertCampaign(pool, {
+      id,
+      advertiser: (b.advertiser as string) ?? existing.advertiser,
+      startDate: (b.start_date as string) ?? existing.startDate,
+      endDate: (b.end_date as string) ?? existing.endDate,
+      status: (b.status as Campaign["status"]) ?? existing.status,
+      ...(b.target_channels !== undefined ? { targetChannels: b.target_channels as string[] } : {}),
+    });
+    return campaignsRepo.getCampaign(pool, id);
+  });
+
+  app.post("/v1/creatives", async (req, reply) => {
+    const b = (req.body ?? {}) as Record<string, unknown>;
+    if (!b.campaign_id || !b.name || typeof b.duration !== "number") {
+      return reply.code(400).send({ error: "campaign_id, name and numeric duration are required" });
+    }
+    const id = (b.id as string) || `cr_${randomUUID().slice(0, 8)}`;
+    try {
+      await creativesRepo.insertCreative(pool, {
+        id,
+        campaignId: String(b.campaign_id),
+        name: String(b.name),
+        duration: b.duration,
+        status: (b.status as CreativeStatus) ?? "ready",
+        priority: (b.priority as number) ?? 0,
+        weight: (b.weight as number) ?? 100,
+      });
+    } catch {
+      return reply.code(400).send({ error: "invalid campaign_id — creative must reference an existing campaign" });
+    }
+    return reply.code(201).send(await creativesRepo.getCreative(pool, id));
+  });
+
+  // Upload a creative's source media (PRD §14). Stores the file and marks the
+  // creative `uploaded`; the offline worker transcodes it. ffmpeg never runs
+  // here — this endpoint only accepts + stores the source.
+  app.post("/v1/creatives/:id/source", async (req, reply) => {
+    if (!store) return reply.code(501).send({ error: "uploads not configured (no object store)" });
+    const { id } = req.params as { id: string };
+    if (!(await creativesRepo.getCreative(pool, id))) {
+      return reply.code(404).send({ error: "creative not found — create it first" });
+    }
+
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: "a file field is required" });
+
+    const ext = (file.filename?.split(".").pop() ?? "").toLowerCase();
+    if (!SOURCE_EXTENSIONS.has(ext)) {
+      return reply.code(400).send({ error: `unsupported source type .${ext}` });
+    }
+
+    let buffer: Buffer;
+    try {
+      buffer = await file.toBuffer();
+    } catch {
+      // @fastify/multipart throws when the file exceeds the configured limit.
+      return reply.code(413).send({ error: "file too large" });
+    }
+
+    const sourceKey = `sources/creatives/${id}/source.${ext}`;
+    await store.put(sourceKey, buffer);
+    await creativesRepo.setCreativeSource(pool, id, sourceKey);
+    await creativesRepo.setCreativeStatus(pool, id, "uploaded");
+
+    return reply.code(202).send({ creative_id: id, source_key: sourceKey, bytes: buffer.length, status: "uploaded" });
+  });
+
+  return app;
+}
+
+// Bootstrap from env when run directly.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { createPool, createRedis, RedisPodCache } = await import("@ssai/persistence");
+  const { createObjectStoreFromEnv } = await import("@ssai/storage");
+  const pool = createPool();
+  const podCache = new RedisPodCache(createRedis());
+  const store = await createObjectStoreFromEnv();
+  const app = buildServer({ pool, podCache, store });
+  app.listen({ port: Number(process.env.CONTROL_PLANE_PORT ?? 4000), host: "0.0.0.0" }).catch((err) => {
+    app.log.error(err);
+    process.exit(1);
+  });
+}
+ADMIN_PASSWORD=task-ssai-admin-secret
+ADMIN_USER=task-ssai-admin
+ASCIINEMA_REC=1
+ASCIINEMA_SESSION=a68c8938978b5822836dbc791eebc46d
+CHARSET=UTF-8
+COLORTERM=truecolor
+CONTROL_PLANE_PORT=4000
+CREATIVE_STORE_ROOT=/data/creatives
+DATABASE_URL=postgres://ssai:ssai@postgres:5432/ssai
+DATA_PLANE_PUBLIC_URL=http://localhost:4010
+HOME=/root
+HOSTNAME=eb5fd8e45b3d
+LANG=C.UTF-8
+LC_COLLATE=C
+NODE_VERSION=22.23.2
+PAGER=less
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/app
+REDIS_URL=redis://redis:6379
+SESSION_SIGNING_SECRET=task-ssai-session-secret
+SHELL=/bin/bash
+SHLVL=3
+SSAI_SERVICE=control-plane
+TERM=tmux-256color
+TERM_PROGRAM=tmux
+TERM_PROGRAM_VERSION=3.7c
+TMUX=/tmp/tmux-0/default,95,0
+TMUX_PANE=%0
+YARN_VERSION=1.22.22
+_=/usr/bin/env
+eb5fd8e45b3d:/app#

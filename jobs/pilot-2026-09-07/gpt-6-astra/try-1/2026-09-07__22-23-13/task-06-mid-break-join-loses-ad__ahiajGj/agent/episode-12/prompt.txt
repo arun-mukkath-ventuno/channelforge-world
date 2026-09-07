@@ -1,0 +1,41 @@
+Current Terminal Screen:
+  return `${body}.${sig}`;
+}
+
+/** Verify a token; returns the claims or null if invalid/expired/tampered. */
+export function verifySession(token: string, secret: string, opts: { now?: number } = {}): SessionClaims | null {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== PREFIX) return null;
+  const [, payload, sig] = parts;
+  const body = `${PREFIX}.${payload}`;
+
+  const expected = createHmac("sha256", secret).update(body).digest();
+  let provided: Buffer;
+  try {
+    provided = Buffer.from(sig!, "base64url");
+  } catch {
+    return null;
+  }
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return null;
+
+  let claims: SessionClaims;
+  try {
+    claims = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as SessionClaims;
+  } catch {
+    return null;
+  }
+  if (!claims.sid || !claims.ch) return null;
+  if (claims.exp !== undefined && (opts.now ?? Date.now()) / 1000 > claims.exp) return null;
+  return claims;
+}
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [{ "path": "../core" }, { "path": "../persistence" }, { "path": "../storage" }],
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "dist"]
+}
+6f61bf7d2dec:/app#

@@ -1,0 +1,10 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+17c9e64e2bb8:/app# wget -qO- http://localhost:4010/health; printf '\n'; ps aux | grep '[n]ode --import tsx'
+wget: can't connect to remote host: Connection refused
+
+ 1070 root      0:00 node --import tsx /app/packages/data-plane/src/server.ts
+17c9e64e2bb8:/app#

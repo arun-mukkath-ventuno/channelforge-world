@@ -1,0 +1,148 @@
+New Terminal Output:
+
+6af9ee0f4d51:/app# pwd; printf '\n--- top-level ---\n'; ls -la; printf '\n--- directories ---\n'; find . -maxdepth 2 -type d -print | sort | head -200
+/app
+
+--- top-level ---
+total 212
+drwxr-xr-x    1 root     root          4096 Sep  7 10:15 .
+drwxr-xr-x    1 root     root          4096 Sep  7 16:47 ..
+drwxr-xr-x    8 root     root          4096 Sep  7 10:15 .next
+-rw-r--r--    1 root     root           390 Sep  5 07:34 eslint.config.mjs
+-rw-r--r--    1 root     root           288 Sep  7 10:15 next-env.d.ts
+-rw-r--r--    1 root     root           104 Sep  5 07:34 next.config.ts
+drwxr-xr-x   10 root     root          4096 Sep  7 10:14 node_modules
+-rw-r--r--    1 root     root           706 Sep  5 07:34 package.json
+-rw-r--r--    1 root     root        165694 Sep  5 07:34 pnpm-lock.yaml
+-rw-r--r--    1 root     root            81 Sep  5 07:34 postcss.config.mjs
+drwxr-xr-x    3 root     root          4096 Sep  5 07:34 public
+drwxr-xr-x    5 root     root          4096 Sep  5 07:34 src
+-rw-r--r--    1 root     root           702 Sep  5 07:34 tsconfig.json
+
+--- directories ---
+.
+./.next
+./.next/build
+./.next/cache
+./.next/diagnostics
+./.next/server
+./.next/static
+./.next/types
+./node_modules
+./node_modules/.bin
+./node_modules/.pnpm
+./node_modules/@eslint
+./node_modules/@eslint-community
+./node_modules/@next
+./node_modules/@tailwindcss
+./node_modules/@types
+./node_modules/@typescript-eslint
+./public
+./public/art
+./src
+./src/app
+./src/components
+./src/lib
+6af9ee0f4d51:/app# printf '%s\n' '--- files ---'; find . -maxdepth 3 -type f -not -path './.git/*' -print | sort | head -300
+--- files ---
+./.next/BUILD_ID
+./.next/app-path-routes-manifest.json
+./.next/build-manifest.json
+./.next/build/package.json
+./.next/cache/.previewinfo
+./.next/cache/.rscinfo
+./.next/cache/.tsbuildinfo
+./.next/diagnostics/build-diagnostics.json
+./.next/diagnostics/framework.json
+./.next/diagnostics/route-bundle-stats.json
+./.next/export-marker.json
+./.next/fallback-build-manifest.json
+./.next/images-manifest.json
+./.next/next-minimal-server.js.nft.json
+./.next/next-server.js.nft.json
+./.next/package.json
+./.next/prerender-manifest.json
+./.next/required-server-files.js
+./.next/required-server-files.json
+./.next/routes-manifest.json
+./.next/server/app-paths-manifest.json
+./.next/server/functions-config-manifest.json
+./.next/server/interception-route-rewrite-manifest.js
+./.next/server/middleware-build-manifest.js
+./.next/server/middleware-manifest.json
+./.next/server/next-font-manifest.js
+./.next/server/next-font-manifest.json
+./.next/server/pages-manifest.json
+./.next/server/prefetch-hints.json
+./.next/server/server-reference-manifest.js
+./.next/server/server-reference-manifest.json
+./.next/trace
+./.next/trace-build
+./.next/turbopack
+./.next/types/cache-life.d.ts
+./.next/types/root-params.d.ts
+./.next/types/routes.d.ts
+./.next/types/validator.ts
+./eslint.config.mjs
+./next-env.d.ts
+./next.config.ts
+./node_modules/.bin/eslint
+./node_modules/.bin/next
+./node_modules/.bin/tsc
+./node_modules/.bin/tsserver
+./node_modules/.bin/vitest
+./node_modules/.modules.yaml
+./node_modules/.pnpm/lock.yaml
+./package.json
+./pnpm-lock.yaml
+./postcss.config.mjs
+./public/art/craft-bow.webp
+./public/art/craft-bowcard.webp
+./public/art/craft-dino.webp
+./public/art/craft-giftbag.webp
+./public/art/craft-stepper.webp
+./public/art/yoga-practice.jpg
+./src/app/globals.css
+./src/app/icon.svg
+./src/app/layout.tsx
+./src/app/page.tsx
+./src/app/robots.ts
+./src/app/sitemap.ts
+./src/lib/admin-auth.test.ts
+./src/lib/admin-auth.ts
+./src/lib/channel-config-store.test.ts
+./src/lib/channel-config-store.ts
+./src/lib/channelforge-epg.test.ts
+./src/lib/channelforge-epg.ts
+./src/lib/channels-seam.test.ts
+./src/lib/channels.test.ts
+./src/lib/channels.ts
+./src/lib/fast-challenges.ts
+./src/lib/fast-client.test.ts
+./src/lib/fast-client.ts
+./src/lib/fast-view.test.ts
+./src/lib/fast-view.ts
+./src/lib/manifest-probe.test.ts
+./src/lib/manifest-probe.ts
+./src/lib/ssai.test.ts
+./src/lib/ssai.ts
+./src/lib/telemetry-store.test.ts
+./src/lib/telemetry-store.ts
+./tsconfig.json
+6af9ee0f4d51:/app# printf '%s\n' '--- service/process clues ---'; ps auxww; printf '%s\n' '--- compose/system files ---'; find / -maxdepth 3 \( -iname '*docker*
+' -o -iname '*compose*' -o -iname '*service*' \) -print 2>/dev/null | head -200
+--- service/process clues ---
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   94 root      0:00 [tmux: client]
+   95 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   96 root      0:00 bash --login
+   97 root      0:00 cat
+  110 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  114 root      0:00 /bin/bash
+  167 root      0:00 ps auxww
+--- compose/system files ---
+/etc/services
+/proc/docker
+/.dockerenv
+6af9ee0f4d51:/app#

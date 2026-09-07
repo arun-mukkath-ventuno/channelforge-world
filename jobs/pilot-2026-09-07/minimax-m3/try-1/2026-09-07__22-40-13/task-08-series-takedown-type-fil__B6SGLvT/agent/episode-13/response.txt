@@ -1,0 +1,14 @@
+{
+  "analysis": "Now I can clearly see the bug. The `active_takedown_for_asset` function in `app/repositories/rights.py` queries for takedowns with `scope_type == \"asset\"` and `scope_id.in_(scope_ids)`. The `scope_ids` includes both `asset.id` and `asset.series_id`. So when there's a series-scoped takedown on the asset's series, the `scope_id.in_(scope_ids)` would match because the takedown's `scope_id` equals `asset.series_id`, but the `scope_type == \"asset\"` filter excludes it.\n\nThe fix is to remove the `RightsTakedown.scope_type == \"asset\"` filter so that takedowns with scope_type either 'asset' or 'series' that match the scope_ids are returned.",
+  "plan": "Fix the bug by removing the `RightsTakedown.scope_type == \"asset\"` filter line.",
+  "commands": [
+    {
+      "keystrokes": "sed -i '/RightsTakedown.scope_type == \"asset\",/d' app/repositories/rights.py\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '160,185p' app/repositories/rights.py\n",
+      "duration": 0.1
+    }
+  ]
+}

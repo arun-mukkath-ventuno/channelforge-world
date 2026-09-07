@@ -1,0 +1,182 @@
+New Terminal Output:
+
+c97b28b93225:/app# printf '%s\n' '-- avails source --' && sed -n '1,320p' packages/data-plane/src/avails.ts && printf '%s\n' '-- avails tests --' && sed -n '1,3
+60p' packages/data-plane/src/avails.test.ts
+-- avails source --
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+
+import { parseMarkerLine } from "@ssai/core";
+
+export interface Avail {
+  opportunityId: string;
+  channelId: string;
+  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+   *  by contrast, is a media-sequence-derived id independent of the producer). */
+  externalBreakId?: string;
+  /** Break duration: the marker's declared duration, or the summed segment time. */
+  duration: number;
+  /** Declared duration from the marker, if it carried a valid one. */
+  declaredDuration?: number;
+  /** Actual duration summed from the segments inside the avail. */
+  measuredDuration: number;
+  /** Media sequence number of the first segment inside the avail. */
+  startSequence: number;
+  programDateTime?: string;
+  /** Line index of the CUE-OUT marker. */
+  startLine: number;
+  /** Line index of the CUE-IN marker. */
+  endLine: number;
+}
+
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+export function detectAvails(manifest: string, channelId: string): Avail[] {
+  const lines = manifest.split("\n");
+
+  let mediaSequence = 0;
+  let lastPdt: string | undefined;
+  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+    measuredDuration: number;
+    pdt?: string;
+    externalBreakId?: string;
+  } | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    if (seqMatch) {
+      mediaSequence = Number(seqMatch[1]);
+      continue;
+    }
+
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    if (pdtMatch) {
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+liation.test.ts:97:      externalBreakId: "BRK-a11e5310-0003",
+packages/persistence/src/reconciliation.test.ts:109:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_9", externalBreakId: "BRK-nofill-0001
+" }));
+packages/persistence/src/reconciliation.test.ts:112:    expect(breaks[0]).toMatchObject({ filled: false, adSeconds: 0, impressions: 0, externalBreakId: "BRK-nof
+ill-0001" });
+packages/persistence/src/reconciliation.test.ts:116:    await upsertOpportunity(db, opp({ opportunityId: "opp_multi", externalBreakId: "BRK-multi" }));
+packages/persistence/src/reconciliation.test.ts:139:    await upsertOpportunity(db, opp({ opportunityId: "opp_yoga", externalBreakId: "BRK-yoga", breakStart: "2
+026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:140:    await upsertOpportunity(db, opp({ opportunityId: "opp_food", channelId: "channel_food", externalBreakId:
+ "BRK-food", breakStart: "2026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:141:    await upsertOpportunity(db, opp({ opportunityId: "opp_old", externalBreakId: "BRK-old", breakStart: "202
+0-01-01T00:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:144:    expect(yoga.map((b) => b.externalBreakId).sort()).toEqual(["BRK-old", "BRK-yoga"]);
+packages/persistence/src/reconciliation.test.ts:147:    expect(recent.map((b) => b.externalBreakId)).toEqual(["BRK-yoga"]);
+packages/persistence/src/analytics.test.ts:12:import { upsertOpportunity } from "./repositories/opportunities.js";
+packages/persistence/src/analytics.test.ts:15:import type { AdDecision, AdOpportunity } from "@ssai/core";
+packages/persistence/src/analytics.test.ts:32:const OPP: AdOpportunity = {
+packages/persistence/src/analytics.test.ts:69:  await upsertOpportunity(db, OPP);
+packages/persistence/src/reconciliation.ts:18:  externalBreakId: string | null;
+packages/persistence/src/reconciliation.ts:117:        externalBreakId: o.external_break_id ?? null,
+packages/persistence/src/pod-cache.ts:29:/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+packages/persistence/src/repositories/opportunities.ts:3:import type { AdOpportunity } from "@ssai/core";
+packages/persistence/src/repositories/opportunities.ts:6:export async function upsertOpportunity(db: Queryable, opp: AdOpportunity): Promise<void> {
+packages/persistence/src/repositories/opportunities.ts:19:      opp.externalBreakId ?? null,
+packages/core/src/scte.ts:32:export function parseMarkerLine(line: string, lineIndex: number): ParsedMarker | null {
+packages/core/src/scte.test.ts:2:import { parseMarkerLine } from "./scte.js";
+packages/core/src/scte.test.ts:4:describe("parseMarkerLine — cue markers (PRD §9, §60 task 3)", () => {
+packages/core/src/scte.test.ts:6:    const m = parseMarkerLine("#EXT-X-CUE-OUT:60", 5);
+packages/core/src/scte.test.ts:11:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=60", 0);
+packages/core/src/scte.test.ts:16:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=90,SCTE35=abc", 0);
+packages/core/src/scte.test.ts:21:    const m = parseMarkerLine("#EXT-X-CUE-OUT:29.97", 0);
+packages/core/src/scte.test.ts:26:    const m = parseMarkerLine("#EXT-X-CUE-IN", 9);
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/src/scte.test.ts:37:    const m = parseMarkerLine("#EXT-X-CUE-OUT:oops", 0);
+packages/core/src/scte.test.ts:43:    expect(parseMarkerLine("#EXTINF:6.0,", 0)).toBeNull();
+packages/core/src/scte.test.ts:44:    expect(parseMarkerLine("segment100.ts", 0)).toBeNull();
+packages/core/src/scte.test.ts:49:    const m = parseMarkerLine(line, 3);
+packages/core/src/scte.test.ts:55:    const m = parseMarkerLine(line, 7);
+packages/core/src/scte.test.ts:60:    const m = parseMarkerLine("#EXT-X-DATERANGE:DURATION=30", 0);
+packages/core/src/types.ts:6:export interface AdOpportunity {
+packages/core/src/types.ts:11:  externalBreakId?: string;
+packages/core/src/decide.ts:4:import type { AdDecision, AdOpportunity, Campaign, Creative, SessionContext } from "./types.js";
+packages/core/src/decide.ts:9:  opportunity: AdOpportunity;
+c97b28b93225:/app# printf '%s\n' '-- running processes --' && ps aux && printf '%s\n' '-- compose/service files --' && find . -maxdepth 3 -type f \( -iname '*co
+mpose*' -o -iname 'Dockerfile*' -o -iname '*.service' -o -name 'Makefile' \) -print
+-- running processes --
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   93 root      0:00 [tmux: client]
+   94 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   95 root      0:00 bash --login
+   96 root      0:00 cat
+  109 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  113 root      0:00 /bin/bash
+  305 root      0:00 ps aux
+-- compose/service files --
+./node_modules/delayed-stream/Makefile
+./node_modules/pg-types/Makefile
+c97b28b93225:/app#

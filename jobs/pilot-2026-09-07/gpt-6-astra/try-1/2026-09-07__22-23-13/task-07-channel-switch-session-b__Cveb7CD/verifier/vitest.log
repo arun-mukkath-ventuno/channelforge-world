@@ -1,0 +1,40 @@
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/control-plane/src/server.test.ts (15 tests) 358ms
+ ✓ packages/persistence/src/repositories.test.ts (4 tests) 155ms
+ ❯ packages/control-plane/src/session-channel-rebind.test.ts (2 tests | 1 failed) 169ms
+   × session channel rebind across a live channel switch (PRD §41 extension) > a session that continues onto a new channel via /v1/ad-decision reports the new channel, not the one it started on 130ms
+     → expected { id: 'sess_switch', …(6) } to match object { channelId: 'channel_yoga' }
+(6 matching properties omitted from actual)
+ ✓ packages/persistence/src/session-channel-rebind.test.ts (4 tests) 98ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/control-plane/src/session-channel-rebind.test.ts > session channel rebind across a live channel switch (PRD §41 extension) > a session that continues onto a new channel via /v1/ad-decision reports the new channel, not the one it started on
+AssertionError: expected { id: 'sess_switch', …(6) } to match object { channelId: 'channel_yoga' }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "channelId": "channel_yoga",
++   "channelId": "channel_food",
+  }
+
+ ❯ packages/control-plane/src/session-channel-rebind.test.ts:53:25
+     51|     const sess = await app.inject({ method: "GET", url: "/v1/sessions/…
+     52|     expect(sess.statusCode).toBe(200);
+     53|     expect(sess.json()).toMatchObject({ channelId: "channel_yoga" });
+       |                         ^
+     54|   });
+     55| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 24 passed (25)
+   Start at  16:57:26
+   Duration  1.79s (transform 156ms, setup 0ms, collect 602ms, tests 780ms, environment 0ms, prepare 116ms)
+

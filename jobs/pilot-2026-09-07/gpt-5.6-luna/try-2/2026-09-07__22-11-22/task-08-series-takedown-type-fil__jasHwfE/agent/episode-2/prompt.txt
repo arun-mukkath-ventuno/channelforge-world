@@ -1,0 +1,204 @@
+New Terminal Output:
+
+root@ae49554d2d86:/app# printf '%s\n' '--- app/repositories/rights.py ---' && nl -ba app/repositories/rights.py | sed -n '1,260p' && printf '%s\n' '--- app/repo
+sitories/rights.py.orig ---' && nl -ba app/repositories/rights.py.orig | sed -n '1,240p'
+--- app/repositories/rights.py ---
+     1  """Data access for rights policies, versions, and assignments (PRD 3.0 §8, ADR-5)."""
+     2
+     3  from __future__ import annotations
+     4
+     5  import uuid
+     6  from datetime import datetime
+     7
+     8  from sqlalchemy import func, select
+     9  from sqlalchemy.orm import Session
+    10
+    11  from app.models import (
+    12      Asset,
+    13      RightsAssignment,
+    14      RightsPolicy,
+    15      RightsPolicyVersion,
+    16      RightsTakedown,
+    17      ScheduleEvent,
+    18      ScheduleVersion,
+    19  )
+    20  from app.services.rights_engine import ApplicablePolicy
+    21
+    22  # Scope specificity for deterministic precedence ordering (higher = more specific).
+    23  _SPECIFICITY = {"asset": 4, "series": 3, "collection": 2, "channel": 1, "agreement": 0}
+    24
+    25
+    26  def create_policy(db: Session, **fields) -> RightsPolicy:
+    27      policy = RightsPolicy(**fields)
+    28      db.add(policy)
+    29      db.flush()
+    30      return policy
+    31
+    32
+    33  def list_policies(db: Session, org_id: uuid.UUID) -> list[RightsPolicy]:
+    34      return list(
+    35          db.scalars(
+    36              select(RightsPolicy)
+    37              .where(RightsPolicy.organization_id == org_id)
+    38              .order_by(RightsPolicy.created_at.desc())
+    39          )
+    40      )
+    41
+    42
+    43  def add_version(db: Session, *, policy: RightsPolicy, **fields) -> RightsPolicyVersion:
+    44      """Append the next immutable version to a policy."""
+    45      current_max = db.scalar(
+    46          select(func.max(RightsPolicyVersion.version_number)).where(
+    47              RightsPolicyVersion.policy_id == policy.id
+    48          )
+    49      )
+    50      version = RightsPolicyVersion(
+    51          organization_id=policy.organization_id,
+    52          policy_id=policy.id,
+    53          version_number=(current_max or 0) + 1,
+    54          **fields,
+    55      )
+    56      db.add(version)
+    57      db.flush()
+    58      return version
+    59
+    60
+    61  def assign(
+    62      db: Session, *, org_id: uuid.UUID, policy_id: uuid.UUID, scope_type: str,
+    63      scope_id: uuid.UUID, priority: int = 0,
+    64  ) -> RightsAssignment:
+    65      assignment = RightsAssignment(
+    66          organization_id=org_id, policy_id=policy_id, scope_type=scope_type,
+    67          scope_id=scope_id, priority=priority,
+    68      )
+    69      db.add(assignment)
+    70      db.flush()
+    71      return assignment
+    72
+    73
+    74  def _latest_version(db: Session, policy_id: uuid.UUID) -> RightsPolicyVersion | None:
+    75      return db.scalar(
+    76          select(RightsPolicyVersion)
+    77          .where(RightsPolicyVersion.policy_id == policy_id)
+    78          .order_by(RightsPolicyVersion.version_number.desc())
+    79          .limit(1)
+    80      )
+    81
+    82
+    83  def resolve_applicable(
+    84      db: Session,
+    85      *,
+    86      org_id: uuid.UUID,
+    87      asset: Asset,
+    88      channel_id: uuid.UUID | None = None,
+    89      agreement_id: uuid.UUID | None = None,
+    90  ) -> list[ApplicablePolicy]:
+    91      """Return the policies that apply to this asset in context, most-specific first.
+    92
+    93      Matches assignments scoped to the asset, its series, the channel, or the agreement, using each
+    94      policy's latest version. (Collection-scoped assignments are resolved in a later increment.)
+    95      """
+    96      scope_targets: list[tuple[str, uuid.UUID]] = [("asset", asset.id)]
+    97      if asset.series_id is not None:
+    98          scope_targets.append(("series", asset.series_id))
+    99      if channel_id is not None:
+   100          scope_targets.append(("channel", channel_id))
+   101      if agreement_id is not None:
+   102          scope_targets.append(("agreement", agreement_id))
+   103
+   104      applicable: list[ApplicablePolicy] = []
+   105      for scope_type, scope_id in scope_targets:
+   106          assignments = db.scalars(
+   107              select(RightsAssignment).where(
+   108                  RightsAssignment.organization_id == org_id,
+   109                  RightsAssignment.scope_type == scope_type,
+   110                  RightsAssignment.scope_id == scope_id,
+   111                  RightsAssignment.enabled.is_(True),
+   112              )
+   113          )
+   114          for assignment in assignments:
+   115              version = _latest_version(db, assignment.policy_id)
+   116              if version is not None:
+   117                  applicable.append(
+   118                      ApplicablePolicy(
+   119                          version=vers
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+el_ids"]
+    96      assert agreement in placed["affected"]["agreement_ids"]
+    97
+    98
+    99  def test_takedown_raises_incident(client, db):
+   100      org = first_org_id(signup(client))
+   101      asset_id = _import_asset(client, org)
+   102      client.post(
+   103          f"/api/organizations/{org}/rights/takedowns",
+   104          json={"scope_type": "asset", "scope_id": asset_id, "reason": "x"},
+   105      )
+   106      alert = db.query(Alert).filter(Alert.alert_type == "rights_takedown").one()
+   107      assert alert.severity == "critical" and alert.status == "open"
+   108
+   109
+   110  def test_series_takedown_blocks_member_asset(client, db):
+   111      from app.models import Asset
+   112
+   113      org = first_org_id(signup(client))
+   114      asset_id = _import_asset(client, org)
+   115      series_id = db.get(Asset, uuid.UUID(asset_id)).series_id
+   116      assert series_id is not None
+   117
+   118      client.post(
+   119          f"/api/organizations/{org}/rights/takedowns",
+   120          json={"scope_type": "series", "scope_id": str(series_id), "reason": "series pulled"},
+   121      )
+   122      result = _verdict(client, org, asset_id)
+   123      assert result["verdict"] == "ineligible"
+   124      assert any(r["code"] == "rights_takedown" for r in result["reasons"])
+   125
+   126
+   127  def test_invalid_scope_type_rejected(client):
+   128      org = first_org_id(signup(client))
+   129      asset_id = _import_asset(client, org)
+   130      resp = client.post(
+   131          f"/api/organizations/{org}/rights/takedowns",
+   132          json={"scope_type": "channel", "scope_id": asset_id, "reason": "x"},
+   133      )
+   134      assert resp.status_code == 400
+--- eligibility tests ---
+tests/test_eligibility.py:19:def test_complete_metadata_is_eligible():
+tests/test_eligibility.py:37:def test_missing_required_is_ineligible():
+tests/test_eligibility.py:52:def test_non_editorial_types_are_always_eligible():
+tests/test_eligibility.py:58:    """Foreshadows §9.5: a stricter profile can flip an asset to ineligible."""
+tests/test_rights_engine.py:107:def test_resolve_applicable_asset_and_series(session_factory):
+tests/test_rights_engine.py:112:    series = Series(organization_id=org, title="S")
+tests/test_rights_engine.py:113:    db.add(series)
+tests/test_rights_engine.py:115:    asset = Asset(organization_id=org, title="Ep", series_id=series.id)
+tests/test_rights_engine.py:123:    p_series = rights_repo.create_policy(db, organization_id=org, name="series-policy")
+tests/test_rights_engine.py:124:    rights_repo.add_version(db, policy=p_series, allow_avod=False)
+tests/test_rights_engine.py:125:    rights_repo.assign(db, org_id=org, policy_id=p_series.id, scope_type="series",
+tests/test_rights_engine.py:126:                       scope_id=series.id)
+tests/test_rights_engine.py:131:    # Asset scope is more specific than series, so it sorts first.
+tests/test_per_agreement_eligibility.py:9:    "series": {"external_reference": "SER-1", "title": "Yoga & You"},
+tests/test_per_agreement_eligibility.py:55:def test_asset_eligible_in_india_blocked_in_us(client):
+tests/test_per_agreement_eligibility.py:63:    assert _verdict(client, org, asset_id, india)["verdict"] == "eligible"
+tests/test_per_agreement_eligibility.py:65:    assert us_result["verdict"] == "ineligible"
+tests/test_per_agreement_eligibility.py:77:    # No agreement -> metadata only -> still eligible despite the US exclusion.
+tests/test_per_agreement_eligibility.py:78:    assert _verdict(client, org, asset_id)["verdict"] == "eligible"
+tests/test_per_agreement_eligibility.py:94:    # Import an episode missing genre (metadata-ineligible) ...
+tests/test_per_agreement_eligibility.py:97:        "series": {"external_reference": "S", "title": "S"},
+tests/test_per_agreement_eligibility.py:108:    assert result["verdict"] == "ineligible"
+root@ae49554d2d86:/app# printf '%s\n' '--- models and callers ---' && grep -RInE "class (Asset|RightsTakedown|Series)|def active_takedown_for_asset|active_taked
+own_for_asset\(" app | sed -n '1,240p'
+--- models and callers ---
+app/schemas/library.py:10:class SeriesImportIn(BaseModel):
+app/schemas/media.py:36:class AssetOut(BaseModel):
+app/schemas/media.py:88:class AssetUpdate(BaseModel):
+app/schemas/media.py:121:class AssetSummaryOut(AssetOut):
+app/schemas/media.py:130:class AssetDetailOut(AssetOut):
+app/models/asset.py:23:class Asset(UUIDMixin, TimestampMixin, Base):
+app/models/rights.py:95:class RightsTakedown(UUIDMixin, TimestampMixin, Base):
+app/models/series.py:11:class Series(UUIDMixin, TimestampMixin, Base):
+app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+app/repositories/rights.py:161:def active_takedown_for_asset(
+app/repositories/rights.py.orig:161:def active_takedown_for_asset(
+root@ae49554d2d86:/app#

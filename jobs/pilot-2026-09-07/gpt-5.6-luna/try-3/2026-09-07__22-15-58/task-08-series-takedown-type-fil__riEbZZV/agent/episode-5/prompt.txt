@@ -1,0 +1,76 @@
+New Terminal Output:
+
+5 passed, 2 warnings in 1.64s
+root@8ca8bd3b4dbf:/app# pytest -q tests/test_eligibility.py tests/test_rights_engine.py tests/test_per_agreement_eligibility.py
+....................sed -n '155,195p' app/repositories/rights.py && printf '\nChanged application files recently:\n' && find app -type f -mmin -10 -print
+pytest -q tests/test_eligibility.py tests/test_rights_engine.py tests/test_per_agreement_eligibility.py
+.                                                                                                                                    [100%]
+======================================================================= warnings summary =======================================================================
+../usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install
+ `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_threa
+d.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+21 passed, 2 warnings in 4.71s
+root@8ca8bd3b4dbf:/app# git status --short && git diff --check && git diff --stat
+bash: git: command not found
+root@8ca8bd3b4dbf:/app# restart-api
+API restarted (pid 1268)
+root@8ca8bd3b4dbf:/app# sed -n '155,195p' app/repositories/rights.py && printf '\nChanged application files recently:\n' && find app -type f -mmin -10 -print
+            )
+            .order_by(RightsTakedown.created_at.desc())
+        )
+    )
+
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_match = (RightsTakedown.scope_type == "asset") & (RightsTakedown.scope_id == asset.id)
+    if asset.series_id is not None:
+        scope_match = scope_match | (
+            (RightsTakedown.scope_type == "series")
+            & (RightsTakedown.scope_id == asset.series_id)
+        )
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            scope_match,
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+        return [scope_id]
+    if scope_type == "series":
+        return list(
+            db.scalars(
+                select(Asset.id).where(
+                    Asset.organization_id == org_id, Asset.series_id == scope_id
+                )
+            )
+        )
+    return []
+
+
+
+Changed application files recently:
+app/repositories/rights.py
+root@8ca8bd3b4dbf:/app# pytest -q tests/test_eligibility.py tests/test_rights_engine.py tests/test_per_agreement_eligibility.py
+restart-api
+INFO:     Started server process [1268]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+....

@@ -1,0 +1,14 @@
+{
+  "analysis": "Found it! The `ensureSession` function uses `ON CONFLICT (id) DO NOTHING` which means when an existing session is encountered, the channel_id is NOT updated. This is exactly the bug described in the report. When a viewer changes channels but keeps the same session id, the session record retains its original channel_id forever.\n\nThe fix should make `ensureSession` update the channel_id (and last_activity_at) when the session already exists with a different channel. Let me check the migrations to see the schema.",
+  "plan": "Look at the migration to understand the schema, then look at tests for ensureSession to understand the expected behavior.",
+  "commands": [
+    {
+      "keystrokes": "ls migrations/\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -n 'playback_sessions' migrations/*\n",
+      "duration": 0.1
+    }
+  ]
+}

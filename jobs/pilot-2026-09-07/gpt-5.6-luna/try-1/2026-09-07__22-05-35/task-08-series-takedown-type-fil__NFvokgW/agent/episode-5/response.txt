@@ -1,0 +1,14 @@
+{
+  "analysis": "The repository has a likely intended implementation in app/repositories/rights.py.orig: it includes both the asset ID and series ID in the active takedown lookup. The current file's implementation was not fully shown, so I need confirm its exact contents before applying the minimal change. The .orig file is not an allowed source change and should not be copied wholesale; only the targeted function in app/repositories/rights.py should be edited.",
+  "plan": "Print the current function and a focused diff against the .orig reference. If confirmed missing series handling, use a small Python replacement to update only active_takedown_for_asset, preserving the existing repository structure. Then run the focused rights tests plus eligibility and schedule-rights tests, inspect git status/diff to ensure only application source changed, and restart the API.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\nfor name in ('app/repositories/rights.py', 'app/repositories/rights.py.orig'):\n    text = Path(name).read_text()\n    start = text.index('def active_takedown_for_asset')\n    end = text.index('\\ndef ', start + 4)\n    print(f'--- {name} ---')\n    print(text[start:end])\nPY\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "git status --short; git diff --no-ext-diff -- app/repositories/rights.py; ls -l app/repositories/rights.py app/repositories/rights.py.orig\n",
+      "duration": 0.3
+    }
+  ]
+}

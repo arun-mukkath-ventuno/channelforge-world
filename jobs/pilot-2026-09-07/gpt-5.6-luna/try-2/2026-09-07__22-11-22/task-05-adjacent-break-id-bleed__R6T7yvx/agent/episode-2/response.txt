@@ -1,0 +1,22 @@
+{
+  "analysis": "The relevant code is in the core package's SCTE marker parser and likely the data-plane/persistence path. The search output shows `packages/core/src/scte.ts` explicitly extracts the DATERANGE ID as the producer break ID, while persistence has logic preserving an existing external ID when a later decision omits one. I need inspect the parser, opportunity creation, and data-plane marker/state handling to determine where consecutive markers incorrectly reuse the prior ID.",
+  "plan": "Read the complete relevant source and tests, then search data-plane and control-plane code for calls to `parseMarkerLine` and opportunity construction. Compare marker lifecycle handling around adjacent breaks. I will avoid test changes and patch only the application source once the stale-state behavior is confirmed.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- core scte.ts --' && sed -n '1,260p' packages/core/src/scte.ts && printf '%s\\n' '-- core scte tests --' && sed -n '1,280p' packages/core/src/scte.test.ts && printf '%s\\n' '-- core types --' && sed -n '1,180p' packages/core/src/types.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- relevant source files --' && find packages -type f \\( -name '*.ts' -o -name '*.tsx' \\) -not -path '*/dist/*' -exec grep -nHE 'parseMarkerLine|externalBreakId|external_break_id|markerPayload|markerType|ad_opportunit|breakId' {} + | head -500\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- data-plane files --' && find packages/data-plane -maxdepth 3 -type f | sort && printf '%s\\n' '-- data-plane manifest --' && cat packages/data-plane/package.json\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- persistence opportunity code --' && sed -n '1,220p' packages/persistence/src/repositories/opportunities.ts && printf '%s\\n' '-- persistence files --' && find packages/persistence/src -type f -maxdepth 3 -print\n",
+      "duration": 0.2
+    }
+  ]
+}

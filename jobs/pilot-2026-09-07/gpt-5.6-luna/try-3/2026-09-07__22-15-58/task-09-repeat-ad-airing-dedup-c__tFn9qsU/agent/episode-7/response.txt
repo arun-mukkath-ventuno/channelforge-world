@@ -1,0 +1,30 @@
+{
+  "analysis": "The previous command batch was malformed because several command strings lacked trailing newlines, causing the test/build commands to concatenate. The edit itself appears to have been entered, but its result and repository state must be verified. No validation has successfully run yet.",
+  "plan": "Inspect the changed parser and status, then run each validation command as a separate properly terminated shell command. If tests/build pass, start the Next production service in the background and verify the process. Do not modify tests or configuration.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '66,88p' src/lib/ssai.ts; printf '\\n--- status ---\\n'; git diff -- src/lib/ssai.ts 2>/dev/null || true\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "pnpm exec vitest run src/lib/ssai.test.ts\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "pnpm test\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "pnpm run lint\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "pnpm run build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "if [ -f .next/BUILD_ID ]; then (pnpm start > /tmp/fast-world-tv.log 2>&1 & echo $! > /tmp/fast-world-tv.pid); sleep 2; cat /tmp/fast-world-tv.pid; ps -p \"$(cat /tmp/fast-world-tv.pid)\" -o pid,stat,cmd; cat /tmp/fast-world-tv.log; else echo 'build missing; service not started'; exit 1; fi\n",
+      "duration": 3.0
+    }
+  ]
+}

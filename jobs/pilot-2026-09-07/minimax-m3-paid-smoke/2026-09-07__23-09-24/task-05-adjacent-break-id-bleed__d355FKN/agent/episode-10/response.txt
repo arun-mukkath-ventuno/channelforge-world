@@ -1,0 +1,14 @@
+{
+  "analysis": "Path issue. Let me put the test in the right location.",
+  "plan": "Create the test in /app and run it.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/test_bug.mjs << 'EOF'\nimport { detectAvails } from \"./packages/data-plane/src/avails.ts\";\n\nconst m = `#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID=\"BRK-first\"\n#EXTINF:6.000,\nseg1.ts\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID=\"BRK-second\"\n#EXTINF:6.000,\nseg2.ts\n#EXT-X-CUE-IN`;\n\nconst avails = detectAvails(m, \"ch\");\nconsole.log(JSON.stringify(avails, null, 2));\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npx tsx test_bug.mjs\n",
+      "duration": 5.0
+    }
+  ]
+}

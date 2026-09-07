@@ -1,0 +1,14 @@
+{
+  "analysis": "The key defect is not the cache write alone. A sliding live playlist seen mid-break often contains CUE-OUT-CONT rather than the original CUE-OUT. The current detector intentionally ignores CUE-OUT-CONT and only creates an avail after seeing a CUE-OUT, so a late tune-in/reconnect produces zero avails and never calls decisioning. The existing cache write is still useful for preserving a successful decision, but detection must recognize an in-progress break. I will inspect the marker type/parser and then implement continuation detection using its elapsed/duration data, preserving complete-avail behavior.",
+  "plan": "Read the SCTE marker parser and type definitions to determine available continuation fields. Modify only data-plane avail detection: when a playlist begins with CUE-OUT-CONT, create an open avail with a stable start sequence derived from the current media sequence and elapsed time, then finalize it at CUE-IN. Keep the existing complete-avail path unchanged. Run focused tests and typecheck, then start the data-plane service if its environment supports it.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/core/src/scte.ts; sed -n '1,130p' packages/core/src/types.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "cat packages/core/src/scte.test.ts; grep -RInE 'ElapsedTime|elapsed|Duration=' packages --exclude='*.js' --exclude='*.map' 2>/dev/null | head -200\n",
+      "duration": 0.4
+    }
+  ]
+}

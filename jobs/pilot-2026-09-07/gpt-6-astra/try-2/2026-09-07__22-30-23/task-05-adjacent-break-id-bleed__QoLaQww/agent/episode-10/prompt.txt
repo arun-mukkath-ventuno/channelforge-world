@@ -1,0 +1,32 @@
+New Terminal Output:
+
+·······························································
+
+ Test Files  9 passed (9)
+      Tests  63 passed (63)
+   Start at  17:02:13
+   Duration  1.10s (transform 134ms, setup 0ms, collect 183ms, tests 36ms, environment 1ms, prepare 262ms)
+
+41aedf6c9c91:/app# ps aux; kill 598 2>/dev/null; node --import tsx /app/packages/data-plane/src/server.ts &
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   92 root      0:00 [tmux: client]
+   93 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   94 root      0:00 bash --login
+   95 root      0:00 cat
+  108 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  112 root      0:00 /bin/bash
+  295 root      0:00 [esbuild]
+  388 root      0:00 [esbuild]
+  582 root      0:00 [esbuild]
+  598 root      0:00 node --import tsx /app/packages/data-plane/src/server.ts
+  606 root      0:00 /app/node_modules/@esbuild/linux-arm64/bin/esbuild --service=0.28.2 --ping
+  710 root      0:00 [esbuild]
+  903 root      0:00 ps aux
+[2] 904
+41aedf6c9c91:/app# (node:904) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions
+" instead for accessing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1788800539272,"pid":904,"hostname":"41aedf6c9c91","msg":"Server listening at http://127.0.0.1:4010"}
+{"level":30,"time":1788800539272,"pid":904,"hostname":"41aedf6c9c91","msg":"Server listening at http://172.21.0.3:4010"}
+

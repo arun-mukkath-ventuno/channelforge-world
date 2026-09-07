@@ -1,0 +1,252 @@
+New Terminal Output:
+
+eb5fd8e45b3d:/app# sed -n '1,125p' packages/persistence/src/repositories.test.ts; sed -n '1,90p' packages/control-plane/src/server.test.ts; cat packages/storage
+/src/factory.ts; cat packages/persistence/src/repositories/channels.ts
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { newDb } from "pg-mem";
+import type { Queryable } from "./db.js";
+import { seedDatabase } from "./seed.js";
+import { campaignsAsMap, listCampaigns } from "./repositories/campaigns.js";
+import { listCreatives } from "./repositories/creatives.js";
+import { ensureSession, getSession } from "./repositories/sessions.js";
+import { upsertOpportunity } from "./repositories/opportunities.js";
+import { saveDecision, getDecisionsBySession } from "./repositories/decisions.js";
+import { appendEvent, getEventsBySession } from "./repositories/events.js";
+import { decide, type AdOpportunity, type SessionContext } from "@ssai/core";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const MIG_DIR = resolve(here, "../../../migrations");
+const SCHEMA = readdirSync(MIG_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+  .join("\n");
+
+function freshDb(): Queryable {
+  const mem = newDb();
+  mem.public.none(SCHEMA); // load full schema (multi-statement)
+  const { Pool } = mem.adapters.createPg();
+  return new Pool() as unknown as Queryable;
+}
+
+let db: Queryable;
+beforeEach(() => {
+  db = freshDb();
+});
+
+describe("seed + inventory repositories", () => {
+  it("seeds 5 channels and assembles campaign target channels", async () => {
+    await seedDatabase(db);
+    const campaigns = await listCampaigns(db);
+    const food = campaigns.find((c) => c.campaignId === "camp_food_a");
+    expect(food?.targetChannels).toEqual(["channel_food"]);
+    const appliance = campaigns.find((c) => c.campaignId === "camp_appliance_b");
+    expect(appliance?.targetChannels).toContain("channel_food");
+    expect(appliance?.targetChannels).toContain("channel_entertainment");
+  });
+
+  it("returns creatives with numeric duration/priority/weight", async () => {
+    await seedDatabase(db);
+    const creatives = await listCreatives(db);
+    const food30 = creatives.find((c) => c.creativeId === "cr_food_a_30");
+    expect(food30).toMatchObject({ duration: 30, priority: 10, weight: 100, status: "ready" });
+    expect(typeof food30!.duration).toBe("number");
+  });
+});
+
+describe("decision persistence round-trip (PRD §46, §47)", () => {
+  it("persists a decided pod and reads the full payload back", async () => {
+    await seedDatabase(db);
+    const creatives = await listCreatives(db);
+    const campaigns = await campaignsAsMap(db);
+
+    const opportunity: AdOpportunity = {
+      opportunityId: "opp_1",
+      channelId: "channel_food",
+      breakStart: "2026-08-29T12:15:00Z",
+      breakDuration: 60,
+      source: "cue_out",
+      signalType: "cue_out",
+    };
+    const session: SessionContext = { sessionId: "sess_1", channelId: "channel_food" };
+
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns,
+      now: "2026-08-29T12:15:00Z",
+      seed: "demo",
+    });
+
+    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+    await upsertOpportunity(db, opportunity);
+    await saveDecision(db, {
+      decisionId: "dec_1",
+      podId: "pod_1",
+      decision,
+      requestedAt: "2026-08-29T12:15:00Z",
+      completedAt: "2026-08-29T12:15:00Z",
+    });
+
+    const stored = await getDecisionsBySession(db, "sess_1");
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.selectedCount).toBe(decision.pod.filter((p) => p.type === "ad").length);
+    // Full payload reconstructable (RL evaluation, PRD §56).
+    expect(stored[0]!.decision.pod).toEqual(decision.pod);
+    expect(stored[0]!.decision.breakDuration).toBe(60);
+
+    const sess = await getSession(db, "sess_1");
+    expect(sess).toMatchObject({ channelId: "channel_food", deviceType: "web", country: "IN" });
+  });
+});
+
+describe("event stream (PRD §26, §29, §30)", () => {
+  it("appends and reads events by session, ignoring duplicate event ids", async () => {
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1", adId: "cr_food_a_30" });
+    await appendEvent(db, { eventId: "e2", eventType: "ad_complete", sessionId: "sess_1", adId: "cr_food_a_30" });
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1" }); // dup
+
+    const events = await getEventsBySession(db, "sess_1");
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.eventType)).toEqual(["ad_impression", "ad_complete"]);
+  });
+});
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURL
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ created = await app.inject({
+      method: "POST",
+      url: "/v1/channels",
+      payload: { id: "channel_food", name: "FAST Food", origin_url: "http://origin/food" },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ id: "channel_food", name: "FAST Food", status: "active" });
+
+    const list = await app.inject({ method: "GET", url: "/v1/channels" });
+    expect(list.json()).toHaveLength(1);
+  });
+
+  it("validates required channel fields", async () => {
+    const res = await app.inject({ method: "POST", url: "/v1/channels", payload: { name: "x" } });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("creates a campaign with channel targeting and edits it", async () => {
+    await app.inject({ method: "POST", url: "/v1/channels", payload: { id: "channel_food", name: "F", origin_url: "u" } });
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/campaigns",
+      payload: { id: "camp_1", advertiser: "CoffeeCo", start_date: "2026-01-01T00:00:00Z", end_date: "2026-12-31T00:00:00Z", target_channels: ["channel_food"] }
+,
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ campaignId: "camp_1", targetChannels: ["channel_food"] });
+
+    const edited = await app.inject({ method: "PUT", url: "/v1/campaigns/camp_1", payload: { status: "paused" } });
+    expect(edited.json()).toMatchObject({ status: "paused", targetChannels: ["channel_food"] }); // targeting preserved
+
+    const missing = await app.inject({ method: "PUT", url: "/v1/campaigns/nope", payload: { status: "paused" } });
+    expect(missing.statusCode).toBe(404);
+  });
+
+  it("creates a creative under a campaign", async () => {
+    await app.inject({ method: "POST", url: "/v1/campaigns", payload: { id: "camp_1", advertiser: "A", start_date: "2026-01-01T00:00:00Z", end_date: "2026-12-31
+T00:00:00Z" } });
+    const res = await app.inject({
+      method: "POST",
+// Choose an ObjectStore from the environment: S3/MinIO when S3_BUCKET is set,
+// otherwise the filesystem store (the zero-infra default for dev / RL).
+
+import type { ObjectStore } from "./storage.js";
+import { FilesystemObjectStore } from "./storage.js";
+
+export async function createObjectStoreFromEnv(): Promise<ObjectStore> {
+  if (process.env.S3_BUCKET) {
+    const { createS3ObjectStore } = await import("./s3.js");
+    return createS3ObjectStore({
+      bucket: process.env.S3_BUCKET,
+      ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT } : {}),
+      ...(process.env.S3_REGION ? { region: process.env.S3_REGION } : {}),
+      ...(process.env.S3_ACCESS_KEY ? { accessKeyId: process.env.S3_ACCESS_KEY } : {}),
+      ...(process.env.S3_SECRET_KEY ? { secretAccessKey: process.env.S3_SECRET_KEY } : {}),
+      forcePathStyle: true,
+      ...(process.env.CREATIVE_STORE_BASE_URL ? { publicBaseUrl: process.env.CREATIVE_STORE_BASE_URL } : {}),
+    });
+  }
+  return new FilesystemObjectStore(process.env.CREATIVE_STORE_ROOT ?? "./storage/creatives");
+}
+// Channel repository (PRD §33, §44).
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface Channel {
+  id: string;
+  name: string;
+  originUrl: string;
+  slateId: string | null;
+  status: string;
+  createdAt: string;
+}
+
+interface ChannelRow {
+  id: string;
+  name: string;
+  origin_url: string;
+  slate_id: string | null;
+  status: string;
+  created_at: unknown;
+}
+
+export interface ChannelInput {
+  id: string;
+  name: string;
+  originUrl: string;
+  slateId?: string | null;
+  status?: string;
+}
+
+export async function insertChannel(db: Queryable, input: ChannelInput): Promise<void> {
+  await db.query(
+    `INSERT INTO channels (id, name, origin_url, slate_id, status)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (id) DO UPDATE SET
+       name = EXCLUDED.name,
+       origin_url = EXCLUDED.origin_url,
+       slate_id = EXCLUDED.slate_id,
+       status = EXCLUDED.status`,
+    [input.id, input.name, input.originUrl, input.slateId ?? null, input.status ?? "active"],
+  );
+}
+
+function toChannel(r: ChannelRow): Channel {
+  return {
+    id: r.id,
+    name: r.name,
+    originUrl: r.origin_url,
+    slateId: r.slate_id,
+    status: r.status,
+    createdAt: toIso(r.created_at),
+  };
+}
+
+export async function listChannels(db: Queryable): Promise<Channel[]> {
+  const rows = (await db.query<ChannelRow>("SELECT * FROM channels ORDER BY id")).rows;
+  return rows.map(toChannel);
+}
+
+export async function getChannel(db: Queryable, id: string): Promise<Channel | null> {
+  const rows = (await db.query<ChannelRow>("SELECT * FROM channels WHERE id = $1", [id])).rows;
+  return rows[0] ? toChannel(rows[0]) : null;
+}
+
+/** Set (or clear) the channel's VAST ad-tag URL — the tag the control plane ingests into creatives. */
+export async function setVastTag(db: Queryable, id: string, tagUrl: string | null): Promise<void> {
+  await db.query("UPDATE channels SET vast_tag_url = $2 WHERE id = $1", [id, tagUrl]);
+}
+eb5fd8e45b3d:/app#

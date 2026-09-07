@@ -1,0 +1,10 @@
+{
+  "analysis": "The defect is confirmed: the query includes the series ID but requires scope_type == 'asset', excluding every series-scoped takedown. Matching IDs without their corresponding scope types could also block unrelated assets. An existing test covers the reported failure.",
+  "plan": "Run the existing series regression test to reproduce the bug. Then replace the scope filter with paired asset/series predicates, preserving organization and active-status filtering.",
+  "commands": [
+    {
+      "keystrokes": "PYTHONDONTWRITEBYTECODE=1 APP_ENV=test DATABASE_URL=sqlite:// pytest -q -p no:cacheprovider tests/test_rights_takedown.py::test_series_takedown_blocks_member_asset\n",
+      "duration": 1.0
+    }
+  ]
+}

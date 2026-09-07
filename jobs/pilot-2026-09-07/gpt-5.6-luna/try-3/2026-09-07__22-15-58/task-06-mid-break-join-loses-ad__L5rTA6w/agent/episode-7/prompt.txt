@@ -1,0 +1,160 @@
+New Terminal Output:
+
+703450db135d:/app# grep -nE 'ad-decision|ad decision|decision|podCache|MemoryPodCache|RedisPodCache|buildServer|createRedis' packages/control-plane/src/server.t
+s packages/data-plane/src/server.ts packages/control-plane/src/*.ts packages/data-plane/src/*.ts
+packages/control-plane/src/server.ts:3:// Owns campaigns, creatives, channels, sessions, ad decisioning, event
+packages/control-plane/src/server.ts:4:// ingestion and debug. Ad decisioning reads inventory from Postgres, persists
+packages/control-plane/src/server.ts:5:// the opportunity + decision + pod, and writes the pod to the Redis cache that
+packages/control-plane/src/server.ts:27:  decisions as decisionsRepo,
+packages/control-plane/src/server.ts:38:  podCache: PodCache;
+packages/control-plane/src/server.ts:71:export function buildServer(deps: ServerDeps) {
+packages/control-plane/src/server.ts:73:  const { pool, podCache, store } = deps;
+packages/control-plane/src/server.ts:89:  // Public: health, login, the player endpoints, the ad-decision (internal), and
+packages/control-plane/src/server.ts:97:    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+packages/control-plane/src/server.ts:163:  app.post("/v1/ad-decision", async (req, reply) => {
+packages/control-plane/src/server.ts:196:    const decision = decide({
+packages/control-plane/src/server.ts:205:    const decisionId = `dec_${randomUUID()}`;
+packages/control-plane/src/server.ts:208:    // Persist opportunity + session + decision atomically (PRD §46, §47).
+packages/control-plane/src/server.ts:212:      await decisionsRepo.saveDecision(tx, {
+packages/control-plane/src/server.ts:213:        decisionId,
+packages/control-plane/src/server.ts:215:        decision,
+packages/control-plane/src/server.ts:221:        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+packages/control-plane/src/server.ts:222:        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+packages/control-plane/src/server.ts:237:    await podCache.set({
+packages/control-plane/src/server.ts:242:      pod: decision.pod,
+packages/control-plane/src/server.ts:245:    return { decision_id: decisionId, pod_id: podId, ...decision };
+packages/control-plane/src/server.ts:312:    const [session, decisions, events] = await Promise.all([
+packages/control-plane/src/server.ts:314:      decisionsRepo.getDecisionsBySession(pool, id),
+packages/control-plane/src/server.ts:317:    return { session, decisions, events };
+packages/control-plane/src/server.ts:321:    return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+packages/control-plane/src/server.ts:499:  const { createPool, createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/control-plane/src/server.ts:502:  const podCache = new RedisPodCache(createRedis());
+packages/control-plane/src/server.ts:504:  const app = buildServer({ pool, podCache, store });
+packages/data-plane/src/server.ts:22:  podCache: PodCache;
+packages/data-plane/src/server.ts:47:export function buildServer(deps: DataPlaneDeps) {
+packages/data-plane/src/server.ts:50:  const { podCache, origin, decider, store } = deps;
+packages/data-plane/src/server.ts:83:      const cached = await podCache.get(session, avail.opportunityId);
+packages/data-plane/src/server.ts:135:  const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/data-plane/src/server.ts:137:  const podCache = new RedisPodCache(createRedis());
+packages/data-plane/src/server.ts:142:  const app = buildServer({ podCache, origin, store, decider });
+packages/control-plane/src/server.test.ts:7:import { MemoryPodCache, type Pool } from "@ssai/persistence";
+packages/control-plane/src/server.test.ts:9:import { buildServer } from "./server.js";
+packages/control-plane/src/server.test.ts:25:  const app = buildServer({ pool, podCache: new MemoryPodCache(), store, logger: false, authDisabled: true });
+packages/control-plane/src/server.test.ts:34:  return buildServer({
+packages/control-plane/src/server.test.ts:36:    podCache: new MemoryPodCache(),
+packages/control-plane/src/server.test.ts:188:  it("records external_break_id from an ad-decision and lists it per break", async () => {
+packages/control-plane/src/server.test.ts:192:      url: "/v1/ad-decision",
+packages/control-plane/src/server.ts:3:// Owns campaigns, creatives, channels, sessions, ad decisioning, event
+packages/control-plane/src/server.ts:4:// ingestion and debug. Ad decisioning reads inventory from Postgres, persists
+packages/control-plane/src/server.ts:5:// the opportunity + decision + pod, and writes the pod to the Redis cache that
+packages/control-plane/src/server.ts:27:  decisions as decisionsRepo,
+packages/control-plane/src/server.ts:38:  podCache: PodCache;
+packages/control-plane/src/server.ts:71:export function buildServer(deps: ServerDeps) {
+packages/control-plane/src/
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+", payload: { id: "camp_1", advertiser: "A", start_date: "2026-01-01T00:00:00Z", end_date: "2026-12-31
+T00:00:00Z" } });
+    await app.inject({ method: "POST", url: "/v1/creatives", payload: { id: "cr_1", campaign_id: "camp_1", name: "spot", duration: 30 } });
+  }
+
+  function upload(id: string, filename: string, bytes = Buffer.from("fake-mp4-bytes")) {
+    const fd = new FormData();
+    fd.append("file", bytes, { filename, contentType: "video/mp4" });
+    return app.inject({ method: "POST", url: `/v1/creatives/${id}/source`, payload: fd, headers: fd.getHeaders() });
+  }
+
+  it("stores the source, marks the creative uploaded, and returns 202", async () => {
+    await makeCreative();
+    const res = await upload("cr_1", "ad.mp4");
+    expect(res.statusCode).toBe(202);
+    const body = res.json();
+    expect(body).toMatchObject({ creative_id: "cr_1", status: "uploaded", bytes: 14 });
+    expect(body.source_key).toBe("sources/creatives/cr_1/source.mp4");
+
+    // The bytes really landed in the store, and the creative flipped to uploaded.
+    expect((await store.get(body.source_key)).toString()).toBe("fake-mp4-bytes");
+    const creative = await app.inject({ method: "GET", url: "/v1/creatives/cr_1" });
+    expect(creative.json().status).toBe("uploaded");
+  });
+
+  it("404s for an unknown creative", async () => {
+    expect((await upload("ghost", "ad.mp4")).statusCode).toBe(404);
+  });
+
+  it("400s an unsupported source type", async () => {
+    await makeCreative();
+    expect((await upload("cr_1", "evil.exe")).statusCode).toBe(400);
+  });
+});
+
+describe("admin auth (PRD §57)", () => {
+  it("401s a protected route without a cookie", async () => {
+    const app = buildWithAuth();
+    expect((await app.inject({ method: "GET", url: "/v1/channels" })).statusCode).toBe(401);
+  });
+
+  it("rejects a wrong password, accepts the right one and gates on the cookie", async () => {
+    const app = buildWithAuth();
+    expect((await app.inject({ method: "POST", url: "/admin/api/login", payload: { user: "ops", password: "nope" } })).statusCode).toBe(401);
+
+    const ok = await app.inject({ method: "POST", url: "/admin/api/login", payload: { user: "ops", password: "s3cret" } });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json()).toEqual({ user: "ops" });
+    const cookie = ok.cookies.find((c) => c.name === "ssai_admin");
+    expect(cookie).toBeTruthy();
+
+    const header = { cookie: `ssai_admin=${cookie!.value}` };
+    expect((await app.inject({ method: "GET", url: "/admin/api/me", headers: header })).json()).toEqual({ user: "ops" });
+    expect((await app.inject({ method: "GET", url: "/v1/channels", headers: header })).statusCode).toBe(200);
+  });
+
+  it("leaves the player endpoints public", async () => {
+    const app = buildWithAuth();
+    expect((await app.inject({ method: "GET", url: "/health" })).statusCode).toBe(200);
+    // POST /v1/events is public (player telemetry)
+    const r = await app.inject({ method: "POST", url: "/v1/events", payload: { event_type: "ad_impression", session_id: "s1" } });
+    expect(r.statusCode).toBe(202);
+  });
+});
+
+describe("VAST tag ingestion endpoint", () => {
+  it("requires tag_url and a known channel", async () => {
+    await app.inject({ method: "POST", url: "/v1/channels", payload: { id: "channel_art", name: "Art", origin_url: "http://o/art" } });
+    expect((await app.inject({ method: "POST", url: "/v1/channels/channel_art/vast-tag", payload: {} })).statusCode).toBe(400);
+    expect((await app.inject({ method: "POST", url: "/v1/channels/nope/vast-tag", payload: { tag_url: "https://tag/x" } })).statusCode).toBe(404);
+  });
+});
+
+describe("per-break reconciliation (ChannelForge telemetry blueprint)", () => {
+  it("records external_break_id from an ad-decision and lists it per break", async () => {
+    await app.inject({ method: "POST", url: "/v1/channels", payload: { id: "channel_yoga", name: "Yoga", origin_url: "http://origin/yoga" } });
+    const dec = await app.inject({
+      method: "POST",
+      url: "/v1/ad-decision",
+      payload: {
+        session_id: "sess_1",
+        channel_id: "channel_yoga",
+        opportunity_id: "opp_channel_yoga_202",
+        external_break_id: "BRK-a11e5310-0003",
+        duration: 30,
+      },
+    });
+    expect(dec.statusCode).toBe(200);
+
+    const res = await app.inject({ method: "GET", url: "/v1/reconciliation/breaks?channel=channel_yoga" });
+    expect(res.statusCode).toBe(200);
+    const { breaks } = res.json() as { breaks: Array<{ opportunityId: string; externalBreakId: string | null }> };
+    expect(breaks).toHaveLength(1);
+    expect(breaks[0]).toMatchObject({
+      opportunityId: "opp_channel_yoga_202",
+      externalBreakId: "BRK-a11e5310-0003",
+      channelId: "channel_yoga",
+    });
+  });
+
+  it("gates /v1/reconciliation/breaks behind the admin cookie", async () => {
+    const authed = buildWithAuth();
+    expect((await authed.inject({ method: "GET", url: "/v1/reconciliation/breaks" })).statusCode).toBe(401);
+  });
+});
+703450db135d:/app#

@@ -1,0 +1,170 @@
+New Terminal Output:
+
+e6f3e04d76cc:/app# printf '%s\n' 'Source files:'; find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -type f -path '*/src/*' -print | sort
+Source files:
+packages/admin-web/src/App.tsx
+packages/admin-web/src/api/client.ts
+packages/admin-web/src/api/ssai.ts
+packages/admin-web/src/auth/AuthContext.tsx
+packages/admin-web/src/auth/ProtectedLayout.tsx
+packages/admin-web/src/components/PageHeader.tsx
+packages/admin-web/src/components/Stat.tsx
+packages/admin-web/src/components/StatusBadge.tsx
+packages/admin-web/src/components/layout/AppShell.tsx
+packages/admin-web/src/components/ui/button.tsx
+packages/admin-web/src/components/ui/card.tsx
+packages/admin-web/src/components/ui/input.tsx
+packages/admin-web/src/components/ui/select.tsx
+packages/admin-web/src/components/ui/table.tsx
+packages/admin-web/src/content/user-guide.md
+packages/admin-web/src/index.css
+packages/admin-web/src/lib/format.ts
+packages/admin-web/src/lib/useLoad.ts
+packages/admin-web/src/lib/utils.ts
+packages/admin-web/src/main.tsx
+packages/admin-web/src/pages/AnalyticsPage.tsx
+packages/admin-web/src/pages/CampaignsPage.tsx
+packages/admin-web/src/pages/ChannelsPage.tsx
+packages/admin-web/src/pages/CreativesPage.tsx
+packages/admin-web/src/pages/DebugPage.tsx
+packages/admin-web/src/pages/DocsPage.tsx
+packages/admin-web/src/pages/LoginPage.tsx
+packages/admin-web/src/pages/SessionsPage.tsx
+packages/admin-web/src/vite-env.d.ts
+packages/control-plane/src/beacons.test.ts
+packages/control-plane/src/beacons.ts
+packages/control-plane/src/events-normalize.test.ts
+packages/control-plane/src/events-normalize.ts
+packages/control-plane/src/server.test.ts
+packages/control-plane/src/server.ts
+packages/control-plane/src/vast-fetch.test.ts
+packages/control-plane/src/vast-fetch.ts
+packages/control-plane/src/vast-inventory.test.ts
+packages/control-plane/src/vast-inventory.ts
+packages/control-plane/src/vast.test.ts
+packages/control-plane/src/vast.ts
+packages/core/src/decide.ts
+packages/core/src/eligibility.test.ts
+packages/core/src/eligibility.ts
+packages/core/src/index.ts
+packages/core/src/pod.test.ts
+packages/core/src/pod.ts
+packages/core/src/rng.ts
+packages/core/src/scte.test.ts
+packages/core/src/scte.ts
+packages/core/src/session-token.test.ts
+packages/core/src/session-token.ts
+packages/core/src/types.ts
+packages/creative-worker/src/cli/prepare-slate.ts
+packages/creative-worker/src/cli/prepare.ts
+packages/creative-worker/src/cli/process-pending.ts
+packages/creative-worker/src/index.ts
+packages/creative-worker/src/probe.ts
+packages/creative-worker/src/profile.ts
+packages/creative-worker/src/transcode.ts
+packages/creative-worker/src/validate.test.ts
+packages/creative-worker/src/validate.ts
+packages/creative-worker/src/worker.test.ts
+packages/creative-worker/src/worker.ts
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/avails.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/segment.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/stitch.ts
+packages/persistence/src/analytics.test.ts
+packages/persistence/src/analytics.ts
+packages/persistence/src/cli/migrate.ts
+packages/persistence/src/cli/seed.ts
+packages/persistence/src/db.ts
+packages/persistence/src/index.ts
+packages/persistence/src/map.ts
+packages/persistence/src/migrate.ts
+packages/persistence/src/pod-cache.test.ts
+packages/persistence/src/pod-cache.ts
+packages/persistence/src/reconciliation.test.ts
+packages/persistence/src/reconciliation.ts
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/repositories/beacons.ts
+packages/persistence/src/repositories/campaigns.ts
+packages/persistence/src/repositories/channels.ts
+packages/persistence/src/repositories/creatives.ts
+packages/persistence/src/repositories/decisions.ts
+packages/persistence/src/repositories/events.ts
+packages/persistence/src/repositories/opportunities.ts
+packages/persistence/src/repositories/sessions.ts
+packages/persistence/src/repositories/slates.ts
+packages/persistence/src/seed.ts
+packages/storage/src/factory.ts
+packages/storage/src/index.ts
+packages/storage/src/s3.test.ts
+packages/storage/src/s3.ts
+packages/storage/src/storage.ts
+e6f3e04d76cc:/app# printf '%s\n' 'Persistence manifest:'; cat packages/persistence/package.json; printf '%s\n' 'Persistence source dirs:'; find packages/persist
+ence/src -type f -maxdepth 4 -print | sort
+Persistence manifest:
+{
+  "name": "@ssai/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI persistence — Postgres repositories, migration runner, and the Redis pod cache that bridges control plane and data plane.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5"
+  }
+}
+Persistence source dirs:
+packages/persistence/src/analytics.test.ts
+packages/persistence/src/analytics.ts
+packages/persistence/src/cli/migrate.ts
+packages/persistence/src/cli/seed.ts
+packages/persistence/src/db.ts
+packages/persistence/src/index.ts
+packages/persistence/src/map.ts
+packages/persistence/src/migrate.ts
+packages/persistence/src/pod-cache.test.ts
+packages/persistence/src/pod-cache.ts
+packages/persistence/src/reconciliation.test.ts
+packages/persistence/src/reconciliation.ts
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/repositories/beacons.ts
+packages/persistence/src/repositories/campaigns.ts
+packages/persistence/src/repositories/channels.ts
+packages/persistence/src/repositories/creatives.ts
+packages/persistence/src/repositories/decisions.ts
+packages/persistence/src/repositories/events.ts
+packages/persistence/src/repositories/opportunities.ts
+packages/persistence/src/repositories/sessions.ts
+packages/persistence/src/repositories/slates.ts
+packages/persistence/src/seed.ts
+e6f3e04d76cc:/app# printf '%s\n' 'Database/session identifiers:'; grep -RInE 'session_id|sessionId|playback|channel_id|channelId|sessions|session' packages/*/sr
+c migrations --exclude='*.test.ts' 2>/dev/null | head -400
+Database/session identifiers:
+e6f3e04d76cc:/app#

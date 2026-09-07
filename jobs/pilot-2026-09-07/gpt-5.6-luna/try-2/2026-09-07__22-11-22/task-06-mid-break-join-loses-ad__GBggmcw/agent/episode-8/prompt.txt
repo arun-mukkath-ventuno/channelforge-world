@@ -1,0 +1,228 @@
+New Terminal Output:
+
+26a4261744ce:/app# nl -ba packages/data-plane/src/avails.ts | sed -n '1,240p'; printf '\n-- tests 1-180 --\n'; nl -ba packages/data-plane/src/avails.test.ts | s
+ed -n '1,180p'
+     1	// Avail detection over an origin media playlist (PRD §9, §22, §41).
+     2	//
+     3	// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+     4	// *deterministic* opportunity id derived from the channel + the media sequence
+     5	// of the avail's first segment. Determinism matters: every viewer's data-plane
+     6	// request and the decisioning path must agree on the same opportunity id for a
+     7	// given break without coordinating, so the cached pod is found on the hot path.
+     8	
+     9	import { parseMarkerLine } from "@ssai/core";
+    10	
+    11	export interface Avail {
+    12	  opportunityId: string;
+    13	  channelId: string;
+    14	  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+    15	   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+    16	   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+    17	   *  by contrast, is a media-sequence-derived id independent of the producer). */
+    18	  externalBreakId?: string;
+    19	  /** Break duration: the marker's declared duration, or the summed segment time. */
+    20	  duration: number;
+    21	  /** Declared duration from the marker, if it carried a valid one. */
+    22	  declaredDuration?: number;
+    23	  /** Actual duration summed from the segments inside the avail. */
+    24	  measuredDuration: number;
+    25	  /** Media sequence number of the first segment inside the avail. */
+    26	  startSequence: number;
+    27	  programDateTime?: string;
+    28	  /** Line index of the CUE-OUT marker. */
+    29	  startLine: number;
+    30	  /** Line index of the CUE-IN marker. */
+    31	  endLine: number;
+    32	}
+    33	
+    34	const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+    35	const EXTINF = /^#EXTINF:([\d.]+)/;
+    36	const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+    37	
+    38	/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+    39	 *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+    40	export function detectAvails(manifest: string, channelId: string): Avail[] {
+    41	  const lines = manifest.split("\n");
+    42	
+    43	  let mediaSequence = 0;
+    44	  let lastPdt: string | undefined;
+    45	  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    46	  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    47	  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    48	  let blockBreakId: string | undefined;
+    49	  const avails: Avail[] = [];
+    50	
+    51	  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    52	  let open: {
+    53	    startLine: number;
+    54	    startSequence: number;
+    55	    declaredDuration?: number;
+    56	    measuredDuration: number;
+    57	    pdt?: string;
+    58	    externalBreakId?: string;
+    59	  } | null = null;
+    60	
+    61	  for (let i = 0; i < lines.length; i++) {
+    62	    const line = lines[i]!;
+    63	    const trimmed = line.trim();
+    64	
+    65	    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    66	    if (seqMatch) {
+    67	      mediaSequence = Number(seqMatch[1]);
+    68	      continue;
+    69	    }
+    70	
+    71	    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    72	    if (pdtMatch) {
+    73	      lastPdt = pdtMatch[1]!.trim();
+    74	      // continue — PDT applies to the next segment.
+    75	    }
+    76	
+    77	    const marker = parseMarkerLine(line, i);
+    78	    if (marker?.kind === "daterange" && marker.id) {
+    79	      blockBreakId = marker.id;
+    80	      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+    81	      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+    82	      continue;
+    83	    }
+    84	    if (marker?.kind === "cue_out" && !open) {
+    85	      open = {
+    86	        startLine: i,
+    87	        startSequence: mediaSequence,
+    88	        measuredDuration: 0,
+    89	        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+    99	        opportunityId: `opp_${channelId}_${open.startSequence}`,
+   100	        channelId,
+   10
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+30,
+    28	      declaredDuration: 30,
+    29	      startSequence: 102,
+    30	    });
+    31	  });
+    32	
+    33	  it("is stable across playlist refreshes (same avail → same id as the window slides)", () => {
+    34	    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN
+"]);
+    35	    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    36	    const a = detectAvails(before, "ch")[0]!;
+    37	    const b = detectAvails(after, "ch")[0]!;
+    38	    expect(a.opportunityId).toBe(b.opportunityId); // opp_ch_101 in both
+    39	  });
+    40	
+    41	  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+    42	    const m = manifest([
+    43	      "#EXT-X-MEDIA-SEQUENCE:0",
+    44	      "#EXT-X-CUE-OUT:oops",
+    45	      "#EXTINF:6.000,",
+    46	      "slate1.ts",
+    47	      "#EXTINF:6.000,",
+    48	      "slate2.ts",
+    49	      "#EXT-X-CUE-IN",
+    50	    ]);
+    51	    const avails = detectAvails(m, "ch");
+    52	    expect(avails[0]!.declaredDuration).toBeUndefined();
+    53	    expect(avails[0]!.measuredDuration).toBe(12);
+    54	    expect(avails[0]!.duration).toBe(12);
+    55	  });
+    56	
+    57	  it("captures PROGRAM-DATE-TIME preceding the avail", () => {
+    58	    const m = manifest([
+    59	      "#EXT-X-MEDIA-SEQUENCE:0",
+    60	      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+    61	      "#EXT-X-CUE-OUT:30",
+    62	      "#EXTINF:6.000,",
+    63	      "slate.ts",
+    64	      "#EXT-X-CUE-IN",
+    65	    ]);
+    66	    expect(detectAvails(m, "ch")[0]!.programDateTime).toBe("2026-08-29T12:15:00.000Z");
+    67	  });
+    68	
+    69	  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+    70	    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+    71	    expect(detectAvails(m, "ch")).toEqual([]);
+    72	  });
+    73	
+    74	  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+    75	    const m = manifest([
+    76	      "#EXT-X-MEDIA-SEQUENCE:200",
+    77	      "#EXTINF:6.000,",
+    78	      "s200.ts",
+    79	      "#EXT-X-CUE-OUT:90",
+    80	      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+    81	      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+    82	      "#EXTINF:6.000,",
+    83	      "slate.ts",
+    84	      "#EXT-X-CUE-IN",
+    85	    ]);
+    86	    const avails = detectAvails(m, "channel_yoga");
+    87	    expect(avails).toHaveLength(1);
+    88	    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+    89	  });
+    90	
+    91	  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+    92	    const m = manifest([
+    93	      "#EXT-X-MEDIA-SEQUENCE:0",
+    94	      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+    95	      "#EXT-X-CUE-OUT:30",
+    96	      "#EXTINF:6.000,",
+    97	      "slate.ts",
+    98	      "#EXT-X-CUE-IN",
+    99	    ]);
+   100	    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+   101	  });
+   102	
+   103	  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+   104	    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+   105	    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+   106	  });
+   107	
+   108	  it("does not leak one break's id onto a later break that has none", () => {
+   109	    const m = manifest([
+   110	      "#EXT-X-MEDIA-SEQUENCE:0",
+   111	      "#EXT-X-CUE-OUT:30",
+   112	      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+   113	      "#EXTINF:6.000,",
+   114	      "a.ts",
+   115	      "#EXT-X-CUE-IN",
+   116	      "#EXTINF:6.000,",
+   117	      "b.ts",
+   118	      "#EXT-X-CUE-OUT:15",
+   119	      "#EXTINF:6.000,",
+   120	      "c.ts",
+   121	      "#EXT-X-CUE-IN",
+   122	    ]);
+   123	    const avails = detectAvails(m, "ch");
+   124	    expect(avails).toHaveLength(2);
+   125	    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+   126	    expect(avails[1]!.externalBreakId).toBeUndefined();
+   127	  });
+   128	
+   129	  it("detects multiple avails in one window", () => {
+   130	    const m = manifest([
+   131	      "#EXT-X-MEDIA-SEQUENCE:0",
+   132	      "#EXT-X-CUE-OUT:30",
+   133	      "#EXTINF:6.000,",
+   134	      "a.ts",
+   135	      "#EXT-X-CUE-IN",
+   136	      "#EXTINF:6.000,",
+   137	      "b.ts",
+   138	      "#EXT-X-CUE-OUT:15",
+   139	      "#EXTINF:6.000,",
+   140	      "c.ts",
+   141	      "#EXT-X-CUE-IN",
+   142	    ]);
+   143	    const avails = detectAvails(m, "ch");
+   144	    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+   145	  });
+   146	});
+26a4261744ce:/app#

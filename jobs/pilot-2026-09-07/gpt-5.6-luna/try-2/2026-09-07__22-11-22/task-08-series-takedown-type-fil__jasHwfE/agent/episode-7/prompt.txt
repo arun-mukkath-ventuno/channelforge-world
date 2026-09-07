@@ -1,0 +1,41 @@
+Current Terminal Screen:
+E         + eligible
+
+tests/test_rights_takedown.py:123: AssertionError
+___________________________________________________________ test_validation_blocks_taken_down_asset ____________________________________________________________
+
+client = <starlette.testclient.TestClient object at 0xffff805765d0>, db = <sqlalchemy.orm.session.Session object at 0xffff802cbe00>
+
+    def test_validation_blocks_taken_down_asset(client, db):
+        org, asset_id, version = _setup(client, db)
+        # No rights issue before the takedown.
+        assert not any("takedown" in i or "rights" in i for i in schedules.validate(db, version))
+
+        client.post(
+            f"/api/organizations/{org}/rights/takedowns",
+            json={"scope_type": "asset", "scope_id": asset_id, "reason": "legal"},
+        )
+        issues = schedules.validate(db, version)
+>       assert any("takedown" in i for i in issues)
+E       assert False
+E        +  where False = any(<generator object test_validation_blocks_taken_down_asset.<locals>.<genexpr> at 0xffff801b1080>)
+
+tests/test_schedule_rights.py:59: AssertionError
+======================================================================= warnings summary =======================================================================
+../usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install
+ `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_threa
+d.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================================================================== short test summary info ====================================================================
+FAILED tests/test_rights_takedown.py::test_takedown_blocks_and_lift_restores - AssertionError: assert 'eligible' == 'ineligible'
+FAILED tests/test_rights_takedown.py::test_series_takedown_blocks_member_asset - AssertionError: assert 'eligible' == 'ineligible'
+FAILED tests/test_schedule_rights.py::test_validation_blocks_taken_down_asset - assert False
+3 failed, 18 passed, 2 warnings in 7.51s
+root@ae49554d2d86:/app#

@@ -1,0 +1,169 @@
+New Terminal Output:
+
+ff6148ea39e4:/app# nl -ba packages/data-plane/src/avails.ts | sed -n '35,180p'; echo '--- avails tests 1 ---'; nl -ba packages/data-plane/src/avails.test.ts | s
+ed -n '1,260p'
+    35	const EXTINF = /^#EXTINF:([\d.]+)/;
+    36	const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+    37	
+    38	/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+    39	 *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+    40	export function detectAvails(manifest: string, channelId: string): Avail[] {
+    41	  const lines = manifest.split("\n");
+    42	
+    43	  let mediaSequence = 0;
+    44	  let lastPdt: string | undefined;
+    45	  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    46	  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    47	  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    48	  let blockBreakId: string | undefined;
+    49	  const avails: Avail[] = [];
+    50	
+    51	  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    52	  let open: {
+    53	    startLine: number;
+    54	    startSequence: number;
+    55	    declaredDuration?: number;
+    56	    measuredDuration: number;
+    57	    pdt?: string;
+    58	    externalBreakId?: string;
+    59	  } | null = null;
+    60	
+    61	  for (let i = 0; i < lines.length; i++) {
+    62	    const line = lines[i]!;
+    63	    const trimmed = line.trim();
+    64	
+    65	    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    66	    if (seqMatch) {
+    67	      mediaSequence = Number(seqMatch[1]);
+    68	      continue;
+    69	    }
+    70	
+    71	    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    72	    if (pdtMatch) {
+    73	      lastPdt = pdtMatch[1]!.trim();
+    74	      // continue — PDT applies to the next segment.
+    75	    }
+    76	
+    77	    const marker = parseMarkerLine(line, i);
+    78	    if (marker?.kind === "daterange" && marker.id) {
+    79	      blockBreakId = marker.id;
+    80	      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+    81	      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+    82	      continue;
+    83	    }
+    84	    if (marker?.kind === "cue_out" && !open) {
+    85	      open = {
+    86	        startLine: i,
+    87	        startSequence: mediaSequence,
+    88	        measuredDuration: 0,
+    89	        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+    99	        opportunityId: `opp_${channelId}_${open.startSequence}`,
+   100	        channelId,
+   101	        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+   102	        duration: declared ?? open.measuredDuration,
+   103	        ...(declared === undefined ? {} : { declaredDuration: declared }),
+   104	        measuredDuration: open.measuredDuration,
+   105	        startSequence: open.startSequence,
+   106	        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+   107	        startLine: open.startLine,
+   108	        endLine: i,
+   109	      });
+   110	      open = null;
+   111	      continue;
+   112	    }
+   113	
+   114	    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+   115	    const infMatch = trimmed.match(EXTINF);
+   116	    if (infMatch) {
+   117	      const segDur = Number(infMatch[1]);
+   118	      if (open) open.measuredDuration += segDur;
+   119	      // The URI line follows; advance the sequence when we consume it below.
+   120	    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+   121	      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+   122	      mediaSequence += 1;
+   123	      blockBreakId = undefined;
+   124	    }
+   125	  }
+   126	
+   127	  return avails;
+   128	}
+--- avails tests 1 ---
+     1	import { describe, it, expect } from "vitest";
+     2	import { detectAvails } from "./avails.js";
+     3	
+     4	function manifest(lines: string[]): string {
+     5	  return lines.join("\n");
+     6	}
+     7	
+     8	describe("detectAvails (PRD §9, §41)", () => {
+     9	  it("derives a deterministic opportunity id from channel + media sequence", () => {
+    10	    const m = manifest([
+    11	      "#EXT-X-MEDIA-SEQUENCE:100",
+    12	      "#EXTINF:6.000,",
+    13	      "s100.ts",
+    14	      "#EXTINF:6.000,",
+    15	      "s101.ts",
+    16	   
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+mit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+packages/data-plane/src/stitch.ts:47:      i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+packages/data-plane/src/stitch.ts:66:        `#EXT-X-DATERANGE:ID="${item.creativeId}",CLASS="com.fastworld.ad",` +
+packages/data-plane/src/stitch.test.ts:3:import { detectAvails } from "./avails.js";
+packages/data-plane/src/stitch.test.ts:15:  "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/stitch.test.ts:46:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/stitch.test.ts:50:    expect(manifest).not.toContain("#EXT-X-CUE-OUT");
+packages/data-plane/src/stitch.test.ts:59:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/stitch.test.ts:67:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/server.ts:16:import { detectAvails } from "./avails.js";
+packages/data-plane/src/server.ts:76:    const avails = detectAvails(originBody, channel);
+packages/data-plane/src/decider.ts:39:          ...(avail.externalBreakId === undefined
+packages/data-plane/src/decider.ts:41:            : { external_break_id: avail.externalBreakId }),
+packages/data-plane/src/avails.test.ts:2:import { detectAvails } from "./avails.js";
+packages/data-plane/src/avails.test.ts:8:describe("detectAvails (PRD §9, §41)", () => {
+packages/data-plane/src/avails.test.ts:16:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:21:    const avails = detectAvails(m, "channel_food");
+packages/data-plane/src/avails.test.ts:34:    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6
+.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+packages/data-plane/src/avails.test.ts:35:    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CU
+E-IN"]);
+packages/data-plane/src/avails.test.ts:36:    const a = detectAvails(before, "ch")[0]!;
+packages/data-plane/src/avails.test.ts:37:    const b = detectAvails(after, "ch")[0]!;
+packages/data-plane/src/avails.test.ts:44:      "#EXT-X-CUE-OUT:oops",
+packages/data-plane/src/avails.test.ts:51:    const avails = detectAvails(m, "ch");
+packages/data-plane/src/avails.test.ts:61:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:66:    expect(detectAvails(m, "ch")[0]!.programDateTime).toBe("2026-08-29T12:15:00.000Z");
+packages/data-plane/src/avails.test.ts:69:  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+packages/data-plane/src/avails.test.ts:70:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+packages/data-plane/src/avails.test.ts:71:    expect(detectAvails(m, "ch")).toEqual([]);
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/src/avails.test.ts:79:      "#EXT-X-CUE-OUT:90",
+packages/data-plane/src/avails.test.ts:80:      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+packages/data-plane/src/avails.test.ts:86:    const avails = detectAvails(m, "channel_yoga");
+packages/data-plane/src/avails.test.ts:88:    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+packages/data-plane/src/avails.test.ts:91:  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+packages/data-plane/src/avails.test.ts:94:      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+packages/data-plane/src/avails.test.ts:95:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:100:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+packages/data-plane/src/avails.test.ts:103:  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+packages/data-plane/src/avails.test.ts:104:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"
+]);
+packages/data-plane/src/avails.test.ts:105:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:111:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:112:      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+packages/data-plane/src/avails.test.ts:118:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:123:    const avails = detectAvails(m, "ch");
+packages/data-plane/src/avails.test.ts:125:    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+packages/data-plane/src/avails.test.ts:126:    expect(avails[1]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:132:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:138:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:143:    const avails = detectAvails(m, "ch");
+ff6148ea39e4:/app#

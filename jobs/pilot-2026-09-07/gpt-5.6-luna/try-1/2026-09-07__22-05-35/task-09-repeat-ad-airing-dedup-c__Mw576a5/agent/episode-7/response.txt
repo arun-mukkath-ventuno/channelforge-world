@@ -1,0 +1,23 @@
+{
+  "analysis": "The production build passed, including TypeScript validation. The earlier test command was malformed by concatenation, and lint fails due to an existing ESLint/plugin circular-configuration issue unrelated to this change. The source patch is present and matches the external dedup contract. A lone `[node]` process is present but is not a running Next server, so the built service still needs to be restarted explicitly.",
+  "plan": "Run the test suite correctly as a standalone command. Then terminate the existing node process if necessary, launch `next start` from the production build in the background, and verify the process and local HTTP response. The lint failure will be left unchanged because it is configuration/tooling-related and the task prohibits modifying CI/configuration.",
+  "commands": [
+    {
+      "keystrokes": "pnpm test\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "if kill -0 574 2>/dev/null; then kill 574 2>/dev/null || true; fi\nnohup pnpm start > /tmp/fast-world-tv.log 2>&1 &\necho $!\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "sleep 1\nprintf '%s\\n' '-- service process --'\nps auxww | grep -E '[n]ext start|[n]ode.*server' || true\nprintf '%s\\n' '-- service log --'\nsed -n '1,120p' /tmp/fast-world-tv.log\n",
+      "duration": 1.5
+    },
+    {
+      "keystrokes": "if command -v wget >/dev/null 2>&1; then wget -qO- http://127.0.0.1:3000/api/fast/status; elif command -v curl >/dev/null 2>&1; then curl -fsS http://127.0.0.1:3000/api/fast/status; else echo 'no HTTP client available'; fi\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

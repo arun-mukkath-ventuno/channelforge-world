@@ -1,0 +1,159 @@
+New Terminal Output:
+
+c3585fac47ee:/app# cat packages/persistence/src/pod-cache.ts | head -70; cat packages/data-plane/src/origin.ts | head -80; kill 633; node --import tsx /app/pack
+ages/data-plane/src/server.ts &
+// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+// plane reads it on the manifest hot path and never recomputes. Keyed by
+// (session, opportunity).
+//
+// Two implementations behind one interface: Redis for real deployments, and an
+// in-memory Map for tests and single-process dev.
+
+import type { PodItem } from "@ssai/core";
+import { Redis } from "ioredis";
+
+export interface CachedPod {
+  sessionId: string;
+  opportunityId: string;
+  channelId: string;
+  breakDuration: number;
+  pod: PodItem[];
+}
+
+export interface PodCache {
+  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+  set(entry: CachedPod, ttlSeconds?: number): Promise<void>;
+  del(sessionId: string, opportunityId: string): Promise<void>;
+}
+
+function key(sessionId: string, opportunityId: string): string {
+  return `pod:${sessionId}:${opportunityId}`;
+}
+
+/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+export const DEFAULT_POD_TTL_SECONDS = 900;
+
+export class RedisPodCache implements PodCache {
+  constructor(private readonly redis: Redis) {}
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    const raw = await this.redis.get(key(sessionId, opportunityId));
+    return raw ? (JSON.parse(raw) as CachedPod) : null;
+  }
+
+  async set(entry: CachedPod, ttlSeconds = DEFAULT_POD_TTL_SECONDS): Promise<void> {
+    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    await this.redis.del(key(sessionId, opportunityId));
+  }
+}
+
+export class MemoryPodCache implements PodCache {
+  private readonly store = new Map<string, CachedPod>();
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    return this.store.get(key(sessionId, opportunityId)) ?? null;
+  }
+
+  async set(entry: CachedPod): Promise<void> {
+    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    this.store.delete(key(sessionId, opportunityId));
+  }
+}
+
+export function createRedis(url = process.env.REDIS_URL): Redis {
+  if (!url) throw new Error("REDIS_URL is not set");
+  return new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+}
+// ChannelForge origin client (PRD §8, §42, §48). Fetches the origin media
+// playlist with a short TTL cache (a live playlist changes every segment) and
+// serves the last-good copy if the origin briefly fails, so playback survives
+// an origin blip rather than stalling.
+
+export interface OriginResult {
+  body: string;
+  fromCache: boolean;
+  /** True when the origin failed and a previously cached copy was served. */
+  stale: boolean;
+}
+
+export interface OriginClientOptions {
+  baseUrl?: string;
+  /** Cache TTL in ms. A live media playlist rolls ~every target duration. */
+  ttlMs?: number;
+  /** Build the media-playlist URL for a channel/variant. */
+  urlFor?: (channel: string, variant: string) => string;
+  /**
+   * Per-channel media-playlist URL, e.g. a real ChannelForge origin
+   * `{channel: "https://forge…/hls/{uuid}/delivery.m3u8"}`. A channel present here is
+   * fetched verbatim (its URL is the full media playlist); channels absent fall back to the
+   * `{baseUrl}/{channel}/{variant}.m3u8` convention. Defaults from CHANNELFORGE_ORIGIN_MAP (JSON).
+   */
+  originMap?: Record<string, string>;
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+/** Parse the CHANNELFORGE_ORIGIN_MAP env (JSON object) into a channel→url map. */
+export function parseOriginMap(raw: string | undefined): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" ? (v as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+interface CacheEntry {
+  body: string;
+  at: number;
+}
+
+export class OriginClient {
+  private readonly cache = new Map<string, CacheEntry>();
+  private readonly baseUrl: string;
+  private readonly ttlMs: number;
+  private readonly timeoutMs: number;
+  private readonly fetchImpl: typeof fetch;
+  private readonly originMap: Record<string, string>;
+  private readonly urlFor: (channel: string, variant: string) => string;
+
+  constructor(opts: OriginClientOptions = {}) {
+    this.baseUrl = (opts.baseUrl ?? process.env.CHANNELFORGE_ORIGIN_URL ?? "http://localhost:8080").replace(/\/$/, "");
+    this.ttlMs = opts.ttlMs ?? 2000;
+    this.timeoutMs = opts.timeoutMs ?? 3000;
+    this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.originMap = opts.originMap ?? parseOriginMap(process.env.CHANNELFORGE_ORIGIN_MAP);
+    this.urlFor =
+      opts.urlFor ??
+      ((channel, variant) => this.originMap[channel] ?? `${this.baseUrl}/${channel}/${variant}.m3u8`);
+  }
+
+  /** The resolved origin media-playlist URL for a channel — also the base for absolutizing
+   * the origin's relative segment URIs (so a real external origin's content stays fetchable). */
+  originUrlFor(channel: string, variant = "index"): string {
+    return this.urlFor(channel, variant);
+  }
+
+  async fetchMediaPlaylist(channel: string, variant = "index"): Promise<OriginResult> {
+    const url = this.urlFor(channel, variant);
+    const now = Date.now();
+    const hit = this.cache.get(url);
+
+    if (hit && now - hit.at < this.ttlMs) {
+      return { body: hit.body, fromCache: true, stale: false };
+    }
+
+[2] 715
+c3585fac47ee:/app# (node:715) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions
+" instead for accessing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1788800233314,"pid":715,"hostname":"c3585fac47ee","msg":"Server listening at http://127.0.0.1:4010"}
+{"level":30,"time":1788800233314,"pid":715,"hostname":"c3585fac47ee","msg":"Server listening at http://172.21.0.3:4010"}
+

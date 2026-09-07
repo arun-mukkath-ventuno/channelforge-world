@@ -1,0 +1,288 @@
+New Terminal Output:
+
+fe1dd2af1f8a:/app# printf '%s\n' '--- /reference/ssaiadserver/control-plane/events-normalize.ts'; sed -n '1,320p' /reference/ssaiadserver/control-plane/events-n
+ormalize.ts; printf '%s\n' '--- /reference/ssaiadserver/persistence/repositories/events.ts'; sed -n '1,360p' /reference/ssaiadserver/persistence/repositories/ev
+ents.ts
+--- /reference/ssaiadserver/control-plane/events-normalize.ts
+// Normalize player telemetry (PRD §26B, §28) into canonical ad event types, and
+// derive a deterministic event id so duplicate beacons — e.g. a quartile fired
+// again after a manifest refresh (PRD §60 task 6) — collapse via the events
+// table's ON CONFLICT (event_id) DO NOTHING.
+
+import { createHash } from "node:crypto";
+
+export type CanonicalAdEvent =
+  | "ad_impression"
+  | "ad_start"
+  | "ad_first_quartile"
+  | "ad_midpoint"
+  | "ad_third_quartile"
+  | "ad_complete"
+  | "ad_error";
+
+const ALIASES: Record<string, CanonicalAdEvent> = {
+  impression: "ad_impression",
+  ad_impression: "ad_impression",
+  start: "ad_start",
+  ad_start: "ad_start",
+  firstquartile: "ad_first_quartile",
+  first_quartile: "ad_first_quartile",
+  ad_first_quartile: "ad_first_quartile",
+  midpoint: "ad_midpoint",
+  ad_midpoint: "ad_midpoint",
+  thirdquartile: "ad_third_quartile",
+  third_quartile: "ad_third_quartile",
+  ad_third_quartile: "ad_third_quartile",
+  complete: "ad_complete",
+  ad_complete: "ad_complete",
+  error: "ad_error",
+  ad_error: "ad_error",
+};
+
+const QUARTILE_TO_EVENT: Record<number, CanonicalAdEvent> = {
+  0: "ad_start",
+  25: "ad_first_quartile",
+  50: "ad_midpoint",
+  75: "ad_third_quartile",
+  100: "ad_complete",
+};
+
+export interface RawEvent {
+  event?: string;
+  event_type?: string;
+  event_id?: string;
+  quartile?: number;
+  session_id?: string;
+  channel_id?: string;
+  opportunity_id?: string;
+  pod_id?: string;
+  ad_id?: string;
+  campaign_id?: string;
+  creative_id?: string;
+  program_id?: string;
+  playhead_position?: number;
+  device_type?: string;
+  country?: string;
+  payload?: unknown;
+  [k: string]: unknown;
+}
+
+export interface NormalizedEvent {
+  eventId: string;
+  eventType: string;
+  sessionId: string | null;
+  channelId: string | null;
+  opportunityId: string | null;
+  podId: string | null;
+  adId: string | null;
+  campaignId: string | null;
+  creativeId: string | null;
+  programId: string | null;
+  playheadPosition: number | null;
+  deviceType: string | null;
+  country: string | null;
+  payload: unknown;
+}
+
+/** Resolve the canonical event type from an explicit type or a quartile marker. */
+export function canonicalType(raw: RawEvent): string {
+  const explicit = (raw.event_type ?? raw.event ?? "").toString();
+  const key = explicit.toLowerCase().replace(/\s+/g, "");
+
+  if ((key === "ad_quartile" || key === "quartile") && typeof raw.quartile === "number") {
+    return QUARTILE_TO_EVENT[raw.quartile] ?? explicit;
+  }
+  return ALIASES[key] ?? explicit;
+}
+
+/** Deterministic id for lifecycle events so duplicates dedup; unique otherwise. */
+export function deriveEventId(raw: RawEvent, eventType: string): string {
+  if (raw.event_id) return raw.event_id;
+
+  const isAdLifecycle = eventType.startsWith("ad_") && eventType !== "ad_error";
+  if (isAdLifecycle && raw.session_id) {
+    const basis = [raw.session_id, raw.pod_id ?? "", raw.ad_id ?? "", eventType].join("|");
+    return `evt_${createHash("sha1").update(basis).digest("hex").slice(0, 24)}`;
+  }
+  // Non-lifecycle (errors, unknown) — let each occurrence be recorded.
+  return `evt_${createHash("sha1").update(`${JSON.stringify(raw)}|${Date.now()}|${Math.random()}`).digest("hex").slice(0, 24)}`;
+}
+
+export function normalizeEvent(raw: RawEvent): NormalizedEvent | { error: string } {
+  const eventType = canonicalType(raw);
+  if (!eventType) return { error: "event_type is required" };
+
+  return {
+    eventId: deriveEventId(raw, eventType),
+    eventType,
+    sessionId: raw.session_id ?? null,
+    channelId: raw.channel_id ?? null,
+    opportunityId: raw.opportunity_id ?? null,
+    podId: raw.pod_id ?? null,
+    adId: raw.ad_id ?? null,
+    campaignId: raw.campaign_id ?? null,
+    creativeId: raw.creative_id ?? null,
+    programId: raw.program_id ?? null,
+    playheadPosition: raw.playhead_position ?? null,
+    deviceType: raw.device_type ?? null,
+    country: raw.country ?? null,
+    payload: raw.payload ?? raw,
+  };
+}
+--- /reference/ssaiadserver/persistence/repositories/events.ts
+// Append-only event stream (PRD §26, §29, §30). Source for analytics.
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface EventInput {
+  eventId: string;
+  eventType: string;
+  ts?: string;
+  sessionId?: string | null;
+  channelId?: string | null;
+  opportunityId?: string | null;
+  podId?: string | null;
+  adId?: string | null;
+  campaignId?: string | null;
+  creativeId?: string | null;
+  programId?: string | null;
+  playheadPosition?: number | null;
+  deviceType?: string | null;
+  country?: string | null;
+  p
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+   131	};
+   132	
+   133	export function emit(e: FastEvent): void {
+   134	  if (typeof window === "undefined") return;
+   135	  const payload = { ...e, ts: Date.now(), sessionId: sessionId() };
+   136	  try {
+   137	    const body = JSON.stringify(payload);
+   138	    if (navigator.sendBeacon) {
+   139	      navigator.sendBeacon(
+   140	        "/api/fast/events",
+   141	        new Blob([body], { type: "application/json" })
+   142	      );
+   143	    } else {
+   144	      fetch("/api/fast/events", {
+   145	        method: "POST",
+   146	        headers: { "content-type": "application/json" },
+   147	        body,
+   148	        keepalive: true,
+   149	      }).catch(() => {});
+   150	    }
+   151	  } catch {
+   152	    /* telemetry is best-effort */
+   153	  }
+   154	}
+--- src/app/api/fast/events/route.ts
+     1	import { NextResponse } from "next/server";
+     2	import { telemetry, TelemetryEvent } from "@/lib/telemetry-store";
+     3	
+     4	export const dynamic = "force-dynamic";
+     5	
+     6	// Anonymous viewer telemetry sink. Persists to the telemetry store (Phase 2).
+     7	// No PII is accepted or stored — only an anonymous session id and playback metrics.
+     8	type Incoming = Partial<TelemetryEvent> & { event?: string };
+     9	
+    10	export async function POST(req: Request) {
+    11	  let body: unknown;
+    12	  try {
+    13	    body = await req.json();
+    14	  } catch {
+    15	    return NextResponse.json({ ok: false, error: "bad_json" }, { status: 400 });
+    16	  }
+    17	  const items: Incoming[] = Array.isArray(body) ? body : [body];
+    18	  const store = telemetry();
+    19	
+    20	  let accepted = 0;
+    21	  for (const e of items) {
+    22	    if (!e || typeof e.event !== "string") continue;
+    23	    accepted++;
+    24	    await store.record({
+    25	      event: e.event,
+    26	      ts: typeof e.ts === "number" ? e.ts : Date.now(),
+    27	      sessionId: typeof e.sessionId === "string" ? e.sessionId : "anon",
+    28	      channelId: typeof e.channelId === "number" ? e.channelId : undefined,
+    29	      programId: typeof e.programId === "string" ? e.programId : undefined,
+    30	      startupMs: typeof e.startupMs === "number" ? e.startupMs : undefined,
+    31	      bufferMs: typeof e.bufferMs === "number" ? e.bufferMs : undefined,
+    32	      latencyMs: typeof e.latencyMs === "number" ? e.latencyMs : undefined,
+    33	      errorCode: typeof e.errorCode === "string" ? e.errorCode : undefined,
+    34	    });
+    35	  }
+    36	
+    37	  return NextResponse.json({ ok: true, accepted });
+    38	}
+fe1dd2af1f8a:/app# printf '%s\n' 'All source references to event APIs and ad fields:'; grep -RInE --exclude='*.test.*' --exclude-dir=.next --exclude-dir=node_mo
+dules 'fast/events|/events|emit\(|eventType|eventName|ad[A-Z]|ad_|creative|airing|quartile|completion|impression|sessionId|playback' src || true; printf '%s\n'
+'Package:'; cat package.json
+All source references to event APIs and ad fields:
+grep: unrecognized option: exclude=*.test.*
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+Package:
+{
+  "name": "fast-world-tv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "lucide-react": "^1.35.0",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "shaka-player": "^4.11.9"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
+fe1dd2af1f8a:/app# printf '%s\n' 'Reference service relevant symbols:'; grep -RInE 'dedup|creative|airing|impression|quartile|completion|sessionId|eventId|event
+_type|eventType' /reference/ssaiadserver --exclude-dir=node_modules 2>/dev/null | head -400
+Reference service relevant symbols:
+fe1dd2af1f8a:/app#

@@ -1,0 +1,22 @@
+{
+  "analysis": "The source search output was truncated, but it revealed the read-only reference location `/reference/ssaiadserver/control-plane/events-norm`. The app appears to have SSAI-related code in `src/lib/ssai.ts`, likely event forwarding in the player/components or API routes. I need inspect the reference dedup contract and the relevant application files directly, avoiding the broad output that caused truncation.",
+  "plan": "Read the reference tree and search it specifically for deduplication and event identity construction. Then inspect `ssai.ts`, `FastPlayer.tsx`, `LiveClient.tsx`, and the events route. Compare the fields used by the external service to identify the missing per-airing identifier, patch the smallest application-source location, run targeted tests/type checks, and restart the service after rebuilding or starting it as appropriate.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- reference files --' && find /reference/ssaiadserver/control-plane/events-norm -maxdepth 5 -type f -print | sort\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- reference dedup/event hits --' && grep -RInE '(dedup|duplicate|idempot|event_id|eventId|airing|creative|impression|session|quartile|completion|beacon)' /reference/ssaiadserver/control-plane/events-norm 2>/dev/null | sed -n '1,260p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- ssai --' && sed -n '1,320p' src/lib/ssai.ts && printf '%s\\n' '-- events route --' && sed -n '1,260p' src/app/api/fast/events/route.ts && printf '%s\\n' '-- player hits --' && grep -RInE '(ssai|ad|beacon|quartile|completion|impression|creative|session|event)' src/components src/app/fast-world src/lib --include='*.ts' --include='*.tsx' | sed -n '1,320p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- git and service metadata --' && git status --short && find /reference/ssaiadserver -maxdepth 3 -type f \\( -name 'README*' -o -name 'package.json' -o -name 'docker-compose*' -o -name 'Makefile' \\) -print -exec sed -n '1,180p' {} \\;\n",
+      "duration": 0.5
+    }
+  ]
+}

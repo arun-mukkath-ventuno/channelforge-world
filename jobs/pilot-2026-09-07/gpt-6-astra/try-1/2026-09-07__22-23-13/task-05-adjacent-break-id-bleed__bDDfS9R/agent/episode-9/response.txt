@@ -1,0 +1,10 @@
+{
+  "analysis": "The process remains alive but is not listening, so startup needs diagnosis rather than another blind health retry.",
+  "plan": "Inspect initialization dependencies and restart with logs visible in the terminal, without creating or changing files outside application source.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/persistence/src/pod-cache.ts | head -70; cat packages/data-plane/src/origin.ts | head -80; kill 633; node --import tsx /app/packages/data-plane/src/server.ts &\n",
+      "duration": 2
+    }
+  ]
+}

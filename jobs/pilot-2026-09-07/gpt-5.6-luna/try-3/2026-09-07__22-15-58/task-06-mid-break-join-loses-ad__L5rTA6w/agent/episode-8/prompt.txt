@@ -1,0 +1,247 @@
+New Terminal Output:
+
+703450db135d:/app# sed -n '145,255p' packages/control-plane/src/server.ts; sed -n '470,530p' packages/control-plane/src/server.ts
+
+    // Signed playback token (PRD §57): the data plane verifies it before serving.
+    const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+    return {
+      session_id: sessionId,
+      channel_id: body.channel_id,
+      playback_token: token,
+      playback_url: `${dataPlaneUrl}/v1/hls/${token}/${body.channel_id}/master.m3u8`,
+    };
+  });
+
+  app.get("/v1/sessions/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const session = await sessionsRepo.getSession(pool, id);
+    return session ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  // ── Ad Decision (PRD §15, §16, §35) ──────────────────────────────────────
+  app.post("/v1/ad-decision", async (req, reply) => {
+    const body = (req.body ?? {}) as {
+      session_id?: string;
+      channel_id?: string;
+      opportunity_id?: string;
+      external_break_id?: string;
+      duration?: number;
+      seed?: string;
+    };
+    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+    }
+
+    const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+    const now = new Date().toISOString();
+    const opportunity: AdOpportunity = {
+      opportunityId: body.opportunity_id,
+      channelId: body.channel_id,
+      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+      breakStart: now,
+      breakDuration: body.duration,
+      source: "cue_out",
+      signalType: "cue_out",
+    };
+    const session: SessionContext = { sessionId, channelId: body.channel_id };
+
+    // Inventory from Postgres.
+    const [creatives, campaignMap] = await Promise.all([
+      creativesRepo.listCreatives(pool),
+      campaignsRepo.campaignsAsMap(pool),
+    ]);
+
+    const seed = body.seed ?? process.env.AD_DECISION_SEED;
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns: campaignMap,
+      now,
+      ...(seed ? { seed } : {}),
+    });
+
+    const decisionId = `dec_${randomUUID()}`;
+    const podId = `pod_${randomUUID()}`;
+
+    // Persist opportunity + session + decision atomically (PRD §46, §47).
+    await withTransaction(pool, async (tx) => {
+      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+      await oppsRepo.upsertOpportunity(tx, opportunity);
+      await decisionsRepo.saveDecision(tx, {
+        decisionId,
+        podId,
+        decision,
+        requestedAt: now,
+        completedAt: new Date().toISOString(),
+      });
+      for (const [type, extra] of [
+        ["ad_opportunity_detected", {}],
+        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+      ] as const) {
+        await eventsRepo.appendEvent(tx, {
+          eventId: randomUUID(),
+          eventType: type,
+          sessionId,
+          channelId: body.channel_id,
+          opportunityId: body.opportunity_id,
+          podId,
+          payload: extra,
+        });
+      }
+    });
+
+    // Cache the pod for the data plane (PRD §48).
+    await podCache.set({
+      sessionId,
+      opportunityId: body.opportunity_id,
+      channelId: body.channel_id,
+      breakDuration: body.duration,
+      pod: decision.pod,
+    });
+
+    return { decision_id: decisionId, pod_id: podId, ...decision };
+  });
+
+  // ── Player telemetry ingestion (PRD §26B, §28) ───────────────────────────
+  // Accepts one event or a small batch; maps quartile beacons to canonical ad
+  // event types and dedups duplicate beacons (PRD §60 task 6).
+  app.post("/v1/events", async (req, reply) => {
+    const body = req.body as Record<string, unknown> | Array<Record<string, unknown>>;
+    const list = Array.isArray(body) ? body : [body];
+    const touched = new Set<string>();
+
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: "a file field is required" });
+
+    const ext = (file.filename?.split(".").pop() ?? "").toLowerCase();
+    if (!SOURCE_EXTENSIONS.has(ext)) {
+      return reply.code(400).send({ error: `unsupported source type .${ext}` });
+    }
+
+    let buffer: Buffer;
+    try {
+      buffer = await file.toBuffer();
+    } catch {
+      // @fastify/multipart throws when the file exceeds the configured limit.
+      return reply.code(413).send({ error: "file too large" });
+    }
+
+    const sourceKey = `sources/creatives/${id}/source.${ext}`;
+    await store.put(sourceKey, buffer);
+    await creativesRepo.setCreativeSource(pool, id, sourceKey);
+    await cre
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+);
+    reply.header("cache-control", "public, max-age=31536000, immutable");
+    return reply.send(data);
+  } catch {
+    return reply.code(404).send({ error: "segment_not_found" });
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+  const { createObjectStoreFromEnv } = await import("@ssai/storage");
+  const podCache = new RedisPodCache(createRedis());
+  const origin = new OriginClient();
+  const store = await createObjectStoreFromEnv();
+  const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? "http://localhost:4000";
+  const decider = new HttpPodDecider(controlPlaneUrl);
+  const app = buildServer({ podCache, origin, store, decider });
+  app.listen({ port: Number(process.env.DATA_PLANE_PORT ?? 4010), host: "0.0.0.0" }).catch((err) => {
+    app.log.error(err);
+    process.exit(1);
+  });
+}
+// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+// plane reads it on the manifest hot path and never recomputes. Keyed by
+// (session, opportunity).
+//
+// Two implementations behind one interface: Redis for real deployments, and an
+// in-memory Map for tests and single-process dev.
+
+import type { PodItem } from "@ssai/core";
+import { Redis } from "ioredis";
+
+export interface CachedPod {
+  sessionId: string;
+  opportunityId: string;
+  channelId: string;
+  breakDuration: number;
+  pod: PodItem[];
+}
+
+export interface PodCache {
+  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+  set(entry: CachedPod, ttlSeconds?: number): Promise<void>;
+  del(sessionId: string, opportunityId: string): Promise<void>;
+}
+
+function key(sessionId: string, opportunityId: string): string {
+  return `pod:${sessionId}:${opportunityId}`;
+}
+
+/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+export const DEFAULT_POD_TTL_SECONDS = 900;
+
+export class RedisPodCache implements PodCache {
+  constructor(private readonly redis: Redis) {}
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    const raw = await this.redis.get(key(sessionId, opportunityId));
+    return raw ? (JSON.parse(raw) as CachedPod) : null;
+  }
+
+  async set(entry: CachedPod, ttlSeconds = DEFAULT_POD_TTL_SECONDS): Promise<void> {
+    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    await this.redis.del(key(sessionId, opportunityId));
+  }
+}
+
+export class MemoryPodCache implements PodCache {
+  private readonly store = new Map<string, CachedPod>();
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    return this.store.get(key(sessionId, opportunityId)) ?? null;
+  }
+
+  async set(entry: CachedPod): Promise<void> {
+    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    this.store.delete(key(sessionId, opportunityId));
+  }
+}
+
+export function createRedis(url = process.env.REDIS_URL): Redis {
+  if (!url) throw new Error("REDIS_URL is not set");
+  return new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+}
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [{ "path": "../core" }, { "path": "../persistence" }, { "path": "../storage" }],
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "dist"]
+}
+703450db135d:/app# find packages/data-plane/src -type f -name '*.test.ts' -exec grep -nHE 'buildServer|hls|token|decider|podCache|x-ssai' {} +
+packages/data-plane/src/origin-slice4.test.ts:8:    expect(parseOriginMap('{"channel_yoga":"https://forge/hls/u/delivery.m3u8"}')).toEqual({
+packages/data-plane/src/origin-slice4.test.ts:9:      channel_yoga: "https://forge/hls/u/delivery.m3u8",
+packages/data-plane/src/origin-slice4.test.ts:22:      originMap: { channel_yoga: "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8" },
+packages/data-plane/src/origin-slice4.test.ts:25:      "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8",
+packages/data-plane/src/origin-slice4.test.ts:35:  const origin = "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8";
+packages/data-plane/src/origin-slice4.test.ts:40:    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index0.ts");
+packages/data-plane/src/origin-slice4.test.ts:41:    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index1.ts");
+packages/data-plane/src/origin-slice4.test.ts:57:    expect(out).toContain('URI="https://forge.ventunotech.com/hls/a11e5310/init.mp4"');
+packages/data-plane/src/origin-slice4.test.ts:58:    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/seg.m4s");
+703450db135d:/app# grep -RInE 'interface PodCache|class .*PodCache|pod-cache' packages --exclude='*.map' --exclude='*.js' 2>/dev/null
+703450db135d:/app#

@@ -1,0 +1,10 @@
+{
+  "analysis": "The defect is confirmed: the local fired key includes the ad window's absolute start, but the outgoing beacon does not. The reference explicitly honors event_id and otherwise hashes only session/pod/ad/type, so adding an unrecognized occurrence field would not fix this. A deterministic explicit event_id can preserve the original ad_id while separating airings and retaining retry deduplication.",
+  "plan": "Update only src/lib/ssai.ts: pass the window start into the sender and generate an unambiguous event_id from session, creative, start, and event type. Keep existing three-argument sender behavior compatible. Then run the existing tests and an in-memory regression check against the actual reference normalizer without adding or modifying test files.",
+  "commands": [
+    {
+      "keystrokes": "node <<'NODE'\nconst fs = require('fs');\nconst path = 'src/lib/ssai.ts';\nlet s = fs.readFileSync(path, 'utf8');\ns = s.replace('export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\\n  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });', `export function sendAdBeacon(\n  sessionId: string,\n  event: AdBeacon,\n  adId: string,\n  windowStart?: number,\n): void {\n  // SSAI honors event_id; its fallback session/pod/ad/type key merges repeat airings.\n  // Use the manifest's absolute start so refreshes/retries retain the same identity.\n  const eventId = windowStart === undefined\n    ? undefined\n    : \\`evt_\\${JSON.stringify([sessionId, adId, windowStart, event])}\\`;\n  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, event_id: eventId });`);\ns = s.replace('sendAdBeacon(opts.sessionId, beacon, w.adId);', 'sendAdBeacon(opts.sessionId, beacon, w.adId, w.start);');\nfs.writeFileSync(path, s);\nNODE\npnpm test\n",
+      "duration": 1
+    }
+  ]
+}

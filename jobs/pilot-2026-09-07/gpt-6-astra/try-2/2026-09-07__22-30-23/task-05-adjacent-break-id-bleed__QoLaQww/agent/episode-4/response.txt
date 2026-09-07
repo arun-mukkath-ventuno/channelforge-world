@@ -1,0 +1,14 @@
+{
+  "analysis": "The detector caches any DATERANGE ID for a whole segment tag block and only fills an open break's ID when it is undefined. A closing DATERANGE and the next CUE-OUT can share a block on adjacent breaks, which could seed the new break with the old ID. I need to inspect DATERANGE parsing to distinguish opening from closing markers without dropping supported syntax.",
+  "plan": "Read the complete marker parser and focused detector tests, plus the remaining segment-boundary logic.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/core/src/scte.ts; sed -n '115,180p' packages/data-plane/src/avails.ts; sed -n '65,170p' packages/data-plane/src/avails.test.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat packages/core/src/scte.test.ts; cat packages/storage/src/factory.ts; cat packages/persistence/src/redis.ts; env | sort\n",
+      "duration": 0.1
+    }
+  ]
+}

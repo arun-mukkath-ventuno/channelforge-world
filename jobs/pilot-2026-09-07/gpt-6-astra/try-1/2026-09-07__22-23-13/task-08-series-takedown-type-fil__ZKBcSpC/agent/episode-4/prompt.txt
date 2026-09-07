@@ -1,0 +1,99 @@
+New Terminal Output:
+
+root@8a95af6f6baa:/app# sed -n '155,235p' app/repositories/rights.py; sed -n '95,150p' app/models/rights.py; grep -n -C 3 series_id app/models/asset.py; ls test
+s/*rights*; command -v restart-api
+            )
+            .order_by(RightsTakedown.created_at.desc())
+        )
+    )
+
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+        return [scope_id]
+    if scope_type == "series":
+        return list(
+            db.scalars(
+                select(Asset.id).where(
+                    Asset.organization_id == org_id, Asset.series_id == scope_id
+                )
+            )
+        )
+    return []
+
+
+def affected_future_events(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+) -> list[ScheduleEvent]:
+    """Future events in *published* schedule versions that reference the taken-down asset(s)."""
+    asset_ids = _covered_asset_ids(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id)
+    if not asset_ids:
+        return []
+    return list(
+        db.scalars(
+            select(ScheduleEvent)
+            .join(ScheduleVersion, ScheduleVersion.id == ScheduleEvent.schedule_version_id)
+            .where(
+                ScheduleEvent.organization_id == org_id,
+                ScheduleEvent.asset_id.in_(asset_ids),
+                ScheduleEvent.planned_start > now,
+                ScheduleVersion.status == "published",
+            )
+            .order_by(ScheduleEvent.planned_start)
+        )
+    )
+class RightsTakedown(UUIDMixin, TimestampMixin, Base):
+    """An emergency takedown on an asset or series (PRD 3.0 §8.3, ADR-5).
+
+    A non-destructive override: while ``status='active'`` the target is blocked at every eligibility
+    decision point (new scheduling, EPG inclusion, distributor eligibility) without rewriting any
+    immutable published schedule version. Lifting restores eligibility.
+    """
+
+    __tablename__ = "rights_takedowns"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True, nullable=False)
+    scope_type: Mapped[str] = mapped_column(String(20), nullable=False)  # asset | series
+    scope_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    lifted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lifted_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+33-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+34-    content_type: Mapped[str] = mapped_column(String(30), default="programme", nullable=False)
+35-    # Legacy free-text series/season (1.x). Retained as a fallback during the ADR-4 backfill;
+36:    # series_id/season_id are the canonical hierarchy going forward.
+37-    series: Mapped[str | None] = mapped_column(String(300), nullable=True)
+38-    season: Mapped[int | None] = mapped_column(Integer, nullable=True)
+39-    episode_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+--
+49-    # --- Canonical editorial metadata (PRD 3.0 §7.1) ---
+50-    # Series/season hierarchy (nullable FKs; ON DELETE SET NULL keeps the asset if a series
+51-    # is removed — historical evidence must survive editorial deletes, §6.2).
+52:    series_id: Mapped[uuid.UUID | None] = mapped_column(
+53-        Uuid, ForeignKey("series.id", ondelete="SET NULL"), index=True, nullable=True
+54-    )
+55-    season_id: Mapped[uuid.UUID | None] = mapped_column(
+tests/test_rights_enforcement.py  tests/test_rights_engine.py  tests/test_rights_takedown.py  tests/test_schedule_rights.py
+/usr/local/bin/restart-api
+root@8a95af6f6baa:/app#

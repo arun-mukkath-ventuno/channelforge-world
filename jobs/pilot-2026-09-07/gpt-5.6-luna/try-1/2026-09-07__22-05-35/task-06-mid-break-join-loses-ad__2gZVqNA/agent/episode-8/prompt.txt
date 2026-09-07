@@ -1,0 +1,206 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# nl -ba packages/persistence/src/pod-cache.ts | sed -n '1,180p'; printf '\n===== decision endpoint =====\n'; nl -ba packages/control-plane/src
+/server.ts | sed -n '130,275p'; printf '\n===== decision repository start =====\n'; nl -ba packages/persistence/src/repositories/decisions.ts | sed -n '1,145p'
+     1	// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+     2	// plane reads it on the manifest hot path and never recomputes. Keyed by
+     3	// (session, opportunity).
+     4	//
+     5	// Two implementations behind one interface: Redis for real deployments, and an
+     6	// in-memory Map for tests and single-process dev.
+     7	
+     8	import type { PodItem } from "@ssai/core";
+     9	import { Redis } from "ioredis";
+    10	
+    11	export interface CachedPod {
+    12	  sessionId: string;
+    13	  opportunityId: string;
+    14	  channelId: string;
+    15	  breakDuration: number;
+    16	  pod: PodItem[];
+    17	}
+    18	
+    19	export interface PodCache {
+    20	  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+    21	  set(entry: CachedPod, ttlSeconds?: number): Promise<void>;
+    22	  del(sessionId: string, opportunityId: string): Promise<void>;
+    23	}
+    24	
+    25	function key(sessionId: string, opportunityId: string): string {
+    26	  return `pod:${sessionId}:${opportunityId}`;
+    27	}
+    28	
+    29	/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+    30	export const DEFAULT_POD_TTL_SECONDS = 900;
+    31	
+    32	export class RedisPodCache implements PodCache {
+    33	  constructor(private readonly redis: Redis) {}
+    34	
+    35	  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    36	    const raw = await this.redis.get(key(sessionId, opportunityId));
+    37	    return raw ? (JSON.parse(raw) as CachedPod) : null;
+    38	  }
+    39	
+    40	  async set(entry: CachedPod, ttlSeconds = DEFAULT_POD_TTL_SECONDS): Promise<void> {
+    41	    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+    42	  }
+    43	
+    44	  async del(sessionId: string, opportunityId: string): Promise<void> {
+    45	    await this.redis.del(key(sessionId, opportunityId));
+    46	  }
+    47	}
+    48	
+    49	export class MemoryPodCache implements PodCache {
+    50	  private readonly store = new Map<string, CachedPod>();
+    51	
+    52	  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    53	    return this.store.get(key(sessionId, opportunityId)) ?? null;
+    54	  }
+    55	
+    56	  async set(entry: CachedPod): Promise<void> {
+    57	    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+    58	  }
+    59	
+    60	  async del(sessionId: string, opportunityId: string): Promise<void> {
+    61	    this.store.delete(key(sessionId, opportunityId));
+    62	  }
+    63	}
+    64	
+    65	export function createRedis(url = process.env.REDIS_URL): Redis {
+    66	  if (!url) throw new Error("REDIS_URL is not set");
+    67	  return new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+    68	}
+
+===== decision endpoint =====
+   130	    if (!body.channel_id) return reply.code(400).send({ error: "channel_id is required" });
+   131	
+   132	    const sessionId = `sess_${randomUUID()}`;
+   133	    await sessionsRepo.ensureSession(pool, {
+   134	      id: sessionId,
+   135	      channelId: body.channel_id,
+   136	      deviceType: body.device_type ?? "web",
+   137	      country: body.country ?? null,
+   138	    });
+   139	    await eventsRepo.appendEvent(pool, {
+   140	      eventId: randomUUID(),
+   141	      eventType: "session_created",
+   142	      sessionId,
+   143	      channelId: body.channel_id,
+   144	    });
+   145	
+   146	    // Signed playback token (PRD §57): the data plane verifies it before serving.
+   147	    const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+   148	    return {
+   149	      session_id: sessionId,
+   150	      channel_id: body.channel_id,
+   151	      playback_token: token,
+   152	      playback_url: `${dataPlaneUrl}/v1/hls/${token}/${body.channel_id}/master.m3u8`,
+   153	    };
+   154	  });
+   155	
+   156	  app.get("/v1/sessions/:id", async (req, reply) => {
+   157	    const { id } = req.params as { id: string };
+   158	    const session = await sessionsRepo.getSession(pool, id);
+   159	    return session ?? reply.code(404).send({ error: "not_found" });
+   160	  });
+   161	
+   162	  // ── Ad Decision (PRD §15, §16, §35) ──────────────────────────────────────
+   163	  app.post("/v1/ad-decision", async (req, reply) => {
+   164	    const body = (req.body ?? {}) as {
+   165	      session_id?: string;
+   166	      channel_id?: string;
+   167	      opportunity_id?: string;
+   168	      external_break_id?: string;
+   1
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+    item.duration,
+    52	        item.startOffset,
+    53	        item.endOffset,
+    54	      ],
+    55	    );
+    56	  }
+    57	}
+    58	
+    59	export interface StoredDecision {
+    60	  id: string;
+    61	  opportunityId: string;
+    62	  sessionId: string;
+    63	  eligibleCount: number;
+    64	  selectedCount: number;
+    65	  decision: AdDecision;
+    66	}
+    67	
+    68	interface DecisionRow {
+    69	  id: string;
+    70	  opportunity_id: string;
+    71	  session_id: string;
+    72	  eligible_count: number;
+    73	  selected_count: number;
+    74	  decision_payload: unknown;
+    75	}
+    76	
+    77	function toStored(r: DecisionRow): StoredDecision {
+    78	  return {
+    79	    id: r.id,
+    80	    opportunityId: r.opportunity_id,
+    81	    sessionId: r.session_id,
+    82	    eligibleCount: Number(r.eligible_count),
+    83	    selectedCount: Number(r.selected_count),
+    84	    decision: (typeof r.decision_payload === "string"
+    85	      ? JSON.parse(r.decision_payload)
+    86	      : r.decision_payload) as AdDecision,
+    87	  };
+    88	}
+    89	
+    90	const DECISION_COLS =
+    91	  "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+    92	
+    93	export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {
+    94	  const rows = (
+    95	    await db.query<DecisionRow>(
+    96	      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE session_id = $1 ORDER BY requested_at`,
+    97	      [sessionId],
+    98	    )
+    99	  ).rows;
+   100	  return rows.map(toStored);
+   101	}
+   102	
+   103	export async function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<StoredDecision[]> {
+   104	  const rows = (
+   105	    await db.query<DecisionRow>(
+   106	      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+   107	      [opportunityId],
+   108	    )
+   109	  ).rows;
+   110	  return rows.map(toStored);
+   111	}
+727f8e3dc8f6:/app# find packages -type f -name '*.ts' -not -path '*/node_modules/*' -print0 | xargs -0 grep -nE -e 'podCache\.set' -e 'getDecisionsBySession' -e
+ 'getDecisionsByOpportunity' -e 'RedisPodCache' -e 'MemoryPodCache' | sed -n '1,240p'
+packages/control-plane/src/server.ts:237:    await podCache.set({
+packages/control-plane/src/server.ts:314:      decisionsRepo.getDecisionsBySession(pool, id),
+packages/control-plane/src/server.ts:321:    return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+packages/control-plane/src/server.ts:499:  const { createPool, createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/control-plane/src/server.ts:502:  const podCache = new RedisPodCache(createRedis());
+packages/control-plane/src/server.test.ts:7:import { MemoryPodCache, type Pool } from "@ssai/persistence";
+packages/control-plane/src/server.test.ts:25:  const app = buildServer({ pool, podCache: new MemoryPodCache(), store, logger: false, authDisabled: true });
+packages/control-plane/src/server.test.ts:36:    podCache: new MemoryPodCache(),
+packages/data-plane/src/server.ts:135:  const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+packages/data-plane/src/server.ts:137:  const podCache = new RedisPodCache(createRedis());
+packages/persistence/src/repositories.test.ts:12:import { saveDecision, getDecisionsBySession } from "./repositories/decisions.js";
+packages/persistence/src/repositories.test.ts:91:    const stored = await getDecisionsBySession(db, "sess_1");
+packages/persistence/src/pod-cache.test.ts:2:import { MemoryPodCache, type CachedPod } from "./pod-cache.js";
+packages/persistence/src/pod-cache.test.ts:17:    const cache = new MemoryPodCache();
+packages/persistence/src/pod-cache.test.ts:24:    const cache = new MemoryPodCache();
+packages/persistence/src/pod-cache.test.ts:30:    const cache = new MemoryPodCache();
+packages/persistence/src/pod-cache.ts:32:export class RedisPodCache implements PodCache {
+packages/persistence/src/pod-cache.ts:49:export class MemoryPodCache implements PodCache {
+packages/persistence/src/repositories/decisions.ts:93:export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {
+packages/persistence/src/repositories/decisions.ts:103:export async function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<StoredDeci
+sion[]> {
+packages/persistence/dist/pod-cache.d.ts:17:export declare class RedisPodCache implements PodCache {
+packages/persistence/dist/pod-cache.d.ts:24:export declare class MemoryPodCache implements PodCache {
+packages/persistence/dist/repositories/decisions.d.ts:19:export declare function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision
+[]>;
+packages/persistence/dist/repositories/decisions.d.ts:20:export declare function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<Stored
+Decision[]>;
+727f8e3dc8f6:/app#

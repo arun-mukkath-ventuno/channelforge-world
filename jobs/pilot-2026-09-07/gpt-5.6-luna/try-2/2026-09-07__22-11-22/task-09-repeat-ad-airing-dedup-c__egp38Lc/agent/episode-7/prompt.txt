@@ -1,0 +1,217 @@
+New Terminal Output:
+
+fe1dd2af1f8a:/app# printf '%s\n' '--- ssai.ts lines 90-240'; nl -ba src/lib/ssai.ts | sed -n '90,260p'; printf '%s\n' '--- ssai tests'; cat src/lib/ssai.test.ts
+; printf '%s\n' '--- PlayerBand lines 175-225'; nl -ba src/components/fast/PlayerBand.tsx | sed -n '175,230p'
+--- ssai.ts lines 90-240
+    90	}
+    91	
+    92	/**
+    93	 * Parse SCTE-35 ad avails from a ChannelForge media playlist. These are the ad
+    94	 * OPPORTUNITIES the packager signals (where SSAI may splice), distinct from
+    95	 * `parseAdWindows` which reads the ads actually stitched in. Reads
+    96	 * `#EXT-X-DATERANGE` lines carrying `SCTE35-OUT` with an absolute `START-DATE`
+    97	 * and `PLANNED-DURATION`.
+    98	 */
+    99	export function parseScteAvails(manifest: string): ScteAvail[] {
+   100	  const out: ScteAvail[] = [];
+   101	  for (const line of manifest.split("\n")) {
+   102	    if (!line.startsWith("#EXT-X-DATERANGE:")) continue;
+   103	    if (!/SCTE35-OUT/i.test(line)) continue;
+   104	    const attr = (k: string): string | undefined =>
+   105	      line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+   106	    const startDate = attr("START-DATE");
+   107	    const dur = attr("PLANNED-DURATION") || attr("DURATION");
+   108	    const id = attr("ID") || "brk";
+   109	    if (!startDate || !dur) continue;
+   110	    const start = Date.parse(startDate);
+   111	    const seconds = Number(dur);
+   112	    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+   113	    out.push({ id, start, end: start + seconds * 1000, durationSec: seconds });
+   114	  }
+   115	  return out;
+   116	}
+   117	
+   118	// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+   119	const QUARTILES: [number, AdBeacon][] = [
+   120	  [0, "ad_impression"],
+   121	  [0, "ad_start"],
+   122	  [0.25, "ad_first_quartile"],
+   123	  [0.5, "ad_midpoint"],
+   124	  [0.75, "ad_third_quartile"],
+   125	  [1, "ad_complete"],
+   126	];
+   127	
+   128	/**
+   129	 * Watch the wall-clock playhead against the stitched manifest's ad windows and fire quartile
+   130	 * beacons as each ad plays. `playheadDate()` returns the current playhead as epoch ms (from
+   131	 * Shaka's getPlayheadTimeAsDate). Returns a stop() cleanup.
+   132	 */
+   133	export function startAdBeaconWatcher(opts: {
+   134	  sessionId: string;
+   135	  manifestUrl: string;
+   136	  playheadDate: () => number | null;
+   137	  refetchMs?: number;
+   138	  tickMs?: number;
+   139	}): () => void {
+   140	  let windows: AdWindow[] = [];
+   141	  const fired = new Set<string>(); // `${adId}:${start}:${beacon}`
+   142	  let stopped = false;
+   143	
+   144	  async function refresh() {
+   145	    try {
+   146	      const res = await fetch(opts.manifestUrl, { cache: "no-store" });
+   147	      if (res.ok) windows = parseAdWindows(await res.text());
+   148	    } catch {
+   149	      /* keep prior windows */
+   150	    }
+   151	  }
+   152	
+   153	  const tick = () => {
+   154	    if (stopped) return;
+   155	    const now = opts.playheadDate();
+   156	    if (now != null) {
+   157	      for (const w of windows) {
+   158	        if (now < w.start || now > w.end) continue;
+   159	        const progress = (now - w.start) / Math.max(1, w.end - w.start);
+   160	        for (const [threshold, beacon] of QUARTILES) {
+   161	          if (progress + 1e-6 < threshold) continue;
+   162	          const key = `${w.adId}:${w.start}:${beacon}`;
+   163	          if (fired.has(key)) continue;
+   164	          fired.add(key);
+   165	          sendAdBeacon(opts.sessionId, beacon, w.adId);
+   166	        }
+   167	      }
+   168	    }
+   169	  };
+   170	
+   171	  void refresh();
+   172	  const refetch = setInterval(refresh, opts.refetchMs ?? 10_000);
+   173	  const ticker = setInterval(tick, opts.tickMs ?? 1_000);
+   174	  return () => {
+   175	    stopped = true;
+   176	    clearInterval(refetch);
+   177	    clearInterval(ticker);
+   178	  };
+   179	}
+--- ssai tests
+import { describe, it, expect } from "vitest";
+
+import { parseAdWindows } from "./ssai";
+
+describe("parseAdWindows", () => {
+  it("extracts ad windows from EXT-X-DATERANGE ad markers", () => {
+    const manifest = [
+      "#EXTM3U",
+      "#EXTINF:6.000,",
+      "segment.ts",
+      '#EXT-X-DATERANGE:ID="cr_yoga_end_25",CLASS="com.fastworld.ad",START-DATE="2026-09-03T05:00:00.000Z",DURATION=25,X-AD-ID="cr_yoga_end_25",X-CAMPAIGN-ID="c
+amp_yoga_house"',
+    ].join("\n");
+    const windows = parseAdWindows(manifest);
+    expect(windows).toHaveLength(1);
+    expect(windows[0].adId).toBe("cr_yoga_end_25");
+    expect(windows[0].start).toBe(Date.parse("2026-09-03T05:00:00.000Z"));
+    expect(windows[0].end).toBe(windows[0].start + 25_000);
+  });
+
+  it("ignores non-ad DATERANGE and content lines", () => {
+    const manifest = [
+      "#EXTINF:2,",
+      "seg.ts",
+      '#EXT-X-DATERANGE:ID="x",CLASS="com.other.thing",START-DATE="2026-09-03T05:00:00.000Z",DURATION=10',
+    ].join("\n");
+    expect(parseAdWindows(manifest)).toEq
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+SCTE35-OUT` with an absolute `START-DATE`
+102:    if (!line.startsWith("#EXT-X-DATERANGE:")) continue;
+118:// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+129: * Watch the wall-clock playhead against the stitched manifest's ad windows and fire quartile
+133:export function startAdBeaconWatcher(opts: {
+140:  let windows: AdWindow[] = [];
+141:  const fired = new Set<string>(); // `${adId}:${start}:${beacon}`
+147:      if (res.ok) windows = parseAdWindows(await res.text());
+149:      /* keep prior windows */
+157:      for (const w of windows) {
+162:          const key = `${w.adId}:${w.start}:${beacon}`;
+165:          sendAdBeacon(opts.sessionId, beacon, w.adId);
+--- src/lib/ssai.ts
+12:import { loadForgeEpg, windowFilter } from "./channelforge-epg";
+280:    if (all.length) return windowFilter(all, from, to);
+--- src/lib/channels.ts
+7:export const WIN_MIN = 60; // visible guide window (1h) — short real programs stay readable
+11:// SCTE avails are parsed from the manifest (ssai.parseAdWindows). Matches the design.
+120:    // The break window to render inside this program (if any).
+187:  // Guide window (local, ticks against server timestamps).
+--- src/lib/fast-view.ts
+7:import { loadForgeEpg, windowFilter } from "@/lib/channelforge-epg";
+123:describe("windowFilter", () => {
+129:    expect(windowFilter(list, 12, 18)).toHaveLength(1);
+130:    expect(windowFilter(list, 5, 25)).toHaveLength(3);
+--- src/lib/channelforge-epg.test.ts
+107:  if (typeof window === "undefined") return "server";
+134:  if (typeof window === "undefined") return;
+--- src/lib/fast-client.ts
+35:      ["+00:24", "Evaluated 3 candidates against rights windows"],
+64:    title: "Rights-window violation",
+67:    desc: "An asset scheduled tonight on Home Cooking TV falls outside its licensed window. It must not reach air.",
+72:      ["+00:06", "Flagged vt_hc_0904 — window ended 2026-08-31"],
+--- src/lib/fast-challenges.ts
+3:import { parseAdWindows } from "./ssai";
+5:describe("parseAdWindows", () => {
+6:  it("extracts ad windows from EXT-X-DATERANGE ad markers", () => {
+11:      '#EXT-X-DATERANGE:ID="cr_yoga_end_25",CLASS="com.fastworld.ad",START-DATE="2026-09-03T05:00:00.000Z",DURATION=25,X-AD-ID="cr_yoga_end_25",X-CAMPAIGN-ID
+="camp_yoga_house"',
+13:    const windows = parseAdWindows(manifest);
+14:    expect(windows).toHaveLength(1);
+15:    expect(windows[0].adId).toBe("cr_yoga_end_25");
+16:    expect(windows[0].start).toBe(Date.parse("2026-09-03T05:00:00.000Z"));
+17:    expect(windows[0].end).toBe(windows[0].start + 25_000);
+20:  it("ignores non-ad DATERANGE and content lines", () => {
+24:      '#EXT-X-DATERANGE:ID="x",CLASS="com.other.thing",START-DATE="2026-09-03T05:00:00.000Z",DURATION=10',
+26:    expect(parseAdWindows(manifest)).toEqual([]);
+--- src/lib/ssai.test.ts
+115:export function windowFilter(programs: Program[], from: number, to: number): Program[] {
+--- src/lib/channelforge-epg.ts
+Reference docs mentioning pod/ad identity:
+--- /reference/ssaiadserver/control-plane/events-normalize.ts
+52:  pod_id?: string;
+53:  ad_id?: string;
+55:  creative_id?: string;
+70:  podId: string | null;
+71:  adId: string | null;
+73:  creativeId: string | null;
+98:    const basis = [raw.session_id, raw.pod_id ?? "", raw.ad_id ?? "", eventType].join("|");
+115:    podId: raw.pod_id ?? null,
+116:    adId: raw.ad_id ?? null,
+118:    creativeId: raw.creative_id ?? null,
+--- /reference/ssaiadserver/persistence/repositories/events.ts
+13:  podId?: string | null;
+14:  adId?: string | null;
+16:  creativeId?: string | null;
+27:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+28:        campaign_id, creative_id, program_id, playhead_position, device_type, country, payload)
+38:      e.podId ?? null,
+39:      e.adId ?? null,
+41:      e.creativeId ?? null,
+71:    podId: (r.pod_id as string) ?? null,
+72:    adId: (r.ad_id as string) ?? null,
+74:    creativeId: (r.creative_id as string) ?? null,
+fe1dd2af1f8a:/app# printf '%s\n' 'Running processes:'; ps aux 2>/dev/null || true; printf '%s\n' 'Listening ports:'; (netstat -ltnp 2>/dev/null || ss -ltnp 2>/d
+ev/null || true); printf '%s\n' 'Container init/cmd hints:'; tr '\0' ' ' </proc/1/cmdline 2>/dev/null; echo
+Running processes:
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   93 root      0:00 [tmux: client]
+   94 root      0:02 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   95 root      0:00 bash --login
+   96 root      0:00 cat
+  109 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  113 root      0:00 /bin/bash
+  850 root      0:00 ps aux
+Listening ports:
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 127.0.0.11:45249        0.0.0.0:*               LISTEN      -
+Container init/cmd hints:
+sleep infinity
+fe1dd2af1f8a:/app#

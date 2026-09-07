@@ -1,0 +1,113 @@
+New Terminal Output:
+
+6f61bf7d2dec:/app# python3 - <<'PY'
+> p='packages/data-plane/src/avails.ts'
+> s=open(p).read().replace('  startSequence: number;\n  programDateTime?', '  startSequence: number;\n  /** Elapsed break time at the first visible segment of a
+ continued avail. */\n  elapsed?: number;\n  programDateTime?',1)
+> s=s.replace('  return avails;', '  const continued = detectLeadingContinuation(lines, channelId);\n  if (continued) avails.unshift(continued);\n  return avail
+s;')
+> s+='''
+;
+    r> /** Recover only a leading continuation whose CUE-OUT has left the window.
+>  * Keep full-break identity/duration for cache lookup and decisioning; elapsed
+>  * and measuredDuration describe the slice that is actually visible to stitch.
+>  * Sequence recovery requires an integral number of fixed-duration segments.
+>  */
+> function detectLeadingContinuation(lines: string[], channelId: string): Avail | null {
+>   let sequence = 0;
+>   let startLine = -1;
+>   let elapsed = NaN;
+>   let duration = NaN;
+>   let segmentDuration = 0;
+>   let measuredDuration = 0;
+>   let endLine = -1;
+>   let pdt: string | undefined;
+>   let externalBreakId: string | undefined;
+>   for (let i = 0; i < lines.length; i++) {
+>     const line = lines[i]!.trim();
+>     const seq = line.match(MEDIA_SEQUENCE);
+>     if (seq) sequence = Number(seq[1]);
+>     const marker = parseMarkerLine(line, i);
+>     // Never reinterpret an ordinary opening or a later break as a continuation.
+>     if (marker?.kind === "cue_out") return null;
+>     if (marker?.kind === "cue_in") {
+>       if (startLine < 0) return null;
+>       endLine = i;
+>       break;
+>     }
+>     if (marker?.kind === "daterange" && marker.id && startLine >= 0) externalBreakId ??= marker.id;
+>     const date = line.match(PROGRAM_DATE_TIME);
+>     if (date && measuredDuration === 0) pdt = date[1]!.trim();
+>     if (line.startsWith("#EXT-X-CUE-OUT-CONT:") && startLine < 0) {
+>       startLine = i;
+>       const value = line.slice("#EXT-X-CUE-OUT-CONT:".length).trim();
+>       const pair = value.match(/^(\\d+(?:\\.\\d+)?)\\/(\\d+(?:\\.\\d+)?)$/);
+>       const attr = (key: string) => {
+>         const match = value.match(new RegExp(`(?:^|,)\\\\s*${key}=("?)(\\\\d+(?:\\\\.\\\\d+)?)\\\\1(?:,|$)`, "i"));
+>         return match ? Number(match[2]) : NaN;
+>       };
+>       elapsed = pair ? Number(pair[1]) : attr("ElapsedTime");
+>       duration = pair ? Number(pair[2]) : attr("Duration");
+>       if (!Number.isFinite(elapsed) || !Number.isFinite(duration) || elapsed <= 0 || elapsed >= duration) return null;
+>     }
+>     const inf = line.match(EXTINF);
+>     if (inf) {
+>       if (startLine < 0) return null;
+>       const d = Number(inf[1]);
+>       if (!Number.isFinite(d) || d <= 0) return null;
+>       segmentDuration ||= d;
+>       measuredDuration += d;
+>     }
+>     if (line && !line.startsWith("#")) {
+>       if (startLine < 0) return null;
+>       endLine = i;
+>     }
+>   }
+>   if (startLine < 0 || endLine <= startLine || segmentDuration <= 0) return null;
+>   const skipped = elapsed / segmentDuration;
+>   if (Math.abs(skipped - Math.round(skipped)) > 0.001) return null;
+>   const startSequence = sequence - Math.round(skipped);
+>   if (!Number.isSafeInteger(startSequence) || startSequence < 0) return null;
+>   const breakTime = pdt ? Date.parse(pdt) - elapsed * 1000 : NaN;
+>   return {
+>     opportunityId: `opp_${channelId}_${startSequence}`,
+>     channelId, startSequence, startLine, endLine,
+>     duration, declaredDuration: duration,
+>     elapsed, measuredDuration: Math.min(measuredDuration, duration - elapsed),
+>     ...(externalBreakId === undefined ? {} : { externalBreakId }),
+>     ...(Number.isFinite(breakTime) ? { programDateTime: new Date(breakTime).toISOString() } : {}),
+>   };
+> }
+> '''
+> open(p,'w').write(s)
+> p='packages/data-plane/src/stitch.ts';s=open(p).read();s=s.replace('const pod = avail ? rendered.get(avail.opportunityId) : undefined;', '''const resolved = a
+vail ? rendered.get(avail.opportunityId) : undefined;
+>     const pod = avail?.elapsed !== undefined && resolved
+>       ? visiblePod(resolved, avail.elapsed, avail.measuredDuration)
+>       : resolved;''');s+='''
+> /** Select existing media segments overlapping the visible continuation interval.
+>  * Do not restart a cached pod at zero or replay media beyond this live window.
+>  */
+> function visiblePod(pod: RenderedPodItem[], elapsed: number, duration: number): RenderedPodItem[] {
+>   const end = elapsed + duration;
+>   return pod.flatMap((item) => {
+>     let offset = item.startOffset;
+>     const segments = item.segments.filter((segment) => {
+>       const start = offset;
+>       offset += segment.duration;
+>       return offset > elapsed + 0.001 && start < end - 0.001;
+>     });
+>     return segments.length ? [{ ...item, segments }] : [];
+>   });
+> }
+> ''';open(p,'w').write(s)
+> PY
+bash: python3: command not found
+6f61bf7d2dec:/app# npx vitest run packages/data-plane/src packages/core/src/scte.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+

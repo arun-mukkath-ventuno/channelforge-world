@@ -1,0 +1,14 @@
+{
+  "analysis": "The detector caches every DATERANGE ID in a segment tag block and uses the first ID attached to an avail. A closing DATERANGE can therefore seed the next CUE-OUT with the previous break's ID when no segment separates the breaks. I need to inspect marker attributes before choosing the smallest fix that preserves existing syntax support.",
+  "plan": "Read the parser and remaining detector code, plus startup dependencies. Determine how to distinguish closing DATERANGE updates from opening markers without narrowing existing opening-marker support.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/core/src/scte.ts; sed -n '115,190p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat packages/core/src/scte.test.ts; cat packages/storage/src/factory.ts; cat packages/persistence/src/db.ts; env | sort\n",
+      "duration": 0.1
+    }
+  ]
+}

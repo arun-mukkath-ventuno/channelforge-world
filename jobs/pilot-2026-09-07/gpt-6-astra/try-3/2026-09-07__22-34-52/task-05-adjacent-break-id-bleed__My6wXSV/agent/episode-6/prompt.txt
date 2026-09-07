@@ -1,0 +1,55 @@
+New Terminal Output:
+
+1a789d16c4fd:/app# node --import tsx --input-type=module <<'JS'
+> import { detectAvails } from './packages/data-plane/src/avails.ts';
+> const m = ['#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID="first",SCTE35-OUT=0xFC','#EXTINF:6,','a.ts','#EXT-X-CUE-IN','#EXT-X-DATERANGE:ID="first",SCTE35-IN=0xFC','
+#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID="second",SCTE35-OUT=0xFC','#EXTINF:6,','b.ts','#EXT-X-CUE-IN'].join('\n');
+> console.log(detectAvails(m, 'ch').map(a => a.externalBreakId));
+> JS
+python3 - <<'PY'
+p = 'packages/data-plane/src/avails.ts'
+s = open(p).read()
+old = '''    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;'''
+new = '''    if (marker?.kind === "daterange" && marker.id) {
+      // A closing-only DATERANGE belongs to the previous break, not the next
+      // CUE-OUT in this tag block (back-to-back breaks have no URI between them).
+      // Keep accepting untyped DATERANGEs and ranges carrying both OUT and IN.
+      const attrs = marker.raw.slice(marker.raw.indexOf(":") + 1);
+      if (/(?:^|,)\\s*SCTE35-IN\\s*=/i.test(attrs) &&
+          !/(?:^|,)\\s*SCTE35-OUT\\s*=/i.test(attrs)) continue;
+      blockBreakId = marker.id;'''
+assert old in s
+open(p, 'w').write(s.replace(old, new))
+PY
+[ 'first', 'first' ]
+1a789d16c4fd:/app# python3 - <<'PY'
+> p = 'packages/data-plane/src/avails.ts'
+> s = open(p).read()
+> old = '''    if (marker?.kind === "daterange" && marker.id) {
+>       blockBreakId = marker.id;'''
+> new = '''    if (marker?.kind === "daterange" && marker.id) {
+>       // A closing-only DATERANGE belongs to the previous break, not the next
+>       // CUE-OUT in this tag block (back-to-back breaks have no URI between them).
+>       // Keep accepting untyped DATERANGEs and ranges carrying both OUT and IN.
+>       const attrs = marker.raw.slice(marker.raw.indexOf(":") + 1);
+>       if (/(?:^|,)\\s*SCTE35-IN\\s*=/i.test(attrs) &&
+>           !/(?:^|,)\\s*SCTE35-OUT\\s*=/i.test(attrs)) continue;
+>       blockBreakId = marker.id;'''
+> assert old in s
+> open(p, 'w').write(s.replace(old, new))
+> PY
+bash: python3: command not found
+1a789d16c4fd:/app# ./node_modules/.bin/vitest run packages/data-plane/src/avails.test.ts packages/core/src/scte.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+
+ Test Files  2 passed (2)
+      Tests  21 passed (21)
+   Start at  17:05:49
+   Duration  406ms (transform 122ms, setup 0ms, collect 127ms, tests 10ms, environment 0ms, prepare 94ms)
+
+1a789d16c4fd:/app#

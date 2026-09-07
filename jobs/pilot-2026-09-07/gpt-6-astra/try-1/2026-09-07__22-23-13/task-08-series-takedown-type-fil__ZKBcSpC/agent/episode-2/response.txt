@@ -1,0 +1,14 @@
+{
+  "analysis": "Both asset eligibility and schedule publication use the shared active_takedown_for_asset repository function. This is the likely location of the scope-matching defect.",
+  "plan": "Read the shared lookup, asset series membership, and takedown model to determine the smallest correct query change.",
+  "commands": [
+    {
+      "keystrokes": "cat app/repositories/rights.py\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat app/models/rights.py; grep -n -C 4 'series' app/models/asset.py; cat app/services/asset_eligibility.py; cat pyproject.toml; cat app/db.py\n",
+      "duration": 0.1
+    }
+  ]
+}

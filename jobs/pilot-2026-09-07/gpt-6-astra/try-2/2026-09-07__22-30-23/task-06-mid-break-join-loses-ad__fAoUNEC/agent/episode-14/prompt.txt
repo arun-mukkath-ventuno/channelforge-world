@@ -1,0 +1,25 @@
+New Terminal Output:
+
+   Duration  673ms (transform 98ms, setup 0ms, collect 125ms, tests 19ms, environment 1ms, prepare 155ms)
+
+c3e0c565748c:/app# tmux new-session -d -s ssai-data-plane 'cd /app && exec node --import tsx /app/packages/data-plane/src/server.ts'
+c3e0c565748c:/app# ps aux | grep '[s]erver.ts'; tmux capture-pane -pt ssai-data-plane | tail -15; node --input-type=module -e 'const r=await fetch("http://127.0
+.0.1:4010/health"); console.log(r.status,await r.text()); if(!r.ok) process.exit(1)'
+  839 root      0:00 node --import tsx /app/packages/data-plane/src/server.ts
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+200 {"status":"ok","plane":"data"}
+c3e0c565748c:/app#

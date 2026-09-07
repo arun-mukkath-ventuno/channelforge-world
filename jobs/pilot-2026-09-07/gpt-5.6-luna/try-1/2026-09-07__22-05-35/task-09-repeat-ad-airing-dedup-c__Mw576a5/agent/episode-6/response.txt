@@ -1,0 +1,22 @@
+{
+  "analysis": "The source patch was applied correctly: each beacon now includes `pod_id` set to the ad window start, matching the ingestion service's deduplication basis of `session_id + pod_id + ad_id + eventType`. The validation commands were accidentally concatenated because the command strings lacked terminating newlines, so they did not run as intended. No further source changes are needed yet; tests, lint, build, and restart still need to be performed.",
+  "plan": "Run the test suite, lint, and production build as separate commands with explicit newlines. Inspect the resulting source diff and running processes. If validation passes, stop any existing Next process if present and start the built service in the background, then verify it is listening or running.",
+  "commands": [
+    {
+      "keystrokes": "pnpm test\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "pnpm lint\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "pnpm build\n",
+      "duration": 8.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- changed source --' && grep -nE '(sendAdBeacon|pod_id|fired.has|sendAdBeacon\\()' src/lib/ssai.ts && printf '%s\\n' '-- processes --' && ps auxww\n",
+      "duration": 0.5
+    }
+  ]
+}

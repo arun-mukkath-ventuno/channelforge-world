@@ -1,0 +1,29 @@
+New Terminal Output:
+
+c14a4ace724a:/app# node --input-type=module <<'NODE'
+> import fs from 'node:fs';
+> const path = 'packages/persistence/src/repositories/sessions.ts';
+> const source = fs.readFileSync(path, 'utf8');
+> fs.writeFileSync(path, source.replace('/** Create the session if absent; idempotent so ad-decision can ensure it exists. */', '/** Create the session if absen
+t; otherwise refresh its current channel association. */').replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_
+id'));
+> NODE
+c14a4ace724a:/app# npx vitest run packages/persistence/src/repositories.test.ts packages/persistence/src/analytics.test.ts packages/control-plane/src/server.tes
+t.ts
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/control-plane/src/server.test.ts (15)
+ ❯ packages/control-plane/src/server.test.ts (15)
+   ❯ write APIs (PRD §43) (6)
+     ✓ creates and lists a channel
+     ✓ validates required channel fields
+     ✓ creates a campaign with channel targeting and edits it
+     ⠙ creates a creative under a campaign
+     · rejects a creative referencing a missing campaign (FK) with 400
+     · generates an id when none is supplied
+   · creative source upload (PRD §14) (3)
+   · admin auth (PRD §57) (3)
+   · VAST tag ingestion endpoint (1)
+   · per-break reconciliation (ChannelForge telemetry blueprint) (2)
+

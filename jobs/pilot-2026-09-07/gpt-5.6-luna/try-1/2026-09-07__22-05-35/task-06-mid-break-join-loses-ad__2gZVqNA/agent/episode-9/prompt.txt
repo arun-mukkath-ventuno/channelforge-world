@@ -1,0 +1,218 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# nl -ba packages/control-plane/src/server.ts | sed -n '1,70p'; nl -ba packages/control-plane/src/server.ts | sed -n '160,255p'; nl -ba package
+s/control-plane/src/server.ts | sed -n '255,330p'
+     1	// SSAI Control Plane (PRD §7, §43, §48).
+     2	//
+     3	// Owns campaigns, creatives, channels, sessions, ad decisioning, event
+     4	// ingestion and debug. Ad decisioning reads inventory from Postgres, persists
+     5	// the opportunity + decision + pod, and writes the pod to the Redis cache that
+     6	// the data plane reads on the manifest hot path (it never recomputes).
+     7	
+     8	import { randomUUID, timingSafeEqual } from "node:crypto";
+     9	import { existsSync, readFileSync } from "node:fs";
+    10	import { fileURLToPath } from "node:url";
+    11	import { join } from "node:path";
+    12	import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
+    13	import multipart from "@fastify/multipart";
+    14	import cookie from "@fastify/cookie";
+    15	import fastifyStatic from "@fastify/static";
+    16	import { decide, signSession, verifySession, type AdOpportunity, type Campaign, type CreativeStatus, type SessionContext } from "@ssai/core";
+    17	import type { ObjectStore } from "@ssai/storage";
+    18	import {
+    19	  withTransaction,
+    20	  getAnalytics,
+    21	  getBreakDeliveries,
+    22	  campaigns as campaignsRepo,
+    23	  creatives as creativesRepo,
+    24	  channels as channelsRepo,
+    25	  sessions as sessionsRepo,
+    26	  opportunities as oppsRepo,
+    27	  decisions as decisionsRepo,
+    28	  events as eventsRepo,
+    29	  type Pool,
+    30	  type PodCache,
+    31	} from "@ssai/persistence";
+    32	import { normalizeEvent } from "./events-normalize.js";
+    33	import { ingestVastTag } from "./vast-inventory.js";
+    34	import { enqueueEventBeacons, fireBeacons } from "./beacons.js";
+    35	
+    36	export interface ServerDeps {
+    37	  pool: Pool;
+    38	  podCache: PodCache;
+    39	  /** Public base URL of the data plane, used to build playback URLs. */
+    40	  dataPlaneUrl?: string;
+    41	  /** Object store for creative source uploads. Omit → upload returns 501. */
+    42	  store?: ObjectStore;
+    43	  /** Max upload size in bytes. Default 500 MB. */
+    44	  maxUploadBytes?: number;
+    45	  /** HMAC secret for signing playback tokens (PRD §57). Shared with the data plane. */
+    46	  sessionSecret?: string;
+    47	  /** Playback token TTL in seconds; default 24h. */
+    48	  sessionTtlSeconds?: number;
+    49	  /** Admin console credentials (in-app login, PRD §57). */
+    50	  adminUser?: string;
+    51	  adminPassword?: string;
+    52	  /** Set-Cookie Secure flag; default true (behind HTTPS). Set false for local http. */
+    53	  cookieSecure?: boolean;
+    54	  /** Directory of the built admin SPA. Default: packages/admin-web/dist. */
+    55	  adminDist?: string;
+    56	  /** Test-only: skip the admin auth gate. Never set in production bootstrap. */
+    57	  authDisabled?: boolean;
+    58	  /** Fastify request logging; default on. Tests pass false. */
+    59	  logger?: boolean;
+    60	}
+    61	
+    62	const SOURCE_EXTENSIONS = new Set(["mp4", "mov", "m4v", "mpg", "mpeg", "ts", "mkv", "webm"]);
+    63	export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+    64	
+    65	function safeEqual(a: string, b: string): boolean {
+    66	  const ab = Buffer.from(a);
+    67	  const bb = Buffer.from(b);
+    68	  return ab.length === bb.length && timingSafeEqual(ab, bb);
+    69	}
+    70	
+   160	  });
+   161	
+   162	  // ── Ad Decision (PRD §15, §16, §35) ──────────────────────────────────────
+   163	  app.post("/v1/ad-decision", async (req, reply) => {
+   164	    const body = (req.body ?? {}) as {
+   165	      session_id?: string;
+   166	      channel_id?: string;
+   167	      opportunity_id?: string;
+   168	      external_break_id?: string;
+   169	      duration?: number;
+   170	      seed?: string;
+   171	    };
+   172	    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+   173	      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+   174	    }
+   175	
+   176	    const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+   177	    const now = new Date().toISOString();
+   178	    const opportunity: AdOpportunity = {
+   179	      opportunityId: body.opportunity_id,
+   180	      channelId: body.channel_id,
+   181	      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+   182	      breakStart: now,
+   183	      breakDuration: body.duration,
+   184	      source: "cue_out",
+   185	      signalType: "cue_out",
+   186	    };
+   187	    const session: SessionContext = { sessionId, channelId: body.channel_id };
+   188	
+   189	    // Inventory from Postgres.
+   190	    const [creatives, campaignMap] = await Promise.all([
+   19
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+d by the
+   282	  // producer's external_break_id so ChannelForge can attach delivery to its planned break (§17).
+   283	  app.get("/v1/reconciliation/breaks", async (req) => {
+   284	    const q = req.query as { since?: string; channel?: string };
+   285	    const breaks = await getBreakDeliveries(pool, {
+   286	      ...(q.since ? { since: q.since } : {}),
+   287	      ...(q.channel ? { channelId: q.channel } : {}),
+   288	    });
+   289	    return { breaks };
+   290	  });
+   291	
+   292	  // ── Read APIs (PRD §33) ──────────────────────────────────────────────────
+   293	  app.get("/v1/channels", async () => channelsRepo.listChannels(pool));
+   294	  app.get("/v1/channels/:id", async (req, reply) => {
+   295	    const { id } = req.params as { id: string };
+   296	    return (await channelsRepo.getChannel(pool, id)) ?? reply.code(404).send({ error: "not_found" });
+   297	  });
+   298	  app.get("/v1/campaigns", async () => campaignsRepo.listCampaigns(pool));
+   299	  app.get("/v1/creatives", async () => creativesRepo.listCreatives(pool));
+   300	  app.get("/v1/creatives/:id", async (req, reply) => {
+   301	    const { id } = req.params as { id: string };
+   302	    return (await creativesRepo.getCreative(pool, id)) ?? reply.code(404).send({ error: "not_found" });
+   303	  });
+   304	  app.get("/v1/sessions", async (req) => {
+   305	    const q = req.query as { limit?: string };
+   306	    return sessionsRepo.listSessions(pool, q.limit ? Number(q.limit) : undefined);
+   307	  });
+   308	
+   309	  // ── Debug (PRD §34) ──────────────────────────────────────────────────────
+   310	  app.get("/v1/debug/session/:id", async (req) => {
+   311	    const { id } = req.params as { id: string };
+   312	    const [session, decisions, events] = await Promise.all([
+   313	      sessionsRepo.getSession(pool, id),
+   314	      decisionsRepo.getDecisionsBySession(pool, id),
+   315	      eventsRepo.getEventsBySession(pool, id),
+   316	    ]);
+   317	    return { session, decisions, events };
+   318	  });
+   319	  app.get("/v1/debug/opportunity/:id", async (req) => {
+   320	    const { id } = req.params as { id: string };
+   321	    return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+   322	  });
+   323	
+   324	  // ── Admin SPA (PRD §33, §34) ─────────────────────────────────────────────
+   325	  // @fastify/static serves /admin/index.html + /admin/assets/*; client-side
+   326	  // routes (e.g. /admin/campaigns) fall through to the SPA index below.
+   327	  let landingHtml = "";
+   328	  try {
+   329	    landingHtml = readFileSync(new URL("../public/landing.html", import.meta.url), "utf8");
+   330	  } catch {
+727f8e3dc8f6:/app# cat packages/control-plane/package.json; printf '\n===== exports =====\n'; grep -RIn -E 'repositories/decisions|decisionsRepo|export.*decisio
+ns' packages/persistence/src packages/control-plane/src --exclude='*.test.ts' | sed -n '1,160p'
+{
+  "name": "@ssai/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI control plane — campaigns, creatives, channels, sessions, ad decisioning, events, analytics, debug APIs.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fast-xml-parser": "^4.5.7",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.1"
+  }
+}
+
+===== exports =====
+grep: unrecognized option: exclude=*.test.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+727f8e3dc8f6:/app#

@@ -1,0 +1,58 @@
+New Terminal Output:
+
+root@8ca8bd3b4dbf:/app# python3 - <<'PY'
+> from pathlib import Path
+> p = Path('app/repositories/rights.py')
+> s = p.read_text()
+> old = '''    scope_ids = [asset.id]
+>     if asset.series_id is not None:
+>         scope_ids.append(asset.series_id)
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == "active",
+>             RightsTakedown.scope_type == "asset",
+>             RightsTakedown.scope_id.in_(scope_ids),
+>         )
+>     )
+> '''
+> new = '''    scope_match = (RightsTakedown.scope_type == "asset") & (RightsTakedown.scope_id == asset.id)
+>     if asset.series_id is not None:
+>         scope_match = scope_match | (
+>             (RightsTakedown.scope_type == "series")
+>             & (RightsTakedown.scope_id == asset.series_id)
+>         )
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == "active",
+>             scope_match,
+>         )
+>     )
+> '''
+> if old not in s:
+>     raise SystemExit('expected code block not found')
+> p.write_text(s.replace(old, new))
+> PY
+root@8ca8bd3b4dbf:/app#
+root@8ca8bd3b4dbf:/app# git diff -- app/repositories/rights.py
+bash: git: command not found
+root@8ca8bd3b4dbf:/app# pytest -q tests/test_rights_takedown.py
+pytest -q tests/test_eligibility.py tests/test_rights_engine.py tests/test_per_agreement_eligibility.py
+.git status --short && git diff --check && git diff --stat
+restart-api
+....                                                                                                                                                    [100%]
+======================================================================= warnings summary =======================================================================
+../usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install
+ `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_threa
+d.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+5 passed, 2 warnings in 1.64s
+

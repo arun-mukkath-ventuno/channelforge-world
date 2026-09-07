@@ -1,0 +1,14 @@
+{
+  "analysis": "The terminal is at /app with no commands executed yet. I need inspect the repository and identify the service/application source responsible for per-session manifest handling and ad-break state, then reproduce or inspect the relevant logic, apply a minimal fix, run the existing tests, and restart the affected service.",
+  "plan": "First list the repository and service structure, then search for ad-break, manifest, session, and decision-state logic. I will inspect the smallest relevant code path, determine why a late first request or reconnect loses the break's ad decision/state, patch only application source, run targeted tests (without modifying tests), and restart the service so the fix is live.",
+  "commands": [
+    {
+      "keystrokes": "pwd; printf '\\nTop-level files:\\n'; find . -maxdepth 2 -type f | sort | sed -n '1,160p'; printf '\\nDirectories:\\n'; find . -maxdepth 2 -type d | sort | sed -n '1,120p'\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "grep -RInE \"ad.?break|manifest|decision|session|reconnect|tune.?in\" --exclude-dir=.git --exclude='*.lock' . | sed -n '1,240p'\n",
+      "duration": 1.0
+    }
+  ]
+}

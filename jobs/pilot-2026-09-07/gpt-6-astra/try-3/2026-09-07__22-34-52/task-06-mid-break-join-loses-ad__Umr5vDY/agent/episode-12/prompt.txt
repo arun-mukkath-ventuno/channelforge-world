@@ -1,0 +1,110 @@
+New Terminal Output:
+
+   Duration  784ms (transform 112ms, setup 0ms, collect 151ms, tests 25ms, environment 1ms, prepare 189ms)
+
+17c9e64e2bb8:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const p='packages/data-plane/src/avails.ts';
+> let s=fs.readFileSync(p,'utf8').replace('  startSequence: number;\n  programDateTime?', '  startSequence: number;\n  /** Elapsed break time when CUE-OUT has l
+eft the playlist window. */\n  elapsedTime?: number;\n  programDateTime?');
+> s=s.replace('  return avails;', '  const continuation = detectLeadingContinuation(lines, channelId);\n  if (continuation) avails.unshift(continuation);\n  ret
+urn avails;');
+> s+=String.raw`
+> /** Recover a leading continuation on fixed-segment origins without treating
+>  * continuations inside a normal CUE-OUT region as new opportunities. Keep the
+>  * original sequence and full duration for cache lookup and ad decisioning. */
+> function detectLeadingContinuation(lines: string[], channelId: string): Avail | null {
+>   let sequence = 0;
+>   let startLine = -1;
+>   let elapsed = NaN;
+>   let duration = NaN;
+>   let externalBreakId: string | undefined;
+>   let pdt: string | undefined;
+>   let measured = 0;
+>   let segmentDuration = 0;
+>   let endLine = lines.length - 1;
+>   for (let i = 0; i < lines.length; i++) {
+>     const line = lines[i]!.trim();
+>     const seq = line.match(MEDIA_SEQUENCE);
+>     if (seq) sequence = Number(seq[1]);
+>     const marker = parseMarkerLine(line, i);
+>     if (marker?.kind === "cue_out") return null;
+>     if (marker?.kind === "cue_in") {
+>       endLine = i;
+>       break;
+>     }
+>     if (marker?.kind === "daterange" && measured === 0) externalBreakId = marker.id;
+>     const date = line.match(PROGRAM_DATE_TIME);
+>     if (date && measured === 0) pdt = date[1]!.trim();
+>     if (startLine < 0 && line.startsWith("#EXT-X-CUE-OUT-CONT:")) {
+>       startLine = i;
+>       const value = line.slice("#EXT-X-CUE-OUT-CONT:".length).trim();
+>       const pair = value.match(/^(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)$/);
+>       const attr = (name: string) => {
+>         const match = value.match(new RegExp('(?:^|,)\\s*' + name + '=("?)(\\d+(?:\\.\\d+)?)\\1(?:,|$)', 'i'));
+>         return match ? Number(match[2]) : NaN;
+>       };
+>       elapsed = pair ? Number(pair[1]) : attr("ElapsedTime");
+>       duration = pair ? Number(pair[2]) : attr("Duration");
+>     }
+>     const inf = line.match(EXTINF);
+>     if (inf) {
+>       if (startLine < 0) return null;
+>       const seconds = Number(inf[1]);
+>       if (!segmentDuration) segmentDuration = seconds;
+>       measured += seconds;
+>     }
+>   }
+>   if (startLine < 0 || !Number.isFinite(elapsed) || !Number.isFinite(duration) ||
+>       elapsed < 0 || duration <= elapsed || segmentDuration <= 0 || measured <= 0) return null;
+>   const skipped = Math.round(elapsed / segmentDuration);
+>   if (Math.abs(skipped * segmentDuration - elapsed) > 0.01 || sequence < skipped) return null;
+>   const startSequence = sequence - skipped;
+>   const startDate = pdt ? Date.parse(pdt) - elapsed * 1000 : NaN;
+>   return {
+>     opportunityId: 'opp_' + channelId + '_' + startSequence,
+>     channelId,
+>     startSequence,
+>     duration,
+>     declaredDuration: duration,
+>     measuredDuration: Math.min(measured, duration - elapsed),
+>     elapsedTime: elapsed,
+>     startLine,
+>     endLine,
+>     ...(externalBreakId === undefined ? {} : { externalBreakId }),
+>     ...(Number.isFinite(startDate) ? { programDateTime: new Date(startDate).toISOString() } : {}),
+>   };
+> }
+> `;
+> fs.writeFileSync(p,s);
+> const q='packages/data-plane/src/stitch.ts'; s=fs.readFileSync(q,'utf8');
+> s=s.replace('const pod = avail ? rendered.get(avail.opportunityId) : undefined;', `const fullPod = avail ? rendered.get(avail.opportunityId) : undefined;
+>     const pod = avail?.elapsedTime !== undefined && fullPod
+>       ? slicePod(fullPod, avail.elapsedTime, avail.measuredDuration)
+>       : fullPod;`);
+> s+=`
+> /** Select the visible continuation, rather than replaying the pod's prefix.
+>  * Keep real segment durations: changing EXTINF cannot trim media bytes. */
+> function slicePod(pod: RenderedPodItem[], elapsed: number, duration: number): RenderedPodItem[] {
+>   const end = elapsed + duration;
+>   return pod.flatMap((item) => {
+>     let offset = item.startOffset;
+>     const segments = item.segments.filter((segment) => {
+>       const start = offset;
+>       offset += segment.duration;
+>       return offset > elapsed + 0.001 && start < end - 0.001;
+>     });
+>     return segments.length ? [{ ...item, segments }] : [];
+>   });
+> }
+> `;
+> fs.writeFileSync(q,s);
+> JS
+17c9e64e2bb8:/app# ./node_modules/.bin/vitest run packages/data-plane/src packages/core/src/scte.test.ts --maxWorkers=1 --minWorkers=1
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+

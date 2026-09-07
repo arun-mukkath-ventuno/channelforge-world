@@ -1,0 +1,295 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# for f in packages/data-plane/src/{decider,server,media,origin,stitch,segment,avails}.ts; do echo "===== $f ====="; sed -n '1,280p' "$f"; done
+===== packages/data-plane/src/decider.ts =====
+// When a viewer reaches an avail with no cached pod, the data plane asks the
+// control plane's Ad Decision Service for one (PRD §15). The control plane
+// persists the decision and writes the pod to the cache, so subsequent playlist
+// refreshes for this (session, opportunity) are pure cache reads on the hot path.
+
+import type { PodItem } from "@ssai/core";
+import type { Avail } from "./avails.js";
+
+export interface DecideRequest {
+  sessionId: string;
+  channelId: string;
+  avail: Avail;
+}
+
+export interface PodDecider {
+  decide(req: DecideRequest): Promise<PodItem[] | null>;
+}
+
+/** Posts to the control plane's /v1/ad-decision. */
+export class HttpPodDecider implements PodDecider {
+  constructor(
+    private readonly controlPlaneUrl: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs = 200,
+  ) {}
+
+  async decide({ sessionId, channelId, avail }: DecideRequest): Promise<PodItem[] | null> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const res = await this.fetchImpl(`${this.controlPlaneUrl}/v1/ad-decision`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          channel_id: channelId,
+          opportunity_id: avail.opportunityId,
+          duration: avail.duration,
+          ...(avail.externalBreakId === undefined
+            ? {}
+            : { external_break_id: avail.externalBreakId }),
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      const decision = (await res.json()) as { pod?: PodItem[] };
+      return decision.pod ?? null;
+    } catch {
+      // ADS unavailable → no pod → origin slate plays (PRD §37).
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+===== packages/data-plane/src/server.ts =====
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+
+import Fastify from "fastify";
+import { verifySession, type PodItem } from "@ssai/core";
+import type { PodCache } from "@ssai/persistence";
+import type { ObjectStore } from "@ssai/storage";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider, type PodDecider } from "./decider.js";
+
+export interface DataPlaneDeps {
+  podCache: PodCache;
+  origin: OriginClient;
+  /** Object store holding prepared creative HLS (creatives/{id}/…). */
+  store: ObjectStore;
+  /** Optional: resolves a pod when none is cached. Omit → cache miss means slate. */
+  decider?: PodDecider;
+  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+  sessionSecret?: string;
+  logger?: boolean;
+}
+
+export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+
+// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+
+const CONTENT_TYPES: Record<string, string> = {
+  ts: "video/mp2t",
+  m3u8: "application/vnd.apple.mpegurl",
+  m4s: "video/iso.segment",
+  mp4: "video/mp4",
+  aac: "audio/aac",
+};
+
+export function buildServer(deps: DataPlaneDeps) {
+  // Signed tokens are long — raise the route param length limit (default 100).
+  const app = Fastify({ logger: deps.logger ?? true, maxParamLength: 4096 });
+  const { podCache, origin, decider, store } = deps;
+  const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+
+  app.get("/health", async () => ({ status: "ok", plane: "data" }));
+
+  // Personalized media playlist (PRD §11, §22, §24, §52).
+  app.get("/v1/hls/:token/:channel/:variant.m3u8", async (req, reply) => {
+    const { token, channel, variant } = req.params as { token: string; channel: string; variant: string };
+
+    // Verify the signed playback token (PRD §57) before doing any work.
+    const claims = verifySession(token, sessionSecret);
+    if (!claims) return reply.code(403).send({ error: "invalid_session_token" });
+    if (claims.ch !== channel) return reply.code(403).send({ error: "channel_mismatch" });
+    const session = claims.sid;
+
+    let originResult;
+ 
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+  ],
+    );
+  }
+}
+
+export interface StoredDecision {
+  id: string;
+  opportunityId: string;
+  sessionId: string;
+  eligibleCount: number;
+  selectedCount: number;
+  decision: AdDecision;
+}
+
+interface DecisionRow {
+  id: string;
+  opportunity_id: string;
+  session_id: string;
+  eligible_count: number;
+  selected_count: number;
+  decision_payload: unknown;
+}
+
+function toStored(r: DecisionRow): StoredDecision {
+  return {
+    id: r.id,
+    opportunityId: r.opportunity_id,
+    sessionId: r.session_id,
+    eligibleCount: Number(r.eligible_count),
+    selectedCount: Number(r.selected_count),
+    decision: (typeof r.decision_payload === "string"
+      ? JSON.parse(r.decision_payload)
+      : r.decision_payload) as AdDecision,
+  };
+}
+
+const DECISION_COLS =
+  "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+
+export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {
+  const rows = (
+    await db.query<DecisionRow>(
+      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE session_id = $1 ORDER BY requested_at`,
+      [sessionId],
+    )
+  ).rows;
+  return rows.map(toStored);
+}
+
+export async function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<StoredDecision[]> {
+  const rows = (
+    await db.query<DecisionRow>(
+      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+      [opportunityId],
+    )
+  ).rows;
+  return rows.map(toStored);
+}
+===== packages/persistence/src/repositories/opportunities.ts =====
+// Ad opportunity repository (PRD §10, §45).
+
+import type { AdOpportunity } from "@ssai/core";
+import type { Queryable } from "../db.js";
+
+export async function upsertOpportunity(db: Queryable, opp: AdOpportunity): Promise<void> {
+  await db.query(
+    `INSERT INTO ad_opportunities (id, channel_id, external_break_id, program_id, start_time, duration, marker_type, marker_payload, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'detected')
+     ON CONFLICT (id) DO UPDATE SET
+       duration = EXCLUDED.duration,
+       marker_type = EXCLUDED.marker_type,
+       marker_payload = EXCLUDED.marker_payload,
+       -- keep a previously-captured break id if a later decision omits it (COALESCE new-first).
+       external_break_id = COALESCE(EXCLUDED.external_break_id, ad_opportunities.external_break_id)`,
+    [
+      opp.opportunityId,
+      opp.channelId,
+      opp.externalBreakId ?? null,
+      opp.programId ?? null,
+      opp.breakStart,
+      opp.breakDuration,
+      opp.signalType,
+      opp.source,
+    ],
+  );
+}
+===== packages/persistence/src/repositories/sessions.ts =====
+// Playback session repository (PRD §11, §12, §44).
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface PlaybackSession {
+  id: string;
+  channelId: string;
+  createdAt: string;
+  lastActivityAt: string;
+  deviceType: string | null;
+  country: string | null;
+  anonymousId: string | null;
+}
+
+interface SessionRow {
+  id: string;
+  channel_id: string;
+  created_at: unknown;
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+  );
+}
+
+export async function touchSession(db: Queryable, id: string): Promise<void> {
+  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+}
+
+function toSession(r: SessionRow): PlaybackSession {
+  return {
+    id: r.id,
+    channelId: r.channel_id,
+    createdAt: toIso(r.created_at),
+    lastActivityAt: toIso(r.last_activity_at),
+    deviceType: r.device_type,
+    country: r.country,
+    anonymousId: r.anonymous_id,
+  };
+}
+
+export async function getSession(db: Queryable, id: string): Promise<PlaybackSession | null> {
+  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+  return rows[0] ? toSession(rows[0]) : null;
+}
+
+export async function listSessions(db: Queryable, limit = 100): Promise<PlaybackSession[]> {
+  const rows = (
+    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [limit])
+  ).rows;
+  return rows.map(toSession);
+}
+727f8e3dc8f6:/app#

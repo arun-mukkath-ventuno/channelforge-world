@@ -1,0 +1,169 @@
+New Terminal Output:
+
+51e93080a3b4:/app# sed -n '1,100p' migrations/001_init.sql && printf '\nRepository tests relevant sections:\n' && grep -n -A8 -B8 -E 'ensureSession|playback_ses
+sions|channel_id' packages/persistence/src/repositories.test.ts packages/persistence/src/analytics.test.ts packages/persistence/src/reconciliation.test.ts 2>/de
+v/null | sed -n '1,260p'
+-- FAST World SSAI — initial schema (PRD §44-47).
+-- Postgres. Append-only where noted; decision/pod payloads retained in full for
+-- debugging and RL evaluation.
+
+CREATE TABLE channels (
+  id                TEXT PRIMARY KEY,
+  name              TEXT NOT NULL,
+  origin_url        TEXT NOT NULL,
+  slate_id          TEXT,
+  status            TEXT NOT NULL DEFAULT 'active',
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE slates (
+  id                TEXT PRIMARY KEY,
+  scope             TEXT NOT NULL,              -- 'channel' | 'network' | 'emergency'
+  channel_id        TEXT REFERENCES channels(id),
+  hls_path          TEXT NOT NULL,              -- prepared HLS media (same profile as channel)
+  duration          NUMERIC NOT NULL,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE campaigns (
+  id                TEXT PRIMARY KEY,
+  advertiser        TEXT NOT NULL,
+  start_date        TIMESTAMPTZ NOT NULL,
+  end_date          TIMESTAMPTZ NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'active',   -- 'active' | 'paused' | 'archived'
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE campaign_channels (
+  campaign_id       TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+  channel_id        TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
+  PRIMARY KEY (campaign_id, channel_id)
+);
+
+CREATE TABLE creatives (
+  id                TEXT PRIMARY KEY,
+  campaign_id       TEXT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+  name              TEXT NOT NULL,
+  duration          NUMERIC NOT NULL,
+  status            TEXT NOT NULL DEFAULT 'uploaded',  -- uploaded|validating|transcoding|ready|failed
+  priority          INTEGER NOT NULL DEFAULT 0,
+  weight            INTEGER NOT NULL DEFAULT 100,
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Pre-transcoded HLS variants (PRD §14). SSAI never transcodes on the hot path.
+CREATE TABLE creative_variants (
+  id                TEXT PRIMARY KEY,
+  creative_id       TEXT NOT NULL REFERENCES creatives(id) ON DELETE CASCADE,
+  bandwidth         INTEGER,
+  resolution        TEXT,
+  hls_path          TEXT NOT NULL,
+  segment_duration  NUMERIC
+);
+
+CREATE TABLE playback_sessions (
+  id                TEXT PRIMARY KEY,
+  channel_id        TEXT NOT NULL REFERENCES channels(id),
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_activity_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  device_type       TEXT,
+  country           TEXT,
+  user_id           TEXT,
+  anonymous_id      TEXT,
+  ip_hash           TEXT,
+  user_agent        TEXT
+);
+
+-- PRD §45.
+CREATE TABLE ad_opportunities (
+  id                TEXT PRIMARY KEY,
+  channel_id        TEXT NOT NULL REFERENCES channels(id),
+  program_id        TEXT,
+  start_time        TIMESTAMPTZ NOT NULL,
+  duration          NUMERIC NOT NULL,
+  marker_type       TEXT NOT NULL,             -- 'cue_out' | 'daterange' | 'scte35'
+  marker_payload    TEXT,
+  detected_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  status            TEXT NOT NULL DEFAULT 'detected'
+);
+
+-- PRD §46. Full decision payload retained for debugging + RL evaluation.
+CREATE TABLE ad_decisions (
+  id                TEXT PRIMARY KEY,
+  opportunity_id    TEXT NOT NULL REFERENCES ad_opportunities(id),
+  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+  requested_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  completed_at      TIMESTAMPTZ,
+  eligible_count    INTEGER NOT NULL DEFAULT 0,
+  selected_count    INTEGER NOT NULL DEFAULT 0,
+  seed              TEXT,
+  decision_payload  JSONB NOT NULL
+);
+
+CREATE TABLE ad_pods (
+  id                TEXT PRIMARY KEY,
+  decision_id       TEXT NOT NULL REFERENCES ad_decisions(id) ON DELETE CASCADE,
+
+Repository tests relevant sections:
+packages/persistence/src/repositories.test.ts-2-import { readFileSync, readdirSync } from "node:fs";
+packages/persistence/src/repositories.test.ts-3-import { fileURLToPath } from "node:url";
+packages/persistence/src/repositories.test.ts-4-import { dirname, join, resolve } from "node:path";
+packages/persistence/src/repositories.test.ts-5-import { newDb } from "pg-mem";
+packages/persistence/src/repositories.test.ts-6-import type { Queryable } from "./db.js";
+packages/persistence/src/repositories.test.ts-7-import { seedDatabase } from "./seed.js";
+packages/persistence/src/repositories.test.ts-8-import { campaignsAsMap, listCampaigns } from "./repositories/campaigns.js";
+packages/persistence/src/repositories.test.ts-9-import { listCreatives } from "./repositories/creatives.js";
+packages/persistence/src/repositories.test.ts:10:imp
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+,
+packages/control-plane/src/server.ts:228:          channelId: body.channel_id,
+packages/control-plane/src/server.ts:238:      sessionId,
+packages/control-plane/src/server.ts:240:      channelId: body.channel_id,
+packages/control-plane/src/server.ts:261:      if (normalized.sessionId) touched.add(normalized.sessionId);
+packages/control-plane/src/server.ts:266:    for (const sid of touched) await sessionsRepo.touchSession(pool, sid);
+packages/control-plane/src/server.ts:287:      ...(q.channel ? { channelId: q.channel } : {}),
+packages/control-plane/src/server.ts:304:  app.get("/v1/sessions", async (req) => {
+packages/control-plane/src/server.ts:306:    return sessionsRepo.listSessions(pool, q.limit ? Number(q.limit) : undefined);
+packages/control-plane/src/server.ts:313:      sessionsRepo.getSession(pool, id),
+packages/control-plane/src/server.ts:401:    const result = await ingestVastTag(pool, { channelId: id, tagUrl: b.tag_url });
+packages/control-plane/src/vast-inventory.ts:14:export const vastCampaignId = (channelId: string): string => `camp_vast_${channelId}`;
+packages/control-plane/src/vast-inventory.ts:36:export function vastToInventory(channelId: string, ads: VastAd[]): VastInventoryItem[] {
+packages/control-plane/src/vast-inventory.ts:37:  const campaignId = vastCampaignId(channelId);
+packages/control-plane/src/vast-inventory.ts:42:    const key = createHash("sha1").update(`${channelId}|${mf.url}`).digest("hex").slice(0, 12);
+packages/control-plane/src/vast-inventory.ts:60:  opts: { channelId: string; tagUrl: string } & FetchVastOptions,
+packages/control-plane/src/vast-inventory.ts:63:  const items = vastToInventory(opts.channelId, ads);
+packages/control-plane/src/vast-inventory.ts:67:    id: vastCampaignId(opts.channelId),
+packages/control-plane/src/vast-inventory.ts:72:    targetChannels: [opts.channelId],
+packages/control-plane/src/events-normalize.ts:67:  sessionId: string | null;
+packages/control-plane/src/events-normalize.ts:68:  channelId: string | null;
+packages/control-plane/src/events-normalize.ts:112:    sessionId: raw.session_id ?? null,
+packages/control-plane/src/events-normalize.ts:113:    channelId: raw.channel_id ?? null,
+packages/control-plane/src/beacons.test.ts:64:    const ev = { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId: "cr_vast_1" };
+packages/control-plane/src/beacons.test.ts:71:    expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "o", creati
+veId: "cr_house" })).toBe(0);
+packages/control-plane/src/beacons.test.ts:72:    expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: null, opportunityId: "o", creati
+veId: "cr_vast_1" })).toBe(0);
+packages/control-plane/src/beacons.test.ts:85:    await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId
+: "cr_vast_1" });
+packages/control-plane/src/beacons.ts:32:  ev: { eventType: string; sessionId?: string | null; opportunityId?: string | null; creativeId?: string | null },
+packages/control-plane/src/beacons.ts:34:  if (!ev.creativeId || !ev.sessionId || !ev.opportunityId) return 0;
+packages/control-plane/src/beacons.ts:40:      sessionId: ev.sessionId,
+packages/control-plane/src/server.test.ts:210:      channelId: "channel_yoga",
+packages/data-plane/src/avails.ts:13:  channelId: string;
+packages/data-plane/src/avails.ts:40:export function detectAvails(manifest: string, channelId: string): Avail[] {
+packages/data-plane/src/avails.ts:99:        opportunityId: `opp_${channelId}_${open.startSequence}`,
+packages/data-plane/src/avails.ts:100:        channelId,
+packages/data-plane/src/media.test.ts:87:    const rendered = await resolvePodSegments(slatePod, store, { channelId: "channel_food" });
+packages/data-plane/src/media.test.ts:100:    const rendered = await resolvePodSegments(slatePod, store, { channelId: "channel_food" });
+packages/data-plane/src/server.ts:86:        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+packages/data-plane/src/server.ts:89:      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+packages/data-plane/src/decider.ts:10:  sessionId: string;
+packages/data-plane/src/decider.ts:11:  channelId: string;
+packages/data-plane/src/decider.ts:27:  async decide({ sessionId, channelId, avail }: DecideRequest): Promise<PodItem[] | null> {
+packages/data-plane/src/decider.ts:35:          session_id: sessionId,
+packages/data-plane/src/decider.ts:36:          channel_id: channelId,
+packages/data-plane/src/media.ts:35:  channelId?: string;
+packages/data-plane/src/media.ts:40:  /** Slate ids to try in order; defaults to [channelId, "default"]. */
+packages/data-plane/src/media.ts:74:  const slateIds = opts.slateFallbacks ?? [opts.channelId, "default"].filter((x): x is string => !!x);
+packages/data-plane/src/avails.test.ts:26:      channelId: "channel_food",
+51e93080a3b4:/app#

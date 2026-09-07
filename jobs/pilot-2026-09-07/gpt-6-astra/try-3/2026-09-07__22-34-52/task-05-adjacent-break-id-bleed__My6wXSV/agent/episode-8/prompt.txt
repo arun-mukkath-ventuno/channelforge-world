@@ -1,0 +1,41 @@
+Current Terminal Screen:
+
+  async set(entry: CachedPod): Promise<void> {
+    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    this.store.delete(key(sessionId, opportunityId));
+  }
+}
+
+export function createRedis(url = process.env.REDIS_URL): Redis {
+  if (!url) throw new Error("REDIS_URL is not set");
+  return new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+}
+// Choose an ObjectStore from the environment: S3/MinIO when S3_BUCKET is set,
+// otherwise the filesystem store (the zero-infra default for dev / RL).
+
+import type { ObjectStore } from "./storage.js";
+import { FilesystemObjectStore } from "./storage.js";
+
+export async function createObjectStoreFromEnv(): Promise<ObjectStore> {
+  if (process.env.S3_BUCKET) {
+    const { createS3ObjectStore } = await import("./s3.js");
+    return createS3ObjectStore({
+      bucket: process.env.S3_BUCKET,
+      ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT } : {}),
+      ...(process.env.S3_REGION ? { region: process.env.S3_REGION } : {}),
+      ...(process.env.S3_ACCESS_KEY ? { accessKeyId: process.env.S3_ACCESS_KEY } : {}),
+      ...(process.env.S3_SECRET_KEY ? { secretAccessKey: process.env.S3_SECRET_KEY } : {}),
+      forcePathStyle: true,
+      ...(process.env.CREATIVE_STORE_BASE_URL ? { publicBaseUrl: process.env.CREATIVE_STORE_BASE_URL } : {}),
+    });
+  }
+  return new FilesystemObjectStore(process.env.CREATIVE_STORE_ROOT ?? "./storage/creatives");
+}
+CONTROL_PLANE_URL=http://localhost:4000
+DATA_PLANE_PORT=4010
+NODE_VERSION=22.23.2
+REDIS_URL=redis://redis:6379
+1a789d16c4fd:/app#

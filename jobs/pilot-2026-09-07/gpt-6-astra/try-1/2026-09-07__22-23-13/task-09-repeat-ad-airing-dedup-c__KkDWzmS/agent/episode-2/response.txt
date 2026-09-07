@@ -1,0 +1,18 @@
+{
+  "analysis": "The reference contains event normalization and persistence code, which should expose the exact deduplication contract. The initial search used an unsupported BusyBox grep option; no files were changed.",
+  "plan": "Read the reference contract and search the application's SSAI and player event paths using supported commands.",
+  "commands": [
+    {
+      "keystrokes": "cat /reference/ssaiadserver/control-plane/events-normalize.ts /reference/ssaiadserver/persistence/repositories/events.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -RniE 'dedup|beacon|quartile|impression|creative|eventId' src\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat src/lib/ssai.ts src/app/api/fast/events/route.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,104 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+a70d44d4f502:/app# pnpm build
+
+> fast-world-tv@0.1.0 build /app
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.ts took 32ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1586ms
+✓ Finished TypeScript in 2.4s
+✓ Collecting page data using 7 workers in 1912ms
+✓ Generating static pages using 7 workers (9/9) in 147ms
+✓ Finalizing page optimization in 8ms
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/fast/admin/channels
+├ ƒ /api/fast/admin/channels/[id]
+├ ƒ /api/fast/admin/login
+├ ƒ /api/fast/admin/logout
+├ ƒ /api/fast/admin/reset
+├ ƒ /api/fast/ads/current
+├ ƒ /api/fast/channels
+├ ƒ /api/fast/channels/[id]
+├ ƒ /api/fast/channels/[id]/now
+├ ƒ /api/fast/channels/[id]/schedule
+├ ƒ /api/fast/events
+├ ƒ /api/fast/guide
+├ ƒ /api/fast/hls/[...path]
+├ ƒ /api/fast/status
+├ ƒ /api/fast/xmltv
+├ ○ /fast-world/admin
+├ ○ /fast-world/live
+├ ○ /fast-world/live/ops
+├ ○ /icon.svg
+├ ○ /robots.txt
+└ ○ /sitemap.xml
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+a70d44d4f502:/app# node <<'JS'
+> const ts = require('typescript');
+> const fs = require('fs');
+> const vm = require('vm');
+> const assert = require('node:assert/strict');
+> function load(path, globals = {}) {
+>   const exports = {};
+>   vm.runInNewContext(ts.transpileModule(fs.readFileSync(path, 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022}}).ou
+tputText, {exports, require, process, Blob, ...globals});
+>   return exports;
+> }
+> (async () => {
+>   const timers = []; const bodies = []; let now;
+>   const start = Date.parse('2026-09-03T05:00:00Z');
+>   const manifest = [start, start + 60000].map(s => `#EXT-X-DATERANGE:ID="house",CLASS="com.fastworld.ad",START-DATE="${new Date(s).toISOString()}",DURATION=20
+,X-AD-ID="house"`).join('\n');
+>   const api = load('src/lib/ssai.ts', {
+>     navigator: {sendBeacon: (url, body) => { bodies.push(body); return true; }},
+>     fetch: async () => ({ok: true, text: async () => manifest}),
+>     setInterval: fn => {timers.push(fn); return timers.length;}, clearInterval: () => {}
+>   });
+>   const {normalizeEvent} = load('/reference/ssaiadserver/control-plane/events-normalize.ts');
+>   async function watch() {
+>     const stop = api.startAdBeaconWatcher({sessionId: 'session', manifestUrl: 'manifest', playheadDate: () => now});
+>     await new Promise(resolve => setImmediate(resolve));
+>     return {stop, tick: timers.at(-1), refresh: timers.at(-2)};
+>   }
+>   const w = await watch();
+>   for (const s of [start, start + 60000]) {
+>     for (const offset of [0, 5000, 10000, 15000, 20000]) {now = s + offset; w.tick();}
+>     await w.refresh(); w.tick();
+>   }
+>   assert.equal(bodies.length, 12, 'six events for each airing, no refresh duplicates');
+>   w.stop();
+>   const replay = await watch(); now = start + 20000; replay.tick(); replay.stop();
+>   const events = await Promise.all(bodies.map(async b => JSON.parse(await b.text())));
+>   assert.equal(events.length, 18);
+>   assert.equal(new Set(events.map(e => normalizeEvent(e).eventId)).size, 12, 'same airing replay deduplicates, later airing remains distinct');
+>   assert(events.every(e => e.ad_id === 'house' && e.session_id === 'session'));
+>   const fallback = [];
+>   const fetchApi = load('src/lib/ssai.ts', {fetch: async (url, opts) => {fallback.push(JSON.parse(opts.body));}});
+>   fetchApi.sendAdBeacon('session', 'ad_impression', 'house', start);
+>   assert.equal(fallback[0].event_id, events[0].event_id, 'both transports preserve identity');
+>   fetchApi.sendAdBeacon('other-session', 'ad_impression', 'house', start);
+>   assert.notEqual(fallback[1].event_id, events[0].event_id);
+>   console.log('PASS: two complete airings, manifest refresh, watcher restart dedup, session separation, both transports, reference ingestion identity');
+> })().catch(e => {console.error(e); process.exitCode = 1;});
+> JS
+PASS: two complete airings, manifest refresh, watcher restart dedup, session separation, both transports, reference ingestion identity
+a70d44d4f502:/app#

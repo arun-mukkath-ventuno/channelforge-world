@@ -1,0 +1,217 @@
+New Terminal Output:
+
+root@f40e1b612f84:/app# cat app/repositories/rights.py
+"""Data access for rights policies, versions, and assignments (PRD 3.0 §8, ADR-5)."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.models import (
+    Asset,
+    RightsAssignment,
+    RightsPolicy,
+    RightsPolicyVersion,
+    RightsTakedown,
+    ScheduleEvent,
+    ScheduleVersion,
+)
+from app.services.rights_engine import ApplicablePolicy
+
+# Scope specificity for deterministic precedence ordering (higher = more specific).
+_SPECIFICITY = {"asset": 4, "series": 3, "collection": 2, "channel": 1, "agreement": 0}
+
+
+def create_policy(db: Session, **fields) -> RightsPolicy:
+    policy = RightsPolicy(**fields)
+    db.add(policy)
+    db.flush()
+    return policy
+
+
+def list_policies(db: Session, org_id: uuid.UUID) -> list[RightsPolicy]:
+    return list(
+        db.scalars(
+            select(RightsPolicy)
+            .where(RightsPolicy.organization_id == org_id)
+            .order_by(RightsPolicy.created_at.desc())
+        )
+    )
+
+
+def add_version(db: Session, *, policy: RightsPolicy, **fields) -> RightsPolicyVersion:
+    """Append the next immutable version to a policy."""
+    current_max = db.scalar(
+        select(func.max(RightsPolicyVersion.version_number)).where(
+            RightsPolicyVersion.policy_id == policy.id
+        )
+    )
+    version = RightsPolicyVersion(
+        organization_id=policy.organization_id,
+        policy_id=policy.id,
+        version_number=(current_max or 0) + 1,
+        **fields,
+    )
+    db.add(version)
+    db.flush()
+    return version
+
+
+def assign(
+    db: Session, *, org_id: uuid.UUID, policy_id: uuid.UUID, scope_type: str,
+    scope_id: uuid.UUID, priority: int = 0,
+) -> RightsAssignment:
+    assignment = RightsAssignment(
+        organization_id=org_id, policy_id=policy_id, scope_type=scope_type,
+        scope_id=scope_id, priority=priority,
+    )
+    db.add(assignment)
+    db.flush()
+    return assignment
+
+
+def _latest_version(db: Session, policy_id: uuid.UUID) -> RightsPolicyVersion | None:
+    return db.scalar(
+        select(RightsPolicyVersion)
+        .where(RightsPolicyVersion.policy_id == policy_id)
+        .order_by(RightsPolicyVersion.version_number.desc())
+        .limit(1)
+    )
+
+
+def resolve_applicable(
+    db: Session,
+    *,
+    org_id: uuid.UUID,
+    asset: Asset,
+    channel_id: uuid.UUID | None = None,
+    agreement_id: uuid.UUID | None = None,
+) -> list[ApplicablePolicy]:
+    """Return the policies that apply to this asset in context, most-specific first.
+
+    Matches assignments scoped to the asset, its series, the channel, or the agreement, using each
+    policy's latest version. (Collection-scoped assignments are resolved in a later increment.)
+    """
+    scope_targets: list[tuple[str, uuid.UUID]] = [("asset", asset.id)]
+    if asset.series_id is not None:
+        scope_targets.append(("series", asset.series_id))
+    if channel_id is not None:
+        scope_targets.append(("channel", channel_id))
+    if agreement_id is not None:
+        scope_targets.append(("agreement", agreement_id))
+
+    applicable: list[ApplicablePolicy] = []
+    for scope_type, scope_id in scope_targets:
+        assignments = db.scalars(
+            select(RightsAssignment).where(
+                RightsAssignment.organization_id == org_id,
+                RightsAssignment.scope_type == scope_type,
+                RightsAssignment.scope_id == scope_id,
+                RightsAssignment.enabled.is_(True),
+            )
+        )
+        for assignment in assignments:
+            version = _latest_version(db, assignment.policy_id)
+            if version is not None:
+                applicable.append(
+                    ApplicablePolicy(
+                        version=version, scope_type=scope_type, priority=assignment.priority
+                    )
+                )
+
+    applicable.sort(
+        key=lambda a: (_SPECIFICITY.get(a.scope_type, 0), a.priority), reverse=True
+    )
+    return applicable
+
+
+# --- Takedowns (§8.3) ---
+
+def create_takedown(db: Session, **fields) -> RightsTakedown:
+    takedown = RightsTakedown(**fields)
+    db.add(takedown)
+    db.flush()
+    return takedown
+
+
+def get_takedown(
+    db: Session, *, org_id: uuid.UUID, takedown_id: uuid.UUID
+) -> RightsTakedown | None:
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+        )
+    )
+
+
+def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+    return list(
+        db.scalars(
+            select(RightsTakedown)
+            .where(
+                RightsTakedown.organization_id == org_id,
+                RightsTakedown.status == "active",
+            )
+            .order_by(RightsTakedown.created_at.desc())
+        )
+    )
+
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+        return [scope_id]
+    if scope_type == "series":
+        return list(
+            db.scalars(
+                select(Asset.id).where(
+                    Asset.organization_id == org_id, Asset.series_id == scope_id
+                )
+            )
+        )
+    return []
+
+
+def affected_future_events(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+) -> list[ScheduleEvent]:
+    """Future events in *published* schedule versions that reference the taken-down asset(s)."""
+    asset_ids = _covered_asset_ids(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id)
+    if not asset_ids:
+        return []
+    return list(
+        db.scalars(
+            select(ScheduleEvent)
+            .join(ScheduleVersion, ScheduleVersion.id == ScheduleEvent.schedule_version_id)
+            .where(
+                ScheduleEvent.organization_id == org_id,
+                ScheduleEvent.asset_id.in_(asset_ids),
+                ScheduleEvent.planned_start > now,
+                ScheduleVersion.status == "published",
+            )
+            .order_by(ScheduleEvent.planned_start)
+        )
+    )
+root@f40e1b612f84:/app#

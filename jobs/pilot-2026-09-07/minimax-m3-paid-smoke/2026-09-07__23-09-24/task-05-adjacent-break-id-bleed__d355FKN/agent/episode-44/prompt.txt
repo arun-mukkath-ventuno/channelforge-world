@@ -1,0 +1,54 @@
+New Terminal Output:
+
+0b3ff8174f56:/app# cd packages/data-plane && head -50 src/server.ts
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+
+import Fastify from "fastify";
+import { verifySession, type PodItem } from "@ssai/core";
+import type { PodCache } from "@ssai/persistence";
+import type { ObjectStore } from "@ssai/storage";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider, type PodDecider } from "./decider.js";
+
+export interface DataPlaneDeps {
+  podCache: PodCache;
+  origin: OriginClient;
+  /** Object store holding prepared creative HLS (creatives/{id}/…). */
+  store: ObjectStore;
+  /** Optional: resolves a pod when none is cached. Omit → cache miss means slate. */
+  decider?: PodDecider;
+  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+  sessionSecret?: string;
+  logger?: boolean;
+}
+
+export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+
+// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+
+const CONTENT_TYPES: Record<string, string> = {
+  ts: "video/mp2t",
+  m3u8: "application/vnd.apple.mpegurl",
+  m4s: "video/iso.segment",
+  mp4: "video/mp4",
+  aac: "audio/aac",
+};
+
+export function buildServer(deps: DataPlaneDeps) {
+  // Signed tokens are long — raise the route param length limit (default 100).
+  const app = Fastify({ logger: deps.logger ?? true, maxParamLength: 4096 });
+  const { podCache, origin, decider, store } = deps;
+0b3ff8174f56:/app/packages/data-plane#

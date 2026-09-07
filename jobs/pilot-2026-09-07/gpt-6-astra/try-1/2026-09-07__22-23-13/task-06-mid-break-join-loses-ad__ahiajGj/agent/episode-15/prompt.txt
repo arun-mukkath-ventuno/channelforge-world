@@ -1,0 +1,85 @@
+New Terminal Output:
+
+6f61bf7d2dec:/app# node --import tsx --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import {buildServer} from './packages/data-plane/src/server.ts';
+> import {detectAvails} from './packages/data-plane/src/avails.ts';
+> import {OriginClient} from './packages/data-plane/src/origin.ts';
+> import {MemoryPodCache} from '@ssai/persistence';
+> import {signSession} from '@ssai/core';
+> const pod=[{type:'ad',creativeId:'ad',duration:30,position:0,startOffset:0,endOffset:30}];
+> const cache=new MemoryPodCache();let calls=0,body='';
+> const make=(seq,marker,count=3,closed=true)=>['#EXTM3U','#EXT-X-TARGETDURATION:6',`#EXT-X-MEDIA-SEQUENCE:${seq}`,marker,...Array.from({length:count},(_,i)=>`#
+EXTINF:6,\nslate${i}.ts`),...(closed?['#EXT-X-CUE-IN','#EXTINF:6,','content.ts']:[])].join('\n');
+> const app=buildServer({logger:false,sessionSecret:'secret',podCache:cache,origin:new OriginClient({ttlMs:0,fetchImpl:async()=>new Response(body)}),store:{get:
+async k=>{if(k!=='creatives/ad/ad.m3u8')throw Error('missing');return Buffer.from(['#EXTM3U',...Array.from({length:5},(_,i)=>`#EXTINF:6,\nad${i}.ts`)].join('\n'
+));},put:async()=>{},list:async()=>[],url:k=>k},decider:{decide:async({sessionId,avail})=>{calls++;assert.equal(avail.opportunityId,'opp_ch_100');assert.equal(a
+vail.duration,30);await cache.set({sessionId,opportunityId:avail.opportunityId,channelId:'ch',breakDuration:30,pod});return pod;}}});
+> for(const marker of ['#EXT-X-CUE-OUT-CONT:12/30','#EXT-X-CUE-OUT-CONT:ElapsedTime=12,Duration=30,SCTE35=0xFC']){
+>  body=make(102,marker);
+>  for(let i=0;i<2;i++){
+>  const r=await app.inject(`/v1/hls/${signSession(marker,'ch','secret')}/ch/index.m3u8`);
+>  assert.equal(r.statusCode,200);assert.equal(r.headers['x-ssai-stitched'],'1');
+>  assert.ok(r.body.includes('ad2.ts'));assert.ok(r.body.includes('ad4.ts'));assert.ok(!r.body.includes('ad0.ts'));assert.ok(!r.body.includes('slate'));assert.o
+k(r.body.includes('content.ts'));
+>  }
+> }
+> assert.equal(calls,2);
+> body=make(103,'#EXT-X-CUE-OUT-CONT:18/30',1,false);
+> assert.equal(detectAvails(body,'ch')[0]?.opportunityId,'opp_ch_100');
+> const r=await app.inject(`/v1/hls/${signSession('#EXT-X-CUE-OUT-CONT:12/30','ch','secret')}/ch/index.m3u8`);
+> assert.ok(r.body.includes('ad3.ts'));assert.ok(!r.body.includes('ad4.ts'));assert.equal(calls,2);
+> assert.deepEqual(detectAvails(make(102,'#EXT-X-CUE-OUT-CONT:bad'),'ch'),[]);
+> assert.deepEqual(detectAvails(make(100,'#EXT-X-CUE-OUT:30',1,false),'ch'),[]);
+> assert.equal(detectAvails(make(100,'#EXT-X-CUE-OUT:30',5),'ch')[0]?.elapsed,undefined);
+> await app.close();console.log('PASS: fresh late join, cache reuse, continuation formats, sliding window, fallback, ordinary detection');
+> JS
+(node:1103) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for acce
+ssing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: fresh late join, cache reuse, continuation formats, sliding window, fallback, ordinary detection
+6f61bf7d2dec:/app# npx tsc --project packages/data-plane/tsconfig.json --noEmit --incremental false --composite false
+node --import tsx /app/packages/data-plane/src/server.ts > /dev/null 2>&1 &
+6f61bf7d2dec:/app# node --import tsx /app/packages/data-plane/src/server.ts > /dev/null 2>&1 &
+[1] 1155
+6f61bf7d2dec:/app# node --input-type=module -e 'const r=await fetch("http://localhost:4010/health"); console.log(r.status,await r.text())'; ps aux | grep 'data-
+plane/src/server'
+node:internal/deps/undici/undici:15157
+      Error.captureStackTrace(err);
+            ^
+
+TypeError: fetch failed
+    at node:internal/deps/undici/undici:15157:13
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///app/[eval1]:1:9 {
+  [cause]: AggregateError [ECONNREFUSED]:
+      at internalConnectMultiple (node:net:1135:18)
+      at afterConnectMultiple (node:net:1716:7) {
+    code: 'ECONNREFUSED',
+    [errors]: [
+      Error: connect ECONNREFUSED ::1:4010
+          at createConnectionError (node:net:1679:14)
+          at afterConnectMultiple (node:net:1709:16) {
+        errno: -111,
+        code: 'ECONNREFUSED',
+        syscall: 'connect',
+        address: '::1',
+        port: 4010
+      },
+      Error: connect ECONNREFUSED 127.0.0.1:4010
+          at createConnectionError (node:net:1679:14)
+          at afterConnectMultiple (node:net:1709:16) {
+        errno: -111,
+        code: 'ECONNREFUSED',
+        syscall: 'connect',
+        address: '127.0.0.1',
+        port: 4010
+      }
+    ]
+  }
+}
+
+Node.js v22.23.2
+ 1155 root      0:00 node --import tsx /app/packages/data-plane/src/server.ts
+ 1182 root      0:00 grep data-plane/src/server
+6f61bf7d2dec:/app#

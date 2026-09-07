@@ -1,0 +1,22 @@
+{
+  "analysis": "The build and typecheck pass, and 15 of 22 test files pass. The six failing suites are environment/repository-layout failures because /app/migrations is absent, not failures caused by this change. The direct continuation check returned [] because the shell command constructed literal backslash-n characters rather than real newlines, so it did not exercise the parser. The data-plane build succeeded. I will rerun the behavioral check with actual newlines, inspect the final source for unintended edits, and then start the data-plane process with the supplied runtime configuration.",
+  "plan": "Run a correct mid-break detector check using a template literal with real newlines and verify the opportunity ID is stable. Check the source snippets and generated build output, then launch the data-plane start command in the background with logs redirected. Poll health and process status; if startup fails due unavailable Redis/object storage, capture that rather than modifying unrelated configuration.",
+  "commands": [
+    {
+      "keystrokes": "npx tsx -e 'import { detectAvails } from \"./packages/data-plane/src/avails.ts\"; const m = `#EXT-X-MEDIA-SEQUENCE:5\\n#EXT-X-CUE-OUT-CONT:ElapsedTime=6,Duration=30\\n#EXTINF:6,\\nb.ts\\n#EXTINF:6,\\nc.ts\\n#EXT-X-CUE-IN\\n`; console.log(JSON.stringify(detectAvails(m, \"ch\"), null, 2));'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '30,175p' packages/data-plane/src/avails.ts; sed -n '78,108p' packages/data-plane/src/server.ts; grep -nE 'CUE_OUT_CONT|podCache.set' packages/data-plane/dist/avails.js packages/data-plane/dist/server.js\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "npm run start --workspace @ssai/data-plane > /tmp/data-plane.log 2>&1 & echo $!\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "sleep 1; cat /tmp/data-plane.log; (wget -qO- http://127.0.0.1:4010/health || true); ps -ef 2>/dev/null | grep -E 'data-plane|server.js' | grep -v grep || true\n",
+      "duration": 2.0
+    }
+  ]
+}

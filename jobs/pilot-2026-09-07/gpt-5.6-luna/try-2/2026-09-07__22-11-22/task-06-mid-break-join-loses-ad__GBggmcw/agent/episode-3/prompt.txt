@@ -1,0 +1,224 @@
+New Terminal Output:
+
+26a4261744ce:/app# cat packages/data-plane/package.json; printf '\n-- source list --\n'; find packages/data-plane/src -maxdepth 1 -type f -print | sort
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+
+-- source list --
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/avails.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/segment.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/stitch.ts
+26a4261744ce:/app# printf '\n-- relevant source --\n'; grep -RInE '(manifest|break|decision|session|reconnect|stitch|ad)' packages/data-plane/src | head -500
+
+-- relevant source --
+packages/data-plane/src/avails.ts:6:// request and the decisioning path must agree on the same opportunity id for a
+packages/data-plane/src/avails.ts:7:// given break without coordinating, so the cached pod is found on the hot path.
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:15:   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+packages/data-plane/src/avails.ts:16:   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+packages/data-plane/src/avails.ts:38:/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+packages/data-plane/src/avails.ts:40:export function detectAvails(manifest: string, channelId: string): Avail[] {
+packages/data-plane/src/avails.ts:41:  const lines = manifest.split("\n");
+packages/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/src/avails.ts:114:    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+packages/data-plane/src/avails.ts:119:      // The URI line follows; advance the sequence when we consume it below.
+packages/data-plane/src/origin.ts:47:  private readonly cache = new Map<string, CacheEntry>();
+packages/data-plane/src/origin.ts:48:  private readonly baseUrl: string;
+packages/data-plane/src/origin.ts:49:  private readonly ttlMs: number;
+packages/data-plane/src/origin.ts:50:  private readonly timeoutMs: number;
+packages/data-plane/src/origin.ts:51:  private readonly fetchImpl: typeof fetch;
+packages/data-plane/src/origin.ts:52:  private readonly originMap: Record<string, string>;
+packages/data-plane/src/origin.ts:53:  private readonly urlFor: (channel: string, variant: string) => string;
+packages/data-plane/src/media.test.ts:45:    { type: "ad", creativeId: "cr_a", campaignId: "camp_a", duration: 30, position: 0, startOffset: 0, endOffset: 30 },
+packages/data-plane/src/media.test.ts:49:  it("maps a prepared ad to real segment URLs, and synthesizes slate", async () => {
+packages/data-plane/src/media.test.ts:53:    expect(rendered[0]).toMatchObject({ type: "ad", creativeId: "cr_a" });
+packages/data-plane/src/media.test.ts:62:  it("degrades an unprepared creative to slate so playback survives (§42)", async () => {
+packages/data-plane/src/media.test.ts:65:    expect(rendered[0]!.type).toBe("slate"); // ad slot degraded
+packages/data-plane/src/stitch.ts:1:// Manifest stitching (PRD §22-25). Given an origin media playlist, its detected
+packages/data-plane/src/stitch.ts:3:// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+packages/data-plane/src/stitch.ts:5:// ChannelForge slate plays) — playback survives ad failure (§42).
+packages/data-plane/src/stitch.ts:14:  /** Emit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+packages/data-plane/src/stitch.ts:15:  emitAdMetadata?: boolean;
+packages/data-plane/src/stitch.ts:19:  manifest: string;
+packages/data-plane/src/stitch.ts:20:  /** Opportunity ids that were stitched (had resolved media). */
+packages/data-plane/src/stitch.ts:21:  stitched: string[];
+packages/data-plane/src/stitch.ts:25:export function stitchManifest(
+packages/data-plane/src/stitch.ts:31:  const emitMeta = opts.emitAdMetadata ?? true;
+packages/data-plane/src/stitch.ts:38:  const stitched: string[] = [];
+packages/data-plane/src/stitch.ts:46:      stitched.push(avail.opportunityId);
+package
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+in failed — serve last-good if we have it (PRD §42).
+      if (hit) return { body: hit.body, fromCache: true, stale: true };
+      throw err;
+    }
+  }
+}
+
+-- stitch --
+// Manifest stitching (PRD §22-25). Given an origin media playlist, its detected
+// avails, and the *resolved* pod media for each avail, replace each avail's
+// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+// synthesized for slate). Avails without resolved media are left as origin (their
+// ChannelForge slate plays) — playback survives ad failure (§42).
+//
+// Pure and synchronous by design: no DB, no transcode, no network. Segment media
+// is resolved beforehand (see media.ts) so this stays a lean string transform.
+
+import type { Avail } from "./avails.js";
+import type { RenderedPodItem } from "./media.js";
+
+export interface StitchOptions {
+  /** Emit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+  emitAdMetadata?: boolean;
+}
+
+export interface StitchResult {
+  manifest: string;
+  /** Opportunity ids that were stitched (had resolved media). */
+  stitched: string[];
+}
+
+/** Replace each avail that has resolved pod media; leave the rest untouched. */
+export function stitchManifest(
+  origin: string,
+  avails: Avail[],
+  rendered: Map<string, RenderedPodItem[]>,
+  opts: StitchOptions = {},
+): StitchResult {
+  const emitMeta = opts.emitAdMetadata ?? true;
+  const lines = origin.split("\n");
+
+  const availByStart = new Map<number, Avail>();
+  for (const a of avails) availByStart.set(a.startLine, a);
+
+  const out: string[] = [];
+  const stitched: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const avail = availByStart.get(i);
+    const pod = avail ? rendered.get(avail.opportunityId) : undefined;
+
+    if (avail && pod && pod.length > 0) {
+      out.push(...renderPod(pod, emitMeta, avail.programDateTime));
+      stitched.push(avail.opportunityId);
+      i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+      continue;
+    }
+    out.push(lines[i]!);
+  }
+
+  return { manifest: out.join("\n"), stitched };
+}
+
+function renderPod(pod: RenderedPodItem[], emitMeta: boolean, breakStart?: string): string[] {
+  const out: string[] = [];
+  for (const item of pod) {
+    out.push("#EXT-X-DISCONTINUITY"); // timing/encoding boundary (PRD §24)
+
+    if (item.type === "ad" && emitMeta && item.creativeId) {
+      const start = breakStart
+        ? new Date(new Date(breakStart).getTime() + item.startOffset * 1000).toISOString()
+        : undefined;
+      out.push(
+        `#EXT-X-DATERANGE:ID="${item.creativeId}",CLASS="com.fastworld.ad",` +
+          (start ? `START-DATE="${start}",` : "") +
+          `DURATION=${item.duration},X-AD-ID="${item.creativeId}"` +
+          (item.campaignId ? `,X-CAMPAIGN-ID="${item.campaignId}"` : ""),
+      );
+    }
+
+    for (const seg of item.segments) {
+      out.push(`#EXTINF:${seg.duration.toFixed(3)},`);
+      out.push(seg.uri);
+    }
+  }
+  out.push("#EXT-X-DISCONTINUITY"); // rejoin origin content (PRD §24)
+  return out;
+}
+
+-- decider --
+// When a viewer reaches an avail with no cached pod, the data plane asks the
+// control plane's Ad Decision Service for one (PRD §15). The control plane
+// persists the decision and writes the pod to the cache, so subsequent playlist
+// refreshes for this (session, opportunity) are pure cache reads on the hot path.
+
+import type { PodItem } from "@ssai/core";
+import type { Avail } from "./avails.js";
+
+export interface DecideRequest {
+  sessionId: string;
+  channelId: string;
+  avail: Avail;
+}
+
+export interface PodDecider {
+  decide(req: DecideRequest): Promise<PodItem[] | null>;
+}
+
+/** Posts to the control plane's /v1/ad-decision. */
+export class HttpPodDecider implements PodDecider {
+  constructor(
+    private readonly controlPlaneUrl: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs = 200,
+  ) {}
+
+  async decide({ sessionId, channelId, avail }: DecideRequest): Promise<PodItem[] | null> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const res = await this.fetchImpl(`${this.controlPlaneUrl}/v1/ad-decision`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          channel_id: channelId,
+          opportunity_id: avail.opportunityId,
+          duration: avail.duration,
+          ...(avail.externalBreakId === undefined
+            ? {}
+            : { external_break_id: avail.externalBreakId }),
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      const decision = (await res.json()) as { pod?: PodItem[] };
+      return decision.pod ?? null;
+    } catch {
+      // ADS unavailable → no pod → origin slate plays (PRD §37).
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+26a4261744ce:/app#

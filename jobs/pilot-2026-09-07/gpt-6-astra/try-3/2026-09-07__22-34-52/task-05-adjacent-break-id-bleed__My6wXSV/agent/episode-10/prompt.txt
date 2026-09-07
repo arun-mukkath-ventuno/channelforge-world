@@ -1,0 +1,29 @@
+New Terminal Output:
+
+1a789d16c4fd:/app# wget -qO- http://127.0.0.1:4010/health; printf '\n'; sed -n '73,96p' packages/data-plane/src/avails.ts
+{"status":"ok","plane":"data"}
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      // A closing-only DATERANGE belongs to the previous break, not the next
+      // CUE-OUT in this tag block (back-to-back breaks have no URI between them).
+      // Keep accepting untyped DATERANGEs and ranges carrying both OUT and IN.
+      const attrs = marker.raw.slice(marker.raw.indexOf(":") + 1);
+      if (/(?:^|,)\s*SCTE35-IN\s*=/i.test(attrs) &&
+          !/(?:^|,)\s*SCTE35-OUT\s*=/i.test(attrs)) continue;
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+1a789d16c4fd:/app#

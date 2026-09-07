@@ -1,0 +1,14 @@
+{
+  "analysis": "Producer IDs are assigned in data-plane/src/avails.ts. Existing tests cover isolated breaks and DATERANGE appearing before CUE-OUT, so the fix must preserve both marker orderings.",
+  "plan": "Read the avail detector, playlist parser, relevant tests, and service startup code to identify the boundary error.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/data-plane/src/avails.ts; cat packages/data-plane/src/avails.test.ts; ls packages/data-plane/src; cat packages/core/src/scte.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat packages/data-plane/src/manifest.ts; cat packages/data-plane/src/server.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "analysis": "The defect is confirmed in `packages/persistence/src/repositories/sessions.ts`: `ensureSession` inserts the initial channel and ignores every later conflict. No application service is currently running in this container (PID 1 is `sleep infinity`), so there is no process to restart; after changing source I should rebuild the affected package and, if appropriate, start the control plane from its compiled output. The shell uses BusyBox grep, so earlier grep options were unsupported, but that does not affect the identified fix.",
+  "plan": "Replace `ON CONFLICT (id) DO NOTHING` with `ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id`, which updates only the session's current channel and preserves all other session metadata and all event/decision scoping. Run persistence tests, full typecheck/build, inspect the diff, then start the control-plane service briefly or restart it if a process appears. Since no service is running now, compile the changed source and launch the control plane in the background with its normal start command, recording its PID.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's/ON CONFLICT (id) DO NOTHING/ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id/' packages/persistence/src/repositories/sessions.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "sed -n '20,52p' packages/persistence/src/repositories/sessions.ts; printf '\\nDiff:\\n'; git diff -- packages/persistence/src/repositories/sessions.ts 2>/dev/null || true\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm test -- --run packages/persistence/src/repositories.test.ts\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "npm run typecheck\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "npm run build\n",
+      "duration": 1.0
+    }
+  ]
+}

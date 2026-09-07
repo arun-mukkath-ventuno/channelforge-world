@@ -1,0 +1,64 @@
+New Terminal Output:
+
+1a789d16c4fd:/app# tmux capture-pane -p -S -160 | grep -A8 -B3 'Test Files'
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+
+ Test Files  2 passed (2)
+      Tests  21 passed (21)
+   Start at  17:05:49
+   Duration  406ms (transform 122ms, setup 0ms, collect 127ms, tests 10ms, environment 0ms, prepare 94ms)
+
+1a789d16c4fd:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const p = 'packages/data-plane/src/avails.ts';
+> const s = fs.readFileSync(p, 'utf8');
+--
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  9 passed (9)
+      Tests  63 passed (63)
+   Start at  17:06:10
+   Duration  1.26s (transform 109ms, setup 0ms, collect 161ms, tests 37ms, environment 1ms, prepare 292ms)
+
+1a789d16c4fd:/app# cat packages/persistence/src/pod-cache.ts; cat packages/storage/src/factory.ts; env | sort | grep -Ei 'REDIS|DATA_PLANE|STORAGE|PORT|NODE|CON
+TROL'
+// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+// plane reads it on the manifest hot path and never recomputes. Keyed by
+--
+DATA_PLANE_PORT=4010
+NODE_VERSION=22.23.2
+REDIS_URL=redis://redis:6379
+1a789d16c4fd:/app# tmux capture-pane -p -S -160 | grep -A8 -B3 'Test Files'
+
+1a789d16c4fd:/app# tmux new-session -d -s ssai-data-plane 'cd /app && node --import tsx /app/packages/data-plane/src/server.ts'
+1a789d16c4fd:/app# tmux capture-pane -p -t ssai-data-plane -S -30; wget -qO- http://localhost:4010/health; printf '\n'; ps aux | grep '[s]erver.ts'
+(node:736) [FSTDEP022] FastifyWarning: The router options for maxParamLength pro
+perty access is deprecated. Please use "options.routerOptions" instead for acces
+sing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1788800787963,"pid":736,"hostname":"1a789d16c4fd","msg":"Serv
+er listening at http://127.0.0.1:4010"}
+{"level":30,"time":1788800787963,"pid":736,"hostname":"1a789d16c4fd","msg":"Serv
+er listening at http://172.21.0.3:4010"}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+wget: can't connect to remote host: Connection refused
+
+  736 root      0:01 node --import tsx /app/packages/data-plane/src/server.ts
+1a789d16c4fd:/app#

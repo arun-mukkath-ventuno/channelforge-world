@@ -1,0 +1,191 @@
+New Terminal Output:
+root@ae49554d2d86:/app# pwd && printf '\nTop-level files:\n' && find . -maxdepth 2 -type f | sort | sed -n '1,160p' && printf '\nGit status:\n' && git status --
+short
+/app
+
+Top-level files:
+./Dockerfile
+./alembic.ini
+./app/__init__.py
+./app/clock.py
+./app/config.py
+./app/db.py
+./app/main.py
+./app/redis_client.py
+./channelforge_api.egg-info/PKG-INFO
+./channelforge_api.egg-info/SOURCES.txt
+./channelforge_api.egg-info/dependency_links.txt
+./channelforge_api.egg-info/requires.txt
+./channelforge_api.egg-info/top_level.txt
+./migrations/env.py
+./migrations/script.py.mako
+./pyproject.toml
+./tests/__init__.py
+./tests/conftest.py
+./tests/helpers.py
+./tests/test_admin.py
+./tests/test_alerts.py
+./tests/test_analysis.py
+./tests/test_as_run.py
+./tests/test_asset_delete.py
+./tests/test_asset_metadata.py
+./tests/test_audience.py
+./tests/test_audit.py
+./tests/test_audit_expansion.py
+./tests/test_auth.py
+./tests/test_authorization_matrix.py
+./tests/test_auto_normalize.py
+./tests/test_branding.py
+./tests/test_caption_parse.py
+./tests/test_captions.py
+./tests/test_certification.py
+./tests/test_channel_status.py
+./tests/test_clock_generation.py
+./tests/test_collections.py
+./tests/test_cue_plan.py
+./tests/test_cue_validation.py
+./tests/test_dashboard_gaps.py
+./tests/test_dayparts.py
+./tests/test_destinations.py
+./tests/test_distribution_adapter_contract.py
+./tests/test_distribution_gate.py
+./tests/test_dropbox.py
+./tests/test_editorial_model.py
+./tests/test_effective_at.py
+./tests/test_eligibility.py
+./tests/test_epg.py
+./tests/test_epg_api.py
+./tests/test_epg_delivery.py
+./tests/test_fallback_resolution.py
+./tests/test_fast_status.py
+./tests/test_flow_gaps.py
+./tests/test_gdrive.py
+./tests/test_health.py
+./tests/test_heartbeat_detector.py
+./tests/test_horizon_extension.py
+./tests/test_http_delivery.py
+./tests/test_incident.py
+./tests/test_integration_boundaries.py
+./tests/test_library_import.py
+./tests/test_lifecycle.py
+./tests/test_media_bulk_and_filters.py
+./tests/test_migration_drift.py
+./tests/test_noc.py
+./tests/test_normalization_robustness.py
+./tests/test_notifications.py
+./tests/test_oauth_callback.py
+./tests/test_operator_role.py
+./tests/test_organizations.py
+./tests/test_output_failover.py
+./tests/test_output_heartbeat.py
+./tests/test_output_probe_sweep.py
+./tests/test_output_profiles.py
+./tests/test_password_reset.py
+./tests/test_per_agreement_eligibility.py
+./tests/test_plans.py
+./tests/test_platform_storage.py
+./tests/test_preview.py
+./tests/test_probes.py
+./tests/test_profile_presets.py
+./tests/test_programming.py
+./tests/test_programming_blocks.py
+./tests/test_public_epg.py
+./tests/test_qc.py
+./tests/test_quickstart.py
+./tests/test_reconciliation.py
+./tests/test_reconciliation_runs.py
+./tests/test_reconciliation_wiring.py
+./tests/test_recurring_blocks.py
+./tests/test_redundancy.py
+./tests/test_resumable_uploads.py
+./tests/test_rights_enforcement.py
+./tests/test_rights_engine.py
+./tests/test_rights_takedown.py
+./tests/test_schedule_alerts.py
+./tests/test_schedule_rights.py
+./tests/test_schedules.py
+./tests/test_service_accounts.py
+./tests/test_sftp.py
+./tests/test_ssai_adapter_contract.py
+./tests/test_ssai_adserver_adapter.py
+./tests/test_ssai_delivery.py
+./tests/test_start_timeout.py
+./tests/test_storage.py
+./tests/test_vast_tag.py
+./tests/test_webhooks.py
+./tests/test_webhooks_api.py
+./tests/test_youtube.py
+./tests/test_youtube_alerts.py
+./tests/test_youtube_broadcast_reconcile.py
+
+Git status:
+bash: git: command not found
+root@ae49554d2d86:/app# printf '\nTakedown references:\n' && grep -RInE "takedown|take.?down|series" --exclude-dir=.git --exclude-dir=tests . | sed -n '1,240p'
+
+Takedown references:
+./app/schemas/channels.py:139:    """Concurrents series (PRD 2.0 §4.4). RTMP-only channels have no analytics source."""
+./app/schemas/collections.py:13:    series: str | None = None
+./app/schemas/rights.py:8:_SCOPE_TYPES = {"asset", "series", "collection", "channel", "agreement"}
+./app/schemas/rights.py:63:    scope_type: str  # asset | series
+./app/schemas/rights.py:87:    takedown: TakedownOut
+./app/schemas/library.py:35:    series: SeriesImportIn
+./app/schemas/library.py:60:    series_id: uuid.UUID | None = None
+./app/schemas/library.py:61:    series_action: str | None = None
+./app/schemas/media.py:60:    series: str | None = Field(default=None, max_length=300)
+./app/schemas/media.py:95:    series: str | None = Field(default=None, max_length=300)
+./app/schemas/media.py:132:    series: str | None
+./app/api/channels.py:231:    """Concurrents series + availability (PRD 2.0 §4.4)."""
+./app/api/channels.py:236:    points = audience_service.series(
+./app/api/rights.py:25:from app.services import rights_admin, rights_takedown
+./app/api/rights.py:73:# --- Emergency takedown (§8.3) ---
+./app/api/rights.py:75:@router.get("/organizations/{org_id}/rights/takedowns")
+./app/api/rights.py:76:def list_takedowns(
+./app/api/rights.py:80:        TakedownOut.model_validate(t) for t in rights_repo.list_active_
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+) -> RightsTakedown:
+./app/repositories/rights.py.orig:132:    takedown = RightsTakedown(**fields)
+./app/repositories/rights.py.orig:133:    db.add(takedown)
+./app/repositories/rights.py.orig:135:    return takedown
+./app/repositories/rights.py.orig:138:def get_takedown(
+./app/repositories/rights.py.orig:139:    db: Session, *, org_id: uuid.UUID, takedown_id: uuid.UUID
+./app/repositories/rights.py.orig:143:            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+./app/repositories/rights.py.orig:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+./app/repositories/rights.py.orig:161:def active_takedown_for_asset(
+./app/repositories/rights.py.orig:164:    """An active takedown covering this asset directly or via its series, if any."""
+./app/repositories/rights.py.orig:166:    if asset.series_id is not None:
+./app/repositories/rights.py.orig:167:        scope_ids.append(asset.series_id)
+./app/repositories/rights.py.orig:182:    if scope_type == "series":
+./app/repositories/rights.py.orig:186:                    Asset.organization_id == org_id, Asset.series_id == scope_id
+./channelforge_api.egg-info/SOURCES.txt:90:tests/test_rights_takedown.py
+./migrations/versions/dd00ee11ff22_rights_takedowns.py:1:"""emergency rights takedowns (PRD 3.0 §8.3, ADR-5)
+./migrations/versions/dd00ee11ff22_rights_takedowns.py:25:        'rights_takedowns',
+./migrations/versions/dd00ee11ff22_rights_takedowns.py:45:    op.create_index('ix_rights_takedowns_organization_id', 'rights_takedowns', ['organization_id'])
+./migrations/versions/dd00ee11ff22_rights_takedowns.py:46:    op.create_index('ix_rights_takedowns_scope_id', 'rights_takedowns', ['scope_id'])
+./migrations/versions/dd00ee11ff22_rights_takedowns.py:50:    op.drop_index('ix_rights_takedowns_scope_id', table_name='rights_takedowns')
+./migrations/versions/dd00ee11ff22_rights_takedowns.py:51:    op.drop_index('ix_rights_takedowns_organization_id', table_name='rights_takedowns')
+./migrations/versions/dd00ee11ff22_rights_takedowns.py:52:    op.drop_table('rights_takedowns')
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:1:"""series/season hierarchy and canonical editorial metadata (PRD 3.0 §7.1, ADR-4)
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:7:Additive only: new series/seasons tables and new nullable columns on assets. Existi
+ng
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:9:``assets.series``/``assets.season`` columns are retained as a fallback during backf
+ill.
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:26:        'series',
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:44:            name='uq_series_external_ref',
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:47:    op.create_index('ix_series_organization_id', 'series', ['organization_id'])
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:61:        sa.Column('series_id', sa.Uuid(), nullable=False),
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:66:        sa.ForeignKeyConstraint(['series_id'], ['series.id'], ondelete='CASCADE'),
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:68:        sa.UniqueConstraint('series_id', 'season_number', name='uq_season_number')
+,
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:71:    op.create_index('ix_seasons_series_id', 'seasons', ['series_id'])
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:76:        batch.add_column(sa.Column('series_id', sa.Uuid(), nullable=True))
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:97:        batch.create_index('ix_assets_series_id', ['series_id'])
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:100:            'fk_assets_series_id', 'series', ['series_id'], ['id'], ondelete='SET
+ NULL'
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:110:        batch.drop_constraint('fk_assets_series_id', type_='foreignkey')
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:112:        batch.drop_index('ix_assets_series_id')
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:118:            'season_id', 'series_id',
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:121:    op.drop_index('ix_seasons_series_id', table_name='seasons')
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:124:    op.drop_index('ix_series_organization_id', table_name='series')
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py:125:    op.drop_table('series')
+./migrations/versions/68a7fe8ef538_storage_connections_and_media_assets.py:28:    sa.Column('series', sa.String(length=300), nullable=True),
+root@ae49554d2d86:/app#

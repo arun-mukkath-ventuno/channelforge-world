@@ -1,0 +1,10 @@
+{
+  "analysis": "The existing SSAI parser tests passed, but ten other suites failed to load because the test runner cannot resolve imports such as the @/ alias. The production build and direct occurrence/deduplication regression checks passed. The server start command was issued; the health check was interrupted by Bash history expansion, so its status still needs verification.",
+  "plan": "Repeat the HTTP check with safe shell quoting and verify that the rebuilt Next.js server is running.",
+  "commands": [
+    {
+      "keystrokes": "ps aux; node <<'NODE'\nfetch('http://127.0.0.1:3000/fast-world/live').then(r => {\n  console.log('Live page HTTP status:', r.status);\n  if (!r.ok) process.exitCode = 1;\n}).catch(e => { console.error(e); process.exitCode = 1; });\nNODE\n",
+      "duration": 1
+    }
+  ]
+}

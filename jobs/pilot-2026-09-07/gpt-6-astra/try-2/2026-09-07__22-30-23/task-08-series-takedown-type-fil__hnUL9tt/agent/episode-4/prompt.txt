@@ -1,0 +1,265 @@
+New Terminal Output:
+
+root@292e5299103b:/app# sed -n '158,215p' app/repositories/rights.py; sed -n '95,150p' app/models/rights.py; grep -n 'series_id' app/models/asset.py; sed -n '1,
+110p' tests/conftest.py; sed -n '1,210p' tests/test_rights_takedown.py
+    )
+
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+        return [scope_id]
+    if scope_type == "series":
+        return list(
+            db.scalars(
+                select(Asset.id).where(
+                    Asset.organization_id == org_id, Asset.series_id == scope_id
+                )
+            )
+        )
+    return []
+
+
+def affected_future_events(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+) -> list[ScheduleEvent]:
+    """Future events in *published* schedule versions that reference the taken-down asset(s)."""
+    asset_ids = _covered_asset_ids(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id)
+    if not asset_ids:
+        return []
+    return list(
+        db.scalars(
+            select(ScheduleEvent)
+            .join(ScheduleVersion, ScheduleVersion.id == ScheduleEvent.schedule_version_id)
+            .where(
+                ScheduleEvent.organization_id == org_id,
+                ScheduleEvent.asset_id.in_(asset_ids),
+                ScheduleEvent.planned_start > now,
+                ScheduleVersion.status == "published",
+            )
+            .order_by(ScheduleEvent.planned_start)
+        )
+    )
+class RightsTakedown(UUIDMixin, TimestampMixin, Base):
+    """An emergency takedown on an asset or series (PRD 3.0 §8.3, ADR-5).
+
+    A non-destructive override: while ``status='active'`` the target is blocked at every eligibility
+    decision point (new scheduling, EPG inclusion, distributor eligibility) without rewriting any
+    immutable published schedule version. Lifting restores eligibility.
+    """
+
+    __tablename__ = "rights_takedowns"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True, nullable=False)
+    scope_type: Mapped[str] = mapped_column(String(20), nullable=False)  # asset | series
+    scope_id: Mapped[uuid.UUID] = mapped_column(Uuid, index=True, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    lifted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    lifted_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+36:    # series_id/season_id are the canonical hierarchy going forward.
+52:    series_id: Mapped[uuid.UUID | None] = mapped_column(
+"""Test fixtures: file-backed SQLite, get_db override, and client factory.
+
+A temp-file SQLite database backs each test (not in-memory StaticPool) so that separate
+sessions — the request path and eager Celery tasks — each get their own connection to the
+same database, as they would in production.
+"""
+
+from __future__ import annotations
+
+import os
+
+# Configure a SQLite test database before importing any app module, so app.db does not
+# instantiate the PostgreSQL engine (and its psycopg driver) at import time.
+os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("DATABASE_URL", "sqlite://")
+os.environ.setdefault("GOOGLE_OAUTH_CLIENT_ID", "test-client-id")
+os.environ.setdefault(
+    "GOOGLE_OAUTH_REDIRECT_URI",
+    "http://testserver/api/integrations/youtube/oauth/callback",
+)
+
+import tempfile  # noqa: E402
+from collections.abc import Callable, Iterator  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+import pytest  # noqa: E402
+from app.db import get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models import Base  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
+from sqlalchemy import create_engine  # noqa: E402
+from sqlalchemy.orm import Session, sessionmaker  # noqa: E402
+
+
+@pytest.fixture()
+def engine():
+    tmpdir = tempfile.mkdtemp(prefix="cf-test-db-")
+    db_path = Path(tmpdir) / "test.db"
+    eng = create_engine(
+        f"sqlite:///{db_path}", connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(eng)
+    yield eng
+    eng.dispose()
+    db_path.unlink(missing_ok=True)
+
+
+@pytest.fixture()
+def session_factory(engine) -> sessionmaker
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+n (PRD 3.0 §8.3)."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import UTC, datetime, timedelta
+
+from app.models import Alert, ScheduleEvent, ScheduleVersion
+
+from tests.helpers import first_org_id, signup
+from tests.test_schedules import make_channel
+
+_IMPORT = {
+    "source_system": "cms",
+    "series": {"external_reference": "SER-1", "title": "Yoga & You"},
+    "episodes": [
+        {"external_reference": "EP-1", "title": "Flow", "season_number": 1, "episode_number": 1,
+         "genre": "Wellness", "rating": "TV-G", "short_description": "x",
+         "original_air_date": "2026-01-05"},
+    ],
+}
+
+
+def _import_asset(client, org) -> str:
+    return client.post(
+        f"/api/organizations/{org}/library/import", json=_IMPORT
+    ).json()["rows"][0]["asset_id"]
+
+
+def _agreement(client, org, *, territory="IN", channel_id=None):
+    body = {"name": "deal", "partner": "samsung", "territory": territory}
+    if channel_id:
+        body["channel_id"] = channel_id
+    return client.post(f"/api/organizations/{org}/agreements", json=body).json()["id"]
+
+
+def _verdict(client, org, asset_id, agreement_id=None):
+    url = f"/api/organizations/{org}/assets/{asset_id}/eligibility"
+    if agreement_id:
+        url += f"?agreement_id={agreement_id}"
+    return client.get(url).json()
+
+
+def test_takedown_blocks_and_lift_restores(client):
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    agreement = _agreement(client, org)
+    assert _verdict(client, org, asset_id, agreement)["verdict"] == "eligible"
+
+    placed = client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "asset", "scope_id": asset_id, "reason": "legal hold"},
+    )
+    assert placed.status_code == 201, placed.text
+    takedown_id = placed.json()["takedown"]["id"]
+
+    # Blocked with an agreement AND without one (takedown is absolute).
+    for aid in (agreement, None):
+        result = _verdict(client, org, asset_id, aid)
+        assert result["verdict"] == "ineligible"
+        assert any(r["code"] == "rights_takedown" for r in result["reasons"])
+
+    lifted = client.post(f"/api/organizations/{org}/rights/takedowns/{takedown_id}/lift")
+    assert lifted.status_code == 200
+    assert _verdict(client, org, asset_id, agreement)["verdict"] == "eligible"
+
+
+def test_takedown_reports_affected_events_and_agreements(client, db):
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    channel_id = make_channel(client, org, tz="UTC")
+    agreement = _agreement(client, org, channel_id=channel_id)
+
+    # A future event in a published version that airs this asset.
+    sv = ScheduleVersion(
+        organization_id=uuid.UUID(org), channel_id=uuid.UUID(channel_id),
+        version_number=1, status="published", published_at=datetime.now(UTC),
+    )
+    db.add(sv)
+    db.flush()
+    start = datetime.now(UTC) + timedelta(days=1)
+    db.add(ScheduleEvent(
+        organization_id=uuid.UUID(org), channel_id=uuid.UUID(channel_id),
+        schedule_version_id=sv.id, event_type="programme", asset_id=uuid.UUID(asset_id),
+        title="Flow", planned_start=start, planned_end=start + timedelta(minutes=30),
+        planned_duration_seconds=1800.0,
+    ))
+    db.commit()
+
+    placed = client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "asset", "scope_id": asset_id, "reason": "rights pulled"},
+    ).json()
+    assert placed["affected"]["event_count"] == 1
+    assert channel_id in placed["affected"]["channel_ids"]
+    assert agreement in placed["affected"]["agreement_ids"]
+
+
+def test_takedown_raises_incident(client, db):
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "asset", "scope_id": asset_id, "reason": "x"},
+    )
+    alert = db.query(Alert).filter(Alert.alert_type == "rights_takedown").one()
+    assert alert.severity == "critical" and alert.status == "open"
+
+
+def test_series_takedown_blocks_member_asset(client, db):
+    from app.models import Asset
+
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    series_id = db.get(Asset, uuid.UUID(asset_id)).series_id
+    assert series_id is not None
+
+    client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "series", "scope_id": str(series_id), "reason": "series pulled"},
+    )
+    result = _verdict(client, org, asset_id)
+    assert result["verdict"] == "ineligible"
+    assert any(r["code"] == "rights_takedown" for r in result["reasons"])
+
+
+def test_invalid_scope_type_rejected(client):
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    resp = client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "channel", "scope_id": asset_id, "reason": "x"},
+    )
+    assert resp.status_code == 400
+root@292e5299103b:/app#

@@ -1,0 +1,18 @@
+{
+  "analysis": "The grep output identifies the defect: active_takedown_for_asset builds scope_ids including the asset and its series, but the query hard-codes RightsTakedown.scope_type == \"asset\". Therefore a series takedown can never match, even when its scope_id is included. The minimal fix is to match either (scope_type == asset and scope_id == asset.id) or (scope_type == series and scope_id == asset.series_id), while retaining organization and active-status constraints.",
+  "plan": "Inspect the complete function for exact formatting, patch only app/repositories/rights.py, run the focused takedown and rights-engine tests, then run any directly relevant eligibility/scheduling tests if available. Finally inspect the changed source and invoke restart-api.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba app/repositories/rights.py | sed -n '125,190p'; nl -ba app/services/rights_takedown.py | sed -n '60,135p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('app/repositories/rights.py')\ns = p.read_text()\nold = '''    scope_ids = [asset.id]\\n    if asset.series_id is not None:\\n        scope_ids.append(asset.series_id)\\n    return db.scalar(\\n        select(RightsTakedown).where(\\n            RightsTakedown.organization_id == org_id,\\n            RightsTakedown.status == \"active\",\\n            RightsTakedown.scope_type == \"asset\",\\n            RightsTakedown.scope_id.in_(scope_ids),\\n        )\\n    )\\n'''\nnew = '''    scope_matches = [\\n        (RightsTakedown.scope_type == \"asset\") & (RightsTakedown.scope_id == asset.id),\\n    ]\\n    if asset.series_id is not None:\\n        scope_matches.append(\\n            (RightsTakedown.scope_type == \"series\")\\n            & (RightsTakedown.scope_id == asset.series_id)\\n        )\\n    return db.scalar(\\n        select(RightsTakedown).where(\\n            RightsTakedown.organization_id == org_id,\\n            RightsTakedown.status == \"active\",\\n            *scope_matches,\\n        )\\n    )\\n'''\nif old not in s:\n    raise SystemExit('expected active takedown block not found')\np.write_text(s.replace(old, new, 1))\nPY\nsed -n '155,190p' app/repositories/rights.py\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "pytest -q tests/test_rights_takedown.py tests/test_rights_engine.py tests/test_rights_enforcement.py tests/test_schedule_rights.py\n",
+      "duration": 1.0
+    }
+  ]
+}

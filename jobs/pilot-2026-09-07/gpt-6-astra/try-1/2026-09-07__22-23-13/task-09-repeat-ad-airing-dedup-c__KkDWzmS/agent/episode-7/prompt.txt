@@ -1,0 +1,48 @@
+New Terminal Output:
+
+2c0f333a5b7b:/app# pnpm exec eslint src/lib/ssai.ts
+
+Oops! Something went wrong! :(
+
+ESLint: 9.39.5
+
+TypeError: Converting circular structure to JSON
+    --> starting at object with constructor 'Object'
+    |     property 'configs' -> object with constructor 'Object'
+    |     property 'flat' -> object with constructor 'Object'
+    |     ...
+    |     property 'plugins' -> object with constructor 'Object'
+    --- property 'react' closes the circle
+Referenced from:
+    at JSON.stringify (<anonymous>)
+    at file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/shared/config-validator.js:308:45
+    at Array.map (<anonymous>)
+    at ConfigValidator.formatErrors (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/shared/config-validator.js:299:23)
+    at ConfigValidator.validateConfigSchema (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/shared/config-validator.js:
+330:84)
+    at ConfigArrayFactory._normalizeConfigData (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-factory.js:
+676:19)
+    at ConfigArrayFactory._loadConfigData (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-factory.js:641:2
+1)
+    at ConfigArrayFactory._loadExtendedShareableConfig (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-fac
+tory.js:946:21)
+    at ConfigArrayFactory._loadExtends (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-factory.js:814:25)
+    at ConfigArrayFactory._normalizeObjectConfigDataBody (file:///app/node_modules/.pnpm/@eslint+eslintrc@3.3.6/node_modules/@eslint/eslintrc/lib/config-array-f
+actory.js:752:25)
+2c0f333a5b7b:/app# pnpm build
+
+> fast-world-tv@0.1.0 build /app
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.ts took 42ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1751ms
+✓ Finished TypeScript in 2.4s
+  Collecting page data using 7 workers  ..

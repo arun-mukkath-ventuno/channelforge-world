@@ -1,0 +1,125 @@
+New Terminal Output:
+
+41aedf6c9c91:/app# ls packages; grep -RniE 'cue.?out|cue.?in|producer|breakId' packages/*/src | head -180; cat packages/data-plane/package.json
+admin-web        control-plane    core             creative-worker  data-plane       persistence      storage
+packages/admin-web/src/content/user-guide.md:20:| **Ad opportunity (avail)** | A break in the channel signalled by an SCTE marker (`EXT-X-CUE-OUT` … `CUE-IN`).
+Each avail has a duration to fill. |
+packages/control-plane/src/server.ts:181:      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+packages/control-plane/src/server.ts:184:      source: "cue_out",
+packages/control-plane/src/server.ts:185:      signalType: "cue_out",
+packages/control-plane/src/server.ts:280:  // Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/control-plane/src/server.ts:282:  // producer's external_break_id so ChannelForge can attach delivery to its planned break (§17).
+packages/control-plane/src/server.test.ts:205:    const { breaks } = res.json() as { breaks: Array<{ opportunityId: string; externalBreakId: string | null }> };
+packages/control-plane/src/server.test.ts:209:      externalBreakId: "BRK-a11e5310-0003",
+packages/core/src/scte.ts:4://   #EXT-X-CUE-OUT:60
+packages/core/src/scte.ts:5://   #EXT-X-CUE-OUT:DURATION=60
+packages/core/src/scte.ts:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/src/scte.ts:7://   #EXT-X-CUE-IN
+packages/core/src/scte.ts:12:// (infer the boundary from CUE-IN, otherwise preserve origin).
+packages/core/src/scte.ts:15:  kind: "cue_out" | "cue_in" | "daterange";
+packages/core/src/scte.ts:35:  // CUE-IN: no attributes.
+packages/core/src/scte.ts:36:  if (trimmed === "#EXT-X-CUE-IN") {
+packages/core/src/scte.ts:37:    return { kind: "cue_in", lineIndex, raw: trimmed };
+packages/core/src/scte.ts:40:  // CUE-OUT: value may be a bare number or DURATION=<n>.
+packages/core/src/scte.ts:41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/src/scte.ts:42:  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/core/src/scte.ts:43:    const value = trimmed.slice("#EXT-X-CUE-OUT".length).replace(/^:/, "").trim();
+packages/core/src/scte.ts:44:    const duration = parseCueOutDuration(value);
+packages/core/src/scte.ts:46:      kind: "cue_out",
+packages/core/src/scte.ts:71:function parseCueOutDuration(value: string): number | null {
+packages/core/src/scte.test.ts:5:  it("parses bare-number CUE-OUT: #EXT-X-CUE-OUT:60", () => {
+packages/core/src/scte.test.ts:6:    const m = parseMarkerLine("#EXT-X-CUE-OUT:60", 5);
+packages/core/src/scte.test.ts:7:    expect(m).toMatchObject({ kind: "cue_out", duration: 60, lineIndex: 5 });
+packages/core/src/scte.test.ts:10:  it("parses attribute-form CUE-OUT: #EXT-X-CUE-OUT:DURATION=60", () => {
+packages/core/src/scte.test.ts:11:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=60", 0);
+packages/core/src/scte.test.ts:12:    expect(m).toMatchObject({ kind: "cue_out", duration: 60 });
+packages/core/src/scte.test.ts:16:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=90,SCTE35=abc", 0);
+packages/core/src/scte.test.ts:21:    const m = parseMarkerLine("#EXT-X-CUE-OUT:29.97", 0);
+packages/core/src/scte.test.ts:25:  it("parses CUE-IN with no attributes", () => {
+packages/core/src/scte.test.ts:26:    const m = parseMarkerLine("#EXT-X-CUE-IN", 9);
+packages/core/src/scte.test.ts:27:    expect(m).toMatchObject({ kind: "cue_in", lineIndex: 9 });
+packages/core/src/scte.test.ts:31:  it("ignores CUE-OUT-CONT as a new avail", () => {
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/src/scte.test.ts:36:  it("flags an unparseable CUE-OUT duration instead of throwing (PRD §41)", () => {
+packages/core/src/scte.test.ts:37:    const m = parseMarkerLine("#EXT-X-CUE-OUT:oops", 0);
+packages/core/src/scte.test.ts:38:    expect(m).toMatchObject({ kind: "cue_out", invalidDuration: true });
+packages/core/src/types.ts:9:  /** The producer's stable break id (ChannelForge's break_id, from the DATERANGE ID), when the
+packages/core/src/types.ts:11:  externalBreakId?: string;
+packages/core/src/types.ts:16:  source: "scte35" | "cue_out" | "daterange";
+packages/core/src/types.ts:17:  signalType: "cue_out" | "cue_in" | "daterange";
+packages/data-plane/src/avails.ts:3:// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:17:   *  by contrast, is a media-sequence-derived id independent of the producer). */
+packages/data-plane/src/avails.ts:18:  externalBreakId?: string;
+packages/data-plane/src/avails.ts:28:  /** Line index of the CUE-OUT marker. */
+packages/dat
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ls.test.ts:84:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:88:    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+packages/data-plane/src/avails.test.ts:91:  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+packages/data-plane/src/avails.test.ts:95:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:98:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:100:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+packages/data-plane/src/avails.test.ts:103:  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+packages/data-plane/src/avails.test.ts:104:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"
+]);
+packages/data-plane/src/avails.test.ts:105:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:111:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:115:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:118:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:121:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:125:    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+packages/data-plane/src/avails.test.ts:126:    expect(avails[1]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:132:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:135:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:138:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:141:      "#EXT-X-CUE-IN",
+packages/persistence/src/repositories.test.ts:67:      source: "cue_out",
+packages/persistence/src/repositories.test.ts:68:      signalType: "cue_out",
+packages/persistence/src/reconciliation.test.ts:37:    source: "cue_out",
+packages/persistence/src/reconciliation.test.ts:38:    signalType: "cue_out",
+packages/persistence/src/reconciliation.test.ts:75:  it("keys a filled break by its externalBreakId with ad seconds + impressions", async () => {
+packages/persistence/src/reconciliation.test.ts:76:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_202", externalBreakId: "BRK-a11e5310-0
+003" }));
+packages/persistence/src/reconciliation.test.ts:97:      externalBreakId: "BRK-a11e5310-0003",
+packages/persistence/src/reconciliation.test.ts:109:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_9", externalBreakId: "BRK-nofill-0001
+" }));
+packages/persistence/src/reconciliation.test.ts:112:    expect(breaks[0]).toMatchObject({ filled: false, adSeconds: 0, impressions: 0, externalBreakId: "BRK-nof
+ill-0001" });
+packages/persistence/src/reconciliation.test.ts:116:    await upsertOpportunity(db, opp({ opportunityId: "opp_multi", externalBreakId: "BRK-multi" }));
+packages/persistence/src/reconciliation.test.ts:139:    await upsertOpportunity(db, opp({ opportunityId: "opp_yoga", externalBreakId: "BRK-yoga", breakStart: "2
+026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:140:    await upsertOpportunity(db, opp({ opportunityId: "opp_food", channelId: "channel_food", externalBreakId:
+ "BRK-food", breakStart: "2026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:141:    await upsertOpportunity(db, opp({ opportunityId: "opp_old", externalBreakId: "BRK-old", breakStart: "202
+0-01-01T00:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:144:    expect(yoga.map((b) => b.externalBreakId).sort()).toEqual(["BRK-old", "BRK-yoga"]);
+packages/persistence/src/reconciliation.test.ts:147:    expect(recent.map((b) => b.externalBreakId)).toEqual(["BRK-yoga"]);
+packages/persistence/src/analytics.test.ts:37:  source: "cue_out",
+packages/persistence/src/analytics.test.ts:38:  signalType: "cue_out",
+packages/persistence/src/reconciliation.ts:1:// Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/persistence/src/reconciliation.ts:4:// filled. This assembles one row per ad opportunity — keyed by the producer's own break id
+packages/persistence/src/reconciliation.ts:18:  externalBreakId: string | null;
+packages/persistence/src/reconciliation.ts:117:        externalBreakId: o.external_break_id ?? null,
+packages/persistence/src/repositories/opportunities.ts:19:      opp.externalBreakId ?? null,
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+41aedf6c9c91:/app#

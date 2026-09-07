@@ -1,0 +1,224 @@
+New Terminal Output:
+
+99639b685900:/app# printf '%s\n' 'Workspace packages:'; for f in packages/*/package.json; do echo "--- $f"; cat "$f"; done
+Workspace packages:
+--- packages/admin-web/package.json
+{
+  "name": "@ssai/admin-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI operator console — Vite + React + Tailwind v4 + shadcn-style UI, matching the ChannelForge design system.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "marked": "^18.0.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
+--- packages/control-plane/package.json
+{
+  "name": "@ssai/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI control plane — campaigns, creatives, channels, sessions, ad decisioning, events, analytics, debug APIs.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fast-xml-parser": "^4.5.7",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.1"
+  }
+}
+--- packages/core/package.json
+{
+  "name": "@ssai/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic SSAI core: SCTE cue parsing, ad eligibility, pod construction, slate fill. Pure, dependency-free, fully tested.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  }
+}
+--- packages/creative-worker/package.json
+{
+  "name": "@ssai/creative-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline creative preparation: validate → transcode → segment → store HLS → READY. Never runs on the manifest hot path (PRD §14, §48).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "prepare-creative": "tsx src/cli/prepare.ts",
+    "prepare-slate": "tsx src/cli/prepare-slate.ts",
+    "process-pending": "tsx src/cli/process-pending.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*"
+  }
+}
+--- packages/data-plane/package.json
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+--- packages/persistence/package.json
+{
+  "name": "@ssai/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI persistence — Postgres repositories, migration runner, and the Redis pod cache that bridges control plane and data plane.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5"
+  }
+}
+--- packages/storage/package.json
+{
+  "name": "@ssai/storage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Object storage for prepared HLS media — ObjectStore interface (S3/MinIO target) + a filesystem implementation. Shared by the creative worker (
+writes) and the data plane (reads).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "
+[... output limited to 10000 bytes; 72 interior bytes omitted ...]
+,10],[195,11],[19
+6,12],[140,2],[143,13],[141,2],[142,2],[197,14],[198,15],[199,16],[200,17],[201,18],[202,19],[203,19],[204,20],[205,21],[206,22],[207,23],[146,2],[144,2],[208,2
+4],[209,25],[210,26],[244,27],[211,28],[212,2],[213,29],[214,30],[215,31],[216,32],[217,33],[218,34],[219,35],[220,36],[221,37],[222,37],[223,38],[224,2],[225,3
+9],[226,40],[228,41],[227,42],[229,43],[230,44],[231,45],[232,46],[233,47],[234,48],[235,49],[236,50],[237,51],[238,52],[239,53],[240,54],[241,55],[147,2],[148,
+2],[149,2],[187,56],[188,2],[189,2],[190,43],[242,57],[243,58],[268,59],[267,60],[266,59],[317,2],[321,61],[318,2],[320,62],[120,63],[77,2],[79,64],[78,65],[83,
+66],[118,67],[115,68],[117,69],[80,68],[81,70],[85,70],[84,71],[82,72],[116,73],[129,74],[114,68],[119,75],[112,2],[113,2],[86,76],[91,68],[93,68],[88,68],[89,7
+6],[95,68],[96,77],[87,68],[92,68],[94,68],[90,68],[110,78],[109,68],[111,79],[105,68],[126,80],[124,81],[123,68],[121,66],[128,82],[125,83],[122,81],[127,81],[
+107,68],[106,68],[102,68],[108,84],[103,68],[104,85],[97,68],[98,68],[99,68],[100,68],[101,68],[76,2],[319,2],[287,2],[132,86],[260,87],[257,88],[255,89],[258,9
+0],[253,91],[252,92],[249,93],[250,94],[251,95],[139,96],[256,97],[254,98],[137,99],[259,100],[138,101],[136,102],[134,103],[272,104],[289,105],[292,106],[291,1
+07],[273,108],[288,109],[285,110],[286,111],[284,112],[277,113],[278,114],[280,115],[281,116],[279,117],[282,118],[293,119],[283,120],[290,113],[275,121],[271,1
+22],[276,123],[274,104],[135,124],[265,125],[262,2],[264,126],[263,2],[261,2],[245,127],[248,128],[246,129],[247,130],[56,2],[57,2],[11,2],[10,2],[2,2],[12,2],[
+13,2],[14,2],[15,2],[16,2],[17,2],[18,2],[19,2],[3,2],[20,2],[21,2],[4,2],[22,2],[26,2],[23,2],[24,2],[25,2],[27,2],[28,2],[29,2],[5,2],[30,2],[31,2],[32,2],[33
+,2],[6,2],[37,2],[34,2],[35,2],[36,2],[38,2],[7,2],[39,2],[44,2],[45,2],[40,2],[41,2],[42,2],[43,2],[8,2],[49,2],[46,2],[47,2],[48,2],[50,2],[9,2],[51,2],[52,2]
+,[53,2],[55,2],[54,2],[1,2],[165,131],[175,132],[164,131],[185,133],[156,134],[155,135],[184,136],[178,137],[183,138],[158,139],[172,140],[157,141],[181,142],[1
+53,143],[152,136],[182,144],[154,145],[159,146],[160,2],[163,146],[150,2],[186,147],[176,148],[167,149],[168,150],[170,151],[166,152],[169,153],[179,136],[161,1
+54],[162,155],[171,156],[151,157],[174,148],[173,146],[177,2],[180,158],[63,159],[60,159],[65,160],[62,159],[61,2],[59,2],[64,2],[58,2],[66,161],[67,162],[73,16
+3],[74,2],[75,2],[72,2],[309,164],[308,165],[296,166],[269,167],[307,168],[270,166],[294,169],[297,166],[306,166],[299,170],[298,166],[300,170],[303,170],[304,1
+66],[302,170],[301,166],[305,166],[295,166],[70,171],[71,172],[69,171],[68,2]],"latestChangedDtsFile":"./dist/server.d.ts","version":"5.9.3"}
+packages/persistence/src/repositories.test.ts:10:import { ensureSession, getSession } from "./repositories/sessions.js";
+packages/persistence/src/repositories.test.ts:12:import { saveDecision, getDecisionsBySession } from "./repositories/decisions.js";
+packages/persistence/src/repositories.test.ts:13:import { appendEvent, getEventsBySession } from "./repositories/events.js";
+packages/persistence/src/repositories.test.ts:14:import { decide, type AdOpportunity, type SessionContext } from "@ssai/core";
+packages/persistence/src/repositories.test.ts:37:  it("seeds 5 channels and assembles campaign target channels", async () => {
+packages/persistence/src/repositories.test.ts:41:    expect(food?.targetChannels).toEqual(["channel_food"]);
+packages/persistence/src/repositories.test.ts:43:    expect(appliance?.targetChannels).toContain("channel_food");
+packages/persistence/src/repositories.test.ts:44:    expect(appliance?.targetChannels).toContain("channel_entertainment");
+packages/persistence/src/repositories.test.ts:64:      channelId: "channel_food",
+packages/persistence/src/repositories.test.ts:70:    const session: SessionContext = { sessionId: "sess_1", channelId: "channel_food" };
+packages/persistence/src/repositories.test.ts:74:      session,
+packages/persistence/src/repositories.test.ts:81:    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+packages/persistence/src/repositories.test.ts:91:    const stored = await getDecisionsBySession(db, "sess_1");
+packages/persistence/src/repositories.test.ts:98:    const sess = await getSession(db, "sess_1");
+packages/persistence/src/repositories.test.ts:99:    expect(sess).toMatchObject({ channelId: "channel_food", deviceType: "web", country: "IN" });
+packages/persistence/src/repositories.test.ts:104:  it("appends and reads events by session, ignoring duplicate event ids", async () => {
+packages/persistence/src/repositories.test.ts:105:    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1", adId: "cr_food_a_3
+0" });
+packages/persistence/src/repositories.test.ts:106:    await appendEvent(db, { eventId: "e2", eventType: "ad_complete", sessionId: "sess_1", adId: "cr_food_a_30"
+ });
+99639b685900:/app#

@@ -1,0 +1,14 @@
+{
+  "analysis": "The terminal is at /app, but no repository contents or prior command output are visible. I need to inspect the application source, identify the service and the break/session ad-decision state handling, then make a minimal fix and restart the relevant service.",
+  "plan": "List the repository and service files, inspect source and configuration to find manifest handling and per-session break decision state, search for logic keyed to the current break or manifest time, patch only application source, run the relevant tests or checks without modifying them, and restart the affected service so the fix is active.",
+  "commands": [
+    {
+      "keystrokes": "pwd; printf '\\n-- files --\\n'; find . -maxdepth 2 -type f | sort | head -200\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '\\n-- dirs --\\n'; find . -maxdepth 2 -type d | sort | head -100\n",
+      "duration": 0.2
+    }
+  ]
+}

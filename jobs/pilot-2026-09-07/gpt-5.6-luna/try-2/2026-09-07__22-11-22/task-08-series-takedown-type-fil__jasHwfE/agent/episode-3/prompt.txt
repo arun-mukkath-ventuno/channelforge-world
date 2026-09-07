@@ -1,0 +1,41 @@
+Current Terminal Screen:
+   688      return [
+   689          f"Schedule covers only {covered / 3600:.1f}h from now; "
+   690          "PRD recommends at least 72h (7 days ideal)."
+   691      ]
+   692
+   693
+   694  def _rights_issues(
+   695      db: Session, *, event, asset: Asset, start: datetime, end: datetime
+   696  ) -> list[str]:
+   697      """Rights + takedown gate at publish (§8.2 validation/publication point, ADR-5).
+   698
+   699      Channel-level publish has no single agreement/territory, so this catches the
+   700      agreement-independent denials — validity window, blackout, linear/AVOD permission, and active
+   701      takedowns. Territory/partner-specific rights are enforced per agreement at distributor
+   702      eligibility. Falls back to the asset's legacy rights window when no policy is assigned.
+   703      """
+   704      org_id = asset.organization_id
+   705      if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+   706          return [f"'{event.title}': asset is under an active emergency takedown"]
+   707      policies = rights_repo.resolve_applicable(
+   708          db, org_id=org_id, asset=asset, channel_id=event.channel_id
+   709      )
+   710      ctx = rights_engine.RightsContext(air_start=start, air_end=end, language=asset.language)
+   711      decision = rights_engine.evaluate(policies, ctx, asset=asset)
+   712      if not decision.allowed:
+   713          codes = ", ".join(sorted({r.code for r in decision.reasons}))
+   714          return [f"'{event.title}': rights not valid for its air time ({codes})"]
+   715      return []
+   716
+   717
+   718  def validate(db: Session, version: ScheduleVersion) -> list[str]:
+   719      """Return a list of issues; empty means the timeline is publishable."""
+   720      channel = db.get(Channel, version.channel_id)
+   721      preset = channel.profile_preset if channel is not None else cf_media.DEFAULT_PRESET
+   722      events = repo.list_events(db, version.id)
+   723      issues: list[str] = []
+   724      prev_end: datetime | None = None
+   725      for e in events:
+root@ae49554d2d86:/app# pytest -q tests/test_rights_takedown.py tests/test_rights_engine.py
+

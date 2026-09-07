@@ -1,0 +1,57 @@
+New Terminal Output:
+
+0b3ff8174f56:/app# npx tsx test_bug.mjs
+=== Scenario A: First break has NO URI segment between CUE-OUT and CUE-IN ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first",
+    "startSequence": 0,
+    "measuredDuration": 0
+  },
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-second",
+    "startSequence": 0,
+    "measuredDuration": 6
+  }
+]
+
+=== Scenario B: second break has no DATERANGE ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first"
+  },
+  {
+    "opportunityId": "opp_ch_1"
+  }
+]
+
+=== Scenario C: back-to-back no segments in either ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first",
+    "measuredDuration": 0
+  },
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-second",
+    "measuredDuration": 0
+  }
+]
+
+=== Scenario D: with PDT before second cue_out ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first"
+  },
+  {
+    "opportunityId": "opp_ch_1",
+    "externalBreakId": "BRK-second",
+    "programDateTime": "2026-01-01T00:00:00Z"
+  }
+]
+0b3ff8174f56:/app#

@@ -1,0 +1,21 @@
+New Terminal Output:
+
+5d6083492e48:/app# env | grep -i ssa
+DATABASE_URL=postgres://ssai:ssai@postgres:5432/ssai
+SESSION_SIGNING_SECRET=task-ssai-session-secret
+ADMIN_PASSWORD=task-ssai-admin-secret
+ADMIN_USER=task-ssai-admin
+SSAI_SERVICE=control-plane
+5d6083492e48:/app# cat /usr/local/bin/docker-entrypoint.sh
+#!/bin/sh
+set -e
+
+# Run command with node if the first argument contains a "-" or is not a system command. The last
+# part inside the "{}" is a workaround for the following bug in ash/dash:
+# https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=874264
+if [ "${1#-}" != "${1}" ] || [ -z "$(command -v "${1}")" ] || { [ -f "${1}" ] && ! [ -x "${1}" ]; }; then
+  set -- node "$@"
+fi
+
+exec "$@"
+5d6083492e48:/app#

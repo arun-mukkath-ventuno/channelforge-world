@@ -1,0 +1,125 @@
+New Terminal Output:
+
+c97b28b93225:/app# node --input-type=module -e 'import fs from "node:fs"; const p="packages/data-plane/src/avails.ts"; let s=fs.readFileSync(p,"utf8"); const ol
+d="      open = null;\n      continue;"; const neu="      open = null;\n      // A following CUE-OUT may be adjacent with no segment URI in between.\n      // D
+o not let this break\u0027s DATERANGE ID become the next break\u0027s ID.\n      blockBreakId = undefined;\n      continue;"; if (!s.includes(old)) throw new Er
+ror("target block not found"); fs.writeFileSync(p,s.replace(old,neu));'
+c97b28b93225:/app# grep -n -A8 -B4 'blockBreakId = undefined' packages/data-plane/src/avails.ts
+109-      });
+110-      open = null;
+111-      // A following CUE-OUT may be adjacent with no segment URI in between.
+112-      // Do not let this break's DATERANGE ID become the next break's ID.
+113:      blockBreakId = undefined;
+114-      continue;
+115-    }
+116-
+117-    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+118-    const infMatch = trimmed.match(EXTINF);
+119-    if (infMatch) {
+120-      const segDur = Number(infMatch[1]);
+121-      if (open) open.measuredDuration += segDur;
+122-      // The URI line follows; advance the sequence when we consume it below.
+123-    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+124-      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+125-      mediaSequence += 1;
+126:      blockBreakId = undefined;
+127-    }
+128-  }
+129-
+130-  return avails;
+131-}
+c97b28b93225:/app# git diff -- packages/data-plane/src/avails.ts
+bash: git: command not found
+c97b28b93225:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/core/src/scte.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+
+ Test Files  2 passed (2)
+      Tests  21 passed (21)
+   Start at  16:42:45
+   Duration  295ms (transform 65ms, setup 0ms, collect 80ms, tests 9ms, environment 0ms, prepare 58ms)
+
+c97b28b93225:/app# npm run typecheck && npm run build
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+
+> ssaiadserver@0.1.0 build
+> npm run build --workspaces --if-present
+
+
+> @ssai/admin-web@0.1.0 build
+> vite build
+
+vite v6.4.3 building for production...
+✓ 1600 modules transformed.
+node --input-type=module -e 'import { detectAvails } from "./packages/data-plane/dist/avails.js"; const m=["#EXT-X-MEDIA-SEQUENCE:0","#EXT-X-CUE-OUT:30","#EXT-X
+-DATERANGE:ID=\"BRK-first\"","#EXTINF:6,","a.ts","#EXT-X-CUE-IN","#EXT-X-CUE-OUT:15","#EXT-X-DATERANGE:ID=\"BRK-second\"","#EXTINF:6,","b.ts","#EXT-X-CUE-IN"].j
+oin("\n"); const a=detectAvails(m,"ch"); console.log(a.map(x=>({id:x.opportunityId,break:x.externalBreakId}))); if (a.length!==2 || a[0].externalBreakId!=="BRK-
+first" || a[1].externalBreakId!=="BRK-second") process.exit(1);'
+dist/index.html                   0.48 kB │ gzip:  0.31 kB
+dist/assets/index-B6R8QqZS.css   35.10 kB │ gzip:  6.60 kB
+dist/assets/index-GUROw0s8.js   280.07 kB │ gzip: 88.34 kB
+✓ built in 1.67s
+
+> @ssai/control-plane@0.1.0 build
+> tsc --build
+
+
+> @ssai/core@0.1.0 build
+> tsc --build
+
+
+> @ssai/creative-worker@0.1.0 build
+> tsc --build
+
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+
+> @ssai/persistence@0.1.0 build
+> tsc --build
+
+
+> @ssai/storage@0.1.0 build
+> tsc --build
+
+c97b28b93225:/app# node --input-type=module -e 'import { detectAvails } from "./packages/data-plane/dist/avails.js"; const m=["#EXT-X-MEDIA-SEQUENCE:0","#EXT-X-
+CUE-OUT:30","#EXT-X-DATERANGE:ID=\"BRK-first\"","#EXTINF:6,","a.ts","#EXT-X-CUE-IN","#EXT-X-CUE-OUT:15","#EXT-X-DATERANGE:ID=\"BRK-second\"","#EXTINF:6,","b.ts"
+,"#EXT-X-CUE-IN"].join("\n"); const a=detectAvails(m,"ch"); console.log(a.map(x=>({id:x.opportunityId,break:x.externalBreakId}))); if (a.length!==2 || a[0].exte
+rnalBreakId!=="BRK-first" || a[1].externalBreakId!=="BRK-second") process.exit(1);'
+npm run start --workspace @ssai/data-plane > /tmp/data-plane.log 2>&1 & echo $! > /tmp/data-plane.pid; sleep 1; cat /tmp/data-plane.log; printf '\nPID: '; cat /
+tmp/data-plane.pid; ps -p "$(cat /tmp/data-plane.pid)" -o pid,stat,cmd || true
+[
+  { id: 'opp_ch_0', break: 'BRK-first' },
+  { id: 'opp_ch_1', break: 'BRK-second' }
+]
+c97b28b93225:/app# npm run start --workspace @ssai/data-plane > /tmp/data-plane.log 2>&1 & echo $! > /tmp/data-plane.pid; sleep 1; cat /tmp/data-plane.log; prin
+tf '\nPID: '; cat /tmp/data-plane.pid; ps -p "$(cat /tmp/data-plane.pid)" -o pid,stat,cmd || true
+[1] 902
+
+> @ssai/data-plane@0.1.0 start
+> node dist/server.js
+
+(node:914) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for acces
+sing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1788799370435,"pid":914,"hostname":"c97b28b93225","msg":"Server listening at http://127.0.0.1:4010"}
+{"level":30,"time":1788799370435,"pid":914,"hostname":"c97b28b93225","msg":"Server listening at http://172.21.0.3:4010"}
+
+PID: 902
+ps: unrecognized option: p
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: ps [-o COL1,COL2=HEADER] [-T]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+	-T			Show threads
+c97b28b93225:/app#

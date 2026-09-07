@@ -1,0 +1,30 @@
+New Terminal Output:
+
+c14a4ace724a:/app# npx vitest run packages/persistence/src/repositories.test.ts packages/persistence/src/analytics.test.ts packages/control-plane/src/server.tes
+t.ts --reporter=dot 2>&1 | tail -14
+node --import tsx --input-type=module <<'NODE'
+import assert from 'node:assert/strict';
+import pg from 'pg';
+import { ensureSession } from './packages/persistence/src/repositories/sessions.ts';
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+await client.connect();
+try {
+  await client.query('BEGIN');
+  const channels = (await client.query('SELECT id FROM channels LIMIT 2')).rows;
+  assert.equal(channels.length, 2, 'Need two existing channels');
+  const id = `session_channel_check_${Date.now()}`;
+  await ensureSession(client, { id, channelId: channels[0].id, deviceType: 'web', country: 'US', anonymousId: 'check', ipHash: 'hash', userAgent: 'check-agent'
+});
+  const read = async () => (await client.query('SELECT * FROM playback_sessions WHERE id = $1', [id])).rows[0];
+  const original = await read();
+  for (const channelId of [channels[0].id, channels[1].id, channels[1].id, channels[0].id]) {
+    await ensureSession(client, { id, channelId });
+    assert.deepEqual(await read(), { ...original, channel_id: channelId });
+  }
+  console.log('PASS: repeated associations and A→B→A switches update only channel_id; all metadata and timestamps preserved.');
+} finally {
+  await client.query('ROLLBACK');
+  await client.end();
+}
+NODE
+

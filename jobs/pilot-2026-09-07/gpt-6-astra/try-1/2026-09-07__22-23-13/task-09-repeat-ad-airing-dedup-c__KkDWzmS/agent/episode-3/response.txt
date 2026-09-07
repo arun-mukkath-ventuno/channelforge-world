@@ -1,0 +1,14 @@
+{
+  "analysis": "The ingestion service deduplicates lifecycle events using session_id, pod_id, ad_id, and canonical event type unless an explicit event_id is supplied. The watcher already distinguishes local occurrences by creative plus start time, but appears to send only the creative ID, losing that occurrence identity on the wire.",
+  "plan": "Read the full beacon sender and its tests/call sites to choose the smallest backward-compatible way to transmit stable occurrence identity.",
+  "commands": [
+    {
+      "keystrokes": "cat src/lib/ssai.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat src/lib/ssai.test.ts; grep -RnE 'sendAdBeacon|startAdBeaconWatcher' src; cat /reference/ssaiadserver/persistence/repositories/events.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

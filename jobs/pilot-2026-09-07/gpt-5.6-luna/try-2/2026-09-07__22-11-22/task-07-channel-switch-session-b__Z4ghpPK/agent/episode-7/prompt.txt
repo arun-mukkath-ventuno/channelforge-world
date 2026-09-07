@@ -1,0 +1,110 @@
+New Terminal Output:
+
+51e93080a3b4:/app# sed -i 's/ON CONFLICT (id) DO NOTHING/ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id/' packages/persistence/src/repositories
+/sessions.ts
+51e93080a3b4:/app# printf '%s\n' 'Updated ensureSession SQL:'
+Updated ensureSession SQL:
+51e93080a3b4:/app# sed -n '20,48p' packages/persistence/src/repositories/sessions.ts
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+51e93080a3b4:/app# npm run typecheck && npm test
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/control-plane/src/server.test.ts (15) 495ms
+ ✓ packages/control-plane/src/beacons.test.ts (6)
+ ✓ packages/control-plane/src/events-normalize.test.ts (7)
+ ✓ packages/control-plane/src/server.test.ts (15) 495ms
+ ✓ packages/control-plane/src/vast-fetch.test.ts (5)
+ ✓ packages/control-plane/src/vast-inventory.test.ts (4)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/core/src/eligibility.test.ts (9)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/core/src/session-token.test.ts (6)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+ ✓ packages/creative-worker/src/validate.test.ts (6)
+ ✓ packages/creative-worker/src/worker.test.ts (5)
+ ✓ packages/persistence/src/analytics.test.ts (5)
+ ✓ packages/persistence/src/pod-cache.test.ts (3)
+ ✓ packages/persistence/src/reconciliation.test.ts (4)
+ ✓ packages/persistence/src/repositories.test.ts (4)
+ ✓ packages/storage/src/s3.test.ts (4)
+
+ Test Files  22 passed (22)
+      Tests  142 passed (142)
+   Start at  16:42:32
+   Duration  5.33s (transform 323ms, setup 0ms, collect 1.21s, tests 1.55s, environment 3ms, prepare 821ms)
+
+51e93080a3b4:/app# npm run build --workspace @ssai/control-plane
+
+> @ssai/control-plane@0.1.0 build
+> tsc --build
+
+51e93080a3b4:/app# grep -n -A4 -B3 'ON CONFLICT' packages/persistence/src/repositories/sessions.ts && printf '\nBuilt control-plane artifact:\n' && ls -l packag
+es/control-plane/dist/server.js
+38-  await db.query(
+39-    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+40-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+41:     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id`,
+42-    [
+43-      input.id,
+44-      input.channelId,
+45-      input.deviceType ?? null,
+
+Built control-plane artifact:
+-rw-r--r--    1 root     root         22336 Sep  6 10:45 packages/control-plane/dist/server.js
+51e93080a3b4:/app# nohup npm run start --workspace @ssai/control-plane >/tmp/control-plane.log 2>&1 & echo $! > /tmp/control-plane.pid
+[1] 1528
+51e93080a3b4:/app# sleep 1
+51e93080a3b4:/app# printf '%s\n' 'Control-plane PID:' && cat /tmp/control-plane.pid
+Control-plane PID:
+1528
+51e93080a3b4:/app# printf '%s\n' 'Control-plane log:' && cat /tmp/control-plane.log
+Control-plane log:
+
+> @ssai/control-plane@0.1.0 start
+> node dist/server.js
+
+{"level":30,"time":1788799359976,"pid":1540,"hostname":"51e93080a3b4","msg":"Server listening at http://127.0.0.1:4000"}
+{"level":30,"time":1788799359976,"pid":1540,"hostname":"51e93080a3b4","msg":"Server listening at http://172.20.0.4:4000"}
+51e93080a3b4:/app#

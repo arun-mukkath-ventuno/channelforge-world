@@ -1,0 +1,211 @@
+New Terminal Output:
+
+99639b685900:/app# printf '%s\n' 'sessions repository:'; sed -n '1,240p' packages/persistence/src/repositories/sessions.ts; printf '%s\n' 'persistence repositor
+y index/files:'; find packages/persistence/src -maxdepth 3 -type f -not -name '*.map' -not -name '*.d.ts' | sort
+sessions repository:
+// Playback session repository (PRD §11, §12, §44).
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface PlaybackSession {
+  id: string;
+  channelId: string;
+  createdAt: string;
+  lastActivityAt: string;
+  deviceType: string | null;
+  country: string | null;
+  anonymousId: string | null;
+}
+
+interface SessionRow {
+  id: string;
+  channel_id: string;
+  created_at: unknown;
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+  );
+}
+
+export async function touchSession(db: Queryable, id: string): Promise<void> {
+  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+}
+
+function toSession(r: SessionRow): PlaybackSession {
+  return {
+    id: r.id,
+    channelId: r.channel_id,
+    createdAt: toIso(r.created_at),
+    lastActivityAt: toIso(r.last_activity_at),
+    deviceType: r.device_type,
+    country: r.country,
+    anonymousId: r.anonymous_id,
+  };
+}
+
+export async function getSession(db: Queryable, id: string): Promise<PlaybackSession | null> {
+  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+  return rows[0] ? toSession(rows[0]) : null;
+}
+
+export async function listSessions(db: Queryable, limit = 100): Promise<PlaybackSession[]> {
+  const rows = (
+    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [limit])
+  ).rows;
+  return rows.map(toSession);
+}
+persistence repository index/files:
+packages/persistence/src/analytics.test.ts
+packages/persistence/src/analytics.ts
+packages/persistence/src/cli/migrate.ts
+packages/persistence/src/cli/seed.ts
+packages/persistence/src/db.ts
+packages/persistence/src/index.ts
+packages/persistence/src/map.ts
+packages/persistence/src/migrate.ts
+packages/persistence/src/pod-cache.test.ts
+packages/persistence/src/pod-cache.ts
+packages/persistence/src/reconciliation.test.ts
+packages/persistence/src/reconciliation.ts
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/repositories/beacons.ts
+packages/persistence/src/repositories/campaigns.ts
+packages/persistence/src/repositories/channels.ts
+packages/persistence/src/repositories/creatives.ts
+packages/persistence/src/repositories/decisions.ts
+packages/persistence/src/repositories/events.ts
+packages/persistence/src/repositories/opportunities.ts
+packages/persistence/src/repositories/sessions.ts
+packages/persistence/src/repositories/slates.ts
+packages/persistence/src/seed.ts
+99639b685900:/app# printf '%s\n' 'persistence tests:'; sed -n '1,180p' packages/persistence/src/repositories.test.ts; printf '%s\n' 'session call sites:'; find
+packages -type d \( -name node_modules -o -name dist \) -prune -o -type f -name '*.ts' -print0 | xargs -0 grep -nE 'ensureSession|getSession|sessions\.js' | sed
+ -n '1,240p'
+persistence tests:
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { newDb } from "pg-mem";
+import type { Queryable } from "./db.js";
+import { seedDatabase } from "./seed.js";
+import { campaignsAsMap, listCampaigns } from "./repositories/campaigns.js";
+import { listCreatives } from "./repositories/creatives.js";
+import { ensureSession, getSession } from "./repositories/sessions.js";
+import { upsertOpportunity } from "./repositories/opportunities.js";
+import { saveDecision, getDecisionsBySession } from "./repositories/decisions.js";
+import { appendEvent, getEventsBySession } from "./repositories/events.js";
+import { decide, type AdOpportunity, type SessionContext } from "@ssai/core";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const MIG_DIR = resolve(here, "../../../migrations");
+const SCHEMA = readdirSync(MI
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ duration          NUMERIC NOT NULL,
+migrations/001_init.sql-114-  start_offset      NUMERIC NOT NULL,
+migrations/001_init.sql-115-  end_offset        NUMERIC NOT NULL
+migrations/001_init.sql-116-);
+migrations/001_init.sql-117-
+migrations/001_init.sql-118-CREATE TABLE manifest_requests (
+migrations/001_init.sql-119-  id                BIGSERIAL PRIMARY KEY,
+migrations/001_init.sql:120:  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+migrations/001_init.sql:121:  channel_id        TEXT NOT NULL REFERENCES channels(id),
+migrations/001_init.sql-122-  requested_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/001_init.sql-123-  variant           TEXT,
+migrations/001_init.sql-124-  stitched          BOOLEAN NOT NULL DEFAULT false,
+migrations/001_init.sql-125-  generation_ms     NUMERIC
+migrations/001_init.sql-126-);
+migrations/001_init.sql-127-
+migrations/001_init.sql-128--- Append-only canonical event stream (PRD §26, §29, §30). Source for analytics.
+migrations/001_init.sql-129-CREATE TABLE events (
+migrations/001_init.sql-130-  event_id          TEXT PRIMARY KEY,
+migrations/001_init.sql-131-  event_type        TEXT NOT NULL,
+migrations/001_init.sql-132-  ts                TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/001_init.sql:133:  session_id        TEXT,
+migrations/001_init.sql:134:  channel_id        TEXT,
+migrations/001_init.sql-135-  opportunity_id    TEXT,
+migrations/001_init.sql-136-  pod_id            TEXT,
+migrations/001_init.sql-137-  ad_id             TEXT,
+migrations/001_init.sql-138-  campaign_id       TEXT,
+migrations/001_init.sql-139-  creative_id       TEXT,
+migrations/001_init.sql-140-  program_id        TEXT,
+migrations/001_init.sql-141-  playhead_position NUMERIC,
+migrations/001_init.sql-142-  device_type       TEXT,
+migrations/001_init.sql-143-  country           TEXT,
+migrations/001_init.sql-144-  payload           JSONB
+migrations/001_init.sql-145-);
+migrations/001_init.sql-146-
+migrations/001_init.sql:147:CREATE INDEX idx_events_session   ON events (session_id, ts);
+migrations/001_init.sql-148-CREATE INDEX idx_events_type      ON events (event_type, ts);
+migrations/001_init.sql:149:CREATE INDEX idx_opps_channel     ON ad_opportunities (channel_id, start_time);
+migrations/001_init.sql-150-CREATE INDEX idx_decisions_opp    ON ad_decisions (opportunity_id);
+migrations/001_init.sql:151:CREATE INDEX idx_sessions_channel ON playback_sessions (channel_id, created_at);
+--
+migrations/005_beacons.sql-1--- Server-side ad tracking (VAST). When the player reports an ad event, the server relays the ad's
+migrations/005_beacons.sql-2--- third-party VAST tracking URLs itself (durable queue, retried + deduped) so impression/quartile
+migrations/005_beacons.sql-3--- tracking does not depend on the client. One row per (session, opportunity, event, url); the unique
+migrations/005_beacons.sql-4--- key dedups repeated beacons (e.g. a quartile re-fired on a manifest refresh).
+migrations/005_beacons.sql-5-
+migrations/005_beacons.sql-6-CREATE TABLE beacon_deliveries (
+migrations/005_beacons.sql-7-  id             BIGSERIAL PRIMARY KEY,
+migrations/005_beacons.sql:8:  session_id     TEXT NOT NULL,
+migrations/005_beacons.sql-9-  opportunity_id TEXT NOT NULL,
+migrations/005_beacons.sql-10-  creative_id    TEXT,
+migrations/005_beacons.sql-11-  event_type     TEXT NOT NULL,
+migrations/005_beacons.sql-12-  url            TEXT NOT NULL,
+migrations/005_beacons.sql-13-  status         TEXT NOT NULL DEFAULT 'pending',   -- pending | sent | failed
+migrations/005_beacons.sql-14-  attempts       INTEGER NOT NULL DEFAULT 0,
+migrations/005_beacons.sql-15-  last_error     TEXT,
+migrations/005_beacons.sql-16-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/005_beacons.sql-17-  sent_at        TIMESTAMPTZ,
+migrations/005_beacons.sql:18:  UNIQUE (session_id, opportunity_id, event_type, url)
+migrations/005_beacons.sql-19-);
+migrations/005_beacons.sql-20-
+migrations/005_beacons.sql-21-CREATE INDEX idx_beacons_pending ON beacon_deliveries (status, created_at);
+99639b685900:/app# printf '%s\n' 'running processes:'; ps aux 2>/dev/null | sed -n '1,160p'; printf '%s\n' 'service listeners:'; (ss -ltnp 2>/dev/null || netsta
+t -ltnp 2>/dev/null || true)
+running processes:
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   94 root      0:00 [tmux: client]
+   95 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   96 root      0:00 bash --login
+   97 root      0:00 cat
+  109 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  113 root      0:00 /bin/bash
+  296 root      0:00 ps aux
+  297 root      0:00 sed -n 1,160p
+service listeners:
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 127.0.0.11:35779        0.0.0.0:*               LISTEN      -
+99639b685900:/app#

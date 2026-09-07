@@ -1,0 +1,18 @@
+{
+  "analysis": "The targeted fix is present, all 29 data-plane tests pass, and both repository typecheck and data-plane build pass. The ad-hoc regression command had a quoting/parsing error and did not execute, so I should rerun a simpler validation. No data-plane service is currently running (only the terminal infrastructure), so there is no existing process to stop; I will start the rebuilt data-plane service in the background and verify it remains running, which makes the updated build active.",
+  "plan": "Run a concise tsx regression check using a temporary script created via `cat` and removed afterward, without modifying repository source or tests. Inspect the data-plane server configuration to determine its required environment and port, then launch the built service in the background with logs redirected outside the source tree. Confirm the process and endpoint if possible. Do not alter tests, CI, or unrelated files.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/check-adjacent.ts <<'EOF'\nimport { detectAvails } from '/app/packages/data-plane/src/avails.ts';\nconst lines = [\n  '#EXT-X-MEDIA-SEQUENCE:10',\n  '#EXT-X-CUE-OUT:6',\n  '#EXT-X-DATERANGE:ID=\"BRK-first\",DURATION=6',\n  '#EXTINF:6,', 'a.ts',\n  '#EXT-X-CUE-IN',\n  '#EXT-X-CUE-OUT:6',\n  '#EXT-X-DATERANGE:ID=\"BRK-second\",DURATION=6',\n  '#EXTINF:6,', 'b.ts',\n  '#EXT-X-CUE-IN',\n];\nconst avails = detectAvails(lines.join('\\n'), 'ch');\nconsole.log(avails.map((a) => `${a.externalBreakId}:${a.opportunityId}`).join(','));\nif (avails.length !== 2 || avails[0]?.externalBreakId !== 'BRK-first' || avails[1]?.externalBreakId !== 'BRK-second') process.exit(1);\nEOF\nnpx tsx /tmp/check-adjacent.ts\nrm -f /tmp/check-adjacent.ts\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "sed -n '1,280p' packages/data-plane/src/server.ts; printf '%s\\n' '-- env --'; env | grep -E '^(PORT|HOST|DATABASE|REDIS|NODE_ENV)=' || true\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "npm run start --workspace @ssai/data-plane >/tmp/ssai-data-plane.log 2>&1 & echo $! >/tmp/ssai-data-plane.pid; sleep 2; cat /tmp/ssai-data-plane.log; printf '%s\\n' '-- process --'; pid=$(cat /tmp/ssai-data-plane.pid); ps -p \"$pid\" -o pid,stat,command 2>/dev/null || true\n",
+      "duration": 3.0
+    }
+  ]
+}

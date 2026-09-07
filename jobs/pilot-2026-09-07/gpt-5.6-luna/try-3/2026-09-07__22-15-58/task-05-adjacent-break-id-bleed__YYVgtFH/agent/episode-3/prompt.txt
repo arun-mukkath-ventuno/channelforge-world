@@ -1,0 +1,307 @@
+New Terminal Output:
+
+ff6148ea39e4:/app# for p in packages/core packages/data-plane packages/control-plane packages/persistence; do echo "-- $p/package.json --"; cat "$p/package.json
+"; echo "-- source --"; find "$p/src" -maxdepth 3 -type f | sort; done
+-- packages/core/package.json --
+{
+  "name": "@ssai/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic SSAI core: SCTE cue parsing, ad eligibility, pod construction, slate fill. Pure, dependency-free, fully tested.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  }
+}
+-- source --
+packages/core/src/decide.ts
+packages/core/src/eligibility.test.ts
+packages/core/src/eligibility.ts
+packages/core/src/index.ts
+packages/core/src/pod.test.ts
+packages/core/src/pod.ts
+packages/core/src/rng.ts
+packages/core/src/scte.test.ts
+packages/core/src/scte.ts
+packages/core/src/session-token.test.ts
+packages/core/src/session-token.ts
+packages/core/src/types.ts
+-- packages/data-plane/package.json --
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+-- source --
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/avails.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/segment.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/stitch.ts
+-- packages/control-plane/package.json --
+{
+  "name": "@ssai/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI control plane — campaigns, creatives, channels, sessions, ad decisioning, events, analytics, debug APIs.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fast-xml-parser": "^4.5.7",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.1"
+  }
+}
+-- source --
+packages/control-plane/src/beacons.test.ts
+packages/control-plane/src/beacons.ts
+packages/control-plane/src/events-normalize.test.ts
+packages/control-plane/src/events-normalize.ts
+packages/control-plane/src/server.test.ts
+packages/control-plane/src/server.ts
+packages/control-plane/src/vast-fetch.test.ts
+packages/control-plane/src/vast-fetch.ts
+packages/control-plane/src/vast-inventory.test.ts
+packages/control-plane/src/vast-inventory.ts
+packages/control-plane/src/vast.test.ts
+packages/control-plane/src/vast.ts
+-- packages/persistence/package.json --
+{
+  "name": "@ssai/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI persistence — Postgres repositories, migration runner, and the Redis pod cache that bridges control plane and data plane.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5"
+  }
+}
+-- source --
+packages/persistence/src/analytics.test.ts
+packages/persistence/src/analytics.ts
+packages/persistence/src/cli/migrate.ts
+packages/persistence/src/cli/seed.ts
+packages/persistence/src/db.ts
+packages/persistence/src/index.ts
+packages/persistence/src/map.ts
+packages/persistence/src/migrate.ts
+packages/persistence/src/pod-cache.test.ts
+packages/persistence/src/pod-cache.ts
+packages/persistence/src/reconciliation.test.ts
+packages/persistence/src/reconciliation.ts
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/repositories/beacons.ts
+packages/persistence/src/repositories/campaigns.ts
+packages/persistence/src/repositories/channels.ts
+packages/persistence/src/repositories/creatives.ts
+packages/persistence/src/r
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ .sort((a, b) => a.startTime.localeCompare(b.startTime));
+}
+-- persistence event/opportunity repositories --
+// Append-only event stream (PRD §26, §29, §30). Source for analytics.
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface EventInput {
+  eventId: string;
+  eventType: string;
+  ts?: string;
+  sessionId?: string | null;
+  channelId?: string | null;
+  opportunityId?: string | null;
+  podId?: string | null;
+  adId?: string | null;
+  campaignId?: string | null;
+  creativeId?: string | null;
+  programId?: string | null;
+  playheadPosition?: number | null;
+  deviceType?: string | null;
+  country?: string | null;
+  payload?: unknown;
+}
+
+export async function appendEvent(db: Queryable, e: EventInput): Promise<void> {
+  await db.query(
+    `INSERT INTO events
+       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+        campaign_id, creative_id, program_id, playhead_position, device_type, country, payload)
+     VALUES ($1, $2, COALESCE($3, now()), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+     ON CONFLICT (event_id) DO NOTHING`,
+    [
+      e.eventId,
+      e.eventType,
+      e.ts ?? null,
+      e.sessionId ?? null,
+      e.channelId ?? null,
+      e.opportunityId ?? null,
+      e.podId ?? null,
+      e.adId ?? null,
+      e.campaignId ?? null,
+      e.creativeId ?? null,
+      e.programId ?? null,
+      e.playheadPosition ?? null,
+      e.deviceType ?? null,
+      e.country ?? null,
+      e.payload === undefined ? null : JSON.stringify(e.payload),
+    ],
+  );
+}
+
+export interface StoredEvent extends Omit<EventInput, "payload"> {
+  ts: string;
+  payload: unknown;
+}
+
+export async function getEventsBySession(db: Queryable, sessionId: string): Promise<StoredEvent[]> {
+  const rows = (
+    await db.query<Record<string, unknown>>(
+      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+      [sessionId],
+    )
+  ).rows;
+
+  return rows.map((r) => ({
+    eventId: r.event_id as string,
+    eventType: r.event_type as string,
+    ts: toIso(r.ts),
+    sessionId: (r.session_id as string) ?? null,
+    channelId: (r.channel_id as string) ?? null,
+    opportunityId: (r.opportunity_id as string) ?? null,
+    podId: (r.pod_id as string) ?? null,
+    adId: (r.ad_id as string) ?? null,
+    campaignId: (r.campaign_id as string) ?? null,
+    creativeId: (r.creative_id as string) ?? null,
+    programId: (r.program_id as string) ?? null,
+    playheadPosition: r.playhead_position == null ? null : Number(r.playhead_position),
+    deviceType: (r.device_type as string) ?? null,
+    country: (r.country as string) ?? null,
+    payload: typeof r.payload === "string" ? JSON.parse(r.payload) : r.payload,
+  }));
+}
+// Ad opportunity repository (PRD §10, §45).
+
+import type { AdOpportunity } from "@ssai/core";
+import type { Queryable } from "../db.js";
+
+export async function upsertOpportunity(db: Queryable, opp: AdOpportunity): Promise<void> {
+  await db.query(
+    `INSERT INTO ad_opportunities (id, channel_id, external_break_id, program_id, start_time, duration, marker_type, marker_payload, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'detected')
+     ON CONFLICT (id) DO UPDATE SET
+       duration = EXCLUDED.duration,
+       marker_type = EXCLUDED.marker_type,
+       marker_payload = EXCLUDED.marker_payload,
+       -- keep a previously-captured break id if a later decision omits it (COALESCE new-first).
+       external_break_id = COALESCE(EXCLUDED.external_break_id, ad_opportunities.external_break_id)`,
+    [
+      opp.opportunityId,
+      opp.channelId,
+      opp.externalBreakId ?? null,
+      opp.programId ?? null,
+      opp.breakStart,
+      opp.breakDuration,
+      opp.signalType,
+      opp.source,
+    ],
+  );
+}
+ff6148ea39e4:/app# grep -RInE "opportun|signal|splice|cue|break|producer|event|start|end|duration|timestamp|programDate" packages/{core,data-plane,control-plane
+,persistence}/src --include='*.ts' | sed -n '1,360p'
+grep: unrecognized option: include=*.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+ff6148ea39e4:/app#

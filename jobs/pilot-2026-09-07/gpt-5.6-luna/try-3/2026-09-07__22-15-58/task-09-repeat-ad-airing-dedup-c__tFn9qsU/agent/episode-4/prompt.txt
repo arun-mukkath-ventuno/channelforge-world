@@ -1,0 +1,222 @@
+New Terminal Output:
+
+6af9ee0f4d51:/app# for f in src/components/fast/FastPlayer.tsx src/components/fast/Bridge.tsx src/app/api/fast/events/route.ts src/lib/fast-client.ts src/lib/fa
+st-view.ts; do echo "===== $f ====="; sed -n '1,420p' "$f"; done
+===== src/components/fast/FastPlayer.tsx =====
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { emit } from "@/lib/fast-client";
+import { startAdBeaconWatcher } from "@/lib/ssai";
+
+export type PlayerStatus = "loading" | "playing" | "recovering" | "slate";
+
+type Props = {
+  hlsUrl: string;
+  /** When set, hlsUrl is an SSAI-stitched session — fire ad-quartile beacons against this session. */
+  ssaiSessionId?: string;
+  channelId: number;
+  channelName: string;
+  channelBug: string;
+  muted: boolean;
+  paused: boolean;
+  captionsOn: boolean;
+  /** Bump to force a fresh manifest load (e.g. after reconnecting). */
+  reloadNonce: number;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  onStatus?: (s: PlayerStatus) => void;
+  onCaptionsAvailable?: (available: boolean) => void;
+};
+
+// Shaka has no bundled types for the compiled build; keep the surface we use loose.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+export default function FastPlayer({
+  hlsUrl,
+  ssaiSessionId,
+  channelId,
+  channelName,
+  channelBug,
+  muted,
+  paused,
+  captionsOn,
+  reloadNonce,
+  videoRef,
+  onStatus,
+  onCaptionsAvailable,
+}: Props) {
+  const playerRef = useRef<any>(null);
+  const shakaRef = useRef<any>(null);
+  const retryRef = useRef<number>(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startedAt = useRef<number>(0);
+  const bufferAt = useRef<number | null>(null);
+  const [status, setStatus] = useState<PlayerStatus>("loading");
+
+  const setStat = (s: PlayerStatus) => {
+    setStatus(s);
+    onStatus?.(s);
+  };
+
+  // Reflect muted/paused without reloading the stream.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v) v.muted = muted;
+  }, [muted, videoRef]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (paused) v.pause();
+    else v.play().catch(() => {});
+  }, [paused, videoRef]);
+
+  // Toggle caption/subtitle track visibility (no-op if the stream has none).
+  useEffect(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      const tracks = p.getTextTracks?.() ?? [];
+      if (captionsOn && tracks.length) p.selectTextTrack(tracks[0]);
+      p.setTextTrackVisibility?.(captionsOn && tracks.length > 0);
+    } catch {
+      /* no text tracks */
+    }
+  }, [captionsOn, status]);
+
+  // Load / switch the manifest. Re-runs on channel change or a reload nonce bump.
+  useEffect(() => {
+    let cancelled = false;
+    const v = videoRef.current;
+    if (!v) return;
+
+    setStat("loading");
+    startedAt.current = performance.now();
+
+    async function boot() {
+      const mod: any = await import("shaka-player/dist/shaka-player.compiled.js");
+      const shaka = mod.default ?? mod;
+      shakaRef.current = shaka;
+      if (cancelled) return;
+
+      if (!shaka.Player.isBrowserSupported()) {
+        // Native HLS fallback (Safari) if Shaka can't run.
+        if (v!.canPlayType("application/vnd.apple.mpegurl")) {
+          v!.src = hlsUrl;
+        } else {
+          setStat("slate");
+          emit({ event: "playback_error", channelId, errorCode: "unsupported" });
+        }
+        return;
+      }
+
+      shaka.polyfill.installAll();
+
+      if (!playerRef.current) {
+        const player = new shaka.Player();
+        await player.attach(v);
+        player.configure({
+          streaming: { lowLatencyMode: false, rebufferingGoal: 2, bufferingGoal: 10 },
+        });
+        player.addEventListener("error", (e: any) => onShakaError(e?.detail));
+        playerRef.current = player;
+      }
+
+      try {
+        retryRef.current = 0;
+        await playerRef.current.load(hlsUrl);
+        if (cancelled) return;
+        v!.loop = true; // placeholder streams loop; live streams ignore this
+        v!.muted = muted;
+        onCaptionsAvailable?.((playerRef.current.getTextTracks?.() ?? []).length > 0);
+        if (!paused) await v!.play().catch(() => {});
+      } catch (err) {
+        if (!cancelled) onShakaError(err);
+      }
+    }
+
+    function scheduleRetry(delay: number, resetCount = false) {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(async () => {
+        if (cancelled || !playerRef.current) return;
+        if (resetCount) retryRef.current = 0;
+        try {
+          await playerRef.current.load(hlsUrl);
+          if (!cancelled && !paused) await v!.play().catch(() => {});
+        } catch {
+          onShakaError({ code: "retry_failed" });
+        }
+      }, delay);
+    }
+
+    function onShakaError(detail: any) {
+      if (cancelled) return;
+      emit({ event: "manifest_error", channelId, errorCode: String(detail?.code ?? "unknown") });
+      const attempt = ++retryRef.current;
+      if (attempt > 3)
+[... output limited to 10000 bytes; 73 interior bytes omitted ...]
+                                         ��
+                                                                                      �/�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:133789:METADATA_0�F�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:134950:addRequestMeta
+addPathPrefixErbopack/v16.3.3-a9a1cb78/00000002.sst:135814:
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:136859:-router-headers	?@t)
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:138350:g.addTop
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:138455:	5addM�,C}
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:140339: adW cb9
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:140358:k1atad�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:140482:aD;SAClbe
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:141813:adapters/reflec{g��
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:142576:/api/fast/admin�"etf3.ts7
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:142734:_admin
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:142738:metadata: {},
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:142876:doading�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:142966:oloadFo:
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:142981:ORead`
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:144675:readVaryParams�Ķ�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:144682:NEXT_DID_POSTPONE_HEADER�M aa
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:144716:romNextReadable�
+                                                                           �
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:144731:~Upgrade#
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:152197:METADATA_0�F�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:152610:aaddS�P�IfPageSegmentI
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:154338:Pload-�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:154788:;add/
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:155125:Adesc2
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:155250:Aday �
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:156177:peadonly�-search-param[7a	�`������@n��`
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:156237:Ad.\n�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:156371:A3add�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:156398:?add�
+addPathPrefix1rbopack/v16.3.3-a9a1cb78/00000002.sst:157063:
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:158009:NEXT_NAV_DEPLOYMENT_ID_HEADER�p����6
+addPathSuffixvj�$D����v16.3.3-a9a1cb78/00000002.sst:158035:
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:158604:LoadingBoundaryProvider�k�����}��b����
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:159861:*b,GADtD;
+                                                                     ;YG
+                                                                        c
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:162074:padding:0;width
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:162130:first load beca�PcreenM
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:163158:NEXT_NAV_DEPLOYMENT_ID_HEADER�"��� Ǳ;
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:169199:readR�CacheEntryK
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:169480:ad��4
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:169921:conic-gradients2�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:170369:
+                                                           ./ipadd�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:173220:readable3	
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:173322:adline�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:174148:$./loadable-context.g�-runtime.js
+                                                                                            ��
+                                                                                              t�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:175589:kQ.add(*C
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:175793:app/api/fast/admin�_src/
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:176259:readFromBFC�
+rb�s����                                                               !�#oP@t�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:177322:ib/dedupe-fetch��
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:182821:E_addE
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:182875:Adapter!C
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:182895:NEXT_CACHE_TAGS_HEADER&�
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:183983:admin
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:187323:"readSegmentCacheEntryForNavigatio/�m+
+��ext/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:188205:./rsc/preload
+.next/cache/turbopack/v16.3.3-a9a1cb78/00000002.sst:188367:

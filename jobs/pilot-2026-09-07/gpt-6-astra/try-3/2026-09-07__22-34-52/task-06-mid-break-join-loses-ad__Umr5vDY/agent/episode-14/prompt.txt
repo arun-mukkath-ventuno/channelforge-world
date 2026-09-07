@@ -1,0 +1,61 @@
+New Terminal Output:
+
+> JS
+Continuation parsing checks passed
+17c9e64e2bb8:/app# find packages/core/src -iname '*session*'; grep -R -n 'function signSession' packages/core/src; cat packages/data-plane/tsconfig.json; cat ts
+config.base.json
+packages/core/src/session-token.test.ts
+packages/core/src/session-token.ts
+packages/core/src/session-token.ts:26:export function signSession(sessionId: string, channelId: string, secret: string, opts: SignOptions = {}): string {
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [{ "path": "../core" }, { "path": "../persistence" }, { "path": "../storage" }],
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "dist"]
+}
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  }
+}
+17c9e64e2bb8:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const p='packages/data-plane/src/avails.ts'; let s=fs.readFileSync(p,'utf8');
+> s=s.replace('  let endLine = lines.length - 1;', '  let endLine = -1;');
+> s=s.replace('      measured += seconds;\n    }\n  }', '      measured += seconds;\n    }\n    if (startLine >= 0 && line && !line.startsWith("#")) endLine = i
+;\n  }');
+> s=s.replace('  if (startLine < 0 || !Number.isFinite(elapsed)', '  if (startLine < 0 || endLine < startLine || !Number.isFinite(elapsed)');
+> fs.writeFileSync(p,s);
+> JS
+17c9e64e2bb8:/app# ./node_modules/.bin/tsc --project packages/data-plane/tsconfig.json --noEmit --incremental false
+packages/data-plane/tsconfig.json:3:3 - error TS6379: Composite projects may not disable incremental compilation.
+
+3   "compilerOptions": {
+    ~~~~~~~~~~~~~~~~~
+
+
+Found 1 error in packages/data-plane/tsconfig.json:3
+
+17c9e64e2bb8:/app#

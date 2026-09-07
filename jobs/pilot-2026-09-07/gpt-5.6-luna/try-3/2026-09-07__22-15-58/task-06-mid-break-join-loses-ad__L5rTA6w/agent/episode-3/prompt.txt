@@ -1,0 +1,239 @@
+New Terminal Output:
+
+703450db135d:/app# for f in packages/*/package.json; do echo "-- $f"; cat "$f"; done
+-- packages/admin-web/package.json
+{
+  "name": "@ssai/admin-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI operator console — Vite + React + Tailwind v4 + shadcn-style UI, matching the ChannelForge design system.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "marked": "^18.0.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
+-- packages/control-plane/package.json
+{
+  "name": "@ssai/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI control plane — campaigns, creatives, channels, sessions, ad decisioning, events, analytics, debug APIs.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fast-xml-parser": "^4.5.7",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.1"
+  }
+}
+-- packages/core/package.json
+{
+  "name": "@ssai/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic SSAI core: SCTE cue parsing, ad eligibility, pod construction, slate fill. Pure, dependency-free, fully tested.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  }
+}
+-- packages/creative-worker/package.json
+{
+  "name": "@ssai/creative-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline creative preparation: validate → transcode → segment → store HLS → READY. Never runs on the manifest hot path (PRD §14, §48).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "prepare-creative": "tsx src/cli/prepare.ts",
+    "prepare-slate": "tsx src/cli/prepare-slate.ts",
+    "process-pending": "tsx src/cli/process-pending.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*"
+  }
+}
+-- packages/data-plane/package.json
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+-- packages/persistence/package.json
+{
+  "name": "@ssai/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI persistence — Postgres repositories, migration runner, and the Redis pod cache that bridges control plane and data plane.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5"
+  }
+}
+-- packages/storage/package.json
+{
+  "name": "@ssai/storage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Object storage for prepared HLS media — ObjectStore interface (S3/MinIO target) + a filesystem implementation. Shared by the creative worker (
+writes) and the data plane (reads).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.700.0"
+  }
+}
+70345
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ries/sessions.ts:39:    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent
+)
+packages/persistence/src/repositories/sessions.ts:55:  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+packages/persistence/src/repositories/sessions.ts:71:  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/sessions.ts:77:    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [
+limit])
+packages/persistence/src/repositories/beacons.ts:8:  sessionId: string;
+packages/persistence/src/repositories/beacons.ts:17:  sessionId: string;
+packages/persistence/src/repositories/beacons.ts:28:  session_id: string;
+packages/persistence/src/repositories/beacons.ts:39:  sessionId: r.session_id,
+packages/persistence/src/repositories/beacons.ts:48:/** Enqueue a beacon; the unique key dedups repeats (same session/opportunity/event/url). */
+packages/persistence/src/repositories/beacons.ts:51:    `INSERT INTO beacon_deliveries (session_id, opportunity_id, creative_id, event_type, url)
+packages/persistence/src/repositories/beacons.ts:53:     ON CONFLICT (session_id, opportunity_id, event_type, url) DO NOTHING`,
+packages/persistence/src/repositories/beacons.ts:54:    [b.sessionId, b.opportunityId, b.creativeId ?? null, b.eventType, b.url],
+packages/core/src/session-token.test.ts:2:import { signSession, verifySession } from "./session-token.js";
+packages/core/src/session-token.test.ts:15:    // Forge the session id in the payload, keep the old signature.
+packages/core/src/scte.ts:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/src/scte.ts:18:  /** Line index within the manifest where the marker was found. */
+packages/core/src/scte.ts:31:/** Parse a single manifest line into a marker, or null if it is not one. */
+packages/core/src/scte.ts:41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/src/eligibility.test.ts:81:    expect(r.rejected[0]).toMatchObject({ reason: "duration_exceeds_remaining_avail" });
+packages/core/src/pod.ts:6://   - Greedily pack creatives that fit the remaining avail; each creative is
+packages/core/src/pod.ts:24:  /** Creatives that were eligible but could not be packed into remaining avail. */
+packages/core/src/pod.ts:59:      rejected.push({ creativeId: creative.creativeId, reason: "no_remaining_avail" });
+packages/core/src/pod.ts:63:      rejected.push({ creativeId: creative.creativeId, reason: "duration_exceeds_remaining_avail" });
+packages/core/src/scte.test.ts:31:  it("ignores CUE-OUT-CONT as a new avail", () => {
+packages/core/src/types.ts:5:/** A detected ad-break opportunity (PRD §10, §45). */
+packages/core/src/types.ts:51:/** Optional, limited session context used for MVP targeting (PRD §12, §16). */
+packages/core/src/types.ts:53:  sessionId: string;
+packages/core/src/types.ts:87:  | "duration_exceeds_remaining_avail"
+packages/core/src/types.ts:88:  | "no_remaining_avail";
+packages/core/src/types.ts:90:/** Full, reconstructable output of a decision (PRD §35, §46, §56). */
+packages/core/src/types.ts:93:  sessionId: string;
+packages/core/src/types.ts:102:  /** Seed used, when the decision was made deterministically (PRD §56). */
+packages/core/src/index.ts:1:// @ssai/core — deterministic SSAI decision logic.
+packages/core/src/index.ts:2:// Shared by the control plane (ad-decision) and the data plane (stitching).
+packages/core/src/index.ts:10:export * from "./session-token.js";
+packages/core/src/decide.ts:1:// Ad decision: eligibility (PRD §16) + pod construction (PRD §18-21) into a
+packages/core/src/decide.ts:10:  session: SessionContext;
+packages/core/src/decide.ts:18:  const { opportunity, session } = input;
+packages/core/src/decide.ts:36:    sessionId: session.sessionId,
+packages/core/src/session-token.ts:1:// Signed playback session tokens (PRD §57). The control plane mints a token the
+packages/core/src/session-token.ts:3:// manifest, so a viewer cannot forge or tamper with a session id (or watch a
+packages/core/src/session-token.ts:9:  /** The real session id (used as the pod-cache key). */
+packages/core/src/session-token.ts:26:export function signSession(sessionId: string, channelId: string, secret: string, opts: SignOptions = {}): string {
+packages/core/src/session-token.ts:27:  const claims: SessionClaims = { sid: sessionId, ch: channelId };
+packages/core/src/eligibility.ts:28: * break can never fit); packing against remaining avail happens in the pod
+packages/core/src/eligibility.ts:29: * builder, which may reject additional creatives for `no_remaining_avail`.
+packages/core/src/eligibility.ts:60:      rejected.push({ creativeId: creative.creativeId, reason: "duration_exceeds_remaining_avail" });
+packages/core/src/rng.ts:54:    order.push(pool.splice(idx, 1)[0]!);
+703450db135d:/app#

@@ -1,0 +1,180 @@
+New Terminal Output:
+
+26a4261744ce:/app# sed -n '1,320p' packages/data-plane/src/origin.ts; printf '\n-- server --\n'; sed -n '1,360p' packages/data-plane/src/server.ts
+// ChannelForge origin client (PRD §8, §42, §48). Fetches the origin media
+// playlist with a short TTL cache (a live playlist changes every segment) and
+// serves the last-good copy if the origin briefly fails, so playback survives
+// an origin blip rather than stalling.
+
+export interface OriginResult {
+  body: string;
+  fromCache: boolean;
+  /** True when the origin failed and a previously cached copy was served. */
+  stale: boolean;
+}
+
+export interface OriginClientOptions {
+  baseUrl?: string;
+  /** Cache TTL in ms. A live media playlist rolls ~every target duration. */
+  ttlMs?: number;
+  /** Build the media-playlist URL for a channel/variant. */
+  urlFor?: (channel: string, variant: string) => string;
+  /**
+   * Per-channel media-playlist URL, e.g. a real ChannelForge origin
+   * `{channel: "https://forge…/hls/{uuid}/delivery.m3u8"}`. A channel present here is
+   * fetched verbatim (its URL is the full media playlist); channels absent fall back to the
+   * `{baseUrl}/{channel}/{variant}.m3u8` convention. Defaults from CHANNELFORGE_ORIGIN_MAP (JSON).
+   */
+  originMap?: Record<string, string>;
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+/** Parse the CHANNELFORGE_ORIGIN_MAP env (JSON object) into a channel→url map. */
+export function parseOriginMap(raw: string | undefined): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" ? (v as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+interface CacheEntry {
+  body: string;
+  at: number;
+}
+
+export class OriginClient {
+  private readonly cache = new Map<string, CacheEntry>();
+  private readonly baseUrl: string;
+  private readonly ttlMs: number;
+  private readonly timeoutMs: number;
+  private readonly fetchImpl: typeof fetch;
+  private readonly originMap: Record<string, string>;
+  private readonly urlFor: (channel: string, variant: string) => string;
+
+  constructor(opts: OriginClientOptions = {}) {
+    this.baseUrl = (opts.baseUrl ?? process.env.CHANNELFORGE_ORIGIN_URL ?? "http://localhost:8080").replace(/\/$/, "");
+    this.ttlMs = opts.ttlMs ?? 2000;
+    this.timeoutMs = opts.timeoutMs ?? 3000;
+    this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.originMap = opts.originMap ?? parseOriginMap(process.env.CHANNELFORGE_ORIGIN_MAP);
+    this.urlFor =
+      opts.urlFor ??
+      ((channel, variant) => this.originMap[channel] ?? `${this.baseUrl}/${channel}/${variant}.m3u8`);
+  }
+
+  /** The resolved origin media-playlist URL for a channel — also the base for absolutizing
+   * the origin's relative segment URIs (so a real external origin's content stays fetchable). */
+  originUrlFor(channel: string, variant = "index"): string {
+    return this.urlFor(channel, variant);
+  }
+
+  async fetchMediaPlaylist(channel: string, variant = "index"): Promise<OriginResult> {
+    const url = this.urlFor(channel, variant);
+    const now = Date.now();
+    const hit = this.cache.get(url);
+
+    if (hit && now - hit.at < this.ttlMs) {
+      return { body: hit.body, fromCache: true, stale: false };
+    }
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      let body: string;
+      try {
+        const res = await this.fetchImpl(url, { signal: controller.signal });
+        if (!res.ok) throw new Error(`origin responded ${res.status}`);
+        body = await res.text();
+      } finally {
+        clearTimeout(timer);
+      }
+      this.cache.set(url, { body, at: now });
+      return { body, fromCache: false, stale: false };
+    } catch (err) {
+      // Origin failed — serve last-good if we have it (PRD §42).
+      if (hit) return { body: hit.body, fromCache: true, stale: true };
+      throw err;
+    }
+  }
+}
+
+-- server --
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+
+import Fastify from "fastify";
+import { verifySession, type PodItem } from "@ssai/core";
+import type { PodCache } from "@ssai/persistence";
+import type { ObjectStore } from "@ssai/storage";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider, type PodDecider } from "./decider.js";
+
+export interface DataPlaneDeps {
+  podCache: PodCache;
+  origin: OriginClient;
+  /** Object store holding
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+(e.opportunity_id)) continue;
+packages/persistence/src/reconciliation.ts:104:    const m = eventsByOpp.get(e.opportunity_id) ?? new Map<string, number>();
+packages/persistence/src/reconciliation.ts:106:    eventsByOpp.set(e.opportunity_id, m);
+packages/persistence/src/repositories/opportunities.ts:14:       -- keep a previously-captured break id if a later decision omits it (COALESCE new-first).
+packages/persistence/src/repositories/events.ts:27:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+packages/persistence/src/repositories/events.ts:59:      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+packages/persistence/src/repositories/events.ts:68:    sessionId: (r.session_id as string) ?? null,
+packages/persistence/src/repositories/events.ts:70:    opportunityId: (r.opportunity_id as string) ?? null,
+packages/persistence/src/repositories/decisions.ts:1:// Ad decision + pod persistence (PRD §46, §47). The full decision payload is
+packages/persistence/src/repositories/decisions.ts:8:  decisionId: string;
+packages/persistence/src/repositories/decisions.ts:10:  decision: AdDecision;
+packages/persistence/src/repositories/decisions.ts:16:  const { decision } = input;
+packages/persistence/src/repositories/decisions.ts:17:  const selectedCount = decision.pod.filter((p) => p.type === "ad").length;
+packages/persistence/src/repositories/decisions.ts:20:    `INSERT INTO ad_decisions
+packages/persistence/src/repositories/decisions.ts:21:       (id, opportunity_id, session_id, requested_at, completed_at, eligible_count, selected_count, seed,
+decision_payload)
+packages/persistence/src/repositories/decisions.ts:24:      input.decisionId,
+packages/persistence/src/repositories/decisions.ts:25:      decision.opportunityId,
+packages/persistence/src/repositories/decisions.ts:26:      decision.sessionId,
+packages/persistence/src/repositories/decisions.ts:29:      decision.eligible.length,
+packages/persistence/src/repositories/decisions.ts:31:      decision.seed ?? null,
+packages/persistence/src/repositories/decisions.ts:32:      JSON.stringify(decision),
+packages/persistence/src/repositories/decisions.ts:37:    `INSERT INTO ad_pods (id, decision_id, break_duration, ad_seconds, slate_seconds)
+packages/persistence/src/repositories/decisions.ts:39:    [input.podId, input.decisionId, decision.breakDuration, decision.adSeconds, decision.slateSeconds],
+packages/persistence/src/repositories/decisions.ts:42:  for (const item of decision.pod) {
+packages/persistence/src/repositories/decisions.ts:65:  decision: AdDecision;
+packages/persistence/src/repositories/decisions.ts:70:  opportunity_id: string;
+packages/persistence/src/repositories/decisions.ts:71:  session_id: string;
+packages/persistence/src/repositories/decisions.ts:74:  decision_payload: unknown;
+packages/persistence/src/repositories/decisions.ts:80:    opportunityId: r.opportunity_id,
+packages/persistence/src/repositories/decisions.ts:81:    sessionId: r.session_id,
+packages/persistence/src/repositories/decisions.ts:84:    decision: (typeof r.decision_payload === "string"
+packages/persistence/src/repositories/decisions.ts:85:      ? JSON.parse(r.decision_payload)
+packages/persistence/src/repositories/decisions.ts:86:      : r.decision_payload) as AdDecision,
+packages/persistence/src/repositories/decisions.ts:91:  "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+packages/persistence/src/repositories/decisions.ts:96:      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE session_id = $1 ORDER BY requested_at`,
+packages/persistence/src/repositories/decisions.ts:106:      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+packages/persistence/src/repositories/sessions.ts:36:/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+packages/persistence/src/repositories/beacons.ts:28:  session_id: string;
+packages/persistence/src/repositories/beacons.ts:29:  opportunity_id: string;
+packages/persistence/src/repositories/beacons.ts:39:  sessionId: r.session_id,
+packages/persistence/src/repositories/beacons.ts:40:  opportunityId: r.opportunity_id,
+packages/persistence/src/repositories/beacons.ts:51:    `INSERT INTO beacon_deliveries (session_id, opportunity_id, creative_id, event_type, url)
+packages/persistence/src/repositories/beacons.ts:53:     ON CONFLICT (session_id, opportunity_id, event_type, url) DO NOTHING`,
+packages/core/src/types.ts:90:/** Full, reconstructable output of a decision (PRD §35, §46, §56). */
+packages/core/src/types.ts:102:  /** Seed used, when the decision was made deterministically (PRD §56). */
+packages/core/src/index.ts:1:// @ssai/core — deterministic SSAI decision logic.
+packages/core/src/index.ts:2:// Shared by the control plane (ad-decision) and the data plane (stitching).
+packages/core/src/decide.ts:1:// Ad decision: eligibility (PRD §16) + pod construction (PRD §18-21) into a
+26a4261744ce:/app#

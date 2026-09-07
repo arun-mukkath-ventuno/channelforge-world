@@ -1,0 +1,18 @@
+{
+  "analysis": "The repository is a Node/TypeScript monorepo under /app, with source likely inside packages. The initial recursive search did not run because this BusyBox grep lacks the GNU --exclude-dir option; no source has been changed yet.",
+  "plan": "List package contents and use find-based filtering instead of unsupported grep options. Search TypeScript/JavaScript source for marker and break-related logic, then inspect the relevant package scripts and files.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- packages --' && find packages -maxdepth 3 -type f | sort | sed -n '1,300p' && printf '%s\\n' '-- package manifests --' && find packages -name package.json -print -exec sh -c 'echo --- $1; cat \"$1\"' sh {} \\;\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- source matches --' && find packages -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' \\) -not -path '*/node_modules/*' -exec grep -nHE 'producer|break.?id|cue.?marker|cuepoint|ad.?break|splice' {} + | head -400\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "cat package.json && printf '\\n-- tsconfig --\\n' && cat tsconfig.json && printf '\\n-- base config --\\n' && cat tsconfig.base.json\n",
+      "duration": 0.2
+    }
+  ]
+}

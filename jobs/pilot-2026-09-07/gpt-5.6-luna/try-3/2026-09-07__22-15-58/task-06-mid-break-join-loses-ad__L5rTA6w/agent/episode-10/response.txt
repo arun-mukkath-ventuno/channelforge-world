@@ -1,0 +1,18 @@
+{
+  "analysis": "The attempted cache-write edit was not applied because Python and git are unavailable. The test command also did not finish in the captured output. The current evidence points to a more specific defect in avail detection: the implementation likely ignores an in-progress trailing CUE-OUT, so a manifest first seen mid-break contains no detectable avail and never reaches decisioning or cache lookup. This matches the report that affected sessions never appear as having tried, while continuously polling sessions are unaffected.",
+  "plan": "Inspect the detector and tests in small chunks, especially handling of CUE-OUT-CONT, media sequence, and incomplete trailing avails. Confirm the intended stable opportunity identity for a break. Then make a minimal source-only detector fix that recognizes an active break from the manifest markers without altering normal complete-avail detection. Use a Node one-liner/script for edits, since Python and git are unavailable. Run focused tests and typecheck, then inspect process state and restart the data-plane service.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,150p' packages/data-plane/src/avails.ts; sed -n '1,220p' packages/data-plane/src/avails.test.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "grep -RInE 'CUE-OUT-CONT|CUE-OUT|CUE-IN|MEDIA-SEQUENCE|incomplete|trailing' packages/data-plane/src packages/core/src 2>/dev/null | head -300\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "",
+      "duration": 8.0
+    }
+  ]
+}

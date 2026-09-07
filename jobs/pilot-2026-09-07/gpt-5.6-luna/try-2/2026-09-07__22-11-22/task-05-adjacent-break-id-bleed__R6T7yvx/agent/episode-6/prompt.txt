@@ -1,0 +1,222 @@
+New Terminal Output:
+
+c97b28b93225:/app# nl -ba packages/data-plane/src/avails.ts | sed -n '90,220p'
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+    99	        opportunityId: `opp_${channelId}_${open.startSequence}`,
+   100	        channelId,
+   101	        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+   102	        duration: declared ?? open.measuredDuration,
+   103	        ...(declared === undefined ? {} : { declaredDuration: declared }),
+   104	        measuredDuration: open.measuredDuration,
+   105	        startSequence: open.startSequence,
+   106	        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+   107	        startLine: open.startLine,
+   108	        endLine: i,
+   109	      });
+   110	      open = null;
+   111	      continue;
+   112	    }
+   113	
+   114	    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+   115	    const infMatch = trimmed.match(EXTINF);
+   116	    if (infMatch) {
+   117	      const segDur = Number(infMatch[1]);
+   118	      if (open) open.measuredDuration += segDur;
+   119	      // The URI line follows; advance the sequence when we consume it below.
+   120	    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+   121	      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+   122	      mediaSequence += 1;
+   123	      blockBreakId = undefined;
+   124	    }
+   125	  }
+   126	
+   127	  return avails;
+   128	}
+c97b28b93225:/app# nl -ba packages/data-plane/src/avails.test.ts | sed -n '1,420p'
+     1	import { describe, it, expect } from "vitest";
+     2	import { detectAvails } from "./avails.js";
+     3	
+     4	function manifest(lines: string[]): string {
+     5	  return lines.join("\n");
+     6	}
+     7	
+     8	describe("detectAvails (PRD §9, §41)", () => {
+     9	  it("derives a deterministic opportunity id from channel + media sequence", () => {
+    10	    const m = manifest([
+    11	      "#EXT-X-MEDIA-SEQUENCE:100",
+    12	      "#EXTINF:6.000,",
+    13	      "s100.ts",
+    14	      "#EXTINF:6.000,",
+    15	      "s101.ts",
+    16	      "#EXT-X-CUE-OUT:30",
+    17	      "#EXTINF:6.000,",
+    18	      "slate.ts",
+    19	      "#EXT-X-CUE-IN",
+    20	    ]);
+    21	    const avails = detectAvails(m, "channel_food");
+    22	    expect(avails).toHaveLength(1);
+    23	    // Two segments consumed (100, 101), so the avail's first segment is 102.
+    24	    expect(avails[0]).toMatchObject({
+    25	      opportunityId: "opp_channel_food_102",
+    26	      channelId: "channel_food",
+    27	      duration: 30,
+    28	      declaredDuration: 30,
+    29	      startSequence: 102,
+    30	    });
+    31	  });
+    32	
+    33	  it("is stable across playlist refreshes (same avail → same id as the window slides)", () => {
+    34	    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN
+"]);
+    35	    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    36	    const a = detectAvails(before, "ch")[0]!;
+    37	    const b = detectAvails(after, "ch")[0]!;
+    38	    expect(a.opportunityId).toBe(b.opportunityId); // opp_ch_101 in both
+    39	  });
+    40	
+    41	  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+    42	    const m = manifest([
+    43	      "#EXT-X-MEDIA-SEQUENCE:0",
+    44	      "#EXT-X-CUE-OUT:oops",
+    45	      "#EXTINF:6.000,",
+    46	      "slate1.ts",
+    47	      "#EXTINF:6.000,",
+    48	      "slate2.ts",
+    49	      "#EXT-X-CUE-IN",
+    50	    ]);
+    51	    const avails = detectAvails(m, "ch");
+    52	    expect(avails[0]!.declaredDuration).toBeUndefined();
+    53	    expect(avails[0]!.measuredDuration).toBe(12);
+    54	    expect(avails[0]!.duration).toBe(12);
+    55	  });
+    56	
+    57	  it("captures PROGRAM-DATE-TIME preceding the avail", () => {
+    58	    const m = manifest([
+    59	      "#EXT-X-MEDIA-SEQUENCE:0",
+    60	      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+    61	      "#EXT-X-CUE-OUT:30",
+    62	      "#EXTINF:6.000,",
+    63	      "slate.ts",
+    64	      "#EXT-X-CUE-IN",
+    65	    ]);
+    66	    expect(detectAvails(m, "ch")[0]!.programDateTime).toBe("2026-08-29T12:15:00.000Z");
+    67	  });
+    68	
+    69	  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+    70	    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+    71	    expect(detectAvails(m, "ch")).toEqual([]);
+    72	  });
+    73	
+    74	  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+    75	    const m = manifest([
+    76	      "#EXT-X-MEDIA-SEQUENCE:200",
+    77	      "#EXTINF:6.000,",
+    78	      "s200.ts",
+    79	      "#EXT-X-CUE-OUT:90",
+    80	      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+    81	      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+    82	      "#EXTINF:6.000,",
+    83	      "slate.ts",
+    84	      "#EXT-X-CUE-IN",
+    85	    ]);
+    86	    const avails = detectAvails(m, "channel_yoga");
+    87	    expect(avails).toHaveLength(1);
+    88	    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+    89	  });
+    90	
+    91	  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+    92	    const m = manifest([
+    93	      "#EXT-X-MEDIA-SEQUENCE:0",
+    94	      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+    95	      "#EXT-X-CUE-OUT:30",
+    96	      "#EXTINF:6.000,",
+    97	      "slate.ts",
+    98	      "#EXT-X-CUE-IN",
+    99	    ]);
+   100	    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+   101	  });
+   102	
+   103	  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+   104	    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+   105	    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+   106	  });
+   107	
+   108	  it("does not leak one break's id onto a later break that has none", () => {
+   109	    const m = manifest([
+   110	      "#EXT-X-MEDIA-SEQUENCE:0",
+   111	      "#EXT-X-CUE-OUT:30",
+   112	      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+   113	      "#EXTINF:6.000,",
+   114	      "a.ts",
+   115	      "#EXT-X-CUE-IN",
+   116	      "#EXTINF:6.000,",
+   117	      "b.ts",
+   118	      "#EXT-X-CUE-OUT:15",
+   119	      "#EXTINF:6.000,",
+   120	      "c.ts",
+   121	      "#EXT-X-CUE-IN",
+   122	    ]);
+   123	    const avails = detectAvails(m, "ch");
+   124	    expect(avails).toHaveLength(2);
+   125	    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+   126	    expect(avails[1]!.externalBreakId).toBeUndefined();
+   127	  });
+   128	
+   129	  it("detects multiple avails in one window", () => {
+   130	    const m = manifest([
+   131	      "#EXT-X-MEDIA-SEQUENCE:0",
+   132	      "#EXT-X-CUE-OUT:30",
+   133	      "#EXTINF:6.000,",
+   134	      "a.ts",
+   135	      "#EXT-X-CUE-IN",
+   136	      "#EXTINF:6.000,",
+   137	      "b.ts",
+   138	      "#EXT-X-CUE-OUT:15",
+   139	      "#EXTINF:6.000,",
+   140	      "c.ts",
+   141	      "#EXT-X-CUE-IN",
+   142	    ]);
+   143	    const avails = detectAvails(m, "ch");
+   144	    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+   145	  });
+   146	});
+c97b28b93225:/app# grep -RInE 'detectAvails|start.*data|data-plane|npm run start|server.js' --exclude-dir=node_modules --exclude-dir=dist . | head -300
+grep: unrecognized option: exclude-dir=node_modules
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+c97b28b93225:/app#

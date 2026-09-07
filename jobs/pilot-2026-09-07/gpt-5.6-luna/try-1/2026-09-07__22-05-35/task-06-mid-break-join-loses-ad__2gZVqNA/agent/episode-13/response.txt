@@ -1,0 +1,18 @@
+{
+  "analysis": "The source edit command completed, but `git` is unavailable in the container. The targeted Vitest command was started and has not produced a completion result yet, so I need poll it before proceeding. The existing test suite contains a test asserting incomplete trailing avails are ignored; that test is now expected to fail because it encodes the defect, but it must not be modified per the task. I should verify the implementation and test outcome, then run typecheck/build and inspect the resulting source directly.",
+  "plan": "Wait briefly for Vitest output. Then inspect `avails.ts` to ensure the finalizer is correctly scoped and TypeScript-compatible, run typecheck/build, and use filesystem/process checks rather than git. If the only test failure is the obsolete incomplete-avail expectation, document that while ensuring all other tests pass; do not edit tests. Finally restart/rebuild the data-plane service if possible.",
+  "commands": [
+    {
+      "keystrokes": "",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.ts | sed -n '35,180p'; printf '\\nPackage status:\\n'; find packages/data-plane -maxdepth 2 -type f \\( -name '*.js' -o -name '*.mjs' \\) -print | sort | sed -n '1,80p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "npm run typecheck",
+      "duration": 3.0
+    }
+  ]
+}

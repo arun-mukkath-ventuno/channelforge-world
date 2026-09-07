@@ -1,0 +1,22 @@
+{
+  "analysis": "The mid-break check exposed a second part of the defect: a live HLS playlist commonly contains `#EXT-X-CUE-OUT-CONT` rather than the original CUE-OUT. The parser intentionally ignores that line as a new avail, so the data plane still returns no avail for a fresh tune-in during an active break. The continuation includes elapsed time and duration, which can be used with the playlist media sequence and target duration to reconstruct the original break start sequence and therefore the same opportunity ID. No service process is currently running in this container.",
+  "plan": "Extend only data-plane avail detection to recognize a leading CUE-OUT-CONT when no CUE-OUT is present. Parse ElapsedTime and Duration, infer the original start sequence from the current media sequence and target duration, and open the avail so the existing trailing-flush logic performs cache lookup/decision. Preserve normal CUE-OUT behavior. Rebuild and verify both continuation and original-marker cases, then run typecheck and relevant tests. Since no process is running, build the service and attempt the documented start command; report any missing runtime configuration rather than changing unrelated files.",
+  "commands": [
+    {
+      "keystrokes": "node <<'NODE'\nconst fs = require('fs');\nconst p = 'packages/data-plane/src/avails.ts';\nlet s = fs.readFileSync(p, 'utf8');\ns = s.replace('const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;', 'const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;\\nconst TARGET_DURATION = /^#EXT-X-TARGETDURATION:(\\\\d+(?:\\\\.\\\\d+)?)/;\\nconst CUE_OUT_CONT = /^#EXT-X-CUE-OUT-CONT:(.*)$/;');\ns = s.replace('''  let mediaSequence = 0;\\n  let lastPdt: string | undefined;''', '''  let mediaSequence = 0;\\n  let targetDuration = 6;\\n  let lastPdt: string | undefined;''');\ns = s.replace('''    const seqMatch = trimmed.match(MEDIA_SEQUENCE);\\n    if (seqMatch) {\\n      mediaSequence = Number(seqMatch[1]);\\n      continue;\\n    }''', '''    const seqMatch = trimmed.match(MEDIA_SEQUENCE);\\n    if (seqMatch) {\\n      mediaSequence = Number(seqMatch[1]);\\n      continue;\\n    }\\n\\n    const targetMatch = trimmed.match(TARGET_DURATION);\\n    if (targetMatch) {\\n      targetDuration = Number(targetMatch[1]);\\n      continue;\\n    }''');\nconst needle = '''    if (marker?.kind === \"cue_out\" && !open) {\\n      open = {''';\nconst replacement = '''    if (marker?.kind === \"cue_out\" && !open) {\\n      open = {''';\nif (!s.includes(needle)) throw new Error('cue-out target not found');\n// Insert continuation handling immediately before the normal CUE-OUT branch.\nconst cont = '''    // A playlist that starts mid-break carries CUE-OUT-CONT instead of the\\n    // original CUE-OUT. Reconstruct the original start sequence from elapsed\\n    // break time so the opportunity key remains identical across viewers.\\n    const contMatch = trimmed.match(CUE_OUT_CONT);\\n    if (contMatch && !open) {\\n      const elapsed = Number(contMatch[1].match(/(?:^|,)ElapsedTime=(\\\\d+(?:\\\\.\\\\d+)?)/)?.[1]);\\n      const duration = Number(contMatch[1].match(/(?:^|,)Duration=(\\\\d+(?:\\\\.\\\\d+)?)/)?.[1]);\\n      if (Number.isFinite(elapsed)) {\\n        const startSequence = mediaSequence - Math.round(elapsed / targetDuration);\\n        open = {\\n          startLine: i,\\n          startSequence,\\n          measuredDuration: 0,\\n          ...(Number.isFinite(duration) ? { declaredDuration: duration } : {}),\\n          ...(lastPdt === undefined ? {} : { pdt: lastPdt }),\\n          ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),\\n        };\\n      }\\n      continue;\\n    }\\n\\n''';\ns = s.replace(needle, cont + needle);\nfs.writeFileSync(p, s);\nNODE\nsed -n '30,115p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm run typecheck && npm run build --workspace @ssai/data-plane\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "node --input-type=module <<'NODE'\nimport { detectAvails } from './packages/data-plane/dist/avails.js';\nconst body = '#EXT-X-MEDIA-SEQUENCE:105\\n#EXT-X-TARGETDURATION:6\\n#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60\\n#EXTINF:6.000,\\nslate.ts';\nconsole.log(JSON.stringify(detectAvails(body, 'ch'), null, 2));\nNODE\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "npm test -- --run packages/data-plane/src/avails.test.ts; printf '\\n-- running services --\\n'; ps 2>/dev/null || true\n",
+      "duration": 1.0
+    }
+  ]
+}

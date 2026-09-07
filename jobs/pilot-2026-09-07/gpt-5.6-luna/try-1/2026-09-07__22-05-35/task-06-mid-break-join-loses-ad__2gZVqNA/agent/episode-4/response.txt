@@ -1,0 +1,14 @@
+{
+  "analysis": "The relevant service is packages/data-plane. It has decider.ts, media/origin/stitch/server code and tests, while persistence has a pod cache explicitly keyed by (session, opportunity). The symptom strongly suggests the manifest path only creates/loads a pod for an opportunity when the session first observes the break, and reconnects may lose in-memory state or use a cache entry incorrectly. I need read the data-plane files and pod-cache/decision repositories in full, especially request-time timestamps and cache lookup behavior.",
+  "plan": "Print the complete relevant data-plane source and focused tests, plus the pod cache and decision/opportunity repositories. Trace how a manifest request determines the current break, how it identifies the opportunity, and whether it reuses a prior session decision. Then patch the exact late-entry/reconnect state transition rather than changing detection or decision logic.",
+  "commands": [
+    {
+      "keystrokes": "for f in packages/data-plane/src/{decider,server,media,origin,stitch,segment,avails}.ts; do echo \"===== $f =====\"; sed -n '1,280p' \"$f\"; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "for f in packages/data-plane/src/{decider,server,media,origin,stitch,avails}.test.ts packages/persistence/src/pod-cache.ts packages/persistence/src/repositories/{decisions,opportunities,sessions}.ts; do [ -f \"$f\" ] || continue; echo \"===== $f =====\"; sed -n '1,300p' \"$f\"; done\n",
+      "duration": 1.0
+    }
+  ]
+}

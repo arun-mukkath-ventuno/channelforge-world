@@ -1,0 +1,14 @@
+{
+  "analysis": "Both asset eligibility and schedule publication use active_takedown_for_asset in the rights repository. That shared query is the likely defect location.",
+  "plan": "Read the query and relevant models to verify how series membership should be matched, then inspect available test tooling.",
+  "commands": [
+    {
+      "keystrokes": "cat app/repositories/rights.py; cat app/models/rights.py; cat app/models/asset.py\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat app/services/asset_eligibility.py; cat pyproject.toml; ls tests; cat app/db.py\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "analysis": "The attempted Perl edit failed because Perl is not installed, so the source is still unchanged. The focused test and build passed only against the old implementation. The prior Next process was stopped, and the restart command did not show a successful startup in the captured output. I need apply the fix using Python, rebuild, and restart/verify the service.",
+  "plan": "Use Python, which is available in the environment, to replace the identifier precedence in src/lib/ssai.ts. Verify the changed lines, run the focused test and production build, then start Next and inspect its log and process list using BusyBox-compatible commands.",
+  "commands": [
+    {
+      "keystrokes": "python3 -c 'p=\"src/lib/ssai.ts\"; s=open(p).read(); old=\"    const adId = attr(\\\"X-AD-ID\\\") || attr(\\\"ID\\\");\"; new=\"    // DATERANGE ID identifies this airing; X-AD-ID identifies the creative.\\n    // Use the occurrence ID so separate airings are not deduplicated together.\\n    const adId = attr(\\\"ID\\\") || attr(\\\"X-AD-ID\\\");\"; assert old in s; open(p,\"w\").write(s.replace(old,new,1))'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "sed -n '70,86p' src/lib/ssai.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "pnpm exec vitest run src/lib/ssai.test.ts\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "pnpm run build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "if [ -f /tmp/fast-world-tv.pid ]; then kill \"$(cat /tmp/fast-world-tv.pid)\" 2>/dev/null || true; fi; (pnpm start > /tmp/fast-world-tv.log 2>&1 & echo $! > /tmp/fast-world-tv.pid); sleep 3; echo \"pid=$(cat /tmp/fast-world-tv.pid)\"; ps -o pid,stat,cmd; echo '--- service log ---'; cat /tmp/fast-world-tv.log\n",
+      "duration": 4.0
+    }
+  ]
+}

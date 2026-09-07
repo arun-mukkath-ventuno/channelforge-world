@@ -1,0 +1,44 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+Current Terminal Screen:
+>     const manifest = starts.map(start => `#EXT-X-DATERANGE:ID="house",CLASS="com.fastworld.ad",START-DATE="${new Date(start).toISOString()}",DURATION=20,X-AD-
+ID="house"`).join('\n');
+>     const ssai = load('src/lib/ssai.ts', {
+>       navigator: useBeacon ? { sendBeacon: (url, body) => { sent.push(body.text()); return true; } } : {},
+>       fetch: async (url, opts) => { if (opts.method === 'POST') sent.push(Promise.resolve(opts.body)); return { ok: true, text: async () => manifest }; },
+>       setInterval: (fn, ms) => { intervals.set(++counter, { fn, ms }); return counter; },
+>       clearInterval: id => intervals.delete(id),
+>     });
+>     const settle = async () => { for (let i = 0; i < 5; i++) await Promise.resolve(); };
+>     async function run() {
+>       const stop = ssai.startAdBeaconWatcher({ sessionId: 'viewer', manifestUrl: 'manifest', playheadDate: () => now });
+>       await settle();
+>       const tick = [...intervals.values()].find(x => x.ms === 1000).fn;
+>       const refresh = [...intervals.values()].find(x => x.ms === 10000).fn;
+>       for (const start of starts) {
+>         for (const delta of [0, 5000, 10000, 15000, 20000]) { now = start + delta; tick(); }
+>         await refresh(); tick();
+>       }
+>       stop();
+>     }
+>     await run();
+>     assert.equal(sent.length, 12, 'refresh should not resend');
+>     await run();
+>     assert.equal(sent.length, 24);
+>     const raw = (await Promise.all(sent)).map(JSON.parse);
+>     const normalized = raw.map(normalizeEvent);
+>     assert.equal(new Set(normalized.map(e => e.eventId)).size, 12, 'restarted watcher duplicates must collapse, second airing must not');
+>     assert(raw.every(e => e.ad_id === 'house'));
+>     for (let i = 0; i < 12; i++) assert.equal(normalized[i].eventId, normalized[i + 12].eventId);
+>     ssai.sendAdBeacon('another-viewer', 'ad_start', 'house', starts[0]);
+>     const other = normalizeEvent(JSON.parse(await sent.at(-1)));
+>     assert(!normalized.some(e => e.eventId === other.eventId));
+>     console.log(`${useBeacon ? 'sendBeacon' : 'fetch'}: repeat airings, refresh, restart, session isolation passed against reference normalizer`);
+>   }
+> })().catch(e => { console.error(e); process.exitCode = 1; });
+> NODE
+fetch: repeat airings, refresh, restart, session isolation passed against reference normalizer
+sendBeacon: repeat airings, refresh, restart, session isolation passed against reference normalizer
+2c0f333a5b7b:/app# pnpm exec eslint src/lib/ssai.ts
+

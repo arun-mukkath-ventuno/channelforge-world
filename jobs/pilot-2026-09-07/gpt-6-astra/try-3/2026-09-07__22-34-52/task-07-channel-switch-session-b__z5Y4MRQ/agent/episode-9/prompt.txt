@@ -1,0 +1,50 @@
+New Terminal Output:
+
+eb5fd8e45b3d:/app# node --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import { readFileSync, readdirSync } from 'node:fs';
+> import { newDb } from 'pg-mem';
+> import { sessions, channels } from '@ssai/persistence';
+> const mem = newDb();
+> mem.public.none(readdirSync('migrations').filter(f => f.endsWith('.sql')).sort().map(f => readFileSync(`migrations/${f}`, 'utf8')).join('\n'));
+> const { Pool } = mem.adapters.createPg();
+> const db = new Pool();
+> for (const id of ['a', 'b']) await channels.insertChannel(db, { id, name: id, originUrl: `http://origin/${id}` });
+> await sessions.ensureSession(db, { id: 'switch-check', channelId: 'a', deviceType: 'web', country: 'IN', anonymousId: 'viewer' });
+> const original = await sessions.getSession(db, 'switch-check');
+> for (const channelId of ['a', 'b', 'b', 'a', 'b']) {
+>   await sessions.ensureSession(db, { id: 'switch-check', channelId });
+>   assert.deepEqual(await sessions.getSession(db, 'switch-check'), { ...original, channelId });
+> }
+> assert.equal((await sessions.listSessions(db)).length, 1);
+> await db.end();
+> console.log('PASS: latest channel wins, repeated associations remain idempotent, and all other session fields are preserved.');
+> JS
+PASS: latest channel wins, repeated associations remain idempotent, and all other session fields are preserved.
+eb5fd8e45b3d:/app# nohup node /app/packages/control-plane/dist/server.js >/dev/null 2>&1 &
+[1] 740
+eb5fd8e45b3d:/app# node --input-type=module -e 'const r = await fetch("http://127.0.0.1:4000/health"); console.log(r.status, await r.text()); if (!r.ok) process
+.exit(1)'; ps aux; sed -n '35,44p' packages/persistence/src/repositories/sessions.ts
+200 {"status":"ok","plane":"control"}
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   94 root      0:00 [tmux: client]
+   95 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   96 root      0:00 bash --login
+   97 root      0:00 cat
+  110 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  114 root      0:00 /bin/bash
+  486 root      0:00 [esbuild]
+  740 root      0:00 node /app/packages/control-plane/dist/server.js
+  766 root      0:00 ps aux
+
+/** Create the session if absent; otherwise refresh its current channel. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id`,
+    [
+      input.id,
+      input.channelId,
+eb5fd8e45b3d:/app#

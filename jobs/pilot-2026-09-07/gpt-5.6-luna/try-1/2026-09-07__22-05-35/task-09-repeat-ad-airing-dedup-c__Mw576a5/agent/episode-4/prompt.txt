@@ -1,0 +1,210 @@
+New Terminal Output:
+
+f549e1c35e50:/app# printf '%s\n' '-- reference root --' && ls -la / /reference 2>/dev/null || true && find /reference -maxdepth 5 -type f -print 2>/dev/null | s
+ort | sed -n '1,240p'
+-- reference root --
+/:
+total 92
+drwxr-xr-x    1 root     root          4096 Sep  7 16:37 .
+drwxr-xr-x    1 root     root          4096 Sep  7 16:37 ..
+-rwxr-xr-x    1 root     root             0 Sep  7 16:37 .dockerenv
+drwxr-xr-x    1 root     root          4096 Sep  7 10:15 app
+drwxr-xr-x    1 root     root          4096 Sep  7 10:14 bin
+drwxr-xr-x    5 root     root           340 Sep  7 16:37 dev
+drwxr-xr-x    1 root     root          4096 Sep  7 16:37 etc
+drwxr-xr-x    1 root     root          4096 Jul 29 17:27 home
+drwxr-xr-x    1 root     root          4096 Jun 13 16:39 lib
+drwxr-xr-x    5 root     root          4096 Sep  7 16:37 logs
+drwxr-xr-x    5 root     root          4096 Jun 13 16:39 media
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 mnt
+drwxr-xr-x    1 root     root          4096 Jul 29 17:57 opt
+dr-xr-xr-x  274 root     root             0 Sep  7 16:37 proc
+drwxr-xr-x    1 root     root          4096 Sep  7 10:15 reference
+drwx------    1 root     root          4096 Sep  7 10:14 root
+drwxr-xr-x    3 root     root          4096 Jun 13 16:39 run
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 sbin
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 srv
+dr-xr-xr-x   11 root     root             0 Sep  7 16:37 sys
+drwxrwxrwt    1 root     root          4096 Sep  7 16:37 tmp
+drwxr-xr-x    1 root     root          4096 Sep  7 10:14 usr
+drwxr-xr-x    1 root     root          4096 Jun 13 16:39 var
+
+/reference:
+total 12
+drwxr-xr-x    1 root     root          4096 Sep  7 10:15 .
+drwxr-xr-x    1 root     root          4096 Sep  7 16:37 ..
+drwxr-xr-x    1 root     root          4096 Sep  7 10:15 ssaiadserver
+/reference/ssaiadserver/control-plane/events-normalize.ts
+/reference/ssaiadserver/persistence/repositories/events.ts
+f549e1c35e50:/app# printf '%s\n' '-- all likely reference paths --' && find / -path /proc -prune -o -path /sys -prune -o -path /dev -prune -o -type d -print 2>/
+dev/null | grep -Ei '(ssai|events-norm|reference|adserver|ingest)' | sed -n '1,240p'
+-- all likely reference paths --
+/reference
+/reference/ssaiadserver
+/reference/ssaiadserver/control-plane
+/reference/ssaiadserver/persistence
+/reference/ssaiadserver/persistence/repositories
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/02-pages/04-
+api-reference
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/02-pages/04-
+api-reference/01-components
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/02-pages/04-
+api-reference/04-config
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/02-pages/04-
+api-reference/04-config/01-next-config-js
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/02-pages/04-
+api-reference/06-adapters
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/02-pages/04-
+api-reference/03-functions
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/02-pages/04-
+api-reference/02-file-conventions
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/02-pages/04-
+api-reference/05-cli
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/01-app/03-ap
+i-reference
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/01-app/03-ap
+i-reference/03-file-conventions
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/01-app/03-ap
+i-reference/03-file-conventions/02-route-segment-config
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/01-app/03-ap
+i-reference/03-file-conventions/01-metadata
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/docs/01-app/03-ap
+i-reference/06-cli
+/app/node_modules/.pnpm/next@16.3.3_@babel+core@7.29.7_@types+node@20.19.43_react-dom@19.2.8_react@19.2.8
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+est.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:")) continue;
+    if (!/SCTE35-OUT/i.test(line)) continue;
+    const attr = (k: string): string | undefined =>
+      line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("PLANNED-DURATION") || attr("DURATION");
+    const id = attr("ID") || "brk";
+    if (!startDate || !dur) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ id, start, end: start + seconds * 1000, durationSec: seconds });
+  }
+  return out;
+}
+
+// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+const QUARTILES: [number, AdBeacon][] = [
+  [0, "ad_impression"],
+  [0, "ad_start"],
+  [0.25, "ad_first_quartile"],
+  [0.5, "ad_midpoint"],
+  [0.75, "ad_third_quartile"],
+  [1, "ad_complete"],
+];
+
+/**
+ * Watch the wall-clock playhead against the stitched manifest's ad windows and fire quartile
+ * beacons as each ad plays. `playheadDate()` returns the current playhead as epoch ms (from
+ * Shaka's getPlayheadTimeAsDate). Returns a stop() cleanup.
+ */
+export function startAdBeaconWatcher(opts: {
+  sessionId: string;
+  manifestUrl: string;
+  playheadDate: () => number | null;
+  refetchMs?: number;
+  tickMs?: number;
+}): () => void {
+  let windows: AdWindow[] = [];
+  const fired = new Set<string>(); // `${adId}:${start}:${beacon}`
+  let stopped = false;
+
+  async function refresh() {
+    try {
+      const res = await fetch(opts.manifestUrl, { cache: "no-store" });
+      if (res.ok) windows = parseAdWindows(await res.text());
+    } catch {
+      /* keep prior windows */
+    }
+  }
+
+  const tick = () => {
+    if (stopped) return;
+    const now = opts.playheadDate();
+    if (now != null) {
+      for (const w of windows) {
+        if (now < w.start || now > w.end) continue;
+        const progress = (now - w.start) / Math.max(1, w.end - w.start);
+        for (const [threshold, beacon] of QUARTILES) {
+          if (progress + 1e-6 < threshold) continue;
+          const key = `${w.adId}:${w.start}:${beacon}`;
+          if (fired.has(key)) continue;
+          fired.add(key);
+          sendAdBeacon(opts.sessionId, beacon, w.adId);
+        }
+      }
+    }
+  };
+
+  void refresh();
+  const refetch = setInterval(refresh, opts.refetchMs ?? 10_000);
+  const ticker = setInterval(tick, opts.tickMs ?? 1_000);
+  return () => {
+    stopped = true;
+    clearInterval(refetch);
+    clearInterval(ticker);
+  };
+}
+-- integrations --
+src/app/fast-world/live/LiveClient.tsx:6:import { createSsaiSession, type SsaiSession } from "@/lib/ssai";
+src/app/fast-world/live/LiveClient.tsx:221:    void createSsaiSession(ssaiChannel).then((s) => {
+src/components/fast/FastPlayer.tsx:5:import { startAdBeaconWatcher } from "@/lib/ssai";
+src/components/fast/FastPlayer.tsx:199:    const stop = startAdBeaconWatcher({
+src/lib/ssai.ts:18:export async function createSsaiSession(ssaiChannel: string): Promise<SsaiSession | null> {
+src/lib/ssai.ts:43:export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+src/lib/ssai.ts:68:export function parseAdWindows(manifest: string): AdWindow[] {
+src/lib/ssai.ts:95: * `parseAdWindows` which reads the ads actually stitched in. Reads
+src/lib/ssai.ts:133:export function startAdBeaconWatcher(opts: {
+src/lib/ssai.ts:147:      if (res.ok) windows = parseAdWindows(await res.text());
+src/lib/ssai.ts:165:          sendAdBeacon(opts.sessionId, beacon, w.adId);
+src/lib/fast-view.ts:11:// SCTE avails are parsed from the manifest (ssai.parseAdWindows). Matches the design.
+src/lib/ssai.test.ts:3:import { parseAdWindows } from "./ssai";
+src/lib/ssai.test.ts:5:describe("parseAdWindows", () => {
+src/lib/ssai.test.ts:13:    const windows = parseAdWindows(manifest);
+src/lib/ssai.test.ts:26:    expect(parseAdWindows(manifest)).toEqual([]);
+f549e1c35e50:/app# printf '%s\n' '-- source control/tools --' && command -v git || true && command -v pnpm || true && command -v npm || true && command -v curl
+|| true && command -v ps || true && printf '%s\n' '-- package scripts --' && sed -n '1,180p' package.json
+-- source control/tools --
+/usr/local/bin/pnpm
+/usr/local/bin/npm
+/bin/ps
+-- package scripts --
+{
+  "name": "fast-world-tv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "lucide-react": "^1.35.0",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "shaka-player": "^4.11.9"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
+f549e1c35e50:/app#

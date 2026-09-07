@@ -1,0 +1,233 @@
+New Terminal Output:
+
+6f61bf7d2dec:/app# cat packages/data-plane/src/origin-slice4.test.ts
+import { describe, it, expect } from "vitest";
+
+import { OriginClient, parseOriginMap } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+
+describe("parseOriginMap", () => {
+  it("parses a JSON channel→url map", () => {
+    expect(parseOriginMap('{"channel_yoga":"https://forge/hls/u/delivery.m3u8"}')).toEqual({
+      channel_yoga: "https://forge/hls/u/delivery.m3u8",
+    });
+  });
+  it("is empty on missing or bad input", () => {
+    expect(parseOriginMap(undefined)).toEqual({});
+    expect(parseOriginMap("not json")).toEqual({});
+  });
+});
+
+describe("OriginClient.originUrlFor", () => {
+  it("uses the per-channel origin map verbatim when present", () => {
+    const c = new OriginClient({
+      baseUrl: "http://fixture:8080",
+      originMap: { channel_yoga: "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8" },
+    });
+    expect(c.originUrlFor("channel_yoga")).toBe(
+      "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8",
+    );
+  });
+  it("falls back to base/channel/variant for unmapped channels", () => {
+    const c = new OriginClient({ baseUrl: "http://fixture:8080", originMap: {} });
+    expect(c.originUrlFor("channel_food", "index")).toBe("http://fixture:8080/channel_food/index.m3u8");
+  });
+});
+
+describe("absolutizeManifest", () => {
+  const origin = "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8";
+
+  it("rewrites relative segment URIs to absolute origin URLs", () => {
+    const body = ["#EXTM3U", "#EXTINF:2.000,", "index0.ts", "#EXTINF:2.000,", "index1.ts"].join("\n");
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index0.ts");
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index1.ts");
+    expect(out).toContain("#EXTINF:2.000,"); // tags untouched
+  });
+
+  it("leaves already-absolute URIs and ad segments alone", () => {
+    const body = ["#EXTINF:2,", "https://cdn/x.ts", "#EXTINF:2,", "/v1/segments/cr_1/000.ts"].join("\n");
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain("https://cdn/x.ts");
+    // a rooted path resolves against the origin host (expected) — the stitcher inserts ad segments
+    // AFTER this step, so real ad segments are never passed through here.
+    expect(out).toContain("https://forge.ventunotech.com/v1/segments/cr_1/000.ts");
+  });
+
+  it("absolutizes URI= attributes on tags", () => {
+    const body = '#EXT-X-MAP:URI="init.mp4"\n#EXTINF:2,\nseg.m4s';
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain('URI="https://forge.ventunotech.com/hls/a11e5310/init.mp4"');
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/seg.m4s");
+  });
+});
+6f61bf7d2dec:/app# cat packages/data-plane/src/origin.test.ts | head -180; cat packages/persistence/src/pod-cache.ts; cat packages/storage/src/factory.ts; env |
+ sort
+import { describe, it, expect, vi } from "vitest";
+import { OriginClient } from "./origin.js";
+
+function okResponse(body: string) {
+  return { ok: true, status: 200, text: async () => body } as unknown as Response;
+}
+
+describe("OriginClient (PRD §8, §42)", () => {
+  it("fetches and caches within the TTL", async () => {
+    const fetchImpl = vi.fn(async () => okResponse("#EXTM3U\n"));
+    const client = new OriginClient({ baseUrl: "http://origin", ttlMs: 1000, fetchImpl });
+
+    const a = await client.fetchMediaPlaylist("ch");
+    const b = await client.fetchMediaPlaylist("ch");
+
+    expect(a).toMatchObject({ fromCache: false, stale: false });
+    expect(b).toMatchObject({ fromCache: true, stale: false });
+    expect(fetchImpl).toHaveBeenCalledTimes(1); // second call served from cache
+  });
+
+  it("serves the last-good copy when the origin fails (stale)", async () => {
+    let call = 0;
+    const fetchImpl = vi.fn(async () => {
+      call += 1;
+      if (call === 1) return okResponse("#EXTM3U\nfresh\n");
+      throw new Error("origin down");
+    });
+    const client = new OriginClient({ baseUrl: "http://origin", ttlMs: 0, fetchImpl });
+
+    const first = await client.fetchMediaPlaylist("ch");
+    const second = await client.fetchMediaPlaylist("ch"); // ttl 0 forces refetch → fails
+
+    expect(first.stale).toBe(false);
+    expect(second).toMatchObject({ body: "#EXTM3U\nfresh\n", stale: true });
+  });
+
+  it("throws when the origin fails and nothing is cached", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("origin down");
+    });
+    const client = new OriginClient({ baseUrl: "http://origin", fetchImpl });
+    await expect(client.fetchMediaPlaylist("ch")).rejects.toThrow("origin down");
+  });
+
+  it("treats a non-200 as a failure", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 404, text: async () => "" }) as unknown as Response);
+    const client = new OriginClient({ baseUrl: "http://origin", fetchImpl });
+    await expect(client.fetchMediaPlaylist("ch")).rejects.toThrow(/404/);
+  });
+});
+// Pod cache (PRD §48): the control plane writes a decided pod here; the data
+// plane reads it on the manifest hot path and never recomputes. Keyed by
+// (session, opportunity).
+//
+// Two implementations behind one interface: Redis for real deployments, and an
+// in-memory Map for tests and single-process dev.
+
+import type { PodItem } from "@ssai/core";
+import { Redis } from "ioredis";
+
+export interface CachedPod {
+  sessionId: string;
+  opportunityId: string;
+  channelId: string;
+  breakDuration: number;
+  pod: PodItem[];
+}
+
+export interface PodCache {
+  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+  set(entry: CachedPod, ttlSeconds?: number): Promise<void>;
+  del(sessionId: string, opportunityId: string): Promise<void>;
+}
+
+function key(sessionId: string, opportunityId: string): string {
+  return `pod:${sessionId}:${opportunityId}`;
+}
+
+/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+export const DEFAULT_POD_TTL_SECONDS = 900;
+
+export class RedisPodCache implements PodCache {
+  constructor(private readonly redis: Redis) {}
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    const raw = await this.redis.get(key(sessionId, opportunityId));
+    return raw ? (JSON.parse(raw) as CachedPod) : null;
+  }
+
+  async set(entry: CachedPod, ttlSeconds = DEFAULT_POD_TTL_SECONDS): Promise<void> {
+    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    await this.redis.del(key(sessionId, opportunityId));
+  }
+}
+
+export class MemoryPodCache implements PodCache {
+  private readonly store = new Map<string, CachedPod>();
+
+  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+    return this.store.get(key(sessionId, opportunityId)) ?? null;
+  }
+
+  async set(entry: CachedPod): Promise<void> {
+    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+  }
+
+  async del(sessionId: string, opportunityId: string): Promise<void> {
+    this.store.delete(key(sessionId, opportunityId));
+  }
+}
+
+export function createRedis(url = process.env.REDIS_URL): Redis {
+  if (!url) throw new Error("REDIS_URL is not set");
+  return new Redis(url, { maxRetriesPerRequest: 2, lazyConnect: false });
+}
+// Choose an ObjectStore from the environment: S3/MinIO when S3_BUCKET is set,
+// otherwise the filesystem store (the zero-infra default for dev / RL).
+
+import type { ObjectStore } from "./storage.js";
+import { FilesystemObjectStore } from "./storage.js";
+
+export async function createObjectStoreFromEnv(): Promise<ObjectStore> {
+  if (process.env.S3_BUCKET) {
+    const { createS3ObjectStore } = await import("./s3.js");
+    return createS3ObjectStore({
+      bucket: process.env.S3_BUCKET,
+      ...(process.env.S3_ENDPOINT ? { endpoint: process.env.S3_ENDPOINT } : {}),
+      ...(process.env.S3_REGION ? { region: process.env.S3_REGION } : {}),
+      ...(process.env.S3_ACCESS_KEY ? { accessKeyId: process.env.S3_ACCESS_KEY } : {}),
+      ...(process.env.S3_SECRET_KEY ? { secretAccessKey: process.env.S3_SECRET_KEY } : {}),
+      forcePathStyle: true,
+      ...(process.env.CREATIVE_STORE_BASE_URL ? { publicBaseUrl: process.env.CREATIVE_STORE_BASE_URL } : {}),
+    });
+  }
+  return new FilesystemObjectStore(process.env.CREATIVE_STORE_ROOT ?? "./storage/creatives");
+}
+ASCIINEMA_REC=1
+ASCIINEMA_SESSION=a68c89361a8b5822836dbc791eea3837
+CHANNELFORGE_ORIGIN_URL=http://localhost:8080
+CHARSET=UTF-8
+COLORTERM=truecolor
+CONTROL_PLANE_URL=http://localhost:4000
+CREATIVE_STORE_ROOT=/data/creatives
+DATA_PLANE_PORT=4010
+HOME=/root
+HOSTNAME=6f61bf7d2dec
+LANG=C.UTF-8
+LC_COLLATE=C
+NODE_VERSION=22.23.2
+PAGER=less
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/app
+REDIS_URL=redis://redis:6379
+SESSION_SIGNING_SECRET=task-ssai-session-secret
+SHELL=/bin/bash
+SHLVL=3
+SSAI_SERVICE=data-plane
+TERM=tmux-256color
+TERM_PROGRAM=tmux
+TERM_PROGRAM_VERSION=3.7c
+TMUX=/tmp/tmux-0/default,94,0
+TMUX_PANE=%0
+YARN_VERSION=1.22.22
+_=/usr/bin/env
+6f61bf7d2dec:/app#

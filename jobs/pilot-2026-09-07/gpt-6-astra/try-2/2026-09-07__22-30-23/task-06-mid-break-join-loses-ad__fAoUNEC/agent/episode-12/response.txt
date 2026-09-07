@@ -1,0 +1,14 @@
+{
+  "analysis": "Typechecking and the HTTP regression checks passed: late tune-ins reach decisioning, reconnects use the original cached pod, and only visible ad segments are stitched. Before restarting, I will tighten the continuation boundary handling so recovery cannot consume playlist footer tags or search past another cue for segment timing.",
+  "plan": "Make the small boundary refinements, rerun data-plane tests and typechecking, then launch the data-plane service from source in a detached terminal session.",
+  "commands": [
+    {
+      "keystrokes": "node --input-type=module <<'JS'\nimport fs from 'node:fs';\nconst p='packages/data-plane/src/avails.ts';let s=fs.readFileSync(p,'utf8');\ns=s.replace('/** Detect all complete avails in the manifest. Incomplete trailing avails (a\\n *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */','/** Detect complete avails and recover visible suffixes announced by continuation\\n *  markers. Bare trailing CUE-OUTs still require CUE-IN — PRD §41. */');\ns=s.replace('    elapsedDuration?: number;\\n  } | null','    elapsedDuration?: number;\\n    lastSegmentLine?: number;\\n  } | null');\ns=s.replace('      const nextInf = lines.slice(i + 1).find((l) => l.trim().match(EXTINF));\\n      const segmentDuration = Number(nextInf?.trim().match(EXTINF)?.[1]);', `      let segmentDuration = 0;\n      for (let j = i + 1; j < lines.length; j++) {\n        const next = lines[j]!.trim();\n        const inf = next.match(EXTINF);\n        if (inf) { segmentDuration = Number(inf[1]); break; }\n        if (next.startsWith(\"#EXT-X-CUE-\") || (next && !next.startsWith(\"#\"))) break;\n      }`);\ns=s.replace('      mediaSequence += 1;', '      if (open) open.lastSegmentLine = i;\\n      mediaSequence += 1;');\ns=s.replace('open?.elapsedDuration !== undefined && open.measuredDuration > 0','open?.elapsedDuration !== undefined && open.lastSegmentLine !== undefined && open.measuredDuration > 0');\ns=s.replace('      endLine: lines.length - 1,','      endLine: open.lastSegmentLine,');\nfs.writeFileSync(p,s);\nJS\nnpx vitest run packages/data-plane/src; npx tsc -p packages/data-plane/tsconfig.json --noEmit --incremental false --composite false\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "tmux new-session -d -s ssai-data-plane 'cd /app && exec node --import tsx /app/packages/data-plane/src/server.ts'\n",
+      "duration": 1
+    }
+  ]
+}

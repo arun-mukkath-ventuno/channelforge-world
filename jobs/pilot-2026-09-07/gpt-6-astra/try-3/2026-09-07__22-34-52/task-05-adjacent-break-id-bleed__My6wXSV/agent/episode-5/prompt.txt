@@ -1,0 +1,235 @@
+New Terminal Output:
+
+1a789d16c4fd:/app# cat packages/data-plane/src/avails.test.ts
+import { describe, it, expect } from "vitest";
+import { detectAvails } from "./avails.js";
+
+function manifest(lines: string[]): string {
+  return lines.join("\n");
+}
+
+describe("detectAvails (PRD §9, §41)", () => {
+  it("derives a deterministic opportunity id from channel + media sequence", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:100",
+      "#EXTINF:6.000,",
+      "s100.ts",
+      "#EXTINF:6.000,",
+      "s101.ts",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "channel_food");
+    expect(avails).toHaveLength(1);
+    // Two segments consumed (100, 101), so the avail's first segment is 102.
+    expect(avails[0]).toMatchObject({
+      opportunityId: "opp_channel_food_102",
+      channelId: "channel_food",
+      duration: 30,
+      declaredDuration: 30,
+      startSequence: 102,
+    });
+  });
+
+  it("is stable across playlist refreshes (same avail → same id as the window slides)", () => {
+    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    const a = detectAvails(before, "ch")[0]!;
+    const b = detectAvails(after, "ch")[0]!;
+    expect(a.opportunityId).toBe(b.opportunityId); // opp_ch_101 in both
+  });
+
+  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:oops",
+      "#EXTINF:6.000,",
+      "slate1.ts",
+      "#EXTINF:6.000,",
+      "slate2.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails[0]!.declaredDuration).toBeUndefined();
+    expect(avails[0]!.measuredDuration).toBe(12);
+    expect(avails[0]!.duration).toBe(12);
+  });
+
+  it("captures PROGRAM-DATE-TIME preceding the avail", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    expect(detectAvails(m, "ch")[0]!.programDateTime).toBe("2026-08-29T12:15:00.000Z");
+  });
+
+  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+    expect(detectAvails(m, "ch")).toEqual([]);
+  });
+
+  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:200",
+      "#EXTINF:6.000,",
+      "s200.ts",
+      "#EXT-X-CUE-OUT:90",
+      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "channel_yoga");
+    expect(avails).toHaveLength(1);
+    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+  });
+
+  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+  });
+
+  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+  });
+
+  it("does not leak one break's id onto a later break that has none", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-OUT:15",
+      "#EXTINF:6.000,",
+      "c.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails).toHaveLength(2);
+    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+    expect(avails[1]!.externalBreakId).toBeUndefined();
+  });
+
+  it("detects multiple avails in one window", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-OUT:15",
+      "#EXTINF:6.000,",
+      "c.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+  });
+});
+1a789d16c4fd:/app# tail -20 packages/data-plane/src/avails.ts; cat packages/core/src/scte.test.ts
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      // The URI line follows; advance the sequence when we consume it below.
+    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+      mediaSequence += 1;
+      blockBreakId = undefined;
+    }
+  }
+
+  return avails;
+}
+import { describe, it, expect } from "vitest";
+import { parseMarkerLine } from "./scte.js";
+
+describe("parseMarkerLine — cue markers (PRD §9, §60 task 3)", () => {
+  it("parses bare-number CUE-OUT: #EXT-X-CUE-OUT:60", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:60", 5);
+    expect(m).toMatchObject({ kind: "cue_out", duration: 60, lineIndex: 5 });
+  });
+
+  it("parses attribute-form CUE-OUT: #EXT-X-CUE-OUT:DURATION=60", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=60", 0);
+    expect(m).toMatchObject({ kind: "cue_out", duration: 60 });
+  });
+
+  it("parses DURATION with extra attributes", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=90,SCTE35=abc", 0);
+    expect(m?.duration).toBe(90);
+  });
+
+  it("parses fractional durations", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:29.97", 0);
+    expect(m?.duration).toBeCloseTo(29.97);
+  });
+
+  it("parses CUE-IN with no attributes", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-IN", 9);
+    expect(m).toMatchObject({ kind: "cue_in", lineIndex: 9 });
+    expect(m?.duration).toBeUndefined();
+  });
+
+  it("ignores CUE-OUT-CONT as a new avail", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+    expect(m).toBeNull();
+  });
+
+  it("flags an unparseable CUE-OUT duration instead of throwing (PRD §41)", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:oops", 0);
+    expect(m).toMatchObject({ kind: "cue_out", invalidDuration: true });
+    expect(m?.duration).toBeUndefined();
+  });
+
+  it("returns null for non-marker lines", () => {
+    expect(parseMarkerLine("#EXTINF:6.0,", 0)).toBeNull();
+    expect(parseMarkerLine("segment100.ts", 0)).toBeNull();
+  });
+
+  it("parses DATERANGE with a DURATION attribute", () => {
+    const line = '#EXT-X-DATERANGE:ID="ad1",DURATION=30,SCTE35-OUT=0xFC';
+    const m = parseMarkerLine(line, 3);
+    expect(m).toMatchObject({ kind: "daterange", duration: 30 });
+  });
+
+  it("extracts the DATERANGE ID (ChannelForge threads its break_id there)", () => {
+    const line = '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30';
+    const m = parseMarkerLine(line, 7);
+    expect(m).toMatchObject({ kind: "daterange", id: "BRK-a11e5310-0003", duration: 90 });
+  });
+
+  it("omits id when the DATERANGE carries none", () => {
+    const m = parseMarkerLine("#EXT-X-DATERANGE:DURATION=30", 0);
+    expect(m?.kind).toBe("daterange");
+    expect(m?.id).toBeUndefined();
+  });
+});
+1a789d16c4fd:/app#

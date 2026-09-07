@@ -1,0 +1,39 @@
+New Terminal Output:
+
+703450db135d:/app# node --input-type=module <<'NODE'
+> import { readFileSync, writeFileSync } from 'node:fs';
+> const file = 'packages/data-plane/src/avails.ts';
+> let s = readFileSync(file, 'utf8');
+> s = s.replace(/    const match = value\.match\(new RegExp\(name \+ .*\n/, '    const match = value.match(new RegExp(name + "=\\\\s*(\\\\d+(?:\\\\.\\\\d+)?)",
+"i"));\n');
+> writeFileSync(file, s);
+> NODE
+703450db135d:/app# sed -n '37,45p' packages/data-plane/src/avails.ts
+const CUE_OUT_CONT = /^#EXT-X-CUE-OUT-CONT(?::(.*))?$/;
+
+function continuationAttrs(value: string): { elapsed?: number; duration?: number } {
+  const attr = (name: string): number | undefined => {
+    const match = value.match(new RegExp(name + "=\\s*(\\d+(?:\\.\\d+)?)", "i"));
+    return match ? Number(match[1]) : undefined;
+  };
+  return { elapsed: attr("ElapsedTime"), duration: attr("Duration") };
+}
+703450db135d:/app# npm run typecheck
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+703450db135d:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts packages/data-plane/src/media.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  3 passed (3)
+      Tests  18 passed (18)
+   Start at  16:51:15
+   Duration  442ms (transform 84ms, setup 0ms, collect 106ms, tests 11ms, environment 0ms, prepare 98ms)
+
+703450db135d:/app#

@@ -1,0 +1,200 @@
+New Terminal Output:
+
+51e93080a3b4:/app# printf '%s\n' 'sessions repository:' && sed -n '1,260p' packages/persistence/src/repositories/sessions.ts && printf '\nPersistence exports/db
+:\n' && sed -n '1,220p' packages/persistence/src/index.ts && sed -n '1,240p' packages/persistence/src/db.ts
+sessions repository:
+// Playback session repository (PRD §11, §12, §44).
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface PlaybackSession {
+  id: string;
+  channelId: string;
+  createdAt: string;
+  lastActivityAt: string;
+  deviceType: string | null;
+  country: string | null;
+  anonymousId: string | null;
+}
+
+interface SessionRow {
+  id: string;
+  channel_id: string;
+  created_at: unknown;
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+  );
+}
+
+export async function touchSession(db: Queryable, id: string): Promise<void> {
+  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+}
+
+function toSession(r: SessionRow): PlaybackSession {
+  return {
+    id: r.id,
+    channelId: r.channel_id,
+    createdAt: toIso(r.created_at),
+    lastActivityAt: toIso(r.last_activity_at),
+    deviceType: r.device_type,
+    country: r.country,
+    anonymousId: r.anonymous_id,
+  };
+}
+
+export async function getSession(db: Queryable, id: string): Promise<PlaybackSession | null> {
+  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+  return rows[0] ? toSession(rows[0]) : null;
+}
+
+export async function listSessions(db: Queryable, limit = 100): Promise<PlaybackSession[]> {
+  const rows = (
+    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [limit])
+  ).rows;
+  return rows.map(toSession);
+}
+
+Persistence exports/db:
+// @ssai/persistence — Postgres repositories, migrations, and the Redis pod cache.
+
+export * from "./db.js";
+export * from "./migrate.js";
+export * from "./pod-cache.js";
+export * from "./seed.js";
+export * from "./analytics.js";
+export * from "./reconciliation.js";
+
+export * as channels from "./repositories/channels.js";
+export * as campaigns from "./repositories/campaigns.js";
+export * as creatives from "./repositories/creatives.js";
+export * as sessions from "./repositories/sessions.js";
+export * as opportunities from "./repositories/opportunities.js";
+export * as decisions from "./repositories/decisions.js";
+export * as events from "./repositories/events.js";
+export * as slates from "./repositories/slates.js";
+export * as beacons from "./repositories/beacons.js";
+// Postgres connection + a minimal Queryable abstraction so repositories work
+// against both a real `pg.Pool` and the pg-mem adapter used in tests.
+
+import pg from "pg";
+
+const { Pool } = pg;
+
+/** Anything that can run a parameterized query — pg.Pool, pg.PoolClient, pg-mem. */
+export interface Queryable {
+  query<R extends pg.QueryResultRow = pg.QueryResultRow>(
+    text: string,
+    params?: readonly unknown[],
+  ): Promise<pg.QueryResult<R>>;
+}
+
+export type Pool = pg.Pool;
+
+export function createPool(connectionString = process.env.DATABASE_URL): pg.Pool {
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  return new Pool({ connectionString, max: 10 });
+}
+
+/** Run `fn` inside a transaction, rolling back on error. */
+export async function withTransaction<T>(pool: pg.Pool, fn: (tx: Queryable) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+51e93080a3b4:/app# printf '%s\n' 'Session schema references:' && find migrations packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -type f -pri
+nt0 | xargs -0 grep -nE -e 'CREATE TABLE.*session' -e 'sessions' -e 'channel_id' | sed -n '1,300p'
+Session schema references:
+migrations/001_init.sql:17:  channel_id        TEXT REFERENCES channels(id),
+migrations/001_init.sql:34:  channel_id        TEX
+[... output limited to 10000 bytes; 72 interior bytes omitted ...]
+t":1},{"version":"e6ca59368dce5a594dcde9bbb6ae640d668fa6c28c31639dd2a75b731bb036a2","impliedFormat":1},{"version":"670a76db379b27c8ff42f1ba
+927828a22862e2ab0b0908e38b671f0e912cc5ed","impliedFormat":1},{"version":"13b77ab19ef7aadd86a1e54f2f08ea23a6d74e102909e3c00d31f231ed040f62","impliedFormat":1},{"
+version":"069bebfee29864e3955378107e243508b163e77ab10de6a5ee03ae06939f0bb9","impliedFormat":1},{"version":"751764bb94219b4ce8f5475dc35d3de2e432fea01a0c9610cd7f6
+9ad05e398c6","impliedFormat":1},{"version":"87d9d29dbc745f182683f63187bf3d53fd8673e5fca38ad5eaab69798ed29fbc","impliedFormat":1},{"version":"eb5b19b86227ace1d29
+ea4cf81387279d04bb34051e944bc53df69f58914b788","affectsGlobalScope":true,"impliedFormat":1},{"version":"ac51dd7d31333793807a6abaa5ae168512b6131bd41d9c5b98477fc3
+b7800f9f","impliedFormat":1},{"version":"09ddcfcfbe77a8232d155ca1030005106b1328f6210df43629d0be750da07c16","affectsGlobalScope":true,"impliedFormat":1},{"versio
+n":"17ed71200119e86ccef2d96b73b02ce8854b76ad6bd21b5021d4269bec527b5f","impliedFormat":1}],"root":[[171,174],[206,220]],"options":{"composite":true,"declaration"
+:true,"declarationMap":true,"esModuleInterop":true,"module":199,"noImplicitOverride":true,"noUncheckedIndexedAccess":true,"noUnusedLocals":true,"noUnusedParamet
+ers":true,"outDir":"./dist","rootDir":"./src","skipLibCheck":true,"sourceMap":true,"strict":true,"target":9,"verbatimModuleSyntax":true},"referencedMap":[[223,1
+],[221,2],[226,3],[222,1],[224,4],[225,1],[227,2],[109,5],[110,5],[111,6],[63,7],[112,8],[113,9],[114,10],[58,2],[61,11],[59,2],[60,2],[115,12],[116,13],[117,14
+],[118,15],[119,16],[120,17],[121,17],[122,18],[123,19],[124,20],[125,21],[64,2],[62,2],[126,22],[127,23],[128,24],[162,25],[129,26],[130,2],[131,27],[132,28],[
+133,29],[134,30],[135,31],[136,32],[137,33],[138,34],[139,35],[140,35],[141,36],[142,2],[143,37],[144,38],[146,39],[145,40],[147,41],[148,42],[149,43],[150,44],
+[151,45],[152,46],[153,47],[154,48],[155,49],[156,50],[157,51],[158,52],[159,53],[65,2],[66,2],[67,2],[105,54],[106,2],[107,2],[108,41],[160,55],[161,56],[170,5
+7],[169,58],[168,57],[228,2],[232,59],[229,2],[231,60],[230,2],[199,2],[184,61],[201,62],[204,63],[203,64],[185,65],[200,66],[197,67],[198,68],[196,69],[189,70]
+,[190,71],[192,72],[193,73],[191,74],[194,75],[205,76],[195,77],[202,70],[187,78],[183,79],[188,80],[186,61],[167,81],[164,2],[166,82],[165,2],[163,2],[56,2],[5
+7,2],[11,2],[10,2],[2,2],[12,2],[13,2],[14,2],[15,2],[16,2],[17,2],[18,2],[19,2],[3,2],[20,2],[21,2],[4,2],[22,2],[26,2],[23,2],[24,2],[25,2],[27,2],[28,2],[29,
+2],[5,2],[30,2],[31,2],[32,2],[33,2],[6,2],[37,2],[34,2],[35,2],[36,2],[38,2],[7,2],[39,2],[44,2],[45,2],[40,2],[41,2],[42,2],[43,2],[8,2],[49,2],[46,2],[47,2],
+[48,2],[50,2],[9,2],[51,2],[52,2],[53,2],[55,2],[54,2],[1,2],[83,83],[93,84],[82,83],[103,85],[74,86],[73,87],[102,88],[96,89],[101,90],[76,91],[90,92],[75,93],
+[99,94],[71,95],[70,88],[100,96],[72,97],[77,98],[78,2],[81,98],[68,2],[104,99],[94,100],[85,101],[86,102],[88,103],[84,104],[87,105],[97,88],[79,106],[80,107],
+[89,108],[69,109],[92,100],[91,98],[95,2],[98,110],[180,111],[177,111],[182,112],[179,111],[178,2],[176,2],[181,2],[175,2],[173,113],[219,114],[220,115],[171,11
+6],[218,117],[172,2],[174,118],[206,119],[211,113],[217,113],[208,120],[207,113],[209,120],[214,121],[215,113],[213,121],[212,113],[216,113],[210,122]],"latestC
+hangedDtsFile":"./dist/cli/seed.d.ts","version":"5.9.3"}
+51e93080a3b4:/app# printf '%s\n' 'Running processes:' && ps aux | sed -n '1,120p' && printf '\nScripts mentioning service/start:\n' && find packages -maxdepth 2
+ -name package.json -print0 | xargs -0 grep -nE '"(dev|start|serve|build)"'
+Running processes:
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   94 root      0:00 [tmux: client]
+   95 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   96 root      0:00 bash --login
+   97 root      0:00 cat
+  110 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  114 root      0:00 /bin/bash
+  286 root      0:00 ps aux
+  287 root      0:00 sed -n 1,120p
+
+Scripts mentioning service/start:
+packages/storage/package.json:16:    "build": "tsc --build",
+packages/admin-web/package.json:8:    "dev": "vite",
+packages/admin-web/package.json:9:    "build": "vite build",
+packages/creative-worker/package.json:16:    "build": "tsc --build",
+packages/control-plane/package.json:9:    "build": "tsc --build",
+packages/control-plane/package.json:10:    "dev": "tsx watch src/server.ts",
+packages/control-plane/package.json:11:    "start": "node dist/server.js"
+packages/data-plane/package.json:9:    "build": "tsc --build",
+packages/data-plane/package.json:10:    "dev": "tsx watch src/server.ts",
+packages/data-plane/package.json:11:    "start": "node dist/server.js",
+packages/persistence/package.json:16:    "build": "tsc --build",
+packages/core/package.json:16:    "build": "tsc --build",
+51e93080a3b4:/app#

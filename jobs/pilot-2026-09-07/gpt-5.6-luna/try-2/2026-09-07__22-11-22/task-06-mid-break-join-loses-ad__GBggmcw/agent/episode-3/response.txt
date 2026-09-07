@@ -1,0 +1,22 @@
+{
+  "analysis": "The data plane delegates ad decisions using sessionId plus avail.opportunityId, while stitching itself is pure. The defect is likely in origin.ts or server.ts where detected avails are filtered or cached based on the manifest's first observed window. The existing comments confirm decisions are intended to persist for (session, opportunity), so reconnects should be able to reuse the same decision. I need inspect the complete request flow and persistence/control-plane decision implementation.",
+  "plan": "Read origin.ts, server.ts, origin tests, and the control-plane ad-decision route/storage code. Compare how an avail is represented when first seen mid-break versus from its beginning, and how previously decided opportunities are looked up. Add a focused regression test only if existing tests do not cover it, but do not modify the test suite per task constraints; instead validate with existing tests and typecheck after the source fix.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,320p' packages/data-plane/src/origin.ts; printf '\\n-- server --\\n'; sed -n '1,360p' packages/data-plane/src/server.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '\\n-- origin tests --\\n'; sed -n '1,420p' packages/data-plane/src/origin.test.ts; printf '\\n-- slice tests --\\n'; sed -n '1,360p' packages/data-plane/src/origin-slice4.test.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '\\n-- control/persistence files --\\n'; find packages -path '*/node_modules' -prune -o -type f \\( -name '*.ts' -o -name 'package.json' \\) -print | sort | grep -E '(control-plane|persistence|decision|session|opportunity)' | head -200\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "grep -RInE -e 'ad-decision' -e 'opportunity_id' -e 'session_id' -e 'decision' packages/control-plane/src packages/persistence/src packages/core/src 2>/dev/null | head -400\n",
+      "duration": 0.5
+    }
+  ]
+}

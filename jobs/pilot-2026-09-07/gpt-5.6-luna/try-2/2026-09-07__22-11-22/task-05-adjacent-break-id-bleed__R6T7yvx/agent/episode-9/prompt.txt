@@ -1,0 +1,21 @@
+New Terminal Output:
+
+c97b28b93225:/app# ps aux | grep '[n]ode dist/server.js' || true; printf '\n-- service log --\n'; cat /tmp/data-plane.log
+  914 root      0:00 node dist/server.js
+
+-- service log --
+
+> @ssai/data-plane@0.1.0 start
+> node dist/server.js
+
+(node:914) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for acces
+sing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1788799370435,"pid":914,"hostname":"c97b28b93225","msg":"Server listening at http://127.0.0.1:4010"}
+{"level":30,"time":1788799370435,"pid":914,"hostname":"c97b28b93225","msg":"Server listening at http://172.21.0.3:4010"}
+c97b28b93225:/app# if command -v wget >/dev/null 2>&1; then wget -S -O - http://127.0.0.1:4010/ 2>&1 | head -30; else node --input-type=module -e 'const r=await
+ fetch("http://127.0.0.1:4010/"); console.log(r.status, await r.text())'; fi
+Connecting to 127.0.0.1:4010 (127.0.0.1:4010)
+  HTTP/1.1 404 Not Found
+wget: server returned error: HTTP/1.1 404 Not Found
+c97b28b93225:/app#

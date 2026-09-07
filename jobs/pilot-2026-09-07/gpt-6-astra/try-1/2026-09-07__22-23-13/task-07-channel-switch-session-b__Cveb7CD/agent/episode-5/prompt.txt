@@ -1,0 +1,216 @@
+New Terminal Output:
+
+86be0505c7a7:/app# sed -n '175,235p' packages/control-plane/src/server.ts; tail -45 packages/control-plane/src/server.ts; head -38 packages/persistence/src/repo
+sitories.test.ts; cat packages/persistence/src/db.ts
+
+    const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+    const now = new Date().toISOString();
+    const opportunity: AdOpportunity = {
+      opportunityId: body.opportunity_id,
+      channelId: body.channel_id,
+      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+      breakStart: now,
+      breakDuration: body.duration,
+      source: "cue_out",
+      signalType: "cue_out",
+    };
+    const session: SessionContext = { sessionId, channelId: body.channel_id };
+
+    // Inventory from Postgres.
+    const [creatives, campaignMap] = await Promise.all([
+      creativesRepo.listCreatives(pool),
+      campaignsRepo.campaignsAsMap(pool),
+    ]);
+
+    const seed = body.seed ?? process.env.AD_DECISION_SEED;
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns: campaignMap,
+      now,
+      ...(seed ? { seed } : {}),
+    });
+
+    const decisionId = `dec_${randomUUID()}`;
+    const podId = `pod_${randomUUID()}`;
+
+    // Persist opportunity + session + decision atomically (PRD §46, §47).
+    await withTransaction(pool, async (tx) => {
+      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+      await oppsRepo.upsertOpportunity(tx, opportunity);
+      await decisionsRepo.saveDecision(tx, {
+        decisionId,
+        podId,
+        decision,
+        requestedAt: now,
+        completedAt: new Date().toISOString(),
+      });
+      for (const [type, extra] of [
+        ["ad_opportunity_detected", {}],
+        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+      ] as const) {
+        await eventsRepo.appendEvent(tx, {
+          eventId: randomUUID(),
+          eventType: type,
+          sessionId,
+          channelId: body.channel_id,
+          opportunityId: body.opportunity_id,
+          podId,
+          payload: extra,
+        });
+      }
+    });
+
+    const { id } = req.params as { id: string };
+    if (!(await creativesRepo.getCreative(pool, id))) {
+      return reply.code(404).send({ error: "creative not found — create it first" });
+    }
+
+    const file = await req.file();
+    if (!file) return reply.code(400).send({ error: "a file field is required" });
+
+    const ext = (file.filename?.split(".").pop() ?? "").toLowerCase();
+    if (!SOURCE_EXTENSIONS.has(ext)) {
+      return reply.code(400).send({ error: `unsupported source type .${ext}` });
+    }
+
+    let buffer: Buffer;
+    try {
+      buffer = await file.toBuffer();
+    } catch {
+      // @fastify/multipart throws when the file exceeds the configured limit.
+      return reply.code(413).send({ error: "file too large" });
+    }
+
+    const sourceKey = `sources/creatives/${id}/source.${ext}`;
+    await store.put(sourceKey, buffer);
+    await creativesRepo.setCreativeSource(pool, id, sourceKey);
+    await creativesRepo.setCreativeStatus(pool, id, "uploaded");
+
+    return reply.code(202).send({ creative_id: id, source_key: sourceKey, bytes: buffer.length, status: "uploaded" });
+  });
+
+  return app;
+}
+
+// Bootstrap from env when run directly.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { createPool, createRedis, RedisPodCache } = await import("@ssai/persistence");
+  const { createObjectStoreFromEnv } = await import("@ssai/storage");
+  const pool = createPool();
+  const podCache = new RedisPodCache(createRedis());
+  const store = await createObjectStoreFromEnv();
+  const app = buildServer({ pool, podCache, store });
+  app.listen({ port: Number(process.env.CONTROL_PLANE_PORT ?? 4000), host: "0.0.0.0" }).catch((err) => {
+    app.log.error(err);
+    process.exit(1);
+  });
+}
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { newDb } from "pg-mem";
+import type { Queryable } from "./db.js";
+import { seedDatabase } from "./seed.js";
+import { campaignsAsMap, listCampaigns } from "./repositories/campaigns.js";
+import { listCreatives } from "./repositories/creatives.js";
+import { ensureSession, getSession } from "./repositories/sessions.js";
+import { upsertOpportunity } from "./repositories/opportunities.js";
+import { saveDecision, getDecisionsBySession } from "./repositories/decisions.js";
+import { appendEvent, getEventsBySession } from "./repositories/events.js";
+import { decide, type AdOpportunity, type SessionContext } from "@ssai/core";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const MIG_DIR = resolve(here, "../../../migrations");
+const SCHEMA = readdirSync(MIG_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+  .join("\n");
+
+function freshDb(): Queryable {
+  const mem = newDb();
+  mem.public.none(SCHEMA); // load full schema (multi-statement)
+  const { Pool } = mem.adapters.createPg();
+  return new Pool() as unknown as Queryable;
+}
+
+let db: Queryable;
+beforeEach(() => {
+  db = freshDb();
+});
+
+describe("seed + inventory repositories", () => {
+  it("seeds 5 channels and assembles campaign target channels", async () => {
+    await seedDatabase(db);
+// Postgres connection + a minimal Queryable abstraction so repositories work
+// against both a real `pg.Pool` and the pg-mem adapter used in tests.
+
+import pg from "pg";
+
+const { Pool } = pg;
+
+/** Anything that can run a parameterized query — pg.Pool, pg.PoolClient, pg-mem. */
+export interface Queryable {
+  query<R extends pg.QueryResultRow = pg.QueryResultRow>(
+    text: string,
+    params?: readonly unknown[],
+  ): Promise<pg.QueryResult<R>>;
+}
+
+export type Pool = pg.Pool;
+
+export function createPool(connectionString = process.env.DATABASE_URL): pg.Pool {
+  if (!connectionString) {
+    throw new Error("DATABASE_URL is not set");
+  }
+  return new Pool({ connectionString, max: 10 });
+}
+
+/** Run `fn` inside a transaction, rolling back on error. */
+export async function withTransaction<T>(pool: pg.Pool, fn: (tx: Queryable) => Promise<T>): Promise<T> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await fn(client);
+    await client.query("COMMIT");
+    return result;
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+86be0505c7a7:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const path = 'packages/persistence/src/repositories/sessions.ts';
+> const source = fs.readFileSync(path, 'utf8');
+> const updated = source.replace('/** Create the session if absent; idempotent so ad-decision can ensure it exists. */', '/** Create the session if absent; othe
+rwise record its most recently associated channel. */').replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id'
+);
+> if (updated === source) throw new Error('No change made');
+> fs.writeFileSync(path, updated);
+> JS
+86be0505c7a7:/app# npx vitest run packages/persistence/src/repositories.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/persistence/src/repositories.test.ts (4)
+   ✓ seed + inventory repositories (2)
+     ✓ seeds 5 channels and assembles campaign target channels
+     ✓ returns creatives with numeric duration/priority/weight
+   ✓ decision persistence round-trip (PRD §46, §47) (1)
+     ✓ persists a decided pod and reads the full payload back
+   ✓ event stream (PRD §26, §29, §30) (1)
+     ✓ appends and reads events by session, ignoring duplicate event ids
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  16:54:12
+   Duration  549ms (transform 149ms, setup 0ms, collect 257ms, tests 162ms, environment 0ms, prepare 39ms)
+
+86be0505c7a7:/app#

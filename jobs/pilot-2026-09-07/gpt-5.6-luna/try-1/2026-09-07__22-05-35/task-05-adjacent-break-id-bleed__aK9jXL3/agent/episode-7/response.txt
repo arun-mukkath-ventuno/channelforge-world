@@ -1,0 +1,22 @@
+{
+  "analysis": "The defect is confirmed in `packages/data-plane/src/avails.ts`: `blockBreakId` is cleared only when a media URI is consumed. For back-to-back breaks, the first `CUE-IN` can be immediately followed by the next `CUE-OUT` before any URI, so the first break's DATERANGE ID remains in `blockBreakId` and is assigned to the second avail. The targeted fix is to clear `blockBreakId` when an avail closes at `CUE-IN`; this preserves all supported marker syntaxes and prevents cross-break ID carryover.",
+  "plan": "Run the existing data-plane avail tests first, patch only `avails.ts` by resetting the block-scoped ID after closing an avail, rerun the focused tests and typecheck/build, then inspect running processes and restart the data-plane service using its existing start mechanism.",
+  "commands": [
+    {
+      "keystrokes": "npm test --workspace @ssai/data-plane -- --runInBand\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('packages/data-plane/src/avails.ts')\ns = p.read_text()\nold = '''      });\n      open = null;\n      continue;\n'''\nnew = '''      });\n      open = null;\n      // A CUE-IN ends the marker block even when the next break starts\n      // immediately, without an intervening media segment. Do not let the\n      // previous break's DATERANGE ID attach to that next break.\n      blockBreakId = undefined;\n      continue;\n'''\nif old not in s:\n    raise SystemExit('target text not found')\np.write_text(s.replace(old, new, 1))\nPY\ngit diff -- packages/data-plane/src/avails.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm test --workspace @ssai/data-plane\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "npm run typecheck\n",
+      "duration": 5.0
+    }
+  ]
+}

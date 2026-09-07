@@ -1,0 +1,18 @@
+{
+  "analysis": "The defect is confirmed: the current query builds a list containing the asset ID and series ID, but then restricts RightsTakedown.scope_type to 'asset'. Therefore a series-scoped takedown can never match. The reference implementation removes that filter, but a more precise minimal fix is to match asset scope only against asset.id and series scope only against asset.series_id, avoiding any theoretical UUID collision. Git is unavailable in the container, so I will use file inspection and ensure only the application source is edited.",
+  "plan": "Check the repository imports for SQLAlchemy `or_`/`and_`, replace only active_takedown_for_asset with an explicit scope-type-aware predicate, run the focused rights, eligibility, and schedule tests, then inspect the changed function and restart the API with restart-api.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,45p' app/repositories/rights.py\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('app/repositories/rights.py')\ntext = p.read_text()\nold = '''def active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )\n'''\nnew = '''def active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset directly or via its series, if any.\"\"\"\n    scope_match = (RightsTakedown.scope_type == \"asset\") & (\n        RightsTakedown.scope_id == asset.id\n    )\n    if asset.series_id is not None:\n        scope_match = scope_match | (\n            (RightsTakedown.scope_type == \"series\")\n            & (RightsTakedown.scope_id == asset.series_id)\n        )\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            scope_match,\n        )\n    )\n'''\nif old not in text:\n    raise SystemExit('expected function text not found')\np.write_text(text.replace(old, new))\nPY\nsed -n '145,195p' app/repositories/rights.py\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "pytest -q tests/test_rights_takedown.py tests/test_schedule_rights.py tests/test_rights_engine.py tests/test_asset_metadata.py\n",
+      "duration": 1.0
+    }
+  ]
+}

@@ -1,0 +1,209 @@
+New Terminal Output:
+
+703450db135d:/app# node --input-type=module <<'NODE'
+> import { readFileSync, writeFileSync } from 'node:fs';
+> const file = 'packages/data-plane/src/avails.ts';
+> let s = readFileSync(file, 'utf8');
+> s = s.replace(
+> `const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;\n`,
+> `const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;\nconst CUE_OUT_CONT = /^#EXT-X-CUE-OUT-CONT(?::(.*))?$/;\n\nfunction continuationAttrs(value: str
+ing): { elapsed?: number; duration?: number } {\n  const attr = (name: string): number | undefined => {\n    const match = value.match(new RegExp(name + \\"=\\\
+\s*(\\\\d+(?:\\\\.\\\\d+)?)\\", \\"i\\"));\n    return match ? Number(match[1]) : undefined;\n  };\n  return { elapsed: attr(\"ElapsedTime\"), duration: attr(\"
+Duration\") };\n}\n`
+> );
+> s = s.replace(
+> `    const marker = parseMarkerLine(line, i);\n    if (marker?.kind === "daterange" && marker.id) {\n`,
+> `    const continuation = trimmed.match(CUE_OUT_CONT);\n    if (continuation && !open) {\n      const attrs = continuationAttrs(continuation[1] ?? "");\n
+ if (attrs.duration !== undefined) {\n        open = {\n          startLine: i,\n          // Corrected when the first visible segment reveals the playlist cade
+nce.\n          startSequence: mediaSequence,\n          measuredDuration: 0,\n          declaredDuration: attrs.duration,\n          ...(lastPdt === undefined
+? {} : { pdt: lastPdt }),\n          ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),\n        };\n        (open as typeof open & { ela
+psedTime?: number }).elapsedTime = attrs.elapsed;\n      }\n      continue;\n    }\n\n    const marker = parseMarkerLine(line, i);\n    if (marker?.kind === "da
+terange" && marker.id) {\n`
+> );
+> s = s.replace(
+> `    if (infMatch) {\n      const segDur = Number(infMatch[1]);\n      if (open) open.measuredDuration += segDur;\n`,
+> `    if (infMatch) {\n      const segDur = Number(infMatch[1]);\n      if (open) {\n        const continuationOpen = open as typeof open & { elapsedTime?: num
+ber };\n        if (continuationOpen.elapsedTime !== undefined && open.measuredDuration === 0) {\n          open.startSequence = Math.max(0, mediaSequence - Mat
+h.round(continuationOpen.elapsedTime / segDur));\n        }\n        open.measuredDuration += segDur;\n      }\n`
+> );
+> writeFileSync(file, s);
+> NODE
+703450db135d:/app# sed -n '30,145p' packages/data-plane/src/avails.ts
+  /** Line index of the CUE-IN marker. */
+  endLine: number;
+}
+
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+const CUE_OUT_CONT = /^#EXT-X-CUE-OUT-CONT(?::(.*))?$/;
+
+function continuationAttrs(value: string): { elapsed?: number; duration?: number } {
+  const attr = (name: string): number | undefined => {
+    const match = value.match(new RegExp(name + \"=\\s*(\\d+(?:\\.\\d+)?)\", \"i\"));
+    return match ? Number(match[1]) : undefined;
+  };
+  return { elapsed: attr("ElapsedTime"), duration: attr("Duration") };
+}
+
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+export function detectAvails(manifest: string, channelId: string): Avail[] {
+  const lines = manifest.split("\n");
+
+  let mediaSequence = 0;
+  let lastPdt: string | undefined;
+  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+    measuredDuration: number;
+    pdt?: string;
+    externalBreakId?: string;
+  } | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    if (seqMatch) {
+      mediaSequence = Number(seqMatch[1]);
+      continue;
+    }
+
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    if (pdtMatch) {
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const continuation = trimmed.match(CUE_OUT_CONT);
+    if (continuation && !open) {
+      const attrs = continuationAttrs(continuation[1] ?? "");
+      if (attrs.duration !== undefined) {
+        open = {
+          startLine: i,
+          // Corrected when the first visible segment reveals the playlist cadence.
+          startSequence: mediaSequence,
+          measuredDuration: 0,
+          declaredDuration: attrs.duration,
+          ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+          ...(blockBreakId === undefined ? {} : { externalBreakId:
+[... output limited to 10000 bytes; 68 interior bytes omitted ...]
+ }).elapsedTime = attrs.elapsed;
+      }
+      continue;
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) {
+703450db135d:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts packages/data-plane/src/media.test.ts
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/data-plane/src/avails.test.ts (0)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ❯ packages/data-plane/src/stitch.test.ts (0)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 2 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts [ packages/data-plane/src/avails.test.ts ]
+ FAIL  packages/data-plane/src/stitch.test.ts [ packages/data-plane/src/stitch.test.ts ]
+Error: Transform failed with 1 error:
+/app/packages/data-plane/src/avails.ts:41:49: ERROR: Syntax error '"'
+  Plugin: vite:esbuild
+  File: /app/packages/data-plane/src/avails.ts:41:49
+
+  Syntax error '"'
+  39 |  function continuationAttrs(value: string): { elapsed?: number; duration?: number } {
+  40 |    const attr = (name: string): number | undefined => {
+  41 |      const match = value.match(new RegExp(name + \"=\\s*(\\d+(?:\\.\\d+)?)\", \"i\"));
+     |                                                   ^
+  42 |      return match ? Number(match[1]) : undefined;
+  43 |    };
+
+ ❯ failureErrorWithLog node_modules/vite/node_modules/esbuild/lib/main.js:1472:15
+ ❯ node_modules/vite/node_modules/esbuild/lib/main.js:755:50
+ ❯ responseCallbacks.<computed> node_modules/vite/node_modules/esbuild/lib/main.js:622:9
+ ❯ handleIncomingPacket node_modules/vite/node_modules/esbuild/lib/main.js:677:12
+ ❯ Socket.readFromStdout node_modules/vite/node_modules/esbuild/lib/main.js:600:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ Test Files  2 failed | 1 passed (3)
+      Tests  5 passed (5)
+   Start at  16:50:54
+   Duration  363ms (transform 55ms, setup 0ms, collect 24ms, tests 4ms, environment 0ms, prepare 85ms)
+
+703450db135d:/app# npm run typecheck
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+packages/data-plane/src/avails.ts:41:49 - error TS1127: Invalid character.
+
+41     const match = value.match(new RegExp(name + \"=\\s*(\\d+(?:\\.\\d+)?)\", \"i\"));
+
+
+packages/data-plane/src/avails.ts:41:86 - error TS1002: Unterminated string literal.
+
+41     const match = value.match(new RegExp(name + \"=\\s*(\\d+(?:\\.\\d+)?)\", \"i\"));
+
+
+packages/data-plane/src/avails.ts:42:5 - error TS1005: ',' expected.
+
+42     return match ? Number(match[1]) : undefined;
+       ~~~~~~
+
+
+Found 3 errors.
+
+703450db135d:/app#

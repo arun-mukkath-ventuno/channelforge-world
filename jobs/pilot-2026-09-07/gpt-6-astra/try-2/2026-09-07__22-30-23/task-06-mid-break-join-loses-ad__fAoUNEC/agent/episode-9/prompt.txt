@@ -1,0 +1,106 @@
+New Terminal Output:
+
+c3e0c565748c:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const path='packages/data-plane/src/avails.ts';
+> let s=fs.readFileSync(path,'utf8');
+; never replay
+ * already elap> s=s.replace('  /** Line index of the CUE-OUT marker. */', '  /** Elapsed break time at a recovered continuation boundary. */\n  elapsedDuration
+?: number;\n  /** Line index of the CUE-OUT or recovered continuation marker. */');
+> s=s.replace('    externalBreakId?: string;\n  } | null', '    externalBreakId?: string;\n    elapsedDuration?: number;\n  } | null');
+> s=s.replace('    const marker = parseMarkerLine(line, i);', `    // A sliding window may start inside a break, with its CUE-OUT gone. Do not
+>     // treat continuations inside a normal CUE-OUT region as new opportunities.
+>     if (!open && trimmed.startsWith("#EXT-X-CUE-OUT-CONT:")) {
+>       const continuation = parseContinuation(trimmed);
+>       const nextInf = lines.slice(i + 1).find((l) => l.trim().match(EXTINF));
+>       const segmentDuration = Number(nextInf?.trim().match(EXTINF)?.[1]);
+>       if (continuation && segmentDuration > 0) {
+>         const skipped = continuation.elapsed / segmentDuration;
+>         const startSequence = mediaSequence - Math.round(skipped);
+>         // Sequence recovery requires a segment-aligned, fixed-cadence origin.
+>         // Never invent a fractional/negative opportunity key for malformed cues.
+>         if (Math.abs(skipped - Math.round(skipped)) < 1e-6 && startSequence >= 0) {
+>           open = {
+>             startLine: i,
+>             startSequence,
+>             declaredDuration: continuation.duration,
+>             elapsedDuration: continuation.elapsed,
+>             measuredDuration: 0,
+>             ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+>           };
+>         }
+>       }
+>       continue;
+>     }
+>
+>     const marker = parseMarkerLine(line, i);`);
+> s=s.replace('        measuredDuration: open.measuredDuration,', '        ...(open.elapsedDuration === undefined ? {} : { elapsedDuration: open.elapsedDuration
+ }),\n        measuredDuration: open.measuredDuration,');
+> s=s.replace('  return avails;\n}', `  // Unlike a bare trailing CUE-OUT, a continuation supplies the elapsed time
+>   // and total duration needed to render just the available live-window suffix.
+>   if (open?.elapsedDuration !== undefined && open.measuredDuration > 0) {
+>     avails.push({
+>       opportunityId: \`opp_\${channelId}_\${open.startSequence}\`,
+>       channelId,
+>       duration: open.declaredDuration!,
+>       declaredDuration: open.declaredDuration!,
+>       measuredDuration: open.measuredDuration,
+>       elapsedDuration: open.elapsedDuration,
+>       startSequence: open.startSequence,
+>       startLine: open.startLine,
+>       endLine: lines.length - 1,
+>       ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>     });
+>   }
+>   return avails;
+> }
+>
+> /** Common continuation forms: elapsed/total and ElapsedTime=…,Duration=…. */
+> function parseContinuation(line: string): { elapsed: number; duration: number } | null {
+>   const value = line.slice("#EXT-X-CUE-OUT-CONT:".length).trim();
+>   const pair = value.match(/^(\\d+(?:\\.\\d+)?)\\/(\\d+(?:\\.\\d+)?)$/);
+>   const attr = (name: string) => value.match(new RegExp(\`(?:^|,)\\\\s*\${name}=(?:"(\\\\d+(?:\\\\.\\\\d+)?)"|(\\\\d+(?:\\\\.\\\\d+)?))(?=,|$)\`, "i"));
+>   const elapsedAttr = attr("ElapsedTime");
+>   const durationAttr = attr("Duration");
+>   const elapsed = Number(pair?.[1] ?? elapsedAttr?.[1] ?? elapsedAttr?.[2] ?? NaN);
+>   const duration = Number(pair?.[2] ?? durationAttr?.[1] ?? durationAttr?.[2] ?? NaN);
+>   return Number.isFinite(elapsed) && Number.isFinite(duration) && elapsed >= 0 && duration > elapsed
+>     ? { elapsed, duration }
+>     : null;
+> }`);
+> fs.writeFileSync(path,s);
+> const stitch='packages/data-plane/src/stitch.ts';
+> s=fs.readFileSync(stitch,'utf8');
+> s=s.replace('    const pod = avail ? rendered.get(avail.opportunityId) : undefined;', `    let pod = avail ? rendered.get(avail.opportunityId) : undefined;
+>     if (avail?.elapsedDuration !== undefined && pod) {
+>       pod = visiblePod(pod, avail.elapsedDuration, Math.min(avail.duration, avail.elapsedDuration + avail.measuredDuration));
+>     }`);
+> s += `
+> /** Keep whole prepared segments overlapping the visible suffix; never replay
+>  * already elapsed pod items or append the unseen remainder of a live break. */
+> function visiblePod(pod: RenderedPodItem[], start: number, end: number): RenderedPodItem[] {
+>   return pod.flatMap((item) => {
+>     let offset = item.startOffset;
+>     let firstOffset: number | undefined;
+>     const segments = item.segments.filter((segment) => {
+>       const segmentStart = offset;
+>       offset += segment.duration;
+>       const visible = offset > start && segmentStart < end;
+>       if (visible && firstOffset === undefined) firstOffset = segmentStart;
+>       return visible;
+>     });
+>     return segments.length ? [{ ...item, startOffset: firstOffset!,
+>       duration: segments.reduce((sum, segment) => sum + segment.duration, 0), segments }] : [];
+>   });
+> }
+> `;
+> fs.writeFileSync(stitch,s);
+> JS
+c3e0c565748c:/app# npx vitest run packages/data-plane/src
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+

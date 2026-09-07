@@ -1,0 +1,257 @@
+New Terminal Output:
+
+c97b28b93225:/app# printf '%s\n' '-- core scte.ts --' && sed -n '1,260p' packages/core/src/scte.ts && printf '%s\n' '-- core scte tests --' && sed -n '1,280p' p
+ackages/core/src/scte.test.ts && printf '%s\n' '-- core types --' && sed -n '1,180p' packages/core/src/types.ts
+-- core scte.ts --
+// HLS ad-marker parsing (PRD §9, §22, §41).
+//
+// Supports the MVP-preferred form and common interoperability variants:
+//   #EXT-X-CUE-OUT:60
+//   #EXT-X-CUE-OUT:DURATION=60
+//   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+//   #EXT-X-CUE-IN
+//   #EXT-X-DATERANGE:...,DURATION=60,SCTE35-OUT=...
+//
+// This parser is deliberately tolerant: an unparseable duration does not throw,
+// it yields a marker flagged invalid so the caller can apply PRD §41 fallback
+// (infer the boundary from CUE-IN, otherwise preserve origin).
+
+export interface ParsedMarker {
+  kind: "cue_out" | "cue_in" | "daterange";
+  /** Break duration in seconds, when the marker carries one. */
+  duration?: number;
+  /** Line index within the manifest where the marker was found. */
+  lineIndex: number;
+  /** DATERANGE id / raw payload, retained for debugging (PRD §46). */
+  raw: string;
+  /** DATERANGE ID attribute, when present. ChannelForge threads its stable break_id here
+   *  (`#EXT-X-DATERANGE:ID="BRK-…"`), so downstream reconciliation can key on it. */
+  id?: string;
+  /** True when a duration was expected but could not be parsed (PRD §41). */
+  invalidDuration?: boolean;
+}
+
+const SECONDS = /^-?\d+(\.\d+)?$/;
+
+/** Parse a single manifest line into a marker, or null if it is not one. */
+export function parseMarkerLine(line: string, lineIndex: number): ParsedMarker | null {
+  const trimmed = line.trim();
+
+  // CUE-IN: no attributes.
+  if (trimmed === "#EXT-X-CUE-IN") {
+    return { kind: "cue_in", lineIndex, raw: trimmed };
+  }
+
+  // CUE-OUT: value may be a bare number or DURATION=<n>.
+  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+    const value = trimmed.slice("#EXT-X-CUE-OUT".length).replace(/^:/, "").trim();
+    const duration = parseCueOutDuration(value);
+    return {
+      kind: "cue_out",
+      lineIndex,
+      raw: trimmed,
+      ...(duration === null ? { invalidDuration: value.length > 0 } : { duration }),
+    };
+  }
+
+  // DATERANGE: pull DURATION and PLANNED-DURATION attributes if present.
+  if (trimmed.startsWith("#EXT-X-DATERANGE")) {
+    const attrs = trimmed.slice("#EXT-X-DATERANGE".length).replace(/^:/, "");
+    const duration = parseAttr(attrs, "DURATION") ?? parseAttr(attrs, "PLANNED-DURATION");
+    const id = parseStringAttr(attrs, "ID");
+    return {
+      kind: "daterange",
+      lineIndex,
+      raw: trimmed,
+      ...(duration === null ? {} : { duration }),
+      ...(id === null ? {} : { id }),
+    };
+  }
+
+  return null;
+}
+
+/** Accepts `60`, `60.0`, `DURATION=60`, or `DURATION=60,...`. Returns null if absent/invalid. */
+function parseCueOutDuration(value: string): number | null {
+  if (value.length === 0) return null;
+  if (SECONDS.test(value)) {
+    const n = Number(value);
+    return n >= 0 ? n : null;
+  }
+  // Attribute form: DURATION=60 (possibly with more comma-separated attrs).
+  return parseAttr(value, "DURATION");
+}
+
+/** Parse `KEY=value` (optionally quoted) out of a comma-separated attribute list. */
+function parseAttr(attrs: string, key: string): number | null {
+  const re = new RegExp(`${key}=("?)(-?\\d+(?:\\.\\d+)?)\\1`, "i");
+  const m = attrs.match(re);
+  if (!m) return null;
+  const n = Number(m[2]);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Parse a string `KEY="value"` (or bare `KEY=value`) attribute; null if absent/empty. */
+function parseStringAttr(attrs: string, key: string): string | null {
+  const re = new RegExp(`${key}=(?:"([^"]*)"|([^,\\s]+))`, "i");
+  const m = attrs.match(re);
+  if (!m) return null;
+  const value = m[1] ?? m[2] ?? "";
+  return value.length > 0 ? value : null;
+}
+-- core scte tests --
+import { describe, it, expect } from "vitest";
+import { parseMarkerLine } from "./scte.js";
+
+describe("parseMarkerLine — cue markers (PRD §9, §60 task 3)", () => {
+  it("parses bare-number CUE-OUT: #EXT-X-CUE-OUT:60", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:60", 5);
+    expect(m).toMatchObject({ kind: "cue_out", duration: 60, lineIndex: 5 });
+  });
+
+  it("parses attribute-form CUE-OUT: #EXT-X-CUE-OUT:DURATION=60", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=60", 0);
+    expect(m).toMatchObject({ kind: "cue_out", duration: 60 });
+  });
+
+  it("parses DURATION with extra attributes", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=90,SCTE35=abc", 0);
+    expect(m?.duration).toBe(90);
+  });
+
+  it("parses fractional durations", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:29.97", 0);
+    expect(m?.duration).toBeCloseTo(29.97);
+  });
+
+  it("parses CUE-IN with no
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ externalBreakId?: string;
+c97b28b93225:/app# printf '%s\n' '-- data-plane files --' && find packages/data-plane -maxdepth 3 -type f | sort && printf '%s\n' '-- data-plane manifest --' &&
+ cat packages/data-plane/package.json
+-- data-plane files --
+packages/data-plane/dist/avails.d.ts
+packages/data-plane/dist/avails.d.ts.map
+packages/data-plane/dist/avails.js
+packages/data-plane/dist/avails.js.map
+packages/data-plane/dist/decider.d.ts
+packages/data-plane/dist/decider.d.ts.map
+packages/data-plane/dist/decider.js
+packages/data-plane/dist/decider.js.map
+packages/data-plane/dist/media.d.ts
+packages/data-plane/dist/media.d.ts.map
+packages/data-plane/dist/media.js
+packages/data-plane/dist/media.js.map
+packages/data-plane/dist/origin-rewrite.d.ts
+packages/data-plane/dist/origin-rewrite.d.ts.map
+packages/data-plane/dist/origin-rewrite.js
+packages/data-plane/dist/origin-rewrite.js.map
+packages/data-plane/dist/origin.d.ts
+packages/data-plane/dist/origin.d.ts.map
+packages/data-plane/dist/origin.js
+packages/data-plane/dist/origin.js.map
+packages/data-plane/dist/segment.d.ts
+packages/data-plane/dist/segment.d.ts.map
+packages/data-plane/dist/segment.js
+packages/data-plane/dist/segment.js.map
+packages/data-plane/dist/server.d.ts
+packages/data-plane/dist/server.d.ts.map
+packages/data-plane/dist/server.js
+packages/data-plane/dist/server.js.map
+packages/data-plane/dist/stitch.d.ts
+packages/data-plane/dist/stitch.d.ts.map
+packages/data-plane/dist/stitch.js
+packages/data-plane/dist/stitch.js.map
+packages/data-plane/package.json
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/avails.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/segment.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/stitch.ts
+packages/data-plane/tsconfig.json
+packages/data-plane/tsconfig.tsbuildinfo
+-- data-plane manifest --
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+c97b28b93225:/app# printf '%s\n' '-- persistence opportunity code --' && sed -n '1,220p' packages/persistence/src/repositories/opportunities.ts && printf '%s\n'
+ '-- persistence files --' && find packages/persistence/src -type f -maxdepth 3 -print
+-- persistence opportunity code --
+// Ad opportunity repository (PRD §10, §45).
+
+import type { AdOpportunity } from "@ssai/core";
+import type { Queryable } from "../db.js";
+
+export async function upsertOpportunity(db: Queryable, opp: AdOpportunity): Promise<void> {
+  await db.query(
+    `INSERT INTO ad_opportunities (id, channel_id, external_break_id, program_id, start_time, duration, marker_type, marker_payload, status)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'detected')
+     ON CONFLICT (id) DO UPDATE SET
+       duration = EXCLUDED.duration,
+       marker_type = EXCLUDED.marker_type,
+       marker_payload = EXCLUDED.marker_payload,
+       -- keep a previously-captured break id if a later decision omits it (COALESCE new-first).
+       external_break_id = COALESCE(EXCLUDED.external_break_id, ad_opportunities.external_break_id)`,
+    [
+      opp.opportunityId,
+      opp.channelId,
+      opp.externalBreakId ?? null,
+      opp.programId ?? null,
+      opp.breakStart,
+      opp.breakDuration,
+      opp.signalType,
+      opp.source,
+    ],
+  );
+}
+-- persistence files --
+packages/persistence/src/map.ts
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/reconciliation.test.ts
+packages/persistence/src/index.ts
+packages/persistence/src/analytics.test.ts
+packages/persistence/src/cli/migrate.ts
+packages/persistence/src/cli/seed.ts
+packages/persistence/src/migrate.ts
+packages/persistence/src/seed.ts
+packages/persistence/src/db.ts
+packages/persistence/src/analytics.ts
+packages/persistence/src/pod-cache.test.ts
+packages/persistence/src/reconciliation.ts
+packages/persistence/src/pod-cache.ts
+packages/persistence/src/repositories/opportunities.ts
+packages/persistence/src/repositories/channels.ts
+packages/persistence/src/repositories/events.ts
+packages/persistence/src/repositories/slates.ts
+packages/persistence/src/repositories/creatives.ts
+packages/persistence/src/repositories/decisions.ts
+packages/persistence/src/repositories/sessions.ts
+packages/persistence/src/repositories/beacons.ts
+packages/persistence/src/repositories/campaigns.ts
+c97b28b93225:/app#

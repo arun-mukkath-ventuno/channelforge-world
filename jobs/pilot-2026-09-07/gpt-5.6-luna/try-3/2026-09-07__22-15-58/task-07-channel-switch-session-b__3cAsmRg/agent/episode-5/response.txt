@@ -1,0 +1,18 @@
+{
+  "analysis": "The defect is identified: ensureSession inserts the initial channel but uses `ON CONFLICT (id) DO NOTHING`, so later requests with the same session id never update `channel_id`. The targeted fix is to change the conflict clause to update `channel_id` (and leave decisions, opportunities, and events untouched). I will inspect the callers and runtime setup before editing, then patch only sessions.ts.",
+  "plan": "Confirm ensureSession is called for each ad-decision/session association and inspect service scripts/processes to determine whether the running service uses source via tsx or compiled dist. Apply the one-line SQL change, run the relevant persistence tests and typecheck, then restart the affected control/data service using the discovered runtime mechanism. Verify the process is running afterward.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' 'ensureSession callers:'; grep -RIn 'ensureSession' packages --exclude-dir=node_modules --exclude-dir=dist --include='*.ts'; printf '%s\\n' 'Service manifests:'; for f in packages/control-plane/package.json packages/data-plane/package.json; do echo ---$f; cat \"$f\"; done\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Runtime processes:'; ps auxww; printf '%s\\n' 'Containers/services hints:'; find /app -maxdepth 2 -type f \\( -name 'Dockerfile*' -o -name 'docker-compose*' -o -name '*.sh' \\) -print 2>/dev/null | sort\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Relevant server snippets:'; grep -RIn -C 8 'ensureSession' packages/control-plane/src packages/data-plane/src --include='*.ts' || true; printf '%s\\n' 'sessions git status:'; git status --short 2>/dev/null || true\n",
+      "duration": 0.5
+    }
+  ]
+}

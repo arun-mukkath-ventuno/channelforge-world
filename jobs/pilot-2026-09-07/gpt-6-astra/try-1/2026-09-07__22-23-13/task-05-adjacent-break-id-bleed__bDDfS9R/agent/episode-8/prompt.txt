@@ -1,0 +1,44 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+Current Terminal Screen:
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  9 passed (9)
+      Tests  63 passed (63)
+   Start at  16:56:44
+   Duration  1.20s (transform 136ms, setup 0ms, collect 192ms, tests 37ms, environment 1ms, prepare 293ms)
+
+c3585fac47ee:/app# nohup node --import tsx /app/packages/data-plane/src/server.ts >/dev/null 2>&1 &
+[1] 633
+c3585fac47ee:/app# wget -qO- http://localhost:4010/health; printf '\n'; ps aux | grep '[n]ode'; sed -n '73,94p' packages/data-plane/src/avails.ts
+wget: can't connect to remote host: Connection refused
+
+  633 root      0:00 node --import tsx /app/packages/data-plane/src/server.ts
+  641 root      0:00 /app/node_modules/@esbuild/linux-arm64/bin/esbuild --service=0.28.2 --ping
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      // Closing updates can share a tag block with the next CUE-OUT. They must not
+      // seed that break's id. Keep generic and combined OUT/IN DATERANGEs supported.
+      const attrs = marker.raw.slice("#EXT-X-DATERANGE".length).replace(/^:/, "");
+      const keys = Array.from(attrs.matchAll(/(?:^|,)\s*([^=,\s]+)=(?:"[^"]*"|[^,]*)/g),
+        (match) => match[1]!.toUpperCase());
+      if (keys.includes("SCTE35-IN") && !keys.includes("SCTE35-OUT")) continue;
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+c3585fac47ee:/app#

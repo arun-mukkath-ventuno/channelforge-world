@@ -1,0 +1,93 @@
+Current terminal state:
+New Terminal Output:
+
+727f8e3dc8f6:/app# npx vitest run packages/data-plane/src/media.test.ts packages/data-plane/src/origin.test.ts packages/data-plane/src/origin-slice4.test.ts pac
+kages/data-plane/src/stitch.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  4 passed (4)
+      Tests  19 passed (19)
+   Start at  16:40:35
+   Duration  542ms (transform 83ms, setup 0ms, collect 105ms, tests 13ms, environment 1ms, prepare 133ms)
+
+727f8e3dc8f6:/app# npm run build --workspace @ssai/data-plane
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+727f8e3dc8f6:/app# printf '%s\n' 'Modified application source:'; grep -n -A30 -B5 'late tune-in' packages/data-plane/src/avails.ts; printf '%s\n' 'Built artifac
+t:'; grep -n -A25 -B4 'late tune-in' packages/data-plane/dist/avails.js; printf '%s\n' 'Running service processes:'; ps -ef 2>/dev/null | grep -E 'data-plane|co
+ntrol-plane|dist/server' | grep -v grep || true
+Modified application source:
+109-      mediaSequence += 1;
+110-      blockBreakId = undefined;
+111-    }
+112-  }
+113-
+114:  // A late tune-in can see the middle of a break without its CUE-IN: the
+115-  // origin window ends before the break does. Treat the visible portion as an
+116-  // active avail so it uses the same deterministic opportunity id and session
+117-  // decision/cache path as a continuously-polling viewer.
+118-  if (open) {
+119-    finishAvail(open, lines.length - 1);
+120-  }
+121-
+122-  return avails;
+123-
+124-  function finishAvail(state: NonNullable<typeof open>, endLine: number): void {
+125-    const declared = state.declaredDuration;
+126-    avails.push({
+127-      opportunityId: `opp_${channelId}_${state.startSequence}`,
+128-      channelId,
+129-      ...(state.externalBreakId === undefined ? {} : { externalBreakId: state.externalBreakId }),
+130-      duration: declared ?? state.measuredDuration,
+131-      ...(declared === undefined ? {} : { declaredDuration: declared }),
+132-      measuredDuration: state.measuredDuration,
+133-      startSequence: state.startSequence,
+134-      ...(state.pdt === undefined ? {} : { programDateTime: state.pdt }),
+135-      startLine: state.startLine,
+136-      endLine,
+137-    });
+138-  }
+139-}
+Built artifact:
+72-            mediaSequence += 1;
+73-            blockBreakId = undefined;
+74-        }
+75-    }
+76:    // A late tune-in can see the middle of a break without its CUE-IN: the
+77-    // origin window ends before the break does. Treat the visible portion as an
+78-    // active avail so it uses the same deterministic opportunity id and session
+79-    // decision/cache path as a continuously-polling viewer.
+80-    if (open) {
+81-        finishAvail(open, lines.length - 1);
+82-    }
+83-    return avails;
+84-    function finishAvail(state, endLine) {
+85-        const declared = state.declaredDuration;
+86-        avails.push({
+87-            opportunityId: `opp_${channelId}_${state.startSequence}`,
+88-            channelId,
+89-            ...(state.externalBreakId === undefined ? {} : { externalBreakId: state.externalBreakId }),
+90-            duration: declared ?? state.measuredDuration,
+91-            ...(declared === undefined ? {} : { declaredDuration: declared }),
+92-            measuredDuration: state.measuredDuration,
+93-            startSequence: state.startSequence,
+94-            ...(state.pdt === undefined ? {} : { programDateTime: state.pdt }),
+95-            startLine: state.startLine,
+96-            endLine,
+97-        });
+98-    }
+99-}
+100-//# sourceMappingURL=avails.js.map
+Running service processes:
+727f8e3dc8f6:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

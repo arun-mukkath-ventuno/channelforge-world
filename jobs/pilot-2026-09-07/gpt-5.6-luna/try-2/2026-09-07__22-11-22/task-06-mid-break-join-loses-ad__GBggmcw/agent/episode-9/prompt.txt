@@ -1,0 +1,78 @@
+New Terminal Output:
+
+26a4261744ce:/app# nl -ba packages/data-plane/src/avails.ts | sed -n '90,190p'
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+    99	        opportunityId: `opp_${channelId}_${open.startSequence}`,
+   100	        channelId,
+   101	        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+   102	        duration: declared ?? open.measuredDuration,
+   103	        ...(declared === undefined ? {} : { declaredDuration: declared }),
+   104	        measuredDuration: open.measuredDuration,
+   105	        startSequence: open.startSequence,
+   106	        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+   107	        startLine: open.startLine,
+   108	        endLine: i,
+   109	      });
+   110	      open = null;
+   111	      continue;
+   112	    }
+   113	
+   114	    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+   115	    const infMatch = trimmed.match(EXTINF);
+   116	    if (infMatch) {
+   117	      const segDur = Number(infMatch[1]);
+   118	      if (open) open.measuredDuration += segDur;
+   119	      // The URI line follows; advance the sequence when we consume it below.
+   120	    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+   121	      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+   122	      mediaSequence += 1;
+   123	      blockBreakId = undefined;
+   124	    }
+   125	  }
+   126	
+   127	  return avails;
+   128	}
+26a4261744ce:/app# python3 - <<'PY'
+> from pathlib import Path
+> p = Path('packages/data-plane/src/avails.ts')
+> s = p.read_text()
+> s = s.replace('''/** Detect all complete avails in the manifest. Incomplete trailing avails (a\n *  CUE-OUT with no CUE-IN yet in the window) are ignored — PR
+D §41. */''', '''/** Detect all avails visible in the manifest, including an active trailing\n * avail whose CUE-IN has not entered the live window yet. */''')
+> needle = '''    }\n  }\n\n  return avails;\n}'''
+> replacement = '''    }\n  }\n\n  // A live playlist may begin or end while a break is in progress, so its\n  // CUE-IN can be outside this window. Expose the
+visible portion using the\n  // same start-sequence opportunity id; this lets reconnecting sessions reuse\n  // the decision made before the window slid.\n  if
+(open) {\n    const declared = open.declaredDuration;\n    avails.push({\n      opportunityId: `opp_${channelId}_${open.startSequence}`,\n      channelId,\n
+  ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),\n      duration: declared ?? open.measuredDuration,\n      ...(decla
+red === undefined ? {} : { declaredDuration: declared }),\n      measuredDuration: open.measuredDuration,\n      startSequence: open.startSequence,\n      ...(o
+pen.pdt === undefined ? {} : { programDateTime: open.pdt }),\n      startLine: open.startLine,\n      endLine: lines.length - 1,\n    });\n  }\n\n  return avail
+s;\n}'''
+> if needle not in s:
+>     raise SystemExit('target not found')
+> p.write_text(s.replace(needle, replacement, 1))
+> PY
+bash: python3: command not found
+26a4261744ce:/app#
+26a4261744ce:/app# git diff -- packages/data-plane/src/avails.ts
+bash: git: command not found
+26a4261744ce:/app# npm run typecheck
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+26a4261744ce:/app# npm run build --workspace @ssai/data-plane
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+26a4261744ce:/app# node --input-type=module -e "import('./packages/data-plane/dist/avails.js').then(({detectAvails})=>console.log(detectAvails('#EXT-X-MEDIA-SEQ
+UENCE:100\\n#EXT-X-CUE-OUT:30\\n#EXTINF:6.000,\\nslate.ts','ch')))"
+[]
+26a4261744ce:/app#

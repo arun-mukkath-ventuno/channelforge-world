@@ -1,0 +1,18 @@
+{
+  "analysis": "The relevant implementation is clearly in packages/persistence/src/repositories/sessions.ts, with likely callers in control-plane/data-plane. The grep issue is not material; the file list gives the target. I will read the session repository, repository tests for existing behavior, and call sites importing or invoking session methods.",
+  "plan": "Inspect sessions.ts and the surrounding repository APIs. Determine whether the existing-session path uses an insert that ignores channel changes or an update that omits channel_id. Then inspect callers to ensure the fix belongs in persistence and does not alter event/decision scoping. After patching, run focused persistence tests and typecheck, inspect git diff, and identify the running service process/container to restart.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' 'sessions.ts:'; sed -n '1,260p' packages/persistence/src/repositories/sessions.ts; printf '%s\\n' 'repository tests session excerpts:'; grep -n -C 8 -iE 'session|channel' packages/persistence/src/repositories.test.ts | head -260\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Session method references:'; grep -RInE 'sessions|ensureSession|createSession|upsertSession|findSession|session' packages/control-plane/src packages/data-plane/src packages/persistence/src --include='*.ts' --exclude='*.test.ts' | head -300\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Schema session/channel definitions:'; grep -n -C 12 -iE 'create table.*session|session|channel_id' migrations/*.sql | head -300\n",
+      "duration": 0.5
+    }
+  ]
+}

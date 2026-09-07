@@ -1,0 +1,14 @@
+{
+  "analysis": "The probe reproduced the bug exactly: both breaks were assigned 'first'. The targeted change now ignores SCTE35-IN-only DATERANGEs for producer-ID association, without changing the shared parser or requiring SCTE35-OUT on previously supported generic markers.",
+  "plan": "Validate adjacent breaks across closing/opening marker orderings, missing IDs, generic markers, mixed-case attributes, and combined OUT/IN syntax using in-memory assertions. Run the existing core and data-plane tests, then start the data-plane directly from updated TypeScript so no generated files need modification.",
+  "commands": [
+    {
+      "keystrokes": "node --import tsx --input-type=module <<'JS'\nimport assert from 'node:assert/strict';\nimport { detectAvails } from './packages/data-plane/src/avails.ts';\nlet checks = 0;\nfor (const closing of ['SCTE35-IN=0xFC', 'scte35-in=\"0xFC\"', 'SCTE35-IN=0xFC,X-NOTE=\"x,SCTE35-OUT=fake\"']) {\n  for (const opening of ['SCTE35-OUT=0xFC', 'PLANNED-DURATION=6', 'SCTE35-OUT=0xFC,SCTE35-IN=0xFD', 'X-NOTE=\"x,SCTE35-IN=fake\"', null]) {\n    for (const closeBefore of [true, false]) for (const openBefore of [true, false]) {\n      const end = `#EXT-X-DATERANGE:ID=\"first\",${closing}`;\n      const start = opening === null ? [] : [`#EXT-X-DATERANGE:ID=\"second\",${opening}`];\n      const lines = ['#EXTM3U','#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID=\"first\",SCTE35-OUT=0xFC','#EXTINF:6,','a.ts',...(closeBefore ? [end,'#EXT-X-CUE-IN'] : ['#EXT-X-CUE-IN',end]),...(openBefore ? [...start,'#EXT-X-CUE-OUT:6'] : ['#EXT-X-CUE-OUT:6',...start]),'#EXTINF:6,','b.ts','#EXT-X-CUE-IN'];\n      const avails = detectAvails(lines.join('\\n'), 'ch');\n      assert.deepEqual(avails.map(a => a.externalBreakId), ['first', opening === null ? undefined : 'second']);\n      assert.deepEqual(avails.map(a => [a.opportunityId, a.duration, a.measuredDuration]), [['opp_ch_0',6,6],['opp_ch_1',6,6]]);\n      checks++;\n    }\n  }\n}\nconsole.log(`${checks} adjacent-break cases passed`);\nJS\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "npx vitest run packages/core/src packages/data-plane/src\n",
+      "duration": 1
+    }
+  ]
+}

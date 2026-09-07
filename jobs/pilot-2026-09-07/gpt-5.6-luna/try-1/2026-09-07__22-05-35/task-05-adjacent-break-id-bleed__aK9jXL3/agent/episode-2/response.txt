@@ -1,0 +1,18 @@
+{
+  "analysis": "The application is a TypeScript monorepo under packages. The likely runtime service is data-plane, with related core and persistence packages. The previous search was obscured by nested dependencies and generated dist files, so the next step is to search only source files and inspect package scripts and relevant source modules.",
+  "plan": "Search packages/*/src for cue, SCTE, splice, break, producer, and delivery terms. Inspect data-plane and core package manifests to determine runtime/restart commands. Then read the candidate parser/state-management code and existing tests before applying a minimal fix.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- source references --'; grep -RInE 'cue|marker|SCTE|splice|break.?id|producer|delivery|avail' packages --include='*.ts' --include='*.tsx' --exclude-dir=node_modules --exclude-dir=dist 2>/dev/null | head -400\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- package manifests --'; for f in packages/*/package.json; do echo \"### $f\"; cat \"$f\"; done\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- source files --'; find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -type f \\( -name '*.ts' -o -name '*.tsx' \\) -print | sort\n",
+      "duration": 0.5
+    }
+  ]
+}

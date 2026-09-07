@@ -1,0 +1,14 @@
+{
+  "analysis": "The test failures are unrelated to my fix - they're about missing migrations directory. These are pre-existing test infrastructure failures, not related to my changes.\n\nLet me run just the data-plane and core tests which are the relevant ones.",
+  "plan": "Run the relevant tests.",
+  "commands": [
+    {
+      "keystrokes": "cd packages/data-plane && npx vitest run 2>&1 | tail -20\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "cd /app/packages/core && npx vitest run 2>&1 | tail -20\n",
+      "duration": 10.0
+    }
+  ]
+}

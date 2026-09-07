@@ -1,0 +1,22 @@
+{
+  "analysis": "The key bug is visible in avails.ts: a DATERANGE ID is stored in blockBreakId and only cleared at segment boundaries, while a back-to-back break can begin before a segment boundary. Also, cue_out only opens when !open, so if adjacent cue markers are represented without the expected intervening segment/CUE-IN state transition, the second break can retain the first break's ID. I need inspect the omitted completion/reset logic and exact playlist fixtures before editing.",
+  "plan": "Print the complete avails implementation and tests in smaller chunks, especially lines 90 onward and the back-to-back-related fixtures. Confirm whether the correct targeted fix is to scope DATERANGE pairing to the cue-out marker block and clear the pending ID after attaching it, or to finalize/reset an existing avail when a new cue-out arrives. Then run the existing tests and add no test files.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.ts | sed -n '90,220p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.test.ts | sed -n '1,180p'\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/stitch.ts | sed -n '1,260p'; nl -ba packages/data-plane/src/stitch.ts | sed -n '260,520p'\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "grep -RInE 'detectAvails|upsertOpportunity|externalBreakId|breakStart' packages/control-plane/src packages/data-plane/src packages/persistence/src --include='*.ts' 2>/dev/null\n",
+      "duration": 0.3
+    }
+  ]
+}

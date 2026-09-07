@@ -1,0 +1,14 @@
+{
+  "analysis": "The useful portion of the search identifies persistence repositories for ad decisions and playback sessions, but the output is still contaminated by nested workspace dependencies/generated binaries. The likely defect is in the data-plane manifest/session path, not persistence itself. I need inspect the package layout and directly read the data-plane, core, and persistence source files plus relevant tests.",
+  "plan": "Enumerate only immediate package directories and source files using explicit package paths, avoiding recursive node_modules traversal. Then inspect data-plane entrypoints/routes and all files mentioning manifest or opportunity handling. I will also inspect decision repository APIs to see whether an existing decision can be reused after a reconnect.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' 'Packages:'; for d in packages/*; do [ -d \"$d\" ] && echo \"$d\"; done; printf '%s\\n' 'Package source summaries:'; for d in packages/*; do [ -d \"$d/src\" ] || continue; echo \"--- $d\"; find \"$d/src\" -maxdepth 3 -type f \\( -name '*.ts' -o -name '*.tsx' \\) -print | sort; done\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Data-plane matches:'; find packages/data-plane/src -type f -name '*.ts' -print0 2>/dev/null | xargs -0 grep -nE -e 'manifest' -e 'opportun' -e 'break' -e 'decision' -e 'session' | sed -n '1,360p'; printf '%s\\n' 'Core/persistence matches:'; find packages/core/src packages/persistence/src -type f -name '*.ts' -print0 2>/dev/null | xargs -0 grep -nE -e 'opportun' -e 'break' -e 'decision' -e 'session' | sed -n '1,260p'\n",
+      "duration": 1.0
+    }
+  ]
+}

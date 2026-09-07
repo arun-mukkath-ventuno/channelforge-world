@@ -1,0 +1,15 @@
+{
+  "analysis": "The targeted fix is now applied and the production build succeeds. The focused SSAI tests pass. The restart command started Next successfully, but the log ends with exit code 143, so the service may have been terminated during PID cleanup or may not remain running. I need perform one final service-health check and, if necessary, start it without killing the current shell/process tree.",
+  "plan": "Check the current process list using BusyBox-supported columns and query localhost:3000. If the service is unavailable, start `pnpm start` in the background and verify with curl and the service log. The source fix and build should otherwise be left unchanged.",
+  "commands": [
+    {
+      "keystrokes": "echo '--- processes ---'; ps -o pid,ppid,stat,args; echo '--- health ---'; wget -q -O /tmp/fast-health.out http://127.0.0.1:3000/ || true; wc -c /tmp/fast-health.out 2>/dev/null; head -c 120 /tmp/fast-health.out 2>/dev/null; echo\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "if ! wget -q -O /tmp/fast-health.out http://127.0.0.1:3000/; then (pnpm start > /tmp/fast-world-tv.log 2>&1 & echo $! > /tmp/fast-world-tv.pid); sleep 3; fi; echo '--- final processes ---'; ps -o pid,ppid,stat,args; echo '--- final health ---'; wget -q -O /tmp/fast-health.out http://127.0.0.1:3000/; echo \"status=$? bytes=$(wc -c < /tmp/fast-health.out)\"; echo '--- service log ---'; cat /tmp/fast-world-tv.log\n",
+      "duration": 4.0
+    }
+  ],
+  "task_complete": true
+}

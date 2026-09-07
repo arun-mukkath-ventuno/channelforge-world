@@ -1,0 +1,133 @@
+New Terminal Output:
+
+a70d44d4f502:/app# python3 - <<'PY'
+> p = 'src/lib/ssai.ts'
+> s = open(p).read()
+> s = s.replace('export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\n  const body = JSON.stringify({ event, session_id: sess
+ionId, ad_id: adId });', '''export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, start: number): void {
+>   // Ingestion honors event_id; its fallback key lacks the airing's start time.
+>   // Use the manifest's absolute start so refreshes/re-sends keep the same identity.
+>   const eventId = JSON.stringify([sessionId, adId, start, event]);
+>   const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, event_id: eventId });''')
+> s = s.replace('sendAdBeacon(opts.sessionId, beacon, w.adId);', 'sendAdBeacon(opts.sessionId, beacon, w.adId, w.start);')
+> open(p, 'w').write(s)
+> PY
+a70d44d4f502:/app# pnpm test
+
+> fast-world-tv@0.1.0 test /app
+> vitest run
+
+
+ RUN  v3.2.7 /app
+
+
+ ✓ src/lib/ssai.test.ts (2 tests) 3ms
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 10 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/admin-auth.test.ts [ src/lib/admin-auth.test.ts ]
+Error: Cannot find package '@/lib/admin-auth' imported from '/app/src/lib/admin-auth.test.ts'
+ ❯ src/lib/admin-auth.test.ts:2:1
+      1| import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+      2| import {
+       | ^
+      3|   passwordOk,
+      4|   passwordConfigured,
+
+Caused by: Error: Failed to load url @/lib/admin-auth (resolved id: @/lib/admin-auth) in /app/src/lib/admin-auth.test.ts. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  src/lib/channel-config-store.test.ts [ src/lib/channel-config-store.test.ts ]
+Error: Cannot find package '@/lib/channel-config-store' imported from '/app/src/lib/channel-config-store.test.ts'
+ ❯ src/lib/channel-config-store.test.ts:2:1
+      1| import { describe, it, expect, beforeEach } from "vitest";
+      2| import {
+       | ^
+      3|   getChannelDefs,
+      4|   upsertChannel,
+
+Caused by: Error: Failed to load url @/lib/channel-config-store (resolved id: @/lib/channel-config-store) in /app/src/lib/channel-config-store.test.ts. Does the
+ file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  src/lib/channelforge-epg.test.ts [ src/lib/channelforge-epg.test.ts ]
+Error: Cannot find package '@/lib/channelforge-epg' imported from '/app/src/lib/channelforge-epg.test.ts'
+ ❯ src/lib/channelforge-epg.test.ts:7:1
+      5| import { existsSync, readFileSync } from "fs";
+      6| import { fileURLToPath } from "url";
+      7| import { loadForgeEpg, windowFilter } from "@/lib/channelforge-epg";
+       | ^
+      8|
+      9| const GOLDEN = fileURLToPath(new URL("../../test/contracts/epg/epg.golden.xml", import.meta.url));
+
+Caused by: Error: Failed to load url @/lib/channelforge-epg (resolved id: @/lib/channelforge-epg) in /app/src/lib/channelforge-epg.test.ts. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ { AdState, Channel, GuideRow, Program } from "@/lib/fast-client";
+      4|
+
+Caused by: Error: Failed to load url @/lib/fast-view (resolved id: @/lib/fast-view) in /app/src/lib/fast-view.test.ts. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  src/lib/manifest-probe.test.ts [ src/lib/manifest-probe.test.ts ]
+Error: Cannot find package '@/lib/manifest-probe' imported from '/app/src/lib/manifest-probe.test.ts'
+ ❯ src/lib/manifest-probe.test.ts:3:1
+      1| // B1 · manifest health: cache TTL + status/timeout → `available` mapping.
+      2| import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+      3| import { manifestHealth } from "@/lib/manifest-probe";
+       | ^
+      4|
+      5| beforeEach(() => {
+
+Caused by: Error: Failed to load url @/lib/manifest-probe (resolved id: @/lib/manifest-probe) in /app/src/lib/manifest-probe.test.ts. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  src/lib/telemetry-store.test.ts [ src/lib/telemetry-store.test.ts ]
+Error: Cannot find package '@/lib/telemetry-store' imported from '/app/src/lib/telemetry-store.test.ts'
+ ❯ src/lib/telemetry-store.test.ts:2:1
+      1| import { describe, it, expect, beforeEach } from "vitest";
+      2| import { telemetry, type TelemetryEvent } from "@/lib/telemetry-store";
+       | ^
+      3|
+      4| // Fresh in-memory store per test.
+
+Caused by: Error: Failed to load url @/lib/telemetry-store (resolved id: @/lib/telemetry-store) in /app/src/lib/telemetry-store.test.ts. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  src/app/api/fast/routes.test.ts [ src/app/api/fast/routes.test.ts ]
+Error: Cannot find package '@/app/api/fast/channels/[id]/route' imported from '/app/src/app/api/fast/routes.test.ts'
+ ❯ src/app/api/fast/routes.test.ts:7:1
+      5| import { fileURLToPath } from "url";
+      6|
+      7| import { GET as channelById } from "@/app/api/fast/channels/[id]/route";
+       | ^
+      8| import { GET as hlsGet, OPTIONS as hlsOptions } from "@/app/api/fast/hls/[...path]/route";
+      9| import { POST as eventsPost } from "@/app/api/fast/events/route";
+
+Caused by: Error: Failed to load url @/app/api/fast/channels/[id]/route (resolved id: @/app/api/fast/channels/[id]/route) in /app/src/app/api/fast/routes.test.t
+s. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  10 failed | 1 passed (11)
+      Tests  2 passed (2)
+   Start at  17:03:13
+   Duration  1.32s (transform 94ms, setup 0ms, collect 12ms, tests 3ms, environment 1ms, prepare 381ms)
+
+ ELIFECYCLE  Test failed. See above for more details.
+a70d44d4f502:/app# pnpm build
+

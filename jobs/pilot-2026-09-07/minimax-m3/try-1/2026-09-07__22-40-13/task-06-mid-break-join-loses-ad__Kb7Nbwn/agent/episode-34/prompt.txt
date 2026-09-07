@@ -1,0 +1,64 @@
+New Terminal Output:
+
+a862f4e7fb65:/app# cat packages/data-plane/src/origin-slice4.test.ts
+import { describe, it, expect } from "vitest";
+
+import { OriginClient, parseOriginMap } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+
+describe("parseOriginMap", () => {
+  it("parses a JSON channel→url map", () => {
+    expect(parseOriginMap('{"channel_yoga":"https://forge/hls/u/delivery.m3u8"}')).toEqual({
+      channel_yoga: "https://forge/hls/u/delivery.m3u8",
+    });
+  });
+  it("is empty on missing or bad input", () => {
+    expect(parseOriginMap(undefined)).toEqual({});
+    expect(parseOriginMap("not json")).toEqual({});
+  });
+});
+
+describe("OriginClient.originUrlFor", () => {
+  it("uses the per-channel origin map verbatim when present", () => {
+    const c = new OriginClient({
+      baseUrl: "http://fixture:8080",
+      originMap: { channel_yoga: "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8" },
+    });
+    expect(c.originUrlFor("channel_yoga")).toBe(
+      "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8",
+    );
+  });
+  it("falls back to base/channel/variant for unmapped channels", () => {
+    const c = new OriginClient({ baseUrl: "http://fixture:8080", originMap: {} });
+    expect(c.originUrlFor("channel_food", "index")).toBe("http://fixture:8080/channel_food/index.m3u8");
+  });
+});
+
+describe("absolutizeManifest", () => {
+  const origin = "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8";
+
+  it("rewrites relative segment URIs to absolute origin URLs", () => {
+    const body = ["#EXTM3U", "#EXTINF:2.000,", "index0.ts", "#EXTINF:2.000,", "index1.ts"].join("\n");
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index0.ts");
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index1.ts");
+    expect(out).toContain("#EXTINF:2.000,"); // tags untouched
+  });
+
+  it("leaves already-absolute URIs and ad segments alone", () => {
+    const body = ["#EXTINF:2,", "https://cdn/x.ts", "#EXTINF:2,", "/v1/segments/cr_1/000.ts"].join("\n");
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain("https://cdn/x.ts");
+    // a rooted path resolves against the origin host (expected) — the stitcher inserts ad segments
+    // AFTER this step, so real ad segments are never passed through here.
+    expect(out).toContain("https://forge.ventunotech.com/v1/segments/cr_1/000.ts");
+  });
+
+  it("absolutizes URI= attributes on tags", () => {
+    const body = '#EXT-X-MAP:URI="init.mp4"\n#EXTINF:2,\nseg.m4s';
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain('URI="https://forge.ventunotech.com/hls/a11e5310/init.mp4"');
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/seg.m4s");
+  });
+});
+a862f4e7fb65:/app#

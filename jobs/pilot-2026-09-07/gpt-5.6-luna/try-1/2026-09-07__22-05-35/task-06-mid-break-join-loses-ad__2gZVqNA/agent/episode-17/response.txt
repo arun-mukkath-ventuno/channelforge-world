@@ -1,0 +1,19 @@
+{
+  "analysis": "The fix is implemented in `packages/data-plane/src/avails.ts`, typecheck passed, and the compiled `packages/data-plane/dist/avails.js` contains the new active-trailing-avail logic. The full test run shows the expected legacy test failure for incomplete trailing avails, plus unrelated environment failures caused by the absent `/app/migrations` directory and worker dependencies. No application service is running in the container, so there is no process to restart; rebuilding the data-plane artifact is the applicable deployment step.",
+  "plan": "Run the data-plane tests that do not assert the obsolete behavior, explicitly build the data-plane workspace, and verify the generated artifact and source-only change. Do not modify the conflicting test or any test/CI files. Since no service process exists, finish after the successful build and verification.",
+  "commands": [
+    {
+      "keystrokes": "npx vitest run packages/data-plane/src/media.test.ts packages/data-plane/src/origin.test.ts packages/data-plane/src/origin-slice4.test.ts packages/data-plane/src/stitch.test.ts\n",
+      "duration": 4.0
+    },
+    {
+      "keystrokes": "npm run build --workspace @ssai/data-plane\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Modified application source:'; grep -n -A30 -B5 'late tune-in' packages/data-plane/src/avails.ts; printf '%s\\n' 'Built artifact:'; grep -n -A25 -B4 'late tune-in' packages/data-plane/dist/avails.js; printf '%s\\n' 'Running service processes:'; ps -ef 2>/dev/null | grep -E 'data-plane|control-plane|dist/server' | grep -v grep || true\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": true
+}

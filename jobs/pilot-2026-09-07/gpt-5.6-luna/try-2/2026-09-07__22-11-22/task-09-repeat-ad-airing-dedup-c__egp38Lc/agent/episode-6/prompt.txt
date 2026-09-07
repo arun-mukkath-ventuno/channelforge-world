@@ -1,0 +1,257 @@
+New Terminal Output:
+
+fe1dd2af1f8a:/app# printf '%s\n' '--- src/lib/ssai.ts'; nl -ba src/lib/ssai.ts; printf '%s\n' '--- src/lib/ssai.test.ts'; nl -ba src/lib/ssai.test.ts; printf '%
+s\n' '--- PlayerBand ad section'; nl -ba src/components/fast/PlayerBand.tsx | sed -n '1,260p'; printf '%s\n' '--- FastPlayer'; nl -ba src/components/fast/FastPl
+ayer.tsx | sed -n '1,360p'
+--- src/lib/ssai.ts
+     1	// SSAI (server-side ad insertion) client — the AD leg of the Stream Telemetry Blueprint.
+     2	//
+     3	// For channels with an `ssaiChannel`, the player requests a session from the ad server, plays the
+     4	// returned stitched `playback_url` (ChannelForge content + spliced ads), and fires per-ad quartile
+     5	// beacons. This is SEPARATE from the audience telemetry in `telemetry-store` / `/api/fast/events`
+     6	// (concurrents, QoE) — that stays untouched; ad events go to the SSAI's `/v1/events`.
+     7	
+     8	export const SSAI_BASE = (
+     9	  process.env.NEXT_PUBLIC_SSAI_BASE || "https://ssai.ventunotech.com"
+    10	).replace(/\/$/, "");
+    11	
+    12	export interface SsaiSession {
+    13	  sessionId: string;
+    14	  playbackUrl: string;
+    15	}
+    16	
+    17	/** Create a playback session and get the stitched manifest URL for an SSAI channel. */
+    18	export async function createSsaiSession(ssaiChannel: string): Promise<SsaiSession | null> {
+    19	  try {
+    20	    const res = await fetch(`${SSAI_BASE}/v1/sessions`, {
+    21	      method: "POST",
+    22	      headers: { "Content-Type": "application/json" },
+    23	      body: JSON.stringify({ channel_id: ssaiChannel }),
+    24	    });
+    25	    if (!res.ok) return null;
+    26	    const d = await res.json();
+    27	    if (!d?.session_id || !d?.playback_url) return null;
+    28	    return { sessionId: String(d.session_id), playbackUrl: String(d.playback_url) };
+    29	  } catch {
+    30	    return null;
+    31	  }
+    32	}
+    33	
+    34	export type AdBeacon =
+    35	  | "ad_impression"
+    36	  | "ad_start"
+    37	  | "ad_first_quartile"
+    38	  | "ad_midpoint"
+    39	  | "ad_third_quartile"
+    40	  | "ad_complete";
+    41	
+    42	/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+    43	export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+    44	  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
+    45	  try {
+    46	    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+    47	      navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: "application/json" }));
+    48	    } else {
+    49	      void fetch(`${SSAI_BASE}/v1/events`, {
+    50	        method: "POST",
+    51	        headers: { "Content-Type": "application/json" },
+    52	        body,
+    53	        keepalive: true,
+    54	      });
+    55	    }
+    56	  } catch {
+    57	    /* best-effort */
+    58	  }
+    59	}
+    60	
+    61	export interface AdWindow {
+    62	  adId: string;
+    63	  start: number; // epoch ms
+    64	  end: number; // epoch ms
+    65	}
+    66	
+    67	/** Parse ad avails from a stitched media playlist's EXT-X-DATERANGE lines (CLASS com.fastworld.ad). */
+    68	export function parseAdWindows(manifest: string): AdWindow[] {
+    69	  const out: AdWindow[] = [];
+    70	  for (const line of manifest.split("\n")) {
+    71	    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+    72	    const attr = (k: string): string | undefined => line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    73	    const startDate = attr("START-DATE");
+    74	    const dur = attr("DURATION");
+    75	    const adId = attr("X-AD-ID") || attr("ID");
+    76	    if (!startDate || !dur || !adId) continue;
+    77	    const start = Date.parse(startDate);
+    78	    const seconds = Number(dur);
+    79	    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    80	    out.push({ adId, start, end: start + seconds * 1000 });
+    81	  }
+    82	  return out;
+    83	}
+    84	
+    85	export interface ScteAvail {
+    86	  id: string;
+    87	  start: number; // epoch ms — break start (absolute, from START-DATE)
+    88	  end: number; // epoch ms
+    89	  durationSec: number;
+    90	}
+    91	
+    92	/**
+    93	 * Parse SCTE-35 ad avails from a ChannelForge media playlist. These are the ad
+    94	 * OPPORTUNITIES the packager signals (where SSAI may splice), distinct from
+    95	 * `parseAdWindows` which reads the ads actually stitched in. Reads
+    96	 * `#EXT-X-DATERANGE` lines carrying `SCTE35-OUT` with an absolute `START-DATE`
+    97	 * and `PLANNED-DURATION`.
+    98	 */
+    99	export function parseScteAvails(manifest: string): ScteAvail[] {
+   100	  const out: ScteAvail[] = [];
+   101	  for (const line of manifest.split("\n")) {
+   102	    if (!line.startsWith("#EXT-X-DATERANGE:")) continue;
+   103	    if (!/SCTE35-OUT/i.test(line)) continue;
+   104	    const attr = (k: string): string | undefined =>
+   105	     
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+erface NormalizedEvent {
+  eventId: string;
+  eventType: string;
+  sessionId: string | null;
+  channelId: string | null;
+  opportunityId: string | null;
+  podId: string | null;
+  adId: string | null;
+  campaignId: string | null;
+  creativeId: string | null;
+  programId: string | null;
+  playheadPosition: number | null;
+  deviceType: string | null;
+  country: string | null;
+  payload: unknown;
+}
+
+/** Resolve the canonical event type from an explicit type or a quartile marker. */
+export function canonicalType(raw: RawEvent): string {
+  const explicit = (raw.event_type ?? raw.event ?? "").toString();
+  const key = explicit.toLowerCase().replace(/\s+/g, "");
+
+  if ((key === "ad_quartile" || key === "quartile") && typeof raw.quartile === "number") {
+    return QUARTILE_TO_EVENT[raw.quartile] ?? explicit;
+  }
+  return ALIASES[key] ?? explicit;
+}
+
+/** Deterministic id for lifecycle events so duplicates dedup; unique otherwise. */
+export function deriveEventId(raw: RawEvent, eventType: string): string {
+  if (raw.event_id) return raw.event_id;
+
+  const isAdLifecycle = eventType.startsWith("ad_") && eventType !== "ad_error";
+  if (isAdLifecycle && raw.session_id) {
+    const basis = [raw.session_id, raw.pod_id ?? "", raw.ad_id ?? "", eventType].join("|");
+    return `evt_${createHash("sha1").update(basis).digest("hex").slice(0, 24)}`;
+  }
+  // Non-lifecycle (errors, unknown) — let each occurrence be recorded.
+  return `evt_${createHash("sha1").update(`${JSON.stringify(raw)}|${Date.now()}|${Math.random()}`).digest("hex").slice(0, 24)}`;
+}
+
+export function normalizeEvent(raw: RawEvent): NormalizedEvent | { error: string } {
+  const eventType = canonicalType(raw);
+  if (!eventType) return { error: "event_type is required" };
+
+  return {
+    eventId: deriveEventId(raw, eventType),
+    eventType,
+    sessionId: raw.session_id ?? null,
+    channelId: raw.channel_id ?? null,
+    opportunityId: raw.opportunity_id ?? null,
+    podId: raw.pod_id ?? null,
+    adId: raw.ad_id ?? null,
+    campaignId: raw.campaign_id ?? null,
+    creativeId: raw.creative_id ?? null,
+    programId: raw.program_id ?? null,
+    playheadPosition: raw.playhead_position ?? null,
+    deviceType: raw.device_type ?? null,
+    country: raw.country ?? null,
+    payload: raw.payload ?? raw,
+  };
+}
+--- /reference/ssaiadserver/persistence/repositories/events.ts
+// Append-only event stream (PRD §26, §29, §30). Source for analytics.
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface EventInput {
+  eventId: string;
+  eventType: string;
+  ts?: string;
+  sessionId?: string | null;
+  channelId?: string | null;
+  opportunityId?: string | null;
+  podId?: string | null;
+  adId?: string | null;
+  campaignId?: string | null;
+  creativeId?: string | null;
+  programId?: string | null;
+  playheadPosition?: number | null;
+  deviceType?: string | null;
+  country?: string | null;
+  payload?: unknown;
+}
+
+export async function appendEvent(db: Queryable, e: EventInput): Promise<void> {
+  await db.query(
+    `INSERT INTO events
+       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+        campaign_id, creative_id, program_id, playhead_position, device_type, country, payload)
+     VALUES ($1, $2, COALESCE($3, now()), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+     ON CONFLICT (event_id) DO NOTHING`,
+    [
+      e.eventId,
+      e.eventType,
+      e.ts ?? null,
+      e.sessionId ?? null,
+      e.channelId ?? null,
+      e.opportunityId ?? null,
+      e.podId ?? null,
+      e.adId ?? null,
+      e.campaignId ?? null,
+      e.creativeId ?? null,
+      e.programId ?? null,
+      e.playheadPosition ?? null,
+      e.deviceType ?? null,
+      e.country ?? null,
+      e.payload === undefined ? null : JSON.stringify(e.payload),
+    ],
+  );
+}
+
+export interface StoredEvent extends Omit<EventInput, "payload"> {
+  ts: string;
+  payload: unknown;
+}
+
+export async function getEventsBySession(db: Queryable, sessionId: string): Promise<StoredEvent[]> {
+  const rows = (
+    await db.query<Record<string, unknown>>(
+      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+      [sessionId],
+    )
+  ).rows;
+
+  return rows.map((r) => ({
+    eventId: r.event_id as string,
+    eventType: r.event_type as string,
+    ts: toIso(r.ts),
+    sessionId: (r.session_id as string) ?? null,
+    channelId: (r.channel_id as string) ?? null,
+    opportunityId: (r.opportunity_id as string) ?? null,
+    podId: (r.pod_id as string) ?? null,
+    adId: (r.ad_id as string) ?? null,
+    campaignId: (r.campaign_id as string) ?? null,
+    creativeId: (r.creative_id as string) ?? null,
+    programId: (r.program_id as string) ?? null,
+    playheadPosition: r.playhead_position == null ? null : Number(r.playhead_position),
+    deviceType: (r.device_type as string) ?? null,
+    country: (r.country as string) ?? null,
+    payload: typeof r.payload === "string" ? JSON.parse(r.payload) : r.payload,
+  }));
+}
+fe1dd2af1f8a:/app#

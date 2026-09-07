@@ -1,0 +1,99 @@
+New Terminal Output:
+
+> tsc --build
+
+packages/data-plane/src/avails.ts:98:28 - error TS2532: Object is possibly 'undefined'.
+
+98       const elapsedMatch = contMatch[1].match(/(?:^|,)ElapsedTime=(\d+(?:\.\d+)?)/i);
+                              ~~~~~~~~~~~~
+
+packages/data-plane/src/avails.ts:99:29 - error TS2532: Object is possibly 'undefined'.
+
+99       const durationMatch = contMatch[1].match(/(?:^|,)Duration=(\d+(?:\.\d+)?)/i);
+                               ~~~~~~~~~~~~
+
+
+Found 2 errors.
+
+26a4261744ce:/app# node <<'NODE'
+> const fs = require('fs');
+> const p = 'packages/data-plane/src/avails.ts';
+> let s = fs.readFileSync(p, 'utf8');
+> s = s.replace(
+>   '      const elapsedMatch = contMatch[1].match(/(?:^|,)ElapsedTime=(\\d+(?:\\.\\d+)?)/i);\n      const durationMatch = contMatch[1].match(/(?:^|,)Duration=(
+\\d+(?:\\.\\d+)?)/i);',
+>   '      const contAttrs = contMatch[1] ?? "";\n      const elapsedMatch = contAttrs.match(/(?:^|,)ElapsedTime=(\\d+(?:\\.\\d+)?)/i);\n      const durationMat
+ch = contAttrs.match(/(?:^|,)Duration=(\\d+(?:\\.\\d+)?)/i);'
+> );
+> fs.writeFileSync(p, s);
+> NODE
+26a4261744ce:/app# npm run typecheck && npm run build --workspace @ssai/data-plane
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+node --input-type=module <<'NODE'
+import { detectAvails } from './packages/data-plane/dist/avails.js';
+const original = '#EXT-X-MEDIA-SEQUENCE:100\n#EXT-X-CUE-OUT:60\n#EXTINF:6.000,\nslate.ts';
+const reconnect = '#EXT-X-MEDIA-SEQUENCE:105\n#EXT-X-TARGETDURATION:6\n#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60\n#EXTINF:6.000,\nslate.ts';
+const a = detectAvails(original, 'ch')[0];
+const b = detectAvails(reconnect, 'ch')[0];
+console.log({ original: a?.opportunityId, reconnect: b?.opportunityId, equal: a?.opportunityId === b?.opportunityId, reconnectAvail: b });
+if (!a || !b || a.opportunityId !== b.opportunityId) process.exit(1);
+NODE
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+26a4261744ce:/app# node --input-type=module <<'NODE'
+> import { detectAvails } from './packages/data-plane/dist/avails.js';
+> const original = '#EXT-X-MEDIA-SEQUENCE:100\n#EXT-X-CUE-OUT:60\n#EXTINF:6.000,\nslate.ts';
+> const reconnect = '#EXT-X-MEDIA-SEQUENCE:105\n#EXT-X-TARGETDURATION:6\n#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60\n#EXTINF:6.000,\nslate.ts';
+> const a = detectAvails(original, 'ch')[0];
+> const b = detectAvails(reconnect, 'ch')[0];
+> console.log({ original: a?.opportunityId, reconnect: b?.opportunityId, equal: a?.opportunityId === b?.opportunityId, reconnectAvail: b });
+> if (!a || !b || a.opportunityId !== b.opportunityId) process.exit(1);
+> NODE
+{
+  original: 'opp_ch_100',
+  reconnect: 'opp_ch_100',
+  equal: true,
+  reconnectAvail: {
+    opportunityId: 'opp_ch_100',
+    channelId: 'ch',
+    duration: 60,
+    declaredDuration: 60,
+    measuredDuration: 6,
+    startSequence: 100,
+    startLine: 2,
+    endLine: 4
+  }
+}
+26a4261744ce:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts packages/data-plane/src/media.test.ts packages/d
+ata-plane/src/origin.test.ts packages/data-plane/src/origin-slice4.test.ts --exclude='**/avails.test.ts' 2>/dev/null || true
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  4 passed (4)
+      Tests  19 passed (19)
+   Start at  16:45:24
+   Duration  519ms (transform 101ms, setup 0ms, collect 122ms, tests 12ms, environment 0ms, prepare 111ms)
+
+26a4261744ce:/app# timeout 5 npm run start --workspace @ssai/data-plane; echo START_EXIT=$?
+
+> @ssai/data-plane@0.1.0 start
+> node dist/server.js
+
+(node:1242) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for acce
+ssing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"level":30,"time":1788799525382,"pid":1242,"hostname":"26a4261744ce","msg":"Server listening at http://127.0.0.1:4010"}
+{"level":30,"time":1788799525382,"pid":1242,"hostname":"26a4261744ce","msg":"Server listening at http://172.20.0.3:4010"}
+Terminated                 timeout 5 npm run start --workspace @ssai/data-plane
+START_EXIT=143
+26a4261744ce:/app#

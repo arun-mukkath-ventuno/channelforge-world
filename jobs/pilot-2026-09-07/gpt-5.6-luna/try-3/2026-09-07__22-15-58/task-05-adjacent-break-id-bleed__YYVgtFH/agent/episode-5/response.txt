@@ -1,0 +1,22 @@
+{
+  "analysis": "The key code is in `detectAvails`. It maintains `blockBreakId` outside the avail state and only the visible portion shows it being assigned from DATERANGE markers, while the comment says it is cleared at each segment boundary. The exact bug likely occurs because back-to-back breaks have marker blocks without an intervening segment boundary, allowing the first DATERANGE ID to remain attached to the second CUE-OUT. I need inspect the complete function and tests, especially where `blockBreakId` is cleared and how segments are counted.",
+  "plan": "Read the remainder of `avails.ts` and its tests with focused line ranges, then run the existing data-plane tests. Confirm the failing adjacent-break behavior using a direct Node/tsx invocation or add no test files. Patch the marker-block state so each CUE-OUT gets the ID from its own marker block, preserving all currently supported marker syntaxes. Build the affected workspaces and restart the data-plane service.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.ts | sed -n '35,180p'; echo '--- avails tests 1 ---'; nl -ba packages/data-plane/src/avails.test.ts | sed -n '1,260p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "echo '--- origin source ---'; nl -ba packages/data-plane/src/origin.ts | sed -n '1,260p'; echo '--- origin rewrite ---'; nl -ba packages/data-plane/src/origin-rewrite.ts | sed -n '1,260p'\n",
+      "duration": 0.6
+    },
+    {
+      "keystrokes": "npm run test --workspace @ssai/data-plane -- --runInBand\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "find packages/data-plane/src -type f -name '*.ts' -print0 | xargs -0 grep -nE 'detectAvails|blockBreakId|externalBreakId|CUE-OUT|DATERANGE' | sed -n '1,260p'\n",
+      "duration": 0.4
+    }
+  ]
+}

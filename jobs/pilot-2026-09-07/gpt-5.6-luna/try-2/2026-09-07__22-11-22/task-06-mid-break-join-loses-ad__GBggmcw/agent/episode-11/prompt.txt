@@ -1,0 +1,216 @@
+New Terminal Output:
+
+26a4261744ce:/app# grep -RInE -e 'parseMarkerLine' -e 'cue_out' -e 'cue_out_cont' -e 'CUE-OUT-CONT' packages/core/src packages/data-plane/src | head -300; sed -
+n '1,240p' packages/core/src/markers.ts 2>/dev/null || true; grep -RIl 'function parseMarkerLine\|parseMarkerLine' packages/core/src | xargs -r -n1 sh -c 'echo
+-- $0; sed -n "1,280p" "$0"'
+packages/core/src/scte.ts:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/src/scte.ts:15:  kind: "cue_out" | "cue_in" | "daterange";
+packages/core/src/scte.ts:32:export function parseMarkerLine(line: string, lineIndex: number): ParsedMarker | null {
+packages/core/src/scte.ts:41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/src/scte.ts:42:  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/core/src/scte.ts:46:      kind: "cue_out",
+packages/core/src/scte.test.ts:2:import { parseMarkerLine } from "./scte.js";
+packages/core/src/scte.test.ts:4:describe("parseMarkerLine — cue markers (PRD §9, §60 task 3)", () => {
+packages/core/src/scte.test.ts:6:    const m = parseMarkerLine("#EXT-X-CUE-OUT:60", 5);
+packages/core/src/scte.test.ts:7:    expect(m).toMatchObject({ kind: "cue_out", duration: 60, lineIndex: 5 });
+packages/core/src/scte.test.ts:11:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=60", 0);
+packages/core/src/scte.test.ts:12:    expect(m).toMatchObject({ kind: "cue_out", duration: 60 });
+packages/core/src/scte.test.ts:16:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=90,SCTE35=abc", 0);
+packages/core/src/scte.test.ts:21:    const m = parseMarkerLine("#EXT-X-CUE-OUT:29.97", 0);
+packages/core/src/scte.test.ts:26:    const m = parseMarkerLine("#EXT-X-CUE-IN", 9);
+packages/core/src/scte.test.ts:31:  it("ignores CUE-OUT-CONT as a new avail", () => {
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/src/scte.test.ts:37:    const m = parseMarkerLine("#EXT-X-CUE-OUT:oops", 0);
+packages/core/src/scte.test.ts:38:    expect(m).toMatchObject({ kind: "cue_out", invalidDuration: true });
+packages/core/src/scte.test.ts:43:    expect(parseMarkerLine("#EXTINF:6.0,", 0)).toBeNull();
+packages/core/src/scte.test.ts:44:    expect(parseMarkerLine("segment100.ts", 0)).toBeNull();
+packages/core/src/scte.test.ts:49:    const m = parseMarkerLine(line, 3);
+packages/core/src/scte.test.ts:55:    const m = parseMarkerLine(line, 7);
+packages/core/src/scte.test.ts:60:    const m = parseMarkerLine("#EXT-X-DATERANGE:DURATION=30", 0);
+packages/core/src/types.ts:16:  source: "scte35" | "cue_out" | "daterange";
+packages/core/src/types.ts:17:  signalType: "cue_out" | "cue_in" | "daterange";
+packages/data-plane/src/avails.ts:9:import { parseMarkerLine } from "@ssai/core";
+packages/data-plane/src/avails.ts:77:    const marker = parseMarkerLine(line, i);
+packages/data-plane/src/avails.ts:84:    if (marker?.kind === "cue_out" && !open) {
+-- packages/core/src/scte.ts
+// HLS ad-marker parsing (PRD §9, §22, §41).
+//
+// Supports the MVP-preferred form and common interoperability variants:
+//   #EXT-X-CUE-OUT:60
+//   #EXT-X-CUE-OUT:DURATION=60
+//   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+//   #EXT-X-CUE-IN
+//   #EXT-X-DATERANGE:...,DURATION=60,SCTE35-OUT=...
+//
+// This parser is deliberately tolerant: an unparseable duration does not throw,
+// it yields a marker flagged invalid so the caller can apply PRD §41 fallback
+// (infer the boundary from CUE-IN, otherwise preserve origin).
+
+export interface ParsedMarker {
+  kind: "cue_out" | "cue_in" | "daterange";
+  /** Break duration in seconds, when the marker carries one. */
+  duration?: number;
+  /** Line index within the manifest where the marker was found. */
+  lineIndex: number;
+  /** DATERANGE id / raw payload, retained for debugging (PRD §46). */
+  raw: string;
+  /** DATERANGE ID attribute, when present. ChannelForge threads its stable break_id here
+   *  (`#EXT-X-DATERANGE:ID="BRK-…"`), so downstream reconciliation can key on it. */
+  id?: string;
+  /** True when a duration was expected but could not be parsed (PRD §41). */
+  invalidDuration?: boolean;
+}
+
+const SECONDS = /^-?\d+(\.\d+)?$/;
+
+/** Parse a single manifest line into a marker, or null if it is not one. */
+export function parseMarkerLine(line: string, lineIndex: number): ParsedMarker | null {
+  const trimmed = line.trim();
+
+  // CUE-IN: no attributes.
+  if (trimmed === "#EXT-X-CUE-IN") {
+    return { kind: "cue_in", lineIndex, raw: trimmed };
+  }
+
+  // CUE-OUT: value may be a bare number or DURATION=<n>.
+  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+    const value = trimmed.slice("#EXT-X-CUE-OUT".length).replace(/^:/, "").trim();
+    const duration = parseCueOutDuration(va
+[... output limited to 10000 bytes; 69 interior bytes omitted ...]
+
+    const attrs = trimmed.slice("#EXT-X-DATERANGE".length).replace(/^:/, "");
+    const duration = parseAttr(attrs, "DURATION") ?? parseAttr(attrs, "PLANNED-DURATION");
+    const id = parseStringAttr(attrs, "ID");
+    return {
+      kind: "daterange",
+      lineIndex,
+      raw: trimmed,
+      ...(duration === null ? {} : { duration }),
+      ...(id === null ? {} : { id }),
+    };
+  }
+
+  return null;
+}
+
+/** Accepts `60`, `60.0`, `DURATION=60`, or `DURATION=60,...`. Returns null if absent/invalid. */
+function parseCueOutDuration(value: string): number | null {
+  if (value.length === 0) return null;
+  if (SECONDS.test(value)) {
+    const n = Number(value);
+    return n >= 0 ? n : null;
+  }
+  // Attribute form: DURATION=60 (possibly with more comma-separated attrs).
+  return parseAttr(value, "DURATION");
+}
+
+/** Parse `KEY=value` (optionally quoted) out of a comma-separated attribute list. */
+function parseAttr(attrs: string, key: string): number | null {
+  const re = new RegExp(`${key}=("?)(-?\\d+(?:\\.\\d+)?)\\1`, "i");
+  const m = attrs.match(re);
+  if (!m) return null;
+  const n = Number(m[2]);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Parse a string `KEY="value"` (or bare `KEY=value`) attribute; null if absent/empty. */
+function parseStringAttr(attrs: string, key: string): string | null {
+  const re = new RegExp(`${key}=(?:"([^"]*)"|([^,\\s]+))`, "i");
+  const m = attrs.match(re);
+  if (!m) return null;
+  const value = m[1] ?? m[2] ?? "";
+  return value.length > 0 ? value : null;
+}
+-- packages/core/src/scte.test.ts
+import { describe, it, expect } from "vitest";
+import { parseMarkerLine } from "./scte.js";
+
+describe("parseMarkerLine — cue markers (PRD §9, §60 task 3)", () => {
+  it("parses bare-number CUE-OUT: #EXT-X-CUE-OUT:60", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:60", 5);
+    expect(m).toMatchObject({ kind: "cue_out", duration: 60, lineIndex: 5 });
+  });
+
+  it("parses attribute-form CUE-OUT: #EXT-X-CUE-OUT:DURATION=60", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=60", 0);
+    expect(m).toMatchObject({ kind: "cue_out", duration: 60 });
+  });
+
+  it("parses DURATION with extra attributes", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=90,SCTE35=abc", 0);
+    expect(m?.duration).toBe(90);
+  });
+
+  it("parses fractional durations", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:29.97", 0);
+    expect(m?.duration).toBeCloseTo(29.97);
+  });
+
+  it("parses CUE-IN with no attributes", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-IN", 9);
+    expect(m).toMatchObject({ kind: "cue_in", lineIndex: 9 });
+    expect(m?.duration).toBeUndefined();
+  });
+
+  it("ignores CUE-OUT-CONT as a new avail", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+    expect(m).toBeNull();
+  });
+
+  it("flags an unparseable CUE-OUT duration instead of throwing (PRD §41)", () => {
+    const m = parseMarkerLine("#EXT-X-CUE-OUT:oops", 0);
+    expect(m).toMatchObject({ kind: "cue_out", invalidDuration: true });
+    expect(m?.duration).toBeUndefined();
+  });
+
+  it("returns null for non-marker lines", () => {
+    expect(parseMarkerLine("#EXTINF:6.0,", 0)).toBeNull();
+    expect(parseMarkerLine("segment100.ts", 0)).toBeNull();
+  });
+
+  it("parses DATERANGE with a DURATION attribute", () => {
+    const line = '#EXT-X-DATERANGE:ID="ad1",DURATION=30,SCTE35-OUT=0xFC';
+    const m = parseMarkerLine(line, 3);
+    expect(m).toMatchObject({ kind: "daterange", duration: 30 });
+  });
+
+  it("extracts the DATERANGE ID (ChannelForge threads its break_id there)", () => {
+    const line = '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30';
+    const m = parseMarkerLine(line, 7);
+    expect(m).toMatchObject({ kind: "daterange", id: "BRK-a11e5310-0003", duration: 90 });
+  });
+
+  it("omits id when the DATERANGE carries none", () => {
+    const m = parseMarkerLine("#EXT-X-DATERANGE:DURATION=30", 0);
+    expect(m?.kind).toBe("daterange");
+    expect(m?.id).toBeUndefined();
+  });
+});
+26a4261744ce:/app# node --input-type=module <<'NODE'
+> import { detectAvails } from './packages/data-plane/dist/avails.js';
+> for (const body of [
+>   '#EXT-X-MEDIA-SEQUENCE:105\n#EXT-X-CUE-OUT-CONT:ElapsedTime=30\n#EXTINF:6.000,\nslate.ts',
+>   '#EXT-X-MEDIA-SEQUENCE:105\n#EXT-X-DATERANGE:ID="BRK-1",PLANNED-DURATION=30\n#EXTINF:6.000,\nslate.ts',
+>   '#EXT-X-MEDIA-SEQUENCE:105\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nslate.ts'
+> ]) console.log(detectAvails(body, 'ch'));
+> NODE
+[]
+[]
+[
+  {
+    opportunityId: 'opp_ch_105',
+    channelId: 'ch',
+    duration: 30,
+    declaredDuration: 30,
+    measuredDuration: 6,
+    startSequence: 105,
+    startLine: 1,
+    endLine: 3
+  }
+]
+26a4261744ce:/app# ps aux 2>/dev/null | grep -E '[n]ode|[t]sx' || true; printf '\n-- process files --\n'; find /app -maxdepth 2 -type f \( -name 'docker-compose
+.yml' -o -name 'compose.yml' -o -name 'Procfile' \) -print 2>/dev/null
+
+-- process files --
+26a4261744ce:/app#

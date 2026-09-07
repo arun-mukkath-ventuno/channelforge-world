@@ -1,0 +1,22 @@
+{
+  "analysis": "The ingestion contract is definitive: lifecycle event IDs are derived from `session_id + pod_id + ad_id + eventType`. The current client sends `session_id`, `ad_id`, and event type but no `pod_id`, so every airing of the same creative in a session hashes identically. The local watcher already has the correct airing discriminator (`w.start`). The minimal fix is to preserve `ad_id` as the creative ID and send the window's start as `pod_id`; duplicate retries for the same airing still produce the same identity, while later airings get a different identity.",
+  "plan": "Modify `sendAdBeacon` to accept an airing/pod identifier and include `pod_id` in the request body. Pass `String(w.start)` from the watcher. Add no test files or CI changes. Run the existing test suite, lint, and production build. Then start/restart the Next service using the built application and verify the process is running.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('src/lib/ssai.ts')\ns = p.read_text()\ns = s.replace('export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\\n  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });', 'export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId: string): void {\\n  const body = JSON.stringify({ event, session_id: sessionId, pod_id: podId, ad_id: adId });')\ns = s.replace('sendAdBeacon(opts.sessionId, beacon, w.adId);', 'sendAdBeacon(opts.sessionId, beacon, w.adId, String(w.start));')\np.write_text(s)\nPY\nsed -n '34,52p' src/lib/ssai.ts && sed -n '155,170p' src/lib/ssai.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "pnpm test -- --runInBand",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "pnpm lint",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "pnpm build",
+      "duration": 5.0
+    }
+  ]
+}

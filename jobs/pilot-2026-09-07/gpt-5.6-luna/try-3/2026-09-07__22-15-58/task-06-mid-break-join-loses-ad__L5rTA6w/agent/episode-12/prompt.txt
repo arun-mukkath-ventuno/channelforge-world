@@ -1,0 +1,101 @@
+New Terminal Output:
+
+703450db135d:/app# node --input-type=module <<'NODE'
+> import { readFileSync, writeFileSync } from 'node:fs';
+> const file = 'packages/data-plane/src/server.ts';
+> const source = readFileSync(file, 'utf8');
+> const oldText = `      else if (decider) {
+>         const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+>         if (decided) pod = decided;
+>       }
+> `;
+> const newText = `      else if (decider) {
+>         const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+>         if (decided) {
+>           pod = decided;
+>           await podCache.set({
+>             sessionId: session,
+>             opportunityId: avail.opportunityId,
+>             channelId: channel,
+>             breakDuration: avail.duration,
+>             pod: decided,
+>           });
+>         }
+>       }
+> `;
+> if (!source.includes(oldText)) throw new Error('target block not found');
+> writeFileSync(file, source.replace(oldText, newText));
+> NODE
+703450db135d:/app# sed -n '72,112p' packages/data-plane/src/server.ts
+
+    // Absolutize the origin's relative content URIs against the real origin URL so the player
+    // pulls content straight from ChannelForge (ad segments stay absolute SSAI paths).
+    const originBody = absolutizeManifest(originResult.body, origin.originUrlFor(channel, variant));
+    const avails = detectAvails(originBody, channel);
+
+    // Resolve a pod for each avail (cache, else decide once), then resolve its
+    // media from the store into concrete segments.
+    const rendered = new Map<string, RenderedPodItem[]>();
+    for (const avail of avails) {
+      let pod: PodItem[] | undefined;
+      const cached = await podCache.get(session, avail.opportunityId);
+      if (cached) pod = cached.pod;
+      else if (decider) {
+        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+        if (decided) {
+          pod = decided;
+          await podCache.set({
+            sessionId: session,
+            opportunityId: avail.opportunityId,
+            channelId: channel,
+            breakDuration: avail.duration,
+            pod: decided,
+          });
+        }
+      }
+      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+    }
+
+    const { manifest, stitched } = stitchManifest(originBody, avails, rendered);
+
+    reply.header("content-type", "application/vnd.apple.mpegurl");
+    reply.header("x-ssai-avails", String(avails.length));
+    reply.header("x-ssai-stitched", String(stitched.length));
+    if (originResult.stale) reply.header("x-ssai-origin", "stale");
+    return manifest;
+  });
+
+  // Serve prepared creative segments the stitched manifest points at (PRD §14).
+  app.get("/v1/segments/:creativeId/:file", async (req, reply) => {
+    const { creativeId, file } = req.params as { creativeId: string; file: string };
+703450db135d:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts packages/data-plane/src/media.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  3 passed (3)
+      Tests  18 passed (18)
+   Start at  16:49:52
+   Duration  399ms (transform 69ms, setup 0ms, collect 92ms, tests 12ms, environment 0ms, prepare 83ms)
+
+703450db135d:/app# npm run typecheck
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+703450db135d:/app# ps -ef 2>/dev/null || ps 2>/dev/null || true
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   96 root      0:00 [tmux: client]
+   97 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   98 root      0:00 bash --login
+   99 root      0:00 cat
+  112 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  116 root      0:00 /bin/bash
+  567 root      0:00 [esbuild]
+ 1169 root      0:00 [esbuild]
+ 1249 root      0:00 ps -ef
+703450db135d:/app#

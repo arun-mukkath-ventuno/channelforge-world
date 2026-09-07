@@ -1,0 +1,126 @@
+New Terminal Output:
+
+0b3ff8174f56:/app# cat > /app/test_bug.mjs << 'EOF'
+> import { detectAvails } from "./packages/data-plane/src/avails.ts";
+>
+> // Scenario A: what if the second break's DATERANGE comes after a partial segment in the first break?
+> // Actually, what if the first break has NO URI segments between CUE-OUT and CUE-IN
+> const mA = `#EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-first"
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-second"
+> #EXTINF:6.000,
+> seg1.ts
+> #EXT-X-CUE-IN`;
+>
+> console.log("=== Scenario A: First break has NO URI segment between CUE-OUT and CUE-IN ===");
+> const availsA = detectAvails(mA, "ch");
+> console.log(JSON.stringify(availsA.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId, startSequence: a.startSequence, measuredDura
+tion: a.measuredDuration})), null, 2));
+>
+> // Scenario B: second break has no DATERANGE
+> const mB = `#EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-first"
+> #EXTINF:6.000,
+> seg1.ts
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg2.ts
+> #EXT-X-CUE-IN`;
+>
+> console.log("\n=== Scenario B: second break has no DATERANGE ===");
+> const availsB = detectAvails(mB, "ch");
+> console.log(JSON.stringify(availsB.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId})), null, 2));
+>
+> // Scenario C: what about back-to-back with no segments at all in either break
+> const mC = `#EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-first"
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-second"
+> #EXT-X-CUE-IN`;
+>
+> console.log("\n=== Scenario C: back-to-back no segments in either ===");
+> const availsC = detectAvails(mC, "ch");
+> console.log(JSON.stringify(availsC.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId, measuredDuration: a.measuredDuration})), nul
+l, 2));
+>
+> // Scenario D: with PDT before second break, normal ordering
+> const mD = `#EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-first"
+> #EXTINF:6.000,
+> seg1.ts
+> #EXT-X-CUE-IN
+> #EXT-X-PROGRAM-DATE-TIME:2026-01-01T00:00:00Z
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-second"
+> #EXTINF:6.000,
+> seg2.ts
+> #EXT-X-CUE-IN`;
+>
+> console.log("\n=== Scenario D: with PDT before second cue_out ===");
+> const availsD = detectAvails(mD, "ch");
+> console.log(JSON.stringify(availsD.map(a => ({opportunityId: a.opportunityId, externalBreakId: a.externalBreakId, programDateTime: a.programDateTime})), null,
+ 2));
+> EOF
+0b3ff8174f56:/app# npx tsx test_bug.mjs
+=== Scenario A: First break has NO URI segment between CUE-OUT and CUE-IN ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first",
+    "startSequence": 0,
+    "measuredDuration": 0
+  },
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first",
+    "startSequence": 0,
+    "measuredDuration": 6
+  }
+]
+
+=== Scenario B: second break has no DATERANGE ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first"
+  },
+  {
+    "opportunityId": "opp_ch_1"
+  }
+]
+
+=== Scenario C: back-to-back no segments in either ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first",
+    "measuredDuration": 0
+  },
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first",
+    "measuredDuration": 0
+  }
+]
+
+=== Scenario D: with PDT before second cue_out ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "externalBreakId": "BRK-first"
+  },
+  {
+    "opportunityId": "opp_ch_1",
+    "externalBreakId": "BRK-second",
+    "programDateTime": "2026-01-01T00:00:00Z"
+  }
+]
+0b3ff8174f56:/app#

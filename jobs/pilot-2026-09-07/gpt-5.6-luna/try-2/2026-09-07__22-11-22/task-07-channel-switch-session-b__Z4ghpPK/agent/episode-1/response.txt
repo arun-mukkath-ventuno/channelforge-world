@@ -1,0 +1,18 @@
+{
+  "analysis": "The repository root is /app, but application source is not visible within the first two directory levels; the listing is dominated by dependencies. I need inspect hidden/deeper project files while excluding node_modules, then search for session and channel handling.",
+  "plan": "Enumerate non-dependency files and package scripts, locate the TypeScript service source, and grep for session/channel/database update references. Then inspect the matching implementation before editing.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' 'Non-node_modules files:' && find . -path './node_modules' -prune -o -type f -print | sort | sed -n '1,240p'\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'package.json:' && cat package.json && printf '\\nTypeScript configs:\\n' && cat tsconfig.json tsconfig.base.json\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "grep -RIn --exclude-dir=node_modules --exclude='*.lock' -E 'session|channel' . | sed -n '1,260p'\n",
+      "duration": 0.5
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "analysis": "The session repository uses ON CONFLICT (id) DO NOTHING, which may prevent channel refresh for existing sessions. I need to inspect this method and its callers to confirm the smallest correct change.",
+  "plan": "Read session persistence and its call sites, plus configuration and startup code needed to run the corrected service.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/persistence/src/repositories/sessions.ts; cat packages/persistence/package.json; find packages -path '*/src/*' -name '*.ts' ! -name '*.test.ts' -exec grep -nH -E 'sessions\\.|ensureSession|createSession' {} \\;; cat packages/persistence/src/db.ts; tail -90 packages/control-plane/src/server.ts; env | sort\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+New Terminal Output:
+
+17c9e64e2bb8:/app# ./node_modules/.bin/tsc --project packages/data-plane/tsconfig.json --noEmit --composite false --incremental false
+17c9e64e2bb8:/app# node --import tsx --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import {buildServer} from './packages/data-plane/src/server.ts';
+> import {signSession} from '@ssai/core';
+> import {MemoryPodCache} from '@ssai/persistence';
+> import {detectAvails} from './packages/data-plane/src/avails.ts';
+> const head=['#EXTM3U','#EXT-X-TARGETDURATION:6'];
+> const segments=Array.from({length:10},(_,i)=>`#EXTINF:6,\nslate${i}.ts`);
+> const complete=[...head,'#EXT-X-MEDIA-SEQUENCE:100','#EXT-X-CUE-OUT:60',...segments,'#EXT-X-CUE-IN','#EXTINF:6,','content.ts'].join('\n');
+> const late=[...head,'#EXT-X-MEDIA-SEQUENCE:105','#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60',...segments.slice(5),'#EXT-X-CUE-IN','#EXTINF:6,','content.ts
+'].join('\n');
+> let body=late;
+> let calls=0;
+> const cache=new MemoryPodCache();
+> const pod=[{type:'ad',creativeId:'ad1',duration:60,startOffset:0}];
+> const app=buildServer({logger:false,sessionSecret:'secret',podCache:cache,origin:{fetchMediaPlaylist:async()=>({body,stale:false}),originUrlFor:()=> 'http://o
+rigin/ch/index.m3u8'},store:{get:async(key)=>{if(!key.startsWith('creatives/')) throw Error('absent'); return Buffer.from(Array.from({length:10},(_,i)=>`#EXTINF
+:6,\nad${i}.ts`).join('\n'));}},decider:{decide:async(req)=>{calls++; assert.equal(req.avail.opportunityId,'opp_ch_100'); assert.equal(req.avail.duration,60); a
+wait cache.set({sessionId:req.sessionId,opportunityId:req.avail.opportunityId,channelId:'ch',breakDuration:60,pod});return pod;}}});
+> const request=(sid)=>app.inject({url:`/v1/hls/${signSession(sid,'ch','secret')}/ch/index.m3u8`});
+> let response=await request('fresh');
+> assert.equal(response.statusCode,200); assert.equal(calls,1); assert.equal(response.headers['x-ssai-stitched'],'1');
+> assert(!response.body.includes('/ad0.ts')); assert(response.body.includes('/ad5.ts')); assert(!response.body.includes('slate5.ts')); assert(response.body.incl
+udes('http://origin/ch/content.ts'));
+> await request('fresh'); assert.equal(calls,1);
+> body=complete; response=await request('reconnect'); assert.equal(calls,2); assert(response.body.includes('/ad0.ts'));
+> body=late; response=await request('reconnect'); assert.equal(calls,2); assert(!response.body.includes('/ad0.ts')); assert(response.body.includes('/ad5.ts'));
+> body=late.split('#EXT-X-CUE-IN')[0]+'#EXT-X-ENDLIST\n'; response=await request('fresh'); assert.equal(calls,2); assert(response.body.includes('/ad9.ts')); ass
+ert(response.body.includes('#EXT-X-ENDLIST'));
+> assert.deepEqual(detectAvails(complete.split('#EXT-X-CUE-IN')[0],'ch'),[]);
+> await app.close(); console.log('PASS: late-entry ADS, repeated cache hit, reconnect reuse, remaining media, window footer, unchanged incomplete CUE-OUT');
+> JS
+(node:868) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for acces
+sing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS: late-entry ADS, repeated cache hit, reconnect reuse, remaining media, window footer, unchanged incomplete CUE-OUT
+17c9e64e2bb8:/app# ./node_modules/.bin/vitest run packages/data-plane/src packages/core/src/scte.test.ts --maxWorkers=1 --minWorkers=1
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  6 passed (6)
+      Tests  40 passed (40)
+   Start at  17:09:26
+   Duration  749ms (transform 100ms, setup 0ms, collect 138ms, tests 24ms, environment 1ms, prepare 179ms)
+
+17c9e64e2bb8:/app#

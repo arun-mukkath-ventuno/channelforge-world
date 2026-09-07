@@ -1,0 +1,10 @@
+{
+  "analysis": "The defect is confirmed: active_takedown_for_asset includes the series ID but requires scope_type == \"asset\", excluding all series takedowns. Scope type and ID must be matched together to avoid also matching unrelated targets with coincident IDs.",
+  "plan": "Replace the asset-only filter with paired asset/series predicates, preserving organization and active-status filters. Run existing rights tests without modifying the suite or creating pytest cache files.",
+  "commands": [
+    {
+      "keystrokes": "python - <<'PY'\nfrom pathlib import Path\np = Path('app/repositories/rights.py')\ns = p.read_text().replace('from sqlalchemy import func, select', 'from sqlalchemy import and_, func, or_, select')\nold = '''    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )'''\nnew = '''    scope_matches = [and_(\n        RightsTakedown.scope_type == \"asset\",\n        RightsTakedown.scope_id == asset.id,\n    )]\n    if asset.series_id is not None:\n        scope_matches.append(and_(\n            RightsTakedown.scope_type == \"series\",\n            RightsTakedown.scope_id == asset.series_id,\n        ))\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            or_(*scope_matches),\n        )\n    )'''\nassert s.count(old) == 1\np.write_text(s.replace(old, new))\nPY\nPYTHONDONTWRITEBYTECODE=1 pytest -q -p no:cacheprovider tests/test_rights_takedown.py tests/test_rights_enforcement.py tests/test_rights_engine.py tests/test_schedule_rights.py\n",
+      "duration": 1
+    }
+  ]
+}

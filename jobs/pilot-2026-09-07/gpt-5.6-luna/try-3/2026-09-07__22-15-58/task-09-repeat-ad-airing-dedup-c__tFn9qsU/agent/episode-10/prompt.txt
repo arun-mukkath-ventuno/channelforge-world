@@ -1,0 +1,85 @@
+Current terminal state:
+New Terminal Output:
+
+6af9ee0f4d51:/app# perl -0pi -e 's/const adId = attr\("X-AD-ID"\) \|\| attr\("ID"\);/\/\/ DATERANGE ID identifies this airing; X-AD-ID identifies the creative.\
+n    \/\/ Use the occurrence ID so separate airings are not deduplicated together.\n    const adId = attr("ID") || attr("X-AD-ID");/' src/lib/ssai.ts
+bash: perl: command not found
+6af9ee0f4d51:/app# sed -n '70,84p' src/lib/ssai.ts
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+    const attr = (k: string): string | undefined => line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("DURATION");
+    const adId = attr("X-AD-ID") || attr("ID");
+    if (!startDate || !dur || !adId) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ adId, start, end: start + seconds * 1000 });
+  }
+  return out;
+}
+
+6af9ee0f4d51:/app# pnpm exec vitest run src/lib/ssai.test.ts
+
+ RUN  v3.2.7 /app
+
+ ✓ src/lib/ssai.test.ts (2 tests) 3ms
+   ✓ parseAdWindows > extracts ad windows from EXT-X-DATERANGE ad markers 2ms
+   ✓ parseAdWindows > ignores non-ad DATERANGE and content lines 0ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  16:50:14
+   Duration  176ms (transform 75ms, setup 0ms, collect 49ms, tests 3ms, environment 0ms, prepare 46ms)
+
+6af9ee0f4d51:/app# pnpm run build
+
+> fast-world-tv@0.1.0 build /app
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.ts took 14ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1024ms
+✓ Finished TypeScript in 1465ms
+✓ Collecting page data using 7 workers in 1724ms
+✓ Generating static pages using 7 workers (9/9) in 145ms
+✓ Finalizing page optimization in 9ms
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/fast/admin/channels
+├ ƒ /api/fast/admin/channels/[id]
+├ ƒ /api/fast/admin/login
+├ ƒ /api/fast/admin/logout
+├ ƒ /api/fast/admin/reset
+├ ƒ /api/fast/ads/current
+├ ƒ /api/fast/channels
+├ ƒ /api/fast/channels/[id]
+├ ƒ /api/fast/channels/[id]/now
+├ ƒ /api/fast/channels/[id]/schedule
+├ ƒ /api/fast/events
+├ ƒ /api/fast/guide
+├ ƒ /api/fast/hls/[...path]
+├ ƒ /api/fast/status
+├ ƒ /api/fast/xmltv
+├ ○ /fast-world/admin
+├ ○ /fast-world/live
+├ ○ /fast-world/live/ops
+├ ○ /icon.svg
+├ ○ /robots.txt
+└ ○ /sitemap.xml
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+6af9ee0f4d51:/app# kill 1150 2>/dev/null || true; sleep 1; (pnpm start > /tmp/fast-world-tv.log 2>&1 & echo $! > /tmp/fast-world-tv.pid); sleep 2; echo "pid=$(c
+at /tmp/fast-world-tv.pid)"; ps -o pid,stat,cmd; cat /tmp/fast-world-tv.log
+
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

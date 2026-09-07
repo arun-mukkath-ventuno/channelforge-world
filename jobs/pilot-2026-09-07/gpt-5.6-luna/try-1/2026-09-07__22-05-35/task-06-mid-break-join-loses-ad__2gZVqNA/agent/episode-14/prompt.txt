@@ -1,0 +1,32 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+727f8e3dc8f6:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.tsnl -ba packages/data-plane/src/avails.ts | sed -n
+ '35,180p'; printf '\nPackage status:\n'; find packages/data-plane -maxdepth 2 -type f \( -name '*.js' -o -name '*.mjs' \) -print | sort | sed -n '1,80p'
+file:///app/node_modules/vitest/dist/chunks/cac.CB_9Zo9Q.js:403
+          throw new CACError(`Unknown option \`${name.length > 1 ? `--${name}` : `-${name}`}\``);
+                ^
+
+CACError: Unknown option `-b`
+    at Command.checkUnknownOptions (file:///app/node_modules/vitest/dist/chunks/cac.CB_9Zo9Q.js:403:17)
+    at CAC.runMatchedCommand (file:///app/node_modules/vitest/dist/chunks/cac.CB_9Zo9Q.js:603:13)
+    at CAC.parse (file:///app/node_modules/vitest/dist/chunks/cac.CB_9Zo9Q.js:544:12)
+    at file:///app/node_modules/vitest/dist/cli.js:8:13
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.2
+
+Package status:
+packages/data-plane/dist/avails.js
+packages/data-plane/dist/decider.js
+packages/data-plane/dist/media.js
+packages/data-plane/dist/origin-rewrite.js
+packages/data-plane/dist/origin.js
+packages/data-plane/dist/segment.js
+packages/data-plane/dist/server.js
+packages/data-plane/dist/stitch.js
+727f8e3dc8f6:/app# npm run typecheck

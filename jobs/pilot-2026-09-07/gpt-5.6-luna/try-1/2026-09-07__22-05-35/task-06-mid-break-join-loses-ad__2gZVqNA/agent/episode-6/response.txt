@@ -1,0 +1,18 @@
+{
+  "analysis": "The key defect is now visible in the data-plane handler: it only calls the decider when the per-session/opportunity pod cache misses, and it never writes a successful decision into that cache. The control plane likely writes the cache as a side effect, but the reported reconnect behavior indicates the cache lifecycle is wrong. I still need confirm cache TTL and the control-plane decision endpoint's idempotency/reuse behavior before making the minimal fix.",
+  "plan": "Inspect the remainder of server.ts, the complete pod-cache implementation, and the exact /v1/ad-decision handler plus its tests. Verify whether the cache TTL is calculated from request time or break end, and whether a prior decision is returned for the same session/opportunity. Then patch the targeted lifecycle bug, likely preserving the existing cache key while ensuring late requests can retrieve/reconstruct the decision for the remaining break. Run focused tests and typecheck afterward.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/server.ts | sed -n '75,180p'; printf '\\n===== pod-cache =====\\n'; nl -ba packages/persistence/src/pod-cache.ts; printf '\\n===== cache tests =====\\n'; nl -ba packages/persistence/src/pod-cache.test.ts\n",
+      "duration": 0.6
+    },
+    {
+      "keystrokes": "nl -ba packages/control-plane/src/server.ts | sed -n '1,230p'; printf '\\n===== control server decision tests/references =====\\n'; grep -RIn -C 12 'ad-decision' packages/control-plane/src packages/data-plane/src --include='*.ts' | sed -n '1,360p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RInE 'RedisPodCache|MemoryPodCache|podCache\\.set|podCache\\.get|new Pod|POD_CACHE|TTL' packages --include='*.ts' --exclude-dir=node_modules | sed -n '1,280p'\n",
+      "duration": 0.8
+    }
+  ]
+}

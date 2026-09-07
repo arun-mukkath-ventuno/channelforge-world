@@ -1,0 +1,59 @@
+New Terminal Output:
+
+d55ac9bae4ee:/app# cat packages/data-plane/src/decider.ts
+// When a viewer reaches an avail with no cached pod, the data plane asks the
+// control plane's Ad Decision Service for one (PRD §15). The control plane
+// persists the decision and writes the pod to the cache, so subsequent playlist
+// refreshes for this (session, opportunity) are pure cache reads on the hot path.
+
+import type { PodItem } from "@ssai/core";
+import type { Avail } from "./avails.js";
+
+export interface DecideRequest {
+  sessionId: string;
+  channelId: string;
+  avail: Avail;
+}
+
+export interface PodDecider {
+  decide(req: DecideRequest): Promise<PodItem[] | null>;
+}
+
+/** Posts to the control plane's /v1/ad-decision. */
+export class HttpPodDecider implements PodDecider {
+  constructor(
+    private readonly controlPlaneUrl: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs = 200,
+  ) {}
+
+  async decide({ sessionId, channelId, avail }: DecideRequest): Promise<PodItem[] | null> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const res = await this.fetchImpl(`${this.controlPlaneUrl}/v1/ad-decision`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          channel_id: channelId,
+          opportunity_id: avail.opportunityId,
+          duration: avail.duration,
+          ...(avail.externalBreakId === undefined
+            ? {}
+            : { external_break_id: avail.externalBreakId }),
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      const decision = (await res.json()) as { pod?: PodItem[] };
+      return decision.pod ?? null;
+    } catch {
+      // ADS unavailable → no pod → origin slate plays (PRD §37).
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+d55ac9bae4ee:/app#

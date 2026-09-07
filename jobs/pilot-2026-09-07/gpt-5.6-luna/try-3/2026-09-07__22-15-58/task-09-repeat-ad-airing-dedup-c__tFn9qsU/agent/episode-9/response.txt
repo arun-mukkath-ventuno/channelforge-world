@@ -1,0 +1,27 @@
+{
+  "analysis": "The source was not changed: ssai.ts still uses `attr(\"X-AD-ID\") || attr(\"ID\")`. The focused SSAI tests and production build passed, while the full test suite and lint are blocked by pre-existing repository/tooling issues (Vitest alias resolution and an ESLint circular-config error). The production Next service is currently running from the unchanged build as PID 1150, so the actual fix still needs to be applied and the service restarted.",
+  "plan": "Apply the minimal ID-precedence change directly with a Perl substitution, verify the exact source, rerun the focused SSAI test and production build, then stop PID 1150 and start Next again from the rebuilt output. Use BusyBox-compatible process checks and avoid modifying tests/configuration.",
+  "commands": [
+    {
+      "keystrokes": "perl -0pi -e 's/const adId = attr\\(\"X-AD-ID\"\\) \\|\\| attr\\(\"ID\"\\);/\\/\\/ DATERANGE ID identifies this airing; X-AD-ID identifies the creative.\\n    \\/\\/ Use the occurrence ID so separate airings are not deduplicated together.\\n    const adId = attr(\"ID\") || attr(\"X-AD-ID\");/' src/lib/ssai.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "sed -n '70,84p' src/lib/ssai.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "pnpm exec vitest run src/lib/ssai.test.ts\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "pnpm run build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "kill 1150 2>/dev/null || true; sleep 1; (pnpm start > /tmp/fast-world-tv.log 2>&1 & echo $! > /tmp/fast-world-tv.pid); sleep 2; echo \"pid=$(cat /tmp/fast-world-tv.pid)\"; ps -o pid,stat,cmd; cat /tmp/fast-world-tv.log\n",
+      "duration": 3.0
+    }
+  ],
+  "task_complete": true
+}

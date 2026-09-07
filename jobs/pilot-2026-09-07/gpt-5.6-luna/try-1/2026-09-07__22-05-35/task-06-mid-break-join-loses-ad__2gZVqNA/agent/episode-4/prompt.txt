@@ -1,0 +1,175 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# printf '%s\n' 'Packages:'; for d in packages/*; do [ -d "$d" ] && echo "$d"; done; printf '%s\n' 'Package source summaries:'; for d in packag
+es/*; do [ -d "$d/src" ] || continue; echo "--- $d"; find "$d/src" -maxdepth 3 -type f \( -name '*.ts' -o -name '*.tsx' \) -print | sort; done
+Packages:
+packages/admin-web
+packages/control-plane
+packages/core
+packages/creative-worker
+packages/data-plane
+packages/persistence
+packages/storage
+Package source summaries:
+--- packages/admin-web
+packages/admin-web/src/App.tsx
+packages/admin-web/src/api/client.ts
+packages/admin-web/src/api/ssai.ts
+packages/admin-web/src/auth/AuthContext.tsx
+packages/admin-web/src/auth/ProtectedLayout.tsx
+packages/admin-web/src/components/PageHeader.tsx
+packages/admin-web/src/components/Stat.tsx
+packages/admin-web/src/components/StatusBadge.tsx
+packages/admin-web/src/components/layout/AppShell.tsx
+packages/admin-web/src/components/ui/button.tsx
+packages/admin-web/src/components/ui/card.tsx
+packages/admin-web/src/components/ui/input.tsx
+packages/admin-web/src/components/ui/select.tsx
+packages/admin-web/src/components/ui/table.tsx
+packages/admin-web/src/lib/format.ts
+packages/admin-web/src/lib/useLoad.ts
+packages/admin-web/src/lib/utils.ts
+packages/admin-web/src/main.tsx
+packages/admin-web/src/pages/AnalyticsPage.tsx
+packages/admin-web/src/pages/CampaignsPage.tsx
+packages/admin-web/src/pages/ChannelsPage.tsx
+packages/admin-web/src/pages/CreativesPage.tsx
+packages/admin-web/src/pages/DebugPage.tsx
+packages/admin-web/src/pages/DocsPage.tsx
+packages/admin-web/src/pages/LoginPage.tsx
+packages/admin-web/src/pages/SessionsPage.tsx
+packages/admin-web/src/vite-env.d.ts
+--- packages/control-plane
+packages/control-plane/src/beacons.test.ts
+packages/control-plane/src/beacons.ts
+packages/control-plane/src/events-normalize.test.ts
+packages/control-plane/src/events-normalize.ts
+packages/control-plane/src/server.test.ts
+packages/control-plane/src/server.ts
+packages/control-plane/src/vast-fetch.test.ts
+packages/control-plane/src/vast-fetch.ts
+packages/control-plane/src/vast-inventory.test.ts
+packages/control-plane/src/vast-inventory.ts
+packages/control-plane/src/vast.test.ts
+packages/control-plane/src/vast.ts
+--- packages/core
+packages/core/src/decide.ts
+packages/core/src/eligibility.test.ts
+packages/core/src/eligibility.ts
+packages/core/src/index.ts
+packages/core/src/pod.test.ts
+packages/core/src/pod.ts
+packages/core/src/rng.ts
+packages/core/src/scte.test.ts
+packages/core/src/scte.ts
+packages/core/src/session-token.test.ts
+packages/core/src/session-token.ts
+packages/core/src/types.ts
+--- packages/creative-worker
+packages/creative-worker/src/cli/prepare-slate.ts
+packages/creative-worker/src/cli/prepare.ts
+packages/creative-worker/src/cli/process-pending.ts
+packages/creative-worker/src/index.ts
+packages/creative-worker/src/probe.ts
+packages/creative-worker/src/profile.ts
+packages/creative-worker/src/transcode.ts
+packages/creative-worker/src/validate.test.ts
+packages/creative-worker/src/validate.ts
+packages/creative-worker/src/worker.test.ts
+packages/creative-worker/src/worker.ts
+--- packages/data-plane
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/avails.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/segment.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/stitch.ts
+--- packages/persistence
+packages/persistence/src/analytics.test.ts
+packages/persistence/src/analytics.ts
+packages/persistence/src/cli/migrate.ts
+packages/persistence/src/cli/seed.ts
+packages/persistence/src/db.ts
+packages/persistence/src/index.ts
+packages/persistence/src/map.ts
+packages/persistence/src/migrate.ts
+packages/persistence/src/pod-cache.test.ts
+packages/persistence/src/pod-cache.ts
+packages/persistence/src/reconciliation.test.ts
+packages/persistence/src/reconciliation.ts
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/repositories/beacons.ts
+packages/persistence/src/repositories/campaigns.ts
+packages/persistence/src/repositories/channels.ts
+packages/persistence/src/repositories/creatives.ts
+packages/persistence/src/repositories/decisions.ts
+packages/persistence/src/repositories/events.ts
+packages/persistence/src/repositories/opportunities.ts
+packages/persistence/src/repositories/sessions.ts
+packages/persistence/src/repositories/slates.ts
+packages/persistence/src/seed.ts
+--- packages/storage
+packages/storage/src/factory.ts
+packages/storage/src/index.ts
+packages/storage/src/s3.test.ts
+packages/storage/src/s3.ts
+packages/storage/src/storage.ts
+727f8e3dc8f6:/app# printf '%s\n' 'Data-plane matches:'; find packages/data-plane/src -type f -name '*.ts' -print0 2>/dev/null | xargs -0 grep -nE -e 'manifest'
+-e 'opportun' -e 'b
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ decision_id: string; ad_seconds: number; slate_seconds: number }>(
+packages/persistence/src/reconciliation.ts:81:      "SELECT decision_id, ad_seconds, slate_seconds FROM ad_pods",
+packages/persistence/src/reconciliation.ts:87:    const opp = decisionToOpp.get(p.decision_id);
+packages/persistence/src/reconciliation.ts:93:  // ── Impressions / quartiles / errors from the event stream, per opportunity ─
+packages/persistence/src/reconciliation.ts:95:    await db.query<{ opportunity_id: string | null; event_type: string; c: number }>(
+packages/persistence/src/reconciliation.ts:96:      `SELECT opportunity_id, event_type, COUNT(*) AS c FROM events
+packages/persistence/src/reconciliation.ts:97:       WHERE event_type LIKE 'ad_%' AND opportunity_id IS NOT NULL
+packages/persistence/src/reconciliation.ts:98:       GROUP BY opportunity_id, event_type`,
+packages/persistence/src/reconciliation.ts:103:    if (!e.opportunity_id || !inScope.has(e.opportunity_id)) continue;
+packages/persistence/src/reconciliation.ts:104:    const m = eventsByOpp.get(e.opportunity_id) ?? new Map<string, number>();
+packages/persistence/src/reconciliation.ts:106:    eventsByOpp.set(e.opportunity_id, m);
+packages/persistence/src/reconciliation.ts:116:        opportunityId: o.id,
+packages/persistence/src/reconciliation.ts:117:        externalBreakId: o.external_break_id ?? null,
+packages/persistence/src/pod-cache.ts:3:// (session, opportunity).
+packages/persistence/src/pod-cache.ts:12:  sessionId: string;
+packages/persistence/src/pod-cache.ts:13:  opportunityId: string;
+packages/persistence/src/pod-cache.ts:15:  breakDuration: number;
+packages/persistence/src/pod-cache.ts:20:  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+packages/persistence/src/pod-cache.ts:22:  del(sessionId: string, opportunityId: string): Promise<void>;
+packages/persistence/src/pod-cache.ts:25:function key(sessionId: string, opportunityId: string): string {
+packages/persistence/src/pod-cache.ts:26:  return `pod:${sessionId}:${opportunityId}`;
+packages/persistence/src/pod-cache.ts:29:/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+packages/persistence/src/pod-cache.ts:35:  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+packages/persistence/src/pod-cache.ts:36:    const raw = await this.redis.get(key(sessionId, opportunityId));
+packages/persistence/src/pod-cache.ts:41:    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+packages/persistence/src/pod-cache.ts:44:  async del(sessionId: string, opportunityId: string): Promise<void> {
+packages/persistence/src/pod-cache.ts:45:    await this.redis.del(key(sessionId, opportunityId));
+packages/persistence/src/pod-cache.ts:52:  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+packages/persistence/src/pod-cache.ts:53:    return this.store.get(key(sessionId, opportunityId)) ?? null;
+packages/persistence/src/pod-cache.ts:57:    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+packages/persistence/src/pod-cache.ts:60:  async del(sessionId: string, opportunityId: string): Promise<void> {
+packages/persistence/src/pod-cache.ts:61:    this.store.delete(key(sessionId, opportunityId));
+packages/persistence/src/repositories/opportunities.ts:1:// Ad opportunity repository (PRD §10, §45).
+packages/persistence/src/repositories/opportunities.ts:8:    `INSERT INTO ad_opportunities (id, channel_id, external_break_id, program_id, start_time, duration,
+ marker_type, marker_payload, status)
+packages/persistence/src/repositories/opportunities.ts:14:       -- keep a previously-captured break id if a later decision omits it (COALESCE new-first).
+packages/persistence/src/repositories/opportunities.ts:15:       external_break_id = COALESCE(EXCLUDED.external_break_id, ad_opportunities.external_break_id)`,
+packages/persistence/src/repositories/opportunities.ts:17:      opp.opportunityId,
+packages/persistence/src/repositories/opportunities.ts:21:      opp.breakStart,
+packages/persistence/src/repositories/opportunities.ts:22:      opp.breakDuration,
+packages/persistence/src/repositories/events.ts:10:  sessionId?: string | null;
+packages/persistence/src/repositories/events.ts:12:  opportunityId?: string | null;
+packages/persistence/src/repositories/events.ts:27:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+packages/persistence/src/repositories/events.ts:35:      e.sessionId ?? null,
+packages/persistence/src/repositories/events.ts:37:      e.opportunityId ?? null,
+packages/persistence/src/repositories/events.ts:56:export async function getEventsBySession(db: Queryable, sessionId: string): Promise<StoredEvent[]> {
+packages/persistence/src/repositories/events.ts:59:      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+packages/persistence/src/repositories/events.ts:60:      [sessionId],
+727f8e3dc8f6:/app#

@@ -1,0 +1,14 @@
+{
+  "analysis": "Manifest handling only attempts cache lookup and decisioning for avails returned by detectAvails. This explains why an undetected late-window break would miss both paths; I need to examine marker support and stitching before choosing the fix.",
+  "plan": "Read the complete detector, marker parser, and stitcher in smaller batches to avoid terminal truncation.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/data-plane/src/avails.ts; cat packages/core/src/scte.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat packages/data-plane/src/stitch.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

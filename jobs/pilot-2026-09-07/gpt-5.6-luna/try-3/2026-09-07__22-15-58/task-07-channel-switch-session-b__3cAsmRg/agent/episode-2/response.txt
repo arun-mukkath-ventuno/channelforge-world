@@ -1,0 +1,18 @@
+{
+  "analysis": "The application is a TypeScript monorepo under /app/packages; the earlier broad search was overwhelmed by node_modules and did not reveal source references. The repository has migrations and package metadata, so I will inspect package names/scripts and enumerate only package source files.",
+  "plan": "Read package.json files and list source files under packages, excluding dependencies. Then search those files and migrations for session/channel/database update logic. This will pinpoint the minimal application-source change and the service restart command.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' 'Root package.json:'; cat package.json; printf '%s\\n' 'Package manifests:'; find packages -name package.json -print -exec sh -c 'echo --- $1; cat \"$1\"' sh {} \\;\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Package files:'; find packages -type f -not -path '*/node_modules/*' | sort | sed -n '1,300p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Relevant references:'; grep -RInE 'session|channel|Session|Channel' packages migrations --exclude='*.lock' 2>/dev/null | head -400\n",
+      "duration": 1.0
+    }
+  ]
+}

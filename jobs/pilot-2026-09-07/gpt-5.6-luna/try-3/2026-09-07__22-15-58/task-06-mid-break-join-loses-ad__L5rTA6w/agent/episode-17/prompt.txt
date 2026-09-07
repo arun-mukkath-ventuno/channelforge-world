@@ -1,0 +1,159 @@
+New Terminal Output:
+
+703450db135d:/app# npx tsx -e 'import { detectAvails } from "./packages/data-plane/src/avails.ts"; const m = ["#EXT-X-MEDIA-SEQUENCE:5", "#EXT-X-CUE-OUT-CONT:El
+apsedTime=6,Duration=30", "#EXTINF:6,", "b.ts", "#EXTINF:6,", "c.ts", "#EXT-X-CUE-IN"].join("\\n"); console.log(JSON.stringify(detectAvails(m, "ch"), null, 2));
+'
+[]
+703450db135d:/app# npm test
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/control-plane/src/beacons.test.ts (0)
+ ✓ packages/control-plane/src/events-normalize.test.ts (7)
+ ❯ packages/control-plane/src/server.test.ts (0)
+ ✓ packages/control-plane/src/vast-fetch.test.ts (5)
+ ❯ packages/control-plane/src/vast-inventory.test.ts (0)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/core/src/eligibility.test.ts (9)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/core/src/session-token.test.ts (6)
+ ✓ packages/creative-worker/src/validate.test.ts (6)
+ ❯ packages/creative-worker/src/worker.test.ts (5)
+   ❯ prepareCreative — state machine (PRD §14) (5)
+     × validates, transcodes, stores HLS and marks the creative ready
+       ⠹ [ beforeEach ]
+       ⠹ [ afterEach ]
+     × fails the creative on a duration mismatch, recording the reason (§40)
+       ⠹ [ beforeEach ]
+       ⠹ [ afterEach ]
+     × fails cleanly when transcoding throws
+       ⠹ [ beforeEach ]
+       ⠹ [ afterEach ]
+     × prepares from a source stored in the object store (uploaded via API)
+       ⠹ [ beforeEach ]
+       ⠹ [ afterEach ]
+     × fails when no source is set
+       ⠹ [ beforeEach ]
+       ⠹ [ afterEach ]
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+ ❯ packages/persistence/src/analytics.test.ts (0)
+ ✓ packages/persistence/src/pod-cache.test.ts (3)
+ ❯ packages/persistence/src/reconciliation.test.ts (0)
+ ❯ packages/persistence/src/repositories.test.ts (0)
+ ✓ packages/storage/src/s3.test.ts (4)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 6 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/control-plane/src/beacons.test.ts [ packages/control-plane/src/beacons.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/control-plane/src/beacons.test.ts:17:16
+     15| const here = dirname(fileURLToPath(import.meta.url));
+     16| const MIG_DIR = resolve(here, "../../../migrations");
+     17| const SCHEMA = readdirSync(MIG_DIR)
+       |                ^
+     18|   .filter((f) => f.endsWith(".sql")).sort()
+     19|   .map((f) => readFileSync(join(MIG_DIR, f), "utf8")).join("\n");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+ FAIL  packages/control-plane/src/server.test.ts [ packages/control-plane/src/server.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/control-plane/src/server.test.ts:13:16
+     11| const here = dirname(fileURLToPath(import.meta.url));
+     12| const MIG_DIR = resolve(here, "../../../migrations");
+     13| const SCHEMA = readdirSync(MIG_DIR)
+       |                ^
+     14|   .filter((f) => f.endsWith(".sql"))
+     15|   .sort()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/16]⎯
+
+ FAIL  packages/control-plane/src/vast-inventory.test.ts [ packages/control-plane/src/vast-inventory.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/control-plane/src/vast-inventory.test.ts:17:16
+     15| const here = dirname(fileURLToPath(import.meta.url));
+     16| const MIG_DIR = resolve(here, "../../../migrations");
+     17| const SCHEMA = readdirSync(MIG_DIR)
+  
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > validates, transcodes, stores HLS and marks the creative ready
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails the creative on a duration mismatch, recording the reason
+ (§40)
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails cleanly when transcoding throws
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > prepares from a source stored in the object store (uploaded via
+ API)
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails when no source is set
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ freshDb packages/creative-worker/src/worker.test.ts:19:19
+     17| function freshDb(): Queryable {
+     18|   const mem = newDb();
+     19|   for (const f of readdirSync(MIG_DIR).filter((f) => f.endsWith(".sql")).sort()) {
+       |                   ^
+     20|     mem.public.none(readFileSync(join(MIG_DIR, f), "utf8"));
+     21|   }
+ ❯ packages/creative-worker/src/worker.test.ts:57:8
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/16]⎯
+
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > validates, transcodes, stores HLS and marks the creative ready
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails the creative on a duration mismatch, recording the reason
+ (§40)
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails cleanly when transcoding throws
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > prepares from a source stored in the object store (uploaded via
+ API)
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails when no source is set
+TypeError: The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+ ❯ packages/creative-worker/src/worker.test.ts:70:9
+     68|
+     69| afterEach(async () => {
+     70|   await rm(storeRoot, { recursive: true, force: true });
+       |         ^
+     71|   await rm(workDir, { recursive: true, force: true });
+     72| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/16]⎯
+
+ Test Files  7 failed | 15 passed (22)
+      Tests  5 failed | 99 passed (104)
+   Start at  16:51:37
+   Duration  3.18s (transform 258ms, setup 0ms, collect 281ms, tests 66ms, environment 2ms, prepare 640ms)
+
+703450db135d:/app# npm run build --workspace @ssai/data-plane
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+703450db135d:/app# env | grep -E '^(REDIS_URL|CONTROL_PLANE_URL|SESSION_SIGNING_SECRET|DATA_PLANE_PORT|OBJECT|S3|STORAGE)' || true; ps -ef 2>/dev/null || ps 2>/
+dev/null || true
+REDIS_URL=redis://redis:6379
+CONTROL_PLANE_URL=http://localhost:4000
+SESSION_SIGNING_SECRET=task-ssai-session-secret
+DATA_PLANE_PORT=4010
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   96 root      0:00 [tmux: client]
+   97 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   98 root      0:00 bash --login
+   99 root      0:00 cat
+  112 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  116 root      0:00 /bin/bash
+  567 root      0:00 [esbuild]
+ 1169 root      0:00 [esbuild]
+ 1397 root      0:00 [esbuild]
+ 1588 root      0:00 [esbuild]
+ 1677 root      0:00 [esbuild]
+ 1695 root      0:00 [esbuild]
+ 1769 root      0:00 [esbuild]
+ 2239 root      0:00 ps -ef
+703450db135d:/app#

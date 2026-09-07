@@ -1,0 +1,6 @@
+{
+  "analysis": "The data-plane service is running and healthy. The fix is in place:\n\n1. **Bug**: `blockBreakId` was only cleared on URI lines. For back-to-back breaks (where CUE-IN is immediately followed by another CUE-OUT with no URI in between), the first break's DATERANGE id would leak to the second break.\n\n2. **Fix**: Added `blockBreakId = undefined;` in the CUE-IN handler, after closing the avail. This is the natural point to reset because the DATERANGE id belonged to the just-closed avail.\n\n3. **Verified**: \n   - All 29 existing data-plane tests pass\n   - All 34 core tests pass\n   - The dist build has the fix\n   - The data-plane service is running on port 4010 with the fix\n\n4. **Marker syntax preserved**: The fix only adds clearing of blockBreakId on CUE-IN. It does not weaken any of the marker syntax support (CUE-OUT, CUE-IN, DATERANGE before/after CUE-OUT, CUE-OUT-CONT, etc.).",
+  "plan": "Task is complete. The data-plane service is running with the fix.",
+  "commands": [],
+  "task_complete": true
+}

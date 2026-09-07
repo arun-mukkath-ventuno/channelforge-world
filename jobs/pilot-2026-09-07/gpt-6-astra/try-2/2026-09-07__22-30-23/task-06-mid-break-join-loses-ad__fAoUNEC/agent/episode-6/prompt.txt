@@ -1,0 +1,265 @@
+New Terminal Output:
+
+c3e0c565748c:/app# cat packages/data-plane/src/origin.ts
+// ChannelForge origin client (PRD §8, §42, §48). Fetches the origin media
+// playlist with a short TTL cache (a live playlist changes every segment) and
+// serves the last-good copy if the origin briefly fails, so playback survives
+// an origin blip rather than stalling.
+
+export interface OriginResult {
+  body: string;
+  fromCache: boolean;
+  /** True when the origin failed and a previously cached copy was served. */
+  stale: boolean;
+}
+
+export interface OriginClientOptions {
+  baseUrl?: string;
+  /** Cache TTL in ms. A live media playlist rolls ~every target duration. */
+  ttlMs?: number;
+  /** Build the media-playlist URL for a channel/variant. */
+  urlFor?: (channel: string, variant: string) => string;
+  /**
+   * Per-channel media-playlist URL, e.g. a real ChannelForge origin
+   * `{channel: "https://forge…/hls/{uuid}/delivery.m3u8"}`. A channel present here is
+   * fetched verbatim (its URL is the full media playlist); channels absent fall back to the
+   * `{baseUrl}/{channel}/{variant}.m3u8` convention. Defaults from CHANNELFORGE_ORIGIN_MAP (JSON).
+   */
+  originMap?: Record<string, string>;
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+/** Parse the CHANNELFORGE_ORIGIN_MAP env (JSON object) into a channel→url map. */
+export function parseOriginMap(raw: string | undefined): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" ? (v as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+interface CacheEntry {
+  body: string;
+  at: number;
+}
+
+export class OriginClient {
+  private readonly cache = new Map<string, CacheEntry>();
+  private readonly baseUrl: string;
+  private readonly ttlMs: number;
+  private readonly timeoutMs: number;
+  private readonly fetchImpl: typeof fetch;
+  private readonly originMap: Record<string, string>;
+  private readonly urlFor: (channel: string, variant: string) => string;
+
+  constructor(opts: OriginClientOptions = {}) {
+    this.baseUrl = (opts.baseUrl ?? process.env.CHANNELFORGE_ORIGIN_URL ?? "http://localhost:8080").replace(/\/$/, "");
+    this.ttlMs = opts.ttlMs ?? 2000;
+    this.timeoutMs = opts.timeoutMs ?? 3000;
+    this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.originMap = opts.originMap ?? parseOriginMap(process.env.CHANNELFORGE_ORIGIN_MAP);
+    this.urlFor =
+      opts.urlFor ??
+      ((channel, variant) => this.originMap[channel] ?? `${this.baseUrl}/${channel}/${variant}.m3u8`);
+  }
+
+  /** The resolved origin media-playlist URL for a channel — also the base for absolutizing
+   * the origin's relative segment URIs (so a real external origin's content stays fetchable). */
+  originUrlFor(channel: string, variant = "index"): string {
+    return this.urlFor(channel, variant);
+  }
+
+  async fetchMediaPlaylist(channel: string, variant = "index"): Promise<OriginResult> {
+    const url = this.urlFor(channel, variant);
+    const now = Date.now();
+    const hit = this.cache.get(url);
+
+    if (hit && now - hit.at < this.ttlMs) {
+      return { body: hit.body, fromCache: true, stale: false };
+    }
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      let body: string;
+      try {
+        const res = await this.fetchImpl(url, { signal: controller.signal });
+        if (!res.ok) throw new Error(`origin responded ${res.status}`);
+        body = await res.text();
+      } finally {
+        clearTimeout(timer);
+      }
+      this.cache.set(url, { body, at: now });
+      return { body, fromCache: false, stale: false };
+    } catch (err) {
+      // Origin failed — serve last-good if we have it (PRD §42).
+      if (hit) return { body: hit.body, fromCache: true, stale: true };
+      throw err;
+    }
+  }
+}
+c3e0c565748c:/app# cat packages/data-plane/src/decider.ts; cat packages/data-plane/src/avails.test.ts; cat packages/data-plane/src/origin-slice4.test.ts
+// When a viewer reaches an avail with no cached pod, the data plane asks the
+// control plane's Ad Decision Service for one (PRD §15). The control plane
+// persists the decision and writes the pod to the cache, so subsequent playlist
+// refreshes for this (session, opportunity) are pure cache reads on the hot path.
+
+import type { PodItem } from "@ssai/core";
+import type { Avail } from "./avails.js";
+
+export interface DecideRequest {
+  sessionId: string;
+  channelId: string;
+  avail: Avail;
+}
+
+export interface PodDecider {
+  decide(req: DecideRequest): Promise<PodItem[] | null>;
+}
+
+/** Posts to the control plane's /v1/ad-decision. */
+export class HttpPodDecider implements PodDecider {
+  constructor(
+    private readonly controlPlaneUrl: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs = 200,
+  ) {}
+
+  async decide({ sessionId, channelId, avail }: DecideRequest): Promise<PodItem[] | null> {
+    const controller = new AbortContro
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+QUENCE:200",
+      "#EXTINF:6.000,",
+      "s200.ts",
+      "#EXT-X-CUE-OUT:90",
+      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+      "#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "channel_yoga");
+    expect(avails).toHaveLength(1);
+    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+  });
+
+  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+  });
+
+  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+  });
+
+  it("does not leak one break's id onto a later break that has none", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-OUT:15",
+      "#EXTINF:6.000,",
+      "c.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails).toHaveLength(2);
+    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+    expect(avails[1]!.externalBreakId).toBeUndefined();
+  });
+
+  it("detects multiple avails in one window", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-OUT:15",
+      "#EXTINF:6.000,",
+      "c.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+  });
+});
+import { describe, it, expect } from "vitest";
+
+import { OriginClient, parseOriginMap } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+
+describe("parseOriginMap", () => {
+  it("parses a JSON channel→url map", () => {
+    expect(parseOriginMap('{"channel_yoga":"https://forge/hls/u/delivery.m3u8"}')).toEqual({
+      channel_yoga: "https://forge/hls/u/delivery.m3u8",
+    });
+  });
+  it("is empty on missing or bad input", () => {
+    expect(parseOriginMap(undefined)).toEqual({});
+    expect(parseOriginMap("not json")).toEqual({});
+  });
+});
+
+describe("OriginClient.originUrlFor", () => {
+  it("uses the per-channel origin map verbatim when present", () => {
+    const c = new OriginClient({
+      baseUrl: "http://fixture:8080",
+      originMap: { channel_yoga: "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8" },
+    });
+    expect(c.originUrlFor("channel_yoga")).toBe(
+      "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8",
+    );
+  });
+  it("falls back to base/channel/variant for unmapped channels", () => {
+    const c = new OriginClient({ baseUrl: "http://fixture:8080", originMap: {} });
+    expect(c.originUrlFor("channel_food", "index")).toBe("http://fixture:8080/channel_food/index.m3u8");
+  });
+});
+
+describe("absolutizeManifest", () => {
+  const origin = "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8";
+
+  it("rewrites relative segment URIs to absolute origin URLs", () => {
+    const body = ["#EXTM3U", "#EXTINF:2.000,", "index0.ts", "#EXTINF:2.000,", "index1.ts"].join("\n");
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index0.ts");
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index1.ts");
+    expect(out).toContain("#EXTINF:2.000,"); // tags untouched
+  });
+
+  it("leaves already-absolute URIs and ad segments alone", () => {
+    const body = ["#EXTINF:2,", "https://cdn/x.ts", "#EXTINF:2,", "/v1/segments/cr_1/000.ts"].join("\n");
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain("https://cdn/x.ts");
+    // a rooted path resolves against the origin host (expected) — the stitcher inserts ad segments
+    // AFTER this step, so real ad segments are never passed through here.
+    expect(out).toContain("https://forge.ventunotech.com/v1/segments/cr_1/000.ts");
+  });
+
+  it("absolutizes URI= attributes on tags", () => {
+    const body = '#EXT-X-MAP:URI="init.mp4"\n#EXTINF:2,\nseg.m4s';
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain('URI="https://forge.ventunotech.com/hls/a11e5310/init.mp4"');
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/seg.m4s");
+  });
+});
+c3e0c565748c:/app#

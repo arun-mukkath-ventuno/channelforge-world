@@ -1,0 +1,79 @@
+New Terminal Output:
+
+99639b685900:/app# python3 - <<'PY'
+> from pathlib import Path
+> p = Path('packages/persistence/src/repositories/sessions.ts')
+> s = p.read_text()
+> old = 'ON CONFLICT (id) DO NOTHING'
+> new = 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id'
+> if old not in s:
+>     raise SystemExit('expected SQL clause not found')
+> p.write_text(s.replace(old, new, 1))
+> PY
+bash: python3: command not found
+99639b685900:/app# sed -n '20,52p' packages/persistence/src/repositories/sessions.ts
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+  );
+}
+99639b685900:/app# git diff -- packages/persistence/src/repositories/sessions.ts
+bash: git: command not found
+99639b685900:/app# npm test --workspace @ssai/persistence
+
+> @ssai/persistence@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app/packages/persistence
+
+ ✓ src/reconciliation.test.ts (4)
+ ✓ src/analytics.test.ts (5)
+ ✓ src/pod-cache.test.ts (3)
+ ✓ src/reconciliation.test.ts (4)
+ ✓ src/repositories.test.ts (4)
+
+ Test Files  4 passed (4)
+      Tests  16 passed (16)
+   Start at  16:36:29
+   Duration  1.33s (transform 211ms, setup 0ms, collect 451ms, tests 465ms, environment 0ms, prepare 127ms)
+
+99639b685900:/app# npm run build --workspace @ssai/persistence
+
+> @ssai/persistence@0.1.0 build
+> tsc --build
+
+99639b685900:/app# git status --short && git diff --check && git diff -- packages/persistence/src/repositories/sessions.ts
+bash: git: command not found
+99639b685900:/app# pids=$(ps -eo pid=,args= | awk '/(control-plane|data-plane|dist\/server\.js|tsx watch src\/server\.ts)/ && !/awk/ {print $1}'); if [ -n "$pid
+s" ]; then echo "Restarting service PIDs: $pids"; kill $pids; sleep 1; else echo 'No control-plane or data-plane service is running; no restart required.'; fi
+No control-plane or data-plane service is running; no restart required.
+99639b685900:/app#

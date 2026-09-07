@@ -1,0 +1,257 @@
+New Terminal Output:
+
+26a4261744ce:/app# sed -n '1,220p' packages/data-plane/src/server.ts; sed -n '221,460p' packages/data-plane/src/server.ts
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+
+import Fastify from "fastify";
+import { verifySession, type PodItem } from "@ssai/core";
+import type { PodCache } from "@ssai/persistence";
+import type { ObjectStore } from "@ssai/storage";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider, type PodDecider } from "./decider.js";
+
+export interface DataPlaneDeps {
+  podCache: PodCache;
+  origin: OriginClient;
+  /** Object store holding prepared creative HLS (creatives/{id}/…). */
+  store: ObjectStore;
+  /** Optional: resolves a pod when none is cached. Omit → cache miss means slate. */
+  decider?: PodDecider;
+  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+  sessionSecret?: string;
+  logger?: boolean;
+}
+
+export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+
+// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+
+const CONTENT_TYPES: Record<string, string> = {
+  ts: "video/mp2t",
+  m3u8: "application/vnd.apple.mpegurl",
+  m4s: "video/iso.segment",
+  mp4: "video/mp4",
+  aac: "audio/aac",
+};
+
+export function buildServer(deps: DataPlaneDeps) {
+  // Signed tokens are long — raise the route param length limit (default 100).
+  const app = Fastify({ logger: deps.logger ?? true, maxParamLength: 4096 });
+  const { podCache, origin, decider, store } = deps;
+  const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+
+  app.get("/health", async () => ({ status: "ok", plane: "data" }));
+
+  // Personalized media playlist (PRD §11, §22, §24, §52).
+  app.get("/v1/hls/:token/:channel/:variant.m3u8", async (req, reply) => {
+    const { token, channel, variant } = req.params as { token: string; channel: string; variant: string };
+
+    // Verify the signed playback token (PRD §57) before doing any work.
+    const claims = verifySession(token, sessionSecret);
+    if (!claims) return reply.code(403).send({ error: "invalid_session_token" });
+    if (claims.ch !== channel) return reply.code(403).send({ error: "channel_mismatch" });
+    const session = claims.sid;
+
+    let originResult;
+    try {
+      originResult = await origin.fetchMediaPlaylist(channel, variant);
+    } catch (err) {
+      req.log.error({ err }, "origin fetch failed with no cached copy");
+      return reply.code(502).send({ error: "origin_unavailable" });
+    }
+
+    // Absolutize the origin's relative content URIs against the real origin URL so the player
+    // pulls content straight from ChannelForge (ad segments stay absolute SSAI paths).
+    const originBody = absolutizeManifest(originResult.body, origin.originUrlFor(channel, variant));
+    const avails = detectAvails(originBody, channel);
+
+    // Resolve a pod for each avail (cache, else decide once), then resolve its
+    // media from the store into concrete segments.
+    const rendered = new Map<string, RenderedPodItem[]>();
+    for (const avail of avails) {
+      let pod: PodItem[] | undefined;
+      const cached = await podCache.get(session, avail.opportunityId);
+      if (cached) pod = cached.pod;
+      else if (decider) {
+        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+        if (decided) pod = decided;
+      }
+      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+    }
+
+    const { manifest, stitched } = stitchManifest(originBody, avails, rendered);
+
+    reply.header("content-type", "application/vnd.apple.mpegurl");
+    reply.header("x-ssai-avails", String(avails.length));
+    reply.header("x-ssai-stitched", String(stitched.length));
+    if (originResult.stale) reply.header("x-ssai-origin", "stale");
+    return manifest;
+  });
+
+  // Serve prepared creative segments the stitched manifest points at (PRD §14).
+  app.get("/v1/segments/:creativeId/:file", async (req, reply) => {
+    const { creativeId, file } = req.params as { creativeId: string; file: string };
+    if (!SAFE_ID.test(creativeId) || !SAFE_FILE.test(file)) {
+      return reply.code(400).send({ error: "invalid segment path" });
+    }
+    return serveStored(reply, store, `creatives
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ages/persistence/src/reconciliation.ts
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/repositories/beacons.ts
+packages/persistence/src/repositories/campaigns.ts
+packages/persistence/src/repositories/channels.ts
+packages/persistence/src/repositories/creatives.ts
+packages/persistence/src/repositories/decisions.ts
+packages/persistence/src/repositories/events.ts
+packages/persistence/src/repositories/opportunities.ts
+packages/persistence/src/repositories/sessions.ts
+packages/persistence/src/repositories/slates.ts
+packages/persistence/src/seed.ts
+26a4261744ce:/app# sed -n '1,180p' packages/persistence/src/index.ts 2>/dev/null; sed -n '1,260p' packages/persistence/src/repositories/decisions.ts; grep -RInE
+ -e 'PodCache' -e 'getPod' -e 'putPod' packages | head -300
+// @ssai/persistence — Postgres repositories, migrations, and the Redis pod cache.
+
+export * from "./db.js";
+export * from "./migrate.js";
+export * from "./pod-cache.js";
+export * from "./seed.js";
+export * from "./analytics.js";
+export * from "./reconciliation.js";
+
+export * as channels from "./repositories/channels.js";
+export * as campaigns from "./repositories/campaigns.js";
+export * as creatives from "./repositories/creatives.js";
+export * as sessions from "./repositories/sessions.js";
+export * as opportunities from "./repositories/opportunities.js";
+export * as decisions from "./repositories/decisions.js";
+export * as events from "./repositories/events.js";
+export * as slates from "./repositories/slates.js";
+export * as beacons from "./repositories/beacons.js";
+// Ad decision + pod persistence (PRD §46, §47). The full decision payload is
+// retained (JSONB) for debugging and RL evaluation.
+
+import type { AdDecision } from "@ssai/core";
+import type { Queryable } from "../db.js";
+
+export interface SaveDecisionInput {
+  decisionId: string;
+  podId: string;
+  decision: AdDecision;
+  requestedAt: string;
+  completedAt: string;
+}
+
+export async function saveDecision(db: Queryable, input: SaveDecisionInput): Promise<void> {
+  const { decision } = input;
+  const selectedCount = decision.pod.filter((p) => p.type === "ad").length;
+
+  await db.query(
+    `INSERT INTO ad_decisions
+       (id, opportunity_id, session_id, requested_at, completed_at, eligible_count, selected_count, seed, decision_payload)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
+    [
+      input.decisionId,
+      decision.opportunityId,
+      decision.sessionId,
+      input.requestedAt,
+      input.completedAt,
+      decision.eligible.length,
+      selectedCount,
+      decision.seed ?? null,
+      JSON.stringify(decision),
+    ],
+  );
+
+  await db.query(
+    `INSERT INTO ad_pods (id, decision_id, break_duration, ad_seconds, slate_seconds)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [input.podId, input.decisionId, decision.breakDuration, decision.adSeconds, decision.slateSeconds],
+  );
+
+  for (const item of decision.pod) {
+    await db.query(
+      `INSERT INTO ad_pod_items (pod_id, position, item_type, creative_id, duration, start_offset, end_offset)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        input.podId,
+        item.position,
+        item.type === "ad" ? "AD" : "SLATE",
+        item.creativeId ?? null,
+        item.duration,
+        item.startOffset,
+        item.endOffset,
+      ],
+    );
+  }
+}
+
+export interface StoredDecision {
+  id: string;
+  opportunityId: string;
+  sessionId: string;
+  eligibleCount: number;
+  selectedCount: number;
+  decision: AdDecision;
+}
+
+interface DecisionRow {
+  id: string;
+  opportunity_id: string;
+  session_id: string;
+  eligible_count: number;
+  selected_count: number;
+  decision_payload: unknown;
+}
+
+function toStored(r: DecisionRow): StoredDecision {
+  return {
+    id: r.id,
+    opportunityId: r.opportunity_id,
+    sessionId: r.session_id,
+    eligibleCount: Number(r.eligible_count),
+    selectedCount: Number(r.selected_count),
+    decision: (typeof r.decision_payload === "string"
+      ? JSON.parse(r.decision_payload)
+      : r.decision_payload) as AdDecision,
+  };
+}
+
+const DECISION_COLS =
+  "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+
+export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {
+  const rows = (
+    await db.query<DecisionRow>(
+      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE session_id = $1 ORDER BY requested_at`,
+      [sessionId],
+    )
+  ).rows;
+  return rows.map(toStored);
+}
+
+export async function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<StoredDecision[]> {
+  const rows = (
+    await db.query<DecisionRow>(
+      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+      [opportunityId],
+    )
+  ).rows;
+  return rows.map(toStored);
+}
+find packages/control-plane/src -type f -maxdepth 3 -print | sort; grep -RInE -e 'ad-decision' -e 'opportunityId' -e 'opportunity_id' -e 'ensureSession' package
+s/control-plane/src | head -400
+

@@ -1,0 +1,311 @@
+New Terminal Output:
+
+e6f3e04d76cc:/app# printf '%s\n' 'Root package.json:'; cat package.json; printf '%s\n' 'Package manifests:'; find packages -name package.json -print -exec sh -c
+ 'echo --- $1; cat "$1"' sh {} \;
+Root package.json:
+{
+  "name": "ssaiadserver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FAST World SSAI Ad Server — server-side ad insertion for ChannelForge linear HLS channels",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --build",
+    "dev:control": "npm run dev --workspace @ssai/control-plane",
+    "dev:data": "npm run dev --workspace @ssai/data-plane",
+    "lint": "tsc --build --pretty false"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
+Package manifests:
+packages/storage/package.json
+--- packages/storage/package.json
+{
+  "name": "@ssai/storage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Object storage for prepared HLS media — ObjectStore interface (S3/MinIO target) + a filesystem implementation. Shared by the creative worker (
+writes) and the data plane (reads).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.700.0"
+  }
+}
+packages/admin-web/package.json
+--- packages/admin-web/package.json
+{
+  "name": "@ssai/admin-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI operator console — Vite + React + Tailwind v4 + shadcn-style UI, matching the ChannelForge design system.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.454.0",
+    "marked": "^18.0.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "tailwind-merge": "^2.5.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
+packages/admin-web/node_modules/vite/types/package.json
+--- packages/admin-web/node_modules/vite/types/package.json
+{
+  "//": "this file is here to make typescript happy when moduleResolution=node16+",
+  "version": "0.0.0"
+}
+packages/admin-web/node_modules/vite/package.json
+--- packages/admin-web/node_modules/vite/package.json
+{
+  "name": "vite",
+  "version": "6.4.3",
+  "type": "module",
+  "license": "MIT",
+  "author": "Evan You",
+  "description": "Native-ESM powered web dev build tool",
+  "bin": {
+    "vite": "bin/vite.js"
+  },
+  "keywords": [
+    "frontend",
+    "framework",
+    "hmr",
+    "dev-server",
+    "build-tool",
+    "vite"
+  ],
+  "main": "./dist/node/index.js",
+  "types": "./dist/node/index.d.ts",
+  "exports": {
+    ".": {
+      "module-sync": "./dist/node/index.js",
+      "import": "./dist/node/index.js",
+      "require": "./index.cjs"
+    },
+    "./client": {
+      "types": "./client.d.ts"
+    },
+    "./module-runner": "./dist/node/module-runner.js",
+    "./dist/client/*": "./dist/client/*",
+    "./types/*": {
+      "types": "./types/*"
+    },
+    "./types/internal/*": null,
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "module-runner": [
+        "dist/node/module-runner.d.ts"
+      ]
+    }
+  },
+  "imports": {
+    "#module-sync-enabled": {
+      "module-sync": "./misc/true.js",
+      "default": "./misc/false.js"
+    }
+  },
+  "files": [
+    "bin",
+    "dist",
+    "misc/**/*.js",
+    "client.d.ts",
+    "index.cjs",
+    "index.d.cts",
+    "types"
+  ],
+  "engines": {
+    "node": "^18.0.0 || ^20.0.0 || >=22.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vitejs/vite.git",
+    "directory": "packages/vite"
+  },
+  "bugs": {
+    "url": "https://github.com/vitejs/vite/issues"
+  },
+  "homepage": "https://vite.dev",
+  "funding": "https://github.com/vitejs/vite?sponsor=1",
+  "//": "READ CONTRIBUTING.md to understand what to put under deps vs. devDeps!",
+  "dependencies": {
+    "esbuild": "^0.25.0",
+    "fdir": "^6.4.4",
+    "picomatch": "^4.0.2",
+    "postcss": "^8.5.3",
+    "rollup": "^4.34.9",
+    "tinyglobby": "^0.2.13"
+  },
+  "optionalDependencies": {
+    "fsevents": "~2.3.3"
+  },
+  "devDependencies": {
+    "@ampproject/remapping": "^2.3.0",
+    "@babel/parser": "^7.27.0",
+    "@jridgewell/trace-mapping": "^0.3.25",
+    "@polka/compression": "^1.0.0-next.25",
+    "@rollup/plugin-alias": "^5.1.1",
+    "@rollup/plugin-commonjs": 
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+e-worker/dist/worker.js.map
+packages/creative-worker/package.json
+packages/creative-worker/src/cli/prepare-slate.ts
+packages/creative-worker/src/cli/prepare.ts
+packages/creative-worker/src/cli/process-pending.ts
+packages/creative-worker/src/index.ts
+packages/creative-worker/src/probe.ts
+packages/creative-worker/src/profile.ts
+packages/creative-worker/src/transcode.ts
+packages/creative-worker/src/validate.test.ts
+packages/creative-worker/src/validate.ts
+packages/creative-worker/src/worker.test.ts
+packages/creative-worker/src/worker.ts
+packages/creative-worker/tsconfig.json
+packages/creative-worker/tsconfig.tsbuildinfo
+packages/data-plane/dist/avails.d.ts
+packages/data-plane/dist/avails.d.ts.map
+packages/data-plane/dist/avails.js
+packages/data-plane/dist/avails.js.map
+packages/data-plane/dist/decider.d.ts
+packages/data-plane/dist/decider.d.ts.map
+packages/data-plane/dist/decider.js
+packages/data-plane/dist/decider.js.map
+packages/data-plane/dist/media.d.ts
+packages/data-plane/dist/media.d.ts.map
+packages/data-plane/dist/media.js
+packages/data-plane/dist/media.js.map
+packages/data-plane/dist/origin-rewrite.d.ts
+packages/data-plane/dist/origin-rewrite.d.ts.map
+packages/data-plane/dist/origin-rewrite.js
+packages/data-plane/dist/origin-rewrite.js.map
+packages/data-plane/dist/origin.d.ts
+packages/data-plane/dist/origin.d.ts.map
+packages/data-plane/dist/origin.js
+packages/data-plane/dist/origin.js.map
+packages/data-plane/dist/segment.d.ts
+packages/data-plane/dist/segment.d.ts.map
+packages/data-plane/dist/segment.js
+packages/data-plane/dist/segment.js.map
+packages/data-plane/dist/server.d.ts
+packages/data-plane/dist/server.d.ts.map
+packages/data-plane/dist/server.js
+packages/data-plane/dist/server.js.map
+packages/data-plane/dist/stitch.d.ts
+packages/data-plane/dist/stitch.d.ts.map
+packages/data-plane/dist/stitch.js
+packages/data-plane/dist/stitch.js.map
+packages/data-plane/package.json
+packages/data-plane/src/avails.test.ts
+packages/data-plane/src/avails.ts
+packages/data-plane/src/decider.ts
+packages/data-plane/src/media.test.ts
+packages/data-plane/src/media.ts
+packages/data-plane/src/origin-rewrite.ts
+packages/data-plane/src/origin-slice4.test.ts
+packages/data-plane/src/origin.test.ts
+packages/data-plane/src/origin.ts
+packages/data-plane/src/segment.ts
+packages/data-plane/src/server.ts
+packages/data-plane/src/stitch.test.ts
+packages/data-plane/src/stitch.ts
+packages/data-plane/tsconfig.json
+packages/data-plane/tsconfig.tsbuildinfo
+packages/persistence/dist/analytics.d.ts
+packages/persistence/dist/analytics.d.ts.map
+packages/persistence/dist/analytics.js
+packages/persistence/dist/analytics.js.map
+packages/persistence/dist/cli/migrate.d.ts
+packages/persistence/dist/cli/migrate.d.ts.map
+packages/persistence/dist/cli/migrate.js
+packages/persistence/dist/cli/migrate.js.map
+packages/persistence/dist/cli/seed.d.ts
+packages/persistence/dist/cli/seed.d.ts.map
+packages/persistence/dist/cli/seed.js
+packages/persistence/dist/cli/seed.js.map
+packages/persistence/dist/db.d.ts
+packages/persistence/dist/db.d.ts.map
+packages/persistence/dist/db.js
+packages/persistence/dist/db.js.map
+packages/persistence/dist/index.d.ts
+packages/persistence/dist/index.d.ts.map
+packages/persistence/dist/index.js
+packages/persistence/dist/index.js.map
+packages/persistence/dist/map.d.ts
+packages/persistence/dist/map.d.ts.map
+packages/persistence/dist/map.js
+packages/persistence/dist/map.js.map
+packages/persistence/dist/migrate.d.ts
+packages/persistence/dist/migrate.d.ts.map
+packages/persistence/dist/migrate.js
+packages/persistence/dist/migrate.js.map
+packages/persistence/dist/pod-cache.d.ts
+packages/persistence/dist/pod-cache.d.ts.map
+packages/persistence/dist/pod-cache.js
+packages/persistence/dist/pod-cache.js.map
+packages/persistence/dist/reconciliation.d.ts
+packages/persistence/dist/reconciliation.d.ts.map
+packages/persistence/dist/reconciliation.js
+packages/persistence/dist/reconciliation.js.map
+packages/persistence/dist/repositories/beacons.d.ts
+packages/persistence/dist/repositories/beacons.d.ts.map
+packages/persistence/dist/repositories/beacons.js
+packages/persistence/dist/repositories/beacons.js.map
+packages/persistence/dist/repositories/campaigns.d.ts
+packages/persistence/dist/repositories/campaigns.d.ts.map
+packages/persistence/dist/repositories/campaigns.js
+packages/persistence/dist/repositories/campaigns.js.map
+packages/persistence/dist/repositories/channels.d.ts
+packages/persistence/dist/repositories/channels.d.ts.map
+packages/persistence/dist/repositories/channels.js
+packages/persistence/dist/repositories/channels.js.map
+packages/persistence/dist/repositories/creatives.d.ts
+packages/persistence/dist/repositories/creatives.d.ts.map
+packages/persistence/dist/repositories/creatives.js
+packages/persistence/dist/repositories/creatives.js.map
+e6f3e04d76cc:/app# printf '%s\n' 'Relevant references:'; grep -RInE 'session|channel|Session|Channel' packages migrations --exclude='*.lock' 2>/dev/null | head
+-400
+Relevant references:
+e6f3e04d76cc:/app#

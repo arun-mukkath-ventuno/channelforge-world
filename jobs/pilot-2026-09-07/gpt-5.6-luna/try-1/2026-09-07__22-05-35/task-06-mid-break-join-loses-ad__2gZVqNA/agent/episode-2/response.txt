@@ -1,0 +1,14 @@
+{
+  "analysis": "The monorepo contains multiple packages, but the file listing was overwhelmed by nested workspace node_modules and generated/bundled assets. The application source is present under packages; the previous grep was similarly polluted and did not provide useful matches. I need enumerate only package source/config files while pruning every node_modules and dist directory, then inspect the data-plane/control-plane code and tests.",
+  "plan": "List package directories and relevant source files with find pruning node_modules, dist, and build output. Read workspace package manifests to identify runnable services, then search only TypeScript/JavaScript source for ad-break and manifest/session state terms. This should isolate the defect path without modifying anything.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' 'Workspace manifests:'; find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -name package.json -print -exec sh -c 'echo --- \"$1\"; cat \"$1\"' sh {} \\;; printf '%s\\n' 'Application files:'; find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.json' \\) -print | sort\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -type f \\( -name '*.ts' -o -name '*.tsx' -o -name '*.js' \\) -print0 | xargs -0 grep -nE -e 'ad.?break' -e 'manifest' -e 'decision' -e 'session' -e 'reconnect' -e 'tune.?in' 2>/dev/null | sed -n '1,320p'\n",
+      "duration": 1.0
+    }
+  ]
+}

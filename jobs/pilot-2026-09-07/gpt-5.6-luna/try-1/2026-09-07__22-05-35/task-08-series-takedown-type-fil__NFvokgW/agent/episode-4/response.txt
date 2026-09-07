@@ -1,0 +1,14 @@
+{
+  "analysis": "The latest screen only shows the schedule caller, confirming that active_takedown_for_asset is the shared enforcement point, but it does not show the repository function itself. The next command will print that exact function and the repository imports so the fix can be applied safely.",
+  "plan": "Inspect the function with line numbers and compare the repository file to its .orig counterpart using a focused diff. If the current implementation only filters scope_type='asset', replace that predicate with an OR covering direct asset scope and matching series scope. Then run focused tests and inspect the final diff before restarting the API.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba app/repositories/rights.py | sed -n '1,210p'; echo '--- ORIGINAL FUNCTION ---'; nl -ba app/repositories/rights.py.orig | sed -n '140,190p'; echo '--- FILE STATUS ---'; git status --short\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\nfor name in ('app/repositories/rights.py','app/repositories/rights.py.orig'):\n    p=Path(name)\n    print(f'--- {name} ---')\n    text=p.read_text()\n    marker='def active_takedown_for_asset'\n    i=text.index(marker)\n    print(text[i:i+900])\nPY\n",
+      "duration": 0.3
+    }
+  ]
+}

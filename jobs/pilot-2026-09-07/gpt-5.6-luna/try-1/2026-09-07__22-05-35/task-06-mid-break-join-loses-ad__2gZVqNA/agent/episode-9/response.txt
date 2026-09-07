@@ -1,0 +1,14 @@
+{
+  "analysis": "The control-plane imports the decisions repository namespace and already has access to the pod cache. The endpoint currently generates a new decision on every request, while the data plane calls it whenever its session/opportunity cache is missing. The fix should be implemented as an idempotent lookup before the existing decision path, using the persisted decision payload and repopulating the cache. I need inspect the exact response code and persistence exports, then edit only application source.",
+  "plan": "Add a focused repository function to fetch one decision by session and opportunity, export it through the persistence barrel if needed, and update the ad-decision endpoint to return the existing pod before inventory/decisioning. Cache the reused pod with the persisted break duration. Preserve all existing behavior for new opportunities and cache hits. Then build/typecheck and run tests, inspect running processes, and restart the relevant service.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/control-plane/src/server.ts | sed -n '205,252p'; printf '\\n===== persistence index =====\\n'; nl -ba packages/persistence/src/index.ts; printf '\\n===== decision repository top =====\\n'; nl -ba packages/persistence/src/repositories/decisions.ts | sed -n '1,115p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np=Path('packages/persistence/src/repositories/decisions.ts')\ns=p.read_text()\nneedle='export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {'\ninsert='''export async function getDecisionBySessionAndOpportunity(\\n  db: Queryable,\\n  sessionId: string,\\n  opportunityId: string,\\n): Promise<StoredDecision | null> {\\n  const rows = (\\n    await db.query<DecisionRow>(\\n      `SELECT ${DECISION_COLS} FROM ad_decisions\\n       WHERE session_id = $1 AND opportunity_id = $2\\n       ORDER BY requested_at LIMIT 1`,\\n      [sessionId, opportunityId],\\n    )\\n  ).rows;\\n  return rows[0] ? toStored(rows[0]) : null;\\n}\\n\\n'''\nif needle not in s: raise SystemExit('repository insertion point not found')\np.write_text(s.replace(needle,insert+needle))\n\np=Path('packages/persistence/src/index.ts')\ns=p.read_text()\nprint(s)\nPY\n",
+      "duration": 0.4
+    }
+  ]
+}

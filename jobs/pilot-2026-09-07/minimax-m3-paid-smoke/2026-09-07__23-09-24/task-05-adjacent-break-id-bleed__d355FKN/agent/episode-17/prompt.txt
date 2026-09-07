@@ -1,0 +1,18 @@
+New Terminal Output:
+
+0b3ff8174f56:/app# sed -i 's/      open = null;$/      open = null;\n      blockBreakId = undefined;/' packages/data-plane/src/avails.ts
+0b3ff8174f56:/app# sed -n '108,120p' packages/data-plane/src/avails.ts
+        endLine: i,
+      });
+      open = null;
+      blockBreakId = undefined;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      // The URI line follows; advance the sequence when we consume it below.
+0b3ff8174f56:/app#

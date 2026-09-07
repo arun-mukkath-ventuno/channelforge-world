@@ -1,0 +1,10 @@
+{
+  "analysis": "The server is listening but the request is hanging. This might be because Fastify is using async/await in routes and the connection is being kept open. Let me check the server code more carefully.\n\nActually, the issue might be that Fastify is using keep-alive. Let me check what's happening with a simpler raw test.",
+  "plan": "Test the server with a raw TCP connection.",
+  "commands": [
+    {
+      "keystrokes": "printf 'GET /health HTTP/1.1\\r\\nHost: 127.0.0.1:4010\\r\\nConnection: close\\r\\n\\r\\n' | nc 127.0.0.1 4010\n",
+      "duration": 3.0
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "analysis": "The application source currently exposes only generic telemetry in fast-client.ts and /api/fast/events; no source-level ad lifecycle beacon implementation was found in the displayed matches. However, the built .next artifacts clearly contain ad quartile and airing-related code, indicating the source may be in a large page file or the build predates the checked-out source. The key contract remains that each airing needs a unique pod_id/ad_id, while duplicate beacons for that airing must preserve it. I need locate the exact code via git-tracked files, source history, and targeted extraction from the generated bundle, then reconcile it with current source.",
+  "plan": "Inspect tracked files and git history, search the entire source including page files with simple compatible commands, and extract readable context around the ad strings from .next server bundles. Also inspect the full reference event repository/route to confirm accepted field naming. Once the emitting function and defect are located, make a minimal source edit, test, build, and restart.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' 'Tracked files:'; git ls-files; printf '%s\\n' 'Source sizes:'; find src -type f -maxdepth 8 -print0 | xargs -0 wc -l | sort -n; printf '%s\\n' 'Git history:'; git log --oneline --all -12\n",
+      "duration": 0.8
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'All source ad-related matches:'; find src -type f -print | while read f; do grep -nE 'quartile|creative|airing|impression|completion|ad_id|pod_id|event_id|beacon|ssai|advert' \"$f\" && echo \"--- $f\"; done || true; printf '%s\\n' 'All emit calls:'; find src -type f -print | while read f; do grep -n 'emit' \"$f\" && echo \"--- $f\"; done || true\n",
+      "duration": 1.5
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Readable generated bundle contexts:'; for f in .next/server/chunks/*.js .next/server/app/page.js; do grep -qE 'Ad quartile beacons|firstquartile|airings|creative_id|pod_id|ad_id' \"$f\" 2>/dev/null && { echo \"=== $f\"; grep -nE -B 12 -A 30 'Ad quartile beacons|firstquartile|airings|creative_id|pod_id|ad_id' \"$f\" | head -250; }; done\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' 'Reference event persistence and API wiring:'; nl -ba /reference/ssaiadserver/persistence/repositories/events.ts | sed -n '1,240p'; grep -RInE 'normalizeEvent|POST.*event|events.*normalize|eventId|event_id' /reference/ssaiadserver 2>/dev/null | head -200\n",
+      "duration": 1.2
+    }
+  ]
+}

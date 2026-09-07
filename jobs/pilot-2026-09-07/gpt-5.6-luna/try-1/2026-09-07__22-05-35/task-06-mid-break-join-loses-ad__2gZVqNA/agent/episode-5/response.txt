@@ -1,0 +1,18 @@
+{
+  "analysis": "The output was truncated, but it confirms the data plane's documented hot path: cache hit, otherwise call ADS once, and cache is keyed by session and opportunity. The reported behavior is consistent with the cache entry expiring or being deleted based on the requester's current position, but I need the exact server handler and cache interactions before changing code. The persistence decision repository already supports retrieving decisions by session/opportunity, so the defect may be that the data plane only consults the volatile pod cache and never restores a prior decision after reconnect.",
+  "plan": "Read server.ts and the focused data-plane tests in manageable chunks, then inspect the full pod-cache implementation and control-plane ad-decision handler. Identify whether the cache is populated with a TTL shorter than the break or whether the server skips current avails based on playlist timing. After locating the precise condition, add the minimal application-source fix and test it with existing tests/typecheck.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/server.ts | sed -n '1,260p'; printf '\\n--- server remainder ---\\n'; nl -ba packages/data-plane/src/server.ts | sed -n '261,520p'\n",
+      "duration": 0.6
+    },
+    {
+      "keystrokes": "printf '%s\\n' '--- pod cache ---'; nl -ba packages/persistence/src/pod-cache.ts; printf '%s\\n' '--- data-plane tests ---'; for f in packages/data-plane/src/*.test.ts; do echo \"===== $f =====\"; grep -nE -C 5 'cache|decid|avail|break|manifest|session|pod' \"$f\"; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "printf '%s\\n' '--- control-plane decision references ---'; find packages/control-plane/src -maxdepth 1 -type f -name '*.ts' -print0 | xargs -0 grep -nE -C 8 'ad-decision|PodCache|podCache|opportunity|session_id|decision' | sed -n '1,360p'\n",
+      "duration": 1.0
+    }
+  ]
+}

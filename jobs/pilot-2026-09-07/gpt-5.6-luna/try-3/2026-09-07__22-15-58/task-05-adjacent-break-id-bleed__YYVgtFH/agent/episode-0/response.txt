@@ -1,0 +1,14 @@
+{
+  "analysis": "The terminal is at /app with no command output yet. I need inspect the service source, identify how cue markers are parsed and producer break IDs are assigned, reproduce or locate the back-to-back break defect, then make a minimal source-only fix and restart the relevant service.",
+  "plan": "First inspect the repository layout and git status. Then search the application source for cue marker handling, break IDs, and stateful logic that could incorrectly reuse the previous break at an exact boundary. I will review the relevant implementation and tests without modifying tests, apply the smallest targeted fix in application source, run the available focused checks, and restart the service so the fix is active.",
+  "commands": [
+    {
+      "keystrokes": "pwd && printf '\\n-- files --\\n' && find . -maxdepth 2 -type f | sort | sed -n '1,160p' && printf '\\n-- git status --\\n' && git status --short\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- marker/break searches --' && grep -RInE \"cue|splice|break.?id|producer.?id|ad.?break|SCTE|marker\" --exclude-dir=.git --exclude='*test*' . 2>/dev/null | sed -n '1,240p'\n",
+      "duration": 0.5
+    }
+  ]
+}

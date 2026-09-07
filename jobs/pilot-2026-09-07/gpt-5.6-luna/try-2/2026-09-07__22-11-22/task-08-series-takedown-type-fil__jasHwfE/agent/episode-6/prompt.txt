@@ -1,0 +1,41 @@
+Current Terminal Screen:
+> PY
+root@ae49554d2d86:/app# sed -n '155,190p' app/repositories/rights.py
+            )
+            .order_by(RightsTakedown.created_at.desc())
+        )
+    )
+
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_matches = [
+        (RightsTakedown.scope_type == "asset") & (RightsTakedown.scope_id == asset.id),
+    ]
+    if asset.series_id is not None:
+        scope_matches.append(
+            (RightsTakedown.scope_type == "series")
+            & (RightsTakedown.scope_id == asset.series_id)
+        )
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            *scope_matches,
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+        return [scope_id]
+    if scope_type == "series":
+        return list(
+            db.scalars(
+                select(Asset.id).where(
+root@ae49554d2d86:/app# pytest -q tests/test_rights_takedown.py tests/test_rights_engine.py tests/test_rights_enforcement.py tests/test_schedule_rights.py
+

@@ -1,0 +1,10 @@
+{
+  "analysis": "The control-plane build succeeded and all 64 existing tests passed. The targeted change updates only the stored session channel on conflict.",
+  "plan": "Inspect the existing test setup to run a one-off channel-switch regression check in memory, then launch the rebuilt control plane and check its health.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,125p' packages/persistence/src/repositories.test.ts; sed -n '1,90p' packages/control-plane/src/server.test.ts; cat packages/storage/src/factory.ts; cat packages/persistence/src/repositories/channels.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

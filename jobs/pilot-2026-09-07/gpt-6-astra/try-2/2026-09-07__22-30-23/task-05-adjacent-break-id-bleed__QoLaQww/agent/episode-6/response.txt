@@ -1,0 +1,14 @@
+{
+  "analysis": "The reproduction is running. The targeted correction is to ignore DATERANGEs carrying closing attributes (SCTE35-IN or END-DATE) when associating producer IDs, rather than requiring SCTE35-OUT, which would break supported generic DATERANGEs.",
+  "plan": "Add a small closing-marker guard in the detector. Parse attribute boundaries without splitting quoted commas, so quoted and bare IDs remain supported. Then run the existing core and data-plane tests without modifying the test suite.",
+  "commands": [
+    {
+      "keystrokes": "",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "node --input-type=module <<'JS'\nimport fs from 'node:fs';\nconst file = 'packages/data-plane/src/avails.ts';\nlet src = fs.readFileSync(file, 'utf8');\nconst before = '    if (marker?.kind === \"daterange\" && marker.id) {\\n      blockBreakId = marker.id;';\nconst after = `    if (marker?.kind === \"daterange\" && marker.id) {\n      // Closing updates belong to the previous break, even when the next CUE-OUT\n      // shares this tag block. Keep accepting generic DATERANGEs without SCTE35-OUT.\n      const attrs = marker.raw.slice(marker.raw.indexOf(\":\") + 1).match(/(?:[^,\"]|\"[^\"]*\")+/g) ?? [];\n      if (attrs.some((attr) => /^\\\\s*(?:SCTE35-IN|END-DATE)\\\\s*=/i.test(attr))) continue;\n      blockBreakId = marker.id;`;\nif (!src.includes(before)) throw new Error('Expected source not found');\nfs.writeFileSync(file, src.replace(before, after));\nJS\nnpx vitest run packages/core/src packages/data-plane/src --no-cache\n",
+      "duration": 1
+    }
+  ]
+}

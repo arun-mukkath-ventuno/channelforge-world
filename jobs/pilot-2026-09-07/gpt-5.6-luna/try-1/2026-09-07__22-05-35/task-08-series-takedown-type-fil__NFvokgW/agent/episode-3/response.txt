@@ -1,0 +1,14 @@
+{
+  "analysis": "The defect is localized to app/repositories/rights.py: active_takedown_for_asset is used by both asset eligibility and schedule validation. There is also an untracked or leftover rights.py.orig whose docstring says it covers assets directly or via series, strongly suggesting the intended implementation or a reference to the missing fix. I need compare the current file with .orig and inspect the exact function before editing.",
+  "plan": "Display the current and .orig repository implementations around active_takedown_for_asset, check git status and diff, then patch only app/repositories/rights.py. The query should require an active takedown for the organization and match either scope_type=asset with asset.id or scope_type=series with asset.series_id. Run the focused takedown, eligibility, and schedule-rights tests, remove no tests, verify the diff, and run restart-api.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '120,205p' app/repositories/rights.py; echo '--- ORIGINAL ---'; sed -n '120,205p' app/repositories/rights.py.orig; echo '--- STATUS ---'; git status --short; echo '--- DIFF ---'; git diff -- app/repositories/rights.py app/repositories/rights.py.orig\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "sed -n '1,150p' app/repositories/rights.py; echo '--- callers ---'; sed -n '1,90p' app/services/asset_eligibility.py; sed -n '680,720p' app/services/schedules.py\n",
+      "duration": 0.5
+    }
+  ]
+}

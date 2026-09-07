@@ -1,0 +1,22 @@
+{
+  "analysis": "The continuation patch did not apply because the shell heredoc contained Python-style triple-quoted strings, which are invalid JavaScript. No source change occurred beyond the successful trailing-avail fix. The direct CUE-OUT-CONT check therefore still returns an empty array. The container has no data-plane process running; PID 1 is an idle sleep process, so a normal service restart is not currently possible until the code is finalized.",
+  "plan": "Apply the continuation handling with a valid JavaScript editing script using ordinary quoted strings. Detect CUE-OUT-CONT before parseMarkerLine, parse ElapsedTime and Duration, infer the original start sequence from the current media sequence and target duration, and let the existing end-of-window flush create the avail. Rebuild and verify both continuation and original marker cases, run typecheck and tests, then start the data-plane service in the background if its runtime dependencies are configured.",
+  "commands": [
+    {
+      "keystrokes": "node <<'NODE'\nconst fs = require('fs');\nconst p = 'packages/data-plane/src/avails.ts';\nlet s = fs.readFileSync(p, 'utf8');\ns = s.replace(\n  'const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;',\n  'const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;\\nconst TARGET_DURATION = /^#EXT-X-TARGETDURATION:(\\\\d+(?:\\\\.\\\\d+)?)/;\\nconst CUE_OUT_CONT = /^#EXT-X-CUE-OUT-CONT:(.*)$/;'\n);\ns = s.replace(\n  '  let mediaSequence = 0;\\n  let lastPdt: string | undefined;',\n  '  let mediaSequence = 0;\\n  let targetDuration = 6;\\n  let lastPdt: string | undefined;'\n);\ns = s.replace(\n  '    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);',\n  '    const targetMatch = trimmed.match(TARGET_DURATION);\\n    if (targetMatch) {\\n      targetDuration = Number(targetMatch[1]);\\n      continue;\\n    }\\n\\n    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);'\n);\nconst anchor = '    if (marker?.kind === \"cue_out\" && !open) {';\nconst insert = [\n  '    // A playlist that starts mid-break carries CUE-OUT-CONT instead of the',\n  '    // original CUE-OUT. Reconstruct the original start sequence so the',\n  '    // opportunity key remains stable across viewers.',\n  '    const contMatch = trimmed.match(CUE_OUT_CONT);',\n  '    if (contMatch && !open) {',\n  '      const elapsedMatch = contMatch[1].match(/(?:^|,)ElapsedTime=(\\\\d+(?:\\\\.\\\\d+)?)/i);',\n  '      const durationMatch = contMatch[1].match(/(?:^|,)Duration=(\\\\d+(?:\\\\.\\\\d+)?)/i);',\n  '      const elapsed = elapsedMatch ? Number(elapsedMatch[1]) : NaN;',\n  '      const duration = durationMatch ? Number(durationMatch[1]) : NaN;',\n  '      if (Number.isFinite(elapsed) && targetDuration > 0) {',\n  '        open = {',\n  '          startLine: i,',\n  '          startSequence: mediaSequence - Math.round(elapsed / targetDuration),',\n  '          measuredDuration: 0,',\n  '          ...(Number.isFinite(duration) ? { declaredDuration: duration } : {}),',\n  '          ...(lastPdt === undefined ? {} : { pdt: lastPdt }),',\n  '          ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),',\n  '        };',\n  '      }',\n  '      continue;',\n  '    }',\n  '',\n].join('\\n');\nif (!s.includes(anchor)) throw new Error('anchor not found');\ns = s.replace(anchor, insert + anchor);\nfs.writeFileSync(p, s);\nNODE\nsed -n '30,115p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm run typecheck && npm run build --workspace @ssai/data-plane\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "node --input-type=module <<'NODE'\nimport { detectAvails } from './packages/data-plane/dist/avails.js';\nconst bodies = [\n  '#EXT-X-MEDIA-SEQUENCE:105\\n#EXT-X-TARGETDURATION:6\\n#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60\\n#EXTINF:6.000,\\nslate.ts',\n  '#EXT-X-MEDIA-SEQUENCE:100\\n#EXT-X-CUE-OUT:30\\n#EXTINF:6.000,\\nslate.ts'\n];\nfor (const body of bodies) console.log(JSON.stringify(detectAvails(body, 'ch')));\nNODE\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "npm test -- --run packages/data-plane/src/avails.test.ts >/tmp/avails-test.log 2>&1; rc=$?; cat /tmp/avails-test.log; echo TEST_EXIT=$rc; npm run typecheck\n",
+      "duration": 1.0
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "analysis": "The test results confirm the intermediate patch broke even asset-scoped matching because the separate scope predicates are combined with AND. The correct minimal fix is to combine the asset and series alternatives with SQLAlchemy's `or_`. The existing organization and active-status filters remain ANDed normally.",
+  "plan": "Add `or_` to the SQLAlchemy imports, change the takedown query to use `or_(*scope_matches)`, rerun the focused takedown, rights-engine, enforcement, and scheduling tests, then inspect the final diff and restart the API with `restart-api`.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('app/repositories/rights.py')\ns = p.read_text()\ns = s.replace('from sqlalchemy import func, select', 'from sqlalchemy import func, or_, select', 1)\ns = s.replace('            RightsTakedown.status == \"active\",\\n            *scope_matches,\\n', '            RightsTakedown.status == \"active\",\\n            or_(*scope_matches),\\n', 1)\np.write_text(s)\nPY\nsed -n '1,12p' app/repositories/rights.py && sed -n '160,188p' app/repositories/rights.py\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "pytest -q tests/test_rights_takedown.py tests/test_rights_engine.py tests/test_rights_enforcement.py tests/test_schedule_rights.py\n",
+      "duration": 1.0
+    }
+  ]
+}

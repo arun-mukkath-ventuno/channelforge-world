@@ -1,0 +1,37 @@
+
+ RUN  v3.2.7 /app
+
+ ❯ src/lib/ssai-repeat-airing.test.ts (2 tests | 1 failed) 11ms
+   × sendAdBeacon wire payload — repeat airings within one session (PRD §60 task 6) > sends distinguishable ad_start payloads for two separate airings of the same creative 8ms
+     → expected { event: 'ad_start', …(2) } to not deeply equal { event: 'ad_start', …(2) }
+   ✓ sendAdBeacon wire payload — repeat airings within one session (PRD §60 task 6) > reproduces an identical payload for the same single airing across a fresh watcher (page reload) 2ms
+ ✓ src/lib/ssai.test.ts (2 tests) 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/ssai-repeat-airing.test.ts > sendAdBeacon wire payload — repeat airings within one session (PRD §60 task 6) > sends distinguishable ad_start payloads for two separate airings of the same creative
+AssertionError: expected { event: 'ad_start', …(2) } to not deeply equal { event: 'ad_start', …(2) }
+
+[2mCompared values have no visual difference.[22m
+
+ ❯ src/lib/ssai-repeat-airing.test.ts:86:27
+     84|     const starts = sentEventBodies.filter((b) => b.event === "ad_start…
+     85|     expect(starts).toHaveLength(2);
+     86|     expect(starts[0]).not.toEqual(starts[1]);
+       |                           ^
+     87| 
+     88|     // The fix must not "solve" this by mutating creative/session iden…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 3 passed (4)
+   Start at  16:51:10
+   Duration  294ms (transform 41ms, setup 0ms, collect 44ms, tests 14ms, environment 0ms, prepare 83ms)
+
+npm notice
+npm notice New major version of npm available! 10.9.8 -> 12.0.2
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.0.2
+npm notice To update run: npm install -g npm@12.0.2
+npm notice

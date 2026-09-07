@@ -1,0 +1,243 @@
+New Terminal Output:
+
+eb5fd8e45b3d:/app# sed -n '100,260p' packages/control-plane/src/server.ts; ls packages/persistence/src; find packages/persistence/src -name '*test*'; cat packag
+es/persistence/tsconfig.json; cat tsconfig.base.json; grep -n 'health' packages/control-plane/src/server.ts; grep -n -A25 'CREATE TABLE playback_sessions' migra
+tions/*
+    const claims = token ? verifySession(token, sessionSecret) : null;
+    if (!claims || claims.ch !== "admin") return reply.code(401).send({ error: "unauthorized" });
+  });
+
+  app.post("/admin/api/login", async (req, reply) => {
+    const { user, password } = (req.body ?? {}) as { user?: string; password?: string };
+    if (!user || !password || user !== adminUser || !adminPassword || !safeEqual(password, adminPassword)) {
+      return reply.code(401).send({ error: "Invalid username or password." });
+    }
+    const token = signSession(adminUser, "admin", sessionSecret, { ttlSeconds: sessionTtlSeconds });
+    reply.setCookie("ssai_admin", token, {
+      httpOnly: true,
+      secure: cookieSecure,
+      sameSite: "lax",
+      path: "/",
+      maxAge: sessionTtlSeconds,
+    });
+    return { user: adminUser };
+  });
+  app.get("/admin/api/me", async () => ({ user: adminUser }));
+  app.post("/admin/api/logout", async (_req, reply) => {
+    reply.clearCookie("ssai_admin", { path: "/" });
+    return { ok: true };
+  });
+
+  app.get("/health", async () => ({ status: "ok", plane: "control" }));
+
+  // ── Sessions (PRD §11, §12) ──────────────────────────────────────────────
+  app.post("/v1/sessions", async (req, reply) => {
+    const body = (req.body ?? {}) as { channel_id?: string; device_type?: string; country?: string };
+    if (!body.channel_id) return reply.code(400).send({ error: "channel_id is required" });
+
+    const sessionId = `sess_${randomUUID()}`;
+    await sessionsRepo.ensureSession(pool, {
+      id: sessionId,
+      channelId: body.channel_id,
+      deviceType: body.device_type ?? "web",
+      country: body.country ?? null,
+    });
+    await eventsRepo.appendEvent(pool, {
+      eventId: randomUUID(),
+      eventType: "session_created",
+      sessionId,
+      channelId: body.channel_id,
+    });
+
+    // Signed playback token (PRD §57): the data plane verifies it before serving.
+    const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+    return {
+      session_id: sessionId,
+      channel_id: body.channel_id,
+      playback_token: token,
+      playback_url: `${dataPlaneUrl}/v1/hls/${token}/${body.channel_id}/master.m3u8`,
+    };
+  });
+
+  app.get("/v1/sessions/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const session = await sessionsRepo.getSession(pool, id);
+    return session ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  // ── Ad Decision (PRD §15, §16, §35) ──────────────────────────────────────
+  app.post("/v1/ad-decision", async (req, reply) => {
+    const body = (req.body ?? {}) as {
+      session_id?: string;
+      channel_id?: string;
+      opportunity_id?: string;
+      external_break_id?: string;
+      duration?: number;
+      seed?: string;
+    };
+    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+    }
+
+    const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+    const now = new Date().toISOString();
+    const opportunity: AdOpportunity = {
+      opportunityId: body.opportunity_id,
+      channelId: body.channel_id,
+      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+      breakStart: now,
+      breakDuration: body.duration,
+      source: "cue_out",
+      signalType: "cue_out",
+    };
+    const session: SessionContext = { sessionId, channelId: body.channel_id };
+
+    // Inventory from Postgres.
+    const [creatives, campaignMap] = await Promise.all([
+      creativesRepo.listCreatives(pool),
+      campaignsRepo.campaignsAsMap(pool),
+    ]);
+
+    const seed = body.seed ?? process.env.AD_DECISION_SEED;
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns: campaignMap,
+      now,
+      ...(seed ? { seed } : {}),
+    });
+
+    const decisionId = `dec_${randomUUID()}`;
+    const podId = `pod_${randomUUID()}`;
+
+    // Persist opportunity + session + decision atomically (PRD §46, §47).
+    await withTransaction(pool, async (tx) => {
+      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+      await oppsRepo.upsertOpportunity(tx, opportunity);
+      await decisionsRepo.saveDecision(tx, {
+        decisionId,
+        podId,
+        decision,
+        requestedAt: now,
+        completedAt: new Date().toISOString(),
+      })
+[... output limited to 10000 bytes; 69 interior bytes omitted ...]
+ndEvent(tx, {
+          eventId: randomUUID(),
+          eventType: type,
+          sessionId,
+          channelId: body.channel_id,
+          opportunityId: body.opportunity_id,
+          podId,
+          payload: extra,
+        });
+      }
+    });
+
+    // Cache the pod for the data plane (PRD §48).
+    await podCache.set({
+      sessionId,
+      opportunityId: body.opportunity_id,
+      channelId: body.channel_id,
+      breakDuration: body.duration,
+      pod: decision.pod,
+    });
+
+    return { decision_id: decisionId, pod_id: podId, ...decision };
+  });
+
+  // ── Player telemetry ingestion (PRD §26B, §28) ───────────────────────────
+  // Accepts one event or a small batch; maps quartile beacons to canonical ad
+  // event types and dedups duplicate beacons (PRD §60 task 6).
+  app.post("/v1/events", async (req, reply) => {
+    const body = req.body as Record<string, unknown> | Array<Record<string, unknown>>;
+    const list = Array.isArray(body) ? body : [body];
+    const touched = new Set<string>();
+
+    let enqueued = 0;
+    for (const raw of list) {
+      const normalized = normalizeEvent(raw);
+      if ("error" in normalized) return reply.code(400).send({ error: normalized.error });
+      await eventsRepo.appendEvent(pool, normalized);
+analytics.test.ts       db.ts                   migrate.ts              reconciliation.test.ts  repositories.test.ts
+analytics.ts            index.ts                pod-cache.test.ts       reconciliation.ts       seed.ts
+cli                     map.ts                  pod-cache.ts            repositories
+packages/persistence/src/repositories.test.ts
+packages/persistence/src/reconciliation.test.ts
+packages/persistence/src/analytics.test.ts
+packages/persistence/src/pod-cache.test.ts
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "references": [{ "path": "../core" }],
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.test.ts", "dist"]
+}
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  }
+}
+89:  // Public: health, login, the player endpoints, the ad-decision (internal), and
+95:    if (path === "/health" || path === "/admin/api/login" || path === "/") return;
+125:  app.get("/health", async () => ({ status: "ok", plane: "control" }));
+migrations/001_init.sql:59:CREATE TABLE playback_sessions (
+migrations/001_init.sql-60-  id                TEXT PRIMARY KEY,
+migrations/001_init.sql-61-  channel_id        TEXT NOT NULL REFERENCES channels(id),
+migrations/001_init.sql-62-  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/001_init.sql-63-  last_activity_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/001_init.sql-64-  device_type       TEXT,
+migrations/001_init.sql-65-  country           TEXT,
+migrations/001_init.sql-66-  user_id           TEXT,
+migrations/001_init.sql-67-  anonymous_id      TEXT,
+migrations/001_init.sql-68-  ip_hash           TEXT,
+migrations/001_init.sql-69-  user_agent        TEXT
+migrations/001_init.sql-70-);
+migrations/001_init.sql-71-
+migrations/001_init.sql-72--- PRD §45.
+migrations/001_init.sql-73-CREATE TABLE ad_opportunities (
+migrations/001_init.sql-74-  id                TEXT PRIMARY KEY,
+migrations/001_init.sql-75-  channel_id        TEXT NOT NULL REFERENCES channels(id),
+migrations/001_init.sql-76-  program_id        TEXT,
+migrations/001_init.sql-77-  start_time        TIMESTAMPTZ NOT NULL,
+migrations/001_init.sql-78-  duration          NUMERIC NOT NULL,
+migrations/001_init.sql-79-  marker_type       TEXT NOT NULL,             -- 'cue_out' | 'daterange' | 'scte35'
+migrations/001_init.sql-80-  marker_payload    TEXT,
+migrations/001_init.sql-81-  detected_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/001_init.sql-82-  status            TEXT NOT NULL DEFAULT 'detected'
+migrations/001_init.sql-83-);
+migrations/001_init.sql-84-
+eb5fd8e45b3d:/app# python3 - <<'PY'
+> p = 'packages/persistence/src/repositories/sessions.ts'
+> with open(p) as f:
+>     s = f.read()
+> s = s.replace('/** Create the session if absent; idempotent so ad-decision can ensure it exists. */', '/** Create the session if absent; otherwise refresh its
+ current channel. */')
+> s = s.replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id')
+> with open(p, 'w') as f:
+>     f.write(s)
+> PY
+bash: python3: command not found
+eb5fd8e45b3d:/app#

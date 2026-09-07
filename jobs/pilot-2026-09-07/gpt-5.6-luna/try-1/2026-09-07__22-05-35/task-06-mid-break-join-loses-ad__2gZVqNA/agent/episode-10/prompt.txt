@@ -1,0 +1,202 @@
+New Terminal Output:
+
+727f8e3dc8f6:/app# nl -ba packages/control-plane/src/server.ts | sed -n '205,252p'; printf '\n===== persistence index =====\n'; nl -ba packages/persistence/src/
+index.ts; printf '\n===== decision repository top =====\n'; nl -ba packages/persistence/src/repositories/decisions.ts | sed -n '1,115p'
+   205	    const decisionId = `dec_${randomUUID()}`;
+   206	    const podId = `pod_${randomUUID()}`;
+   207	
+   208	    // Persist opportunity + session + decision atomically (PRD §46, §47).
+   209	    await withTransaction(pool, async (tx) => {
+   210	      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+   211	      await oppsRepo.upsertOpportunity(tx, opportunity);
+   212	      await decisionsRepo.saveDecision(tx, {
+   213	        decisionId,
+   214	        podId,
+   215	        decision,
+   216	        requestedAt: now,
+   217	        completedAt: new Date().toISOString(),
+   218	      });
+   219	      for (const [type, extra] of [
+   220	        ["ad_opportunity_detected", {}],
+   221	        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+   222	        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+   223	      ] as const) {
+   224	        await eventsRepo.appendEvent(tx, {
+   225	          eventId: randomUUID(),
+   226	          eventType: type,
+   227	          sessionId,
+   228	          channelId: body.channel_id,
+   229	          opportunityId: body.opportunity_id,
+   230	          podId,
+   231	          payload: extra,
+   232	        });
+   233	      }
+   234	    });
+   235	
+   236	    // Cache the pod for the data plane (PRD §48).
+   237	    await podCache.set({
+   238	      sessionId,
+   239	      opportunityId: body.opportunity_id,
+   240	      channelId: body.channel_id,
+   241	      breakDuration: body.duration,
+   242	      pod: decision.pod,
+   243	    });
+   244	
+   245	    return { decision_id: decisionId, pod_id: podId, ...decision };
+   246	  });
+   247	
+   248	  // ── Player telemetry ingestion (PRD §26B, §28) ───────────────────────────
+   249	  // Accepts one event or a small batch; maps quartile beacons to canonical ad
+   250	  // event types and dedups duplicate beacons (PRD §60 task 6).
+   251	  app.post("/v1/events", async (req, reply) => {
+   252	    const body = req.body as Record<string, unknown> | Array<Record<string, unknown>>;
+
+===== persistence index =====
+     1	// @ssai/persistence — Postgres repositories, migrations, and the Redis pod cache.
+     2	
+     3	export * from "./db.js";
+     4	export * from "./migrate.js";
+     5	export * from "./pod-cache.js";
+     6	export * from "./seed.js";
+     7	export * from "./analytics.js";
+     8	export * from "./reconciliation.js";
+     9	
+    10	export * as channels from "./repositories/channels.js";
+    11	export * as campaigns from "./repositories/campaigns.js";
+    12	export * as creatives from "./repositories/creatives.js";
+    13	export * as sessions from "./repositories/sessions.js";
+    14	export * as opportunities from "./repositories/opportunities.js";
+    15	export * as decisions from "./repositories/decisions.js";
+    16	export * as events from "./repositories/events.js";
+    17	export * as slates from "./repositories/slates.js";
+    18	export * as beacons from "./repositories/beacons.js";
+
+===== decision repository top =====
+     1	// Ad decision + pod persistence (PRD §46, §47). The full decision payload is
+     2	// retained (JSONB) for debugging and RL evaluation.
+     3	
+     4	import type { AdDecision } from "@ssai/core";
+     5	import type { Queryable } from "../db.js";
+     6	
+     7	export interface SaveDecisionInput {
+     8	  decisionId: string;
+     9	  podId: string;
+    10	  decision: AdDecision;
+    11	  requestedAt: string;
+    12	  completedAt: string;
+    13	}
+    14	
+    15	export async function saveDecision(db: Queryable, input: SaveDecisionInput): Promise<void> {
+    16	  const { decision } = input;
+    17	  const selectedCount = decision.pod.filter((p) => p.type === "ad").length;
+    18	
+    19	  await db.query(
+    20	    `INSERT INTO ad_decisions
+    21	       (id, opportunity_id, session_id, requested_at, completed_at, eligible_count, selected_count, seed, decision_payload)
+    22	     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
+    23	    [
+    24	      input.decisionId,
+    25	      decision.opportunityId,
+    26	      decision.sessionId,
+    27	      input.requestedAt,
+    28	      input.completedAt,
+    29	      decision.eligible.length,
+    30	      selectedCount,
+    31	      decision.seed ?? null,
+    32	      JSON.stringify(decision),
+    33	    ],
+    34	  );
+    35	
+    36	  await db.query(
+    37	    `INSERT INTO ad_pods (id, decision_id, break_duration, ad_seconds, slate_seconds)
+    38	     VALUES ($1, $2, $3, $4, $5)`,
+    39	    [input.podId, input.decisionId, decision.breakDuration, decision.adSeconds, decision.slateSeconds],
+    40	  );
+    41	
+    42	  for (const item of decision.pod) {
+    43	    await db.query(
+    44	      `INSERT INTO ad_pod_items (pod_id, position, item_type, creative_id, duration, start_offset, end_offset)
+    45	       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    46	      [
+    47	        input.podId,
+    48	        item.position,
+    49	        item.type === "ad" ? "AD" : "SLATE",
+    50	        item.creativeId ?? null,
+    51	        item.duration,
+    52	        item.startOffset,
+    53	        item.endOffset,
+    54	      ],
+    55	    );
+    56	  }
+    57	}
+    58	
+    59	export interface StoredDecision {
+    60	  id: string;
+    61	  opportunityId: string;
+    62	  sessionId: string;
+    63	  eligibleCount: number;
+    64	  selectedCount: number;
+    65	  decision: AdDecision;
+    66	}
+    67	
+    68	interface DecisionRow {
+    69	  id: string;
+    70	  opportunity_id: string;
+    71	  session_id: string;
+    72	  eligible_count: number;
+    73	  selected_count: number;
+    74	  decision_payload: unknown;
+    75	}
+    76	
+    77	function toStored(r: DecisionRow): StoredDecision {
+    78	  return {
+    79	    id: r.id,
+    80	    opportunityId: r.opportunity_id,
+    81	    sessionId: r.session_id,
+    82	    eligibleCount: Number(r.eligible_count),
+    83	    selectedCount: Number(r.selected_count),
+    84	    decision: (typeof r.decision_payload === "string"
+    85	      ? JSON.parse(r.decision_payload)
+    86	      : r.decision_payload) as AdDecision,
+    87	  };
+    88	}
+    89	
+    90	const DECISION_COLS =
+    91	  "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+    92	
+    93	export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {
+    94	  const rows = (
+    95	    await db.query<DecisionRow>(
+    96	      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE session_id = $1 ORDER BY requested_at`,
+    97	      [sessionId],
+    98	    )
+    99	  ).rows;
+   100	  return rows.map(toStored);
+   101	}
+   102	
+   103	export async function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<StoredDecision[]> {
+   104	  const rows = (
+   105	    await db.query<DecisionRow>(
+   106	      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+   107	      [opportunityId],
+   108	    )
+   109	  ).rows;
+   110	  return rows.map(toStored);
+   111	}
+727f8e3dc8f6:/app# python3 - <<'PY'
+> from pathlib import Path
+> p=Path('packages/persistence/src/repositories/decisions.ts')
+> s=p.read_text()
+> needle='export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {'
+> insert='''export async function getDecisionBySessionAndOpportunity(\n  db: Queryable,\n  sessionId: string,\n  opportunityId: string,\n): Promise<StoredDecisi
+on | null> {\n  const rows = (\n    await db.query<DecisionRow>(\n      `SELECT ${DECISION_COLS} FROM ad_decisions\n       WHERE session_id = $1 AND opportunity
+_id = $2\n       ORDER BY requested_at LIMIT 1`,\n      [sessionId, opportunityId],\n    )\n  ).rows;\n  return rows[0] ? toStored(rows[0]) : null;\n}\n\n'''
+> if needle not in s: raise SystemExit('repository insertion point not found')
+> p.write_text(s.replace(needle,insert+needle))
+>
+> p=Path('packages/persistence/src/index.ts')
+> s=p.read_text()
+> print(s)
+> PY
+bash: python3: command not found
+727f8e3dc8f6:/app#

@@ -1,0 +1,22 @@
+{
+  "analysis": "The defect is confirmed in `detectAvails`: `blockBreakId` is cleared only when a media URI is encountered. With back-to-back breaks, the first break's CUE-IN can be immediately followed by the next CUE-OUT, so the old DATERANGE ID remains in `blockBreakId`. If the second break has no new DATERANGE ID (or its marker ordering differs), the stale producer ID is assigned to the second opportunity. Existing tests already cover a separated case and appear to include an adjacent-break case, so the minimal fix should reset marker-block state when the current avail closes, while retaining support for both DATERANGE-before-CUE-OUT and DATERANGE-after-CUE-OUT ordering.",
+  "plan": "Inspect the remaining adjacent-break tests and run the focused data-plane suite to establish the current failure. Modify only `packages/data-plane/src/avails.ts`: clear `blockBreakId` after completing a CUE-IN, because that ends the tag block associated with the current break and prevents ID leakage into an immediately following break. Preserve the ID attachment logic for both marker orders. Run focused tests and typecheck/build, then locate the running data-plane process and restart it.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.test.ts | sed -n '100,190p'; echo '--- focused tests ---'; npm run test --workspace @ssai/data-plane\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('packages/data-plane/src/avails.ts')\ns = p.read_text()\nold = '''      });\n      open = null;\n      continue;\n'''\nnew = '''      });\n      open = null;\n      // A CUE-IN closes this avail's marker block. With back-to-back breaks\n      // there may be no segment URI between this CUE-IN and the next CUE-OUT,\n      // so do not let the prior break's DATERANGE ID leak into the next one.\n      blockBreakId = undefined;\n      continue;\n'''\nif old not in s:\n    raise SystemExit('target text not found')\np.write_text(s.replace(old, new, 1))\nPY\nsed -n '88,125p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm run test --workspace @ssai/data-plane && npm run build --workspace @ssai/data-plane\n",
+      "duration": 4.0
+    },
+    {
+      "keystrokes": "ps aux 2>/dev/null | sed -n '1,120p'; echo '--- listening ---'; (ss -ltnp 2>/dev/null || netstat -ltnp 2>/dev/null || true)\n",
+      "duration": 0.3
+    }
+  ]
+}

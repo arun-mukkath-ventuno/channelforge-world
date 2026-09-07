@@ -1,0 +1,22 @@
+{
+  "analysis": "The relevant service is clearly @ssai/data-plane, described as the manifest/stitching hot path. The previous combined output was truncated, but the keyword results indicate core decision logic is separate and should not be changed. The defect likely lies in data-plane per-session break tracking or pod-cache lookup/initialization. I need inspect data-plane source and its tests, plus persistence pod-cache interfaces and server startup details.",
+  "plan": "List data-plane and persistence source files, then print the data-plane server and manifest-related modules in manageable chunks. Search specifically for CUE markers, opportunity IDs, session IDs, pod cache, and decision retrieval. Also inspect existing data-plane tests and runtime process configuration so the eventual restart targets the correct service.",
+  "commands": [
+    {
+      "keystrokes": "printf '%s\\n' '-- data-plane files --'; find packages/data-plane/src -type f -maxdepth 3 | sort; printf '%s\\n' '-- persistence cache files --'; find packages/persistence/src -type f | sort | grep -E 'cache|decision|session|index|db'\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "find packages/data-plane/src -type f -maxdepth 3 -exec grep -nHE 'manifest|CUE|cue|opportunity|session|pod|decision|cache|break' {} +\n",
+      "duration": 0.4
+    },
+    {
+      "keystrokes": "for f in packages/data-plane/src/*.ts; do echo \"===== $f =====\"; sed -n '1,260p' \"$f\"; done\n",
+      "duration": 0.6
+    },
+    {
+      "keystrokes": "for f in packages/persistence/src/pod-cache.ts packages/persistence/src/repositories/decisions.ts packages/persistence/src/repositories/opportunities.ts; do echo \"===== $f =====\"; sed -n '1,280p' \"$f\"; done\n",
+      "duration": 0.5
+    }
+  ]
+}

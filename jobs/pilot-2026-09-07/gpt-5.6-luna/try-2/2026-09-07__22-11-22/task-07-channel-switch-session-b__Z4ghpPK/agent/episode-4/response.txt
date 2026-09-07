@@ -1,0 +1,18 @@
+{
+  "analysis": "The defect is confirmed in ensureSession: it inserts the initial channel but uses `ON CONFLICT (id) DO NOTHING`, so subsequent requests for the same session never update `channel_id`. The fix should change only the conflict action to update `channel_id` (and likely preserve the existing session metadata semantics). I still need verify the schema, call sites, and existing repository test conventions before patching, then run tests/build and restart any running service.",
+  "plan": "Inspect the playback_sessions schema, ensureSession callers, and repository tests. Add a focused regression test if the existing test suite supports it (without modifying test files per the task, so use existing tests only unless source behavior can be validated directly). Patch the single SQL conflict clause to set channel_id to the incoming value, run persistence and full tests/typecheck, rebuild the affected service, and restart it if a service process is present.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,100p' migrations/001_init.sql && printf '\\nRepository tests relevant sections:\\n' && grep -n -A8 -B8 -E 'ensureSession|playback_sessions|channel_id' packages/persistence/src/repositories.test.ts packages/persistence/src/analytics.test.ts packages/persistence/src/reconciliation.test.ts 2>/dev/null | sed -n '1,260p'\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "find packages -path '*/node_modules' -prune -o -path '*/dist' -prune -o -name '*.ts' -type f -print0 | xargs -0 grep -nE 'ensureSession\\(' | sed -n '1,120p'\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "sed -n '1,180p' packages/data-plane/src/decider.ts && printf '\\nControl-plane session references:\\n' && find packages/control-plane packages/data-plane -path '*/dist' -prune -o -name '*.ts' -type f -print0 | xargs -0 grep -nE 'sessions|sessionId|channelId' | sed -n '1,260p'\n",
+      "duration": 0.4
+    }
+  ]
+}

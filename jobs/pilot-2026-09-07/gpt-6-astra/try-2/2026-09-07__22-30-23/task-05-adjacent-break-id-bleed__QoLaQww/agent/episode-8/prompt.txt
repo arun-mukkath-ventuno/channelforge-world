@@ -1,0 +1,41 @@
+Current Terminal Screen:
+>       assert.deepEqual(avails.map(a => a.duration), [6, 6]);
+>       count++;
+>      }
+>     }
+>    }
+>   }
+>  }
+> }
+> console.log(`${count} adjacent-break regression cases passed`);
+> JS
+216 adjacent-break regression cases passed
+41aedf6c9c91:/app# nohup node --import tsx /app/packages/data-plane/src/server.ts >/dev/null 2>&1 &
+[1] 598
+41aedf6c9c91:/app# wget -qO- http://localhost:4010/health; printf '\n'; ps aux | grep '[s]erver.ts'; sed -n '73,94p' packages/data-plane/src/avails.ts
+wget: can't connect to remote host: Connection refused
+
+  598 root      0:00 node --import tsx /app/packages/data-plane/src/server.ts
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      // Closing updates belong to the previous break, even when the next CUE-OUT
+      // shares this tag block. Keep accepting generic DATERANGEs without SCTE35-OUT.
+      const attrs = marker.raw.slice(marker.raw.indexOf(":") + 1).match(/(?:[^,"]|"[^"]*")+/g) ?? [];
+      if (attrs.some((attr) => /^\s*(?:SCTE35-IN|END-DATE)\s*=/i.test(attr))) continue;
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+41aedf6c9c91:/app#

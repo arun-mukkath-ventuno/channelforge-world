@@ -1,0 +1,14 @@
+{
+  "analysis": "Both session creation and ad-decision requests call the shared ensureSession repository function. That is the likely point where an existing session should acquire its latest channel.",
+  "plan": "Read the upsert and request flow to confirm the defect, inspect existing tests, and check runtime configuration before making a targeted change.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/persistence/src/repositories/sessions.ts; sed -n '120,245p' packages/control-plane/src/server.ts; cat packages/persistence/src/db.ts; tail -85 packages/control-plane/src/server.ts; sed -n '1,125p' packages/persistence/src/repositories.test.ts; cat tsconfig.base.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "printenv | sort | grep -E 'PORT|DATABASE|REDIS|NODE|SSAI|CONTROL'; ls -la /; cat packages/control-plane/tsconfig.json\n",
+      "duration": 0.1
+    }
+  ]
+}

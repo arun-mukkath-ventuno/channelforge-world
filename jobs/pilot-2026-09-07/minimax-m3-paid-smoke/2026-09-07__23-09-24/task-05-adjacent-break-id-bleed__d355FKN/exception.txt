@@ -1,0 +1,130 @@
+Traceback (most recent call last):
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py", line 164, in _make_common_async_call
+    response = await async_httpx_client.post(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/logging_utils.py", line 190, in async_wrapper
+    result = await func(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/http_handler.py", line 510, in post
+    raise e
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/http_handler.py", line 466, in post
+    response.raise_for_status()
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/httpx/_models.py", line 829, in raise_for_status
+    raise HTTPStatusError(message, request=request, response=self)
+httpx.HTTPStatusError: Client error '402 Payment Required' for url 'https://openrouter.ai/api/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/402
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/main.py", line 611, in acompletion
+    response = await init_response
+               ^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py", line 296, in async_completion
+    response = await self._make_common_async_call(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py", line 189, in _make_common_async_call
+    raise self._handle_error(e=e, provider_config=provider_config)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py", line 4630, in _handle_error
+    raise provider_config.get_error_class(
+litellm.llms.openrouter.common_utils.OpenRouterException: {"error":{"message":"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.","code":402,"metadata":{"reason":"in_flight_budget_exhausted","limit_source":"openrouter_in_flight_budget","remedy_hint":"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.","headers":{"Retry-After":"120"},"provider_name":null,"previous_errors":[{"code":402,"message":"This request requires more credits, or fewer max_tokens. You requested up to 8000 tokens, but can only afford 7696. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account"}]}},"user_id":"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm"}
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/trial/trial.py", line 961, in run
+    await self._execute_agent()
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/trial/trial.py", line 370, in _execute_agent
+    await asyncio.wait_for(
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py", line 1605, in run
+    await self._run_agent_loop(
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py", line 1306, in _run_agent_loop
+    ) = await self._handle_llm_interaction(
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py", line 1181, in _handle_llm_interaction
+    llm_response = await self._query_llm(
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py", line 193, in async_wrapped
+    return await copy(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py", line 112, in __call__
+    do = await self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py", line 157, in iter
+    result = await action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/_utils.py", line 111, in inner
+    return call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py", line 116, in __call__
+    result = await fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py", line 1171, in _query_llm
+    raise e
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py", line 1004, in _query_llm
+    llm_response = await chat.chat(
+                   ^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/chat.py", line 89, in chat
+    llm_response: LLMResponse = await self._model.call(
+                                ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py", line 193, in async_wrapped
+    return await copy(fn, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py", line 112, in __call__
+    do = await self.iter(retry_state=retry_state)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py", line 157, in iter
+    result = await action(retry_state)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/_utils.py", line 111, in inner
+    return call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py", line 413, in exc_check
+    raise retry_exc.reraise()
+          ^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py", line 184, in reraise
+    raise self.last_attempt.result()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 449, in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py", line 401, in __get_result
+    raise self._exception
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py", line 116, in __call__
+    result = await fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py", line 396, in call
+    self._handle_litellm_error(e)
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py", line 631, in _handle_litellm_error
+    raise e
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py", line 360, in call
+    response = await litellm.acompletion(**completion_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/utils.py", line 2040, in wrapper_async
+    raise e
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/utils.py", line 1861, in wrapper_async
+    result = await original_function(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/main.py", line 630, in acompletion
+    raise exception_type(
+          ^^^^^^^^^^^^^^^
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py", line 2398, in exception_type
+    raise e
+  File "/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py", line 2331, in exception_type
+    raise APIError(
+litellm.exceptions.APIError: litellm.APIError: APIError: OpenrouterException - {"error":{"message":"This request would exceed your available credits given your current in-flight requests. Retry after in-flight requests settle, or add credits.","code":402,"metadata":{"reason":"in_flight_budget_exhausted","limit_source":"openrouter_in_flight_budget","remedy_hint":"Retry after your in-flight requests settle (see the Retry-After header). Adding credits at https://openrouter.ai/settings/credits raises your in-flight budget, up to a capped ceiling.","headers":{"Retry-After":"120"},"provider_name":null,"previous_errors":[{"code":402,"message":"This request requires more credits, or fewer max_tokens. You requested up to 8000 tokens, but can only afford 7696. To increase, visit https://openrouter.ai/settings/credits and upgrade to a paid account"}]}},"user_id":"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm"}

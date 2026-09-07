@@ -1,0 +1,11 @@
+{
+  "analysis": "The fix now typechecks and builds successfully. The direct regression check confirms that a continuous viewer seeing `opp_ch_100` and a reconnecting viewer whose first playlist contains `CUE-OUT-CONT` both resolve to the same opportunity ID, so the existing per-session pod cache/decision path can run for the reconnect. All unaffected data-plane tests pass (19 tests). The only failing test is the unchanged legacy assertion that explicitly expects incomplete trailing breaks to be ignored, which conflicts with the reported bug and was not modified. The service was successfully started and bound to port 4010, but `timeout` terminated it; it is not currently running.",
+  "plan": "Start the rebuilt data-plane service in the background without timeout, wait briefly, query its health endpoint, and verify the process is alive. Do not alter tests or unrelated files.",
+  "commands": [
+    {
+      "keystrokes": "nohup node packages/data-plane/dist/server.js >/tmp/data-plane.log 2>&1 & echo $! >/tmp/data-plane.pid; sleep 1; cat /tmp/data-plane.log; curl -fsS http://127.0.0.1:4010/health; echo; kill -0 \"$(cat /tmp/data-plane.pid)\"; echo SERVICE_ALIVE=$?\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": true
+}

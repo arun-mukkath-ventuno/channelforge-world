@@ -1,0 +1,237 @@
+New Terminal Output:
+
+6af9ee0f4d51:/app# cat package.json; printf '\n--- source grep ---\n'; grep -RInE 'beacon|impression|quartile|completion|creative|airing|session|dedup|telemetry
+|start' src --exclude='*.test.ts' | head -400
+{
+  "name": "fast-world-tv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "lucide-react": "^1.35.0",
+    "next": "16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "shaka-player": "^4.11.9"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.3.3",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
+
+--- source grep ---
+grep: unrecognized option: exclude=*.test.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+6af9ee0f4d51:/app# printf '%s\n' '--- all likely files outside app ---'; find / -path /proc -prune -o -path /sys -prune -o -path /dev -prune -o -path /app/node_
+modules -prune -o -type f -print 2>/dev/null | grep -Ei 'ingest|analytics|telemetry|beacon|dedup|ad|creative|airing|source|read.?only' | head -300
+--- all likely files outside app ---
+/opt/yarn-v1.22.22/README.md
+/etc/network/if-up.d/dad
+/etc/profile.d/README
+/etc/shadow
+/etc/shadow-
+/usr/local/lib/node_modules/npm/man/man1/npm-dedupe.1
+/usr/local/lib/node_modules/npm/man/man1/npm-adduser.1
+/usr/local/lib/node_modules/npm/docs/content/commands/npm-dedupe.md
+/usr/local/lib/node_modules/npm/docs/content/commands/npm-adduser.md
+/usr/local/lib/node_modules/npm/docs/output/commands/npm-adduser.html
+/usr/local/lib/node_modules/npm/docs/output/commands/npm-dedupe.html
+/usr/local/lib/node_modules/npm/README.md
+/usr/local/lib/node_modules/npm/node_modules/pacote/README.md
+/usr/local/lib/node_modules/npm/node_modules/pacote/lib/util/add-git-sha.js
+/usr/local/lib/node_modules/npm/node_modules/nopt/README.md
+/usr/local/lib/node_modules/npm/node_modules/tuf-js/node_modules/@tufjs/models/dist/metadata.js
+/usr/local/lib/node_modules/npm/node_modules/node-gyp/gyp/pylib/packaging/metadata.py
+/usr/local/lib/node_modules/npm/node_modules/node-gyp/gyp/docs/README.md
+/usr/local/lib/node_modules/npm/node_modules/node-gyp/README.md
+/usr/local/lib/node_modules/npm/node_modules/node-gyp/addon.gypi
+/usr/local/lib/node_modules/npm/node_modules/node-gyp/src/win_delay_load_hook.cc
+/usr/local/lib/node_modules/npm/node_modules/node-gyp/lib/download.js
+/usr/local/lib/node_modules/npm/node_modules/libnpmteam/README.md
+/usr/local/lib/node_modules/npm/node_modules/iconv-lite/encodings/tables/gbk-added.json
+/usr/local/lib/node_modules/npm/node_modules/iconv-lite/encodings/tables/big5-added.json
+/usr/local/lib/node_modules/npm/node_modules/tar/dist/commonjs/read-entry.js
+/usr/local/lib/node_modules/npm/node_modules/tar/dist/commonjs/header.js
+/usr/local/lib/node_modules/npm/node_modules/tar/dist/esm/read-entry.js
+/usr/local/lib/node_modules/npm/node_modules/tar/dist/esm/header.js
+/usr/local/lib/node_modules/npm/node_modules/chalk/source/vendor/supports-color/browser.js
+/usr/local/lib/node_modules/npm/node_modules/chalk/source/vendor/supports-color/index.js
+/usr/local/lib/node_modules/npm/node_modules/chalk/source/vendor/ansi-styles/index.js
+/usr/local/lib/node_modules/npm/node_modules/chalk/source/index.js
+/usr/local/lib/node_modules/npm/node_modules/chalk/source/utilities.js
+/usr/local/lib/node_modules/npm/node_modules/libnpmversion/README.md
+/usr/local/lib/node_modules/npm/node_modules/libnpmversion/lib/read-json.js
+/usr/local/lib/node_modules/npm/node_modules/libnpmhook/README.md
+/usr/local/lib/node_modules/npm/node_modules/libnpmaccess/README.md
+/usr/local/lib/node_modules/npm/node_modules/cross-spawn/node_modules/which/README.md
+/usr/local/lib/node_modules/npm/node_modules/cross-spawn/lib/util/readShebang.js
+/usr/local/lib/node_modules/npm/node_modules/semve
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+--------------------------------
+function redisEnv(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  return url && token ? { url, token } : null;
+}
+
+class RedisStore implements Store {
+  constructor(private url: string, private token: string) {}
+
+  private async cmd<T = unknown>(args: (string | number)[]): Promise<T | null> {
+    try {
+      const r = await fetch(this.url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}`, "content-type": "application/json" },
+        body: JSON.stringify(args),
+        cache: "no-store",
+      });
+      if (!r.ok) return null;
+      const j = (await r.json()) as { result?: T };
+      return (j.result ?? null) as T | null;
+    } catch {
+      return null;
+    }
+  }
+
+  async record(e: TelemetryEvent) {
+    const now = Date.now();
+    const K = "fast";
+    await this.cmd(["INCR", `${K}:events:${dayKey()}`]);
+    if (e.channelId && ["player_load", "playback_start", "heartbeat", "channel_change"].includes(e.event)) {
+      const member = e.sessionId;
+      await this.cmd(["ZADD", `${K}:viewers:${e.channelId}`, now + VIEWER_TTL_MS, member]);
+      for (const c of CHANNELS)
+        if (c !== e.channelId) await this.cmd(["ZREM", `${K}:viewers:${c}`, member]);
+    }
+    if (e.event === "player_exit")
+      for (const c of CHANNELS) await this.cmd(["ZREM", `${K}:viewers:${c}`, e.sessionId]);
+    if (e.channelId && (e.event === "playback_error" || e.event === "manifest_error"))
+      await this.cmd(["INCR", `${K}:errors:${e.channelId}`]);
+    if (e.event === "channel_change" && typeof e.latencyMs === "number" && isRealSwitch(e.latencyMs)) {
+      await this.cmd(["LPUSH", `${K}:switch`, e.latencyMs]);
+      await this.cmd(["LTRIM", `${K}:switch`, 0, SAMPLE_CAP - 1]);
+    }
+    if (e.event === "playback_start" && typeof e.startupMs === "number" && e.startupMs > 0 && e.startupMs <= 30_000) {
+      await this.cmd(["LPUSH", `${K}:startup`, e.startupMs]);
+      await this.cmd(["LTRIM", `${K}:startup`, 0, SAMPLE_CAP - 1]);
+    }
+  }
+
+  async snapshot(): Promise<Snapshot> {
+    const now = Date.now();
+    const K = "fast";
+    const viewersByChannel: Record<number, number> = {};
+    const errorsByChannel: Record<number, number> = {};
+    for (const ch of CHANNELS) {
+      await this.cmd(["ZREMRANGEBYSCORE", `${K}:viewers:${ch}`, 0, now]);
+      viewersByChannel[ch] = Number((await this.cmd(["ZCARD", `${K}:viewers:${ch}`])) ?? 0);
+      errorsByChannel[ch] = Number((await this.cmd(["GET", `${K}:errors:${ch}`])) ?? 0);
+    }
+    const sessions = Object.values(viewersByChannel).reduce((a, b) => a + b, 0);
+    const eventsToday = Number((await this.cmd(["GET", `${K}:events:${dayKey()}`])) ?? 0);
+    const swRaw = ((await this.cmd<string[]>(["LRANGE", `${K}:switch`, 0, -1])) ?? []).map(Number);
+    const stRaw = ((await this.cmd<string[]>(["LRANGE", `${K}:startup`, 0, -1])) ?? []).map(Number);
+    const st = summarize(stRaw);
+    return {
+      backend: "redis",
+      eventsToday,
+      sessions,
+      viewersByChannel,
+      errorsByChannel,
+      switch: summarize(swRaw),
+      startup: { count: st.count, avgMs: st.avgMs },
+    };
+  }
+}
+
+// --- singleton ------------------------------------------------------------
+declare global {
+  // eslint-disable-next-line no-var
+  var __fastTelemetryStore: Store | undefined;
+}
+
+export function telemetry(): Store {
+  if (!globalThis.__fastTelemetryStore) {
+    const env = redisEnv();
+    globalThis.__fastTelemetryStore = env ? new RedisStore(env.url, env.token) : new MemoryStore();
+  }
+  return globalThis.__fastTelemetryStore;
+}
+6af9ee0f4d51:/app# printf '%s\n' '--- tests mentioning analytics ---'; grep -RInE 'creative|airing|beacon|quartile|completion|impression|telemetry|session|dedup
+' src --include='*.test.ts' | head -400
+--- tests mentioning analytics ---
+grep: unrecognized option: include=*.test.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+6af9ee0f4d51:/app#

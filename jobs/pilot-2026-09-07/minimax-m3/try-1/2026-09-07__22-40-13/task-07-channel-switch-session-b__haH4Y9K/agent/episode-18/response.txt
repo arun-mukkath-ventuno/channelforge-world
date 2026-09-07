@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I have a clear picture. The bug is in `ensureSession` in `packages/persistence/src/repositories/sessions.ts`. It uses `ON CONFLICT (id) DO NOTHING`, meaning when a session already exists, its `channel_id` is never updated. When a viewer changes channels but keeps the same session id (legitimate per the bug report), the session record stays on the original channel.\n\nThe fix should be minimal: change `ON CONFLICT (id) DO NOTHING` to update the channel_id when the session already exists. The session's recorded channel should reflect whichever channel it was most recently associated with.\n\nLet me check the existing tests for ensureSession more carefully to ensure I don't break anything.",
+  "plan": "Look at all tests that touch ensureSession.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn 'ensureSession\\|playback_sessions' packages/ --include='*.ts' | grep -v 'dist' | grep -v 'node_modules' | head -40\n",
+      "duration": 0.1
+    }
+  ]
+}

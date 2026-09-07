@@ -1,0 +1,41 @@
+Current Terminal Screen:
+    resp = client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "channel", "scope_id": asset_id, "reason": "x"},
+    )
+    assert resp.status_code == 400
+root@d6b56ecad4a0:/app# grep -RInE 'rights_takedown|EmergencyTakedown|active.*takedown|takedown.*active|is_blocked|blocked.*takedown' app tests --exclude-dir=__
+pycache__
+app/api/rights.py:25:from app.services import rights_admin, rights_takedown
+app/api/rights.py:80:        TakedownOut.model_validate(t) for t in rights_repo.list_active_takedowns(db, org_id)
+app/api/rights.py:92:    affected = rights_takedown.preview(
+app/api/rights.py:109:    takedown, affected = rights_takedown.place_takedown(
+app/api/rights.py:130:    takedown = rights_takedown.lift_takedown(
+app/adapters/http_delivery.py:26:def _is_blocked_host(host: str) -> bool:
+app/adapters/http_delivery.py:65:        if self._check_host and _is_blocked_host(parsed.hostname):
+app/models/enums.py:150:    RIGHTS_TAKEDOWN = "rights_takedown"
+app/models/rights.py:103:    __tablename__ = "rights_takedowns"
+app/services/rights_takedown.py:91:        db, org_id=org_id, alert_type="rights_takedown", severity="critical",
+app/services/rights_takedown.py:94:        dedup_key=f"rights_takedown:{takedown.id}",
+app/services/rights_takedown.py:97:        db, action="rights_takedown.place", actor_user_id=actor_id, organization_id=org_id,
+app/services/rights_takedown.py:98:        object_type="rights_takedown", object_id=str(takedown.id),
+app/services/rights_takedown.py:115:    if takedown.status == "active":
+app/services/rights_takedown.py:120:            db, org_id=org_id, dedup_key=f"rights_takedown:{takedown.id}"
+app/services/rights_takedown.py:123:            db, action="rights_takedown.lift", actor_user_id=actor_id, organization_id=org_id,
+app/services/rights_takedown.py:124:            object_type="rights_takedown", object_id=str(takedown.id),
+app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+app/services/schedules.py:706:        return [f"'{event.title}': asset is under an active emergency takedown"]
+app/services/asset_eligibility.py:48:    # An active emergency takedown blocks the asset absolutely, before any policy check (§8.3).
+app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+app/services/asset_eligibility.py:52:            code="rights_takedown", field="rights", severity="error",
+app/services/asset_eligibility.py:53:            message="Asset is under an active emergency takedown.",
+app/repositories/rights.py:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py:161:def active_takedown_for_asset(
+app/repositories/rights.py:164:    """An active takedown covering this asset, if any."""
+app/repositories/rights.py.orig:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py.orig:161:def active_takedown_for_asset(
+app/repositories/rights.py.orig:164:    """An active takedown covering this asset directly or via its series, if any."""
+tests/test_rights_takedown.py:61:        assert any(r["code"] == "rights_takedown" for r in result["reasons"])
+tests/test_rights_takedown.py:106:    alert = db.query(Alert).filter(Alert.alert_type == "rights_takedown").one()
+tests/test_rights_takedown.py:124:    assert any(r["code"] == "rights_takedown" for r in result["reasons"])
+root@d6b56ecad4a0:/app#

@@ -1,0 +1,215 @@
+New Terminal Output:
+
+e6f3e04d76cc:/app# printf '%s\n' 'sessions.ts:'; sed -n '1,260p' packages/persistence/src/repositories/sessions.ts; printf '%s\n' 'repository tests session exce
+rpts:'; grep -n -C 8 -iE 'session|channel' packages/persistence/src/repositories.test.ts | head -260
+sessions.ts:
+// Playback session repository (PRD §11, §12, §44).
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface PlaybackSession {
+  id: string;
+  channelId: string;
+  createdAt: string;
+  lastActivityAt: string;
+  deviceType: string | null;
+  country: string | null;
+  anonymousId: string | null;
+}
+
+interface SessionRow {
+  id: string;
+  channel_id: string;
+  created_at: unknown;
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+  );
+}
+
+export async function touchSession(db: Queryable, id: string): Promise<void> {
+  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+}
+
+function toSession(r: SessionRow): PlaybackSession {
+  return {
+    id: r.id,
+    channelId: r.channel_id,
+    createdAt: toIso(r.created_at),
+    lastActivityAt: toIso(r.last_activity_at),
+    deviceType: r.device_type,
+    country: r.country,
+    anonymousId: r.anonymous_id,
+  };
+}
+
+export async function getSession(db: Queryable, id: string): Promise<PlaybackSession | null> {
+  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+  return rows[0] ? toSession(rows[0]) : null;
+}
+
+export async function listSessions(db: Queryable, limit = 100): Promise<PlaybackSession[]> {
+  const rows = (
+    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [limit])
+  ).rows;
+  return rows.map(toSession);
+}
+repository tests session excerpts:
+2-import { readFileSync, readdirSync } from "node:fs";
+3-import { fileURLToPath } from "node:url";
+4-import { dirname, join, resolve } from "node:path";
+5-import { newDb } from "pg-mem";
+6-import type { Queryable } from "./db.js";
+7-import { seedDatabase } from "./seed.js";
+8-import { campaignsAsMap, listCampaigns } from "./repositories/campaigns.js";
+9-import { listCreatives } from "./repositories/creatives.js";
+10:import { ensureSession, getSession } from "./repositories/sessions.js";
+11-import { upsertOpportunity } from "./repositories/opportunities.js";
+12:import { saveDecision, getDecisionsBySession } from "./repositories/decisions.js";
+13:import { appendEvent, getEventsBySession } from "./repositories/events.js";
+14:import { decide, type AdOpportunity, type SessionContext } from "@ssai/core";
+15-
+16-const here = dirname(fileURLToPath(import.meta.url));
+17-const MIG_DIR = resolve(here, "../../../migrations");
+18-const SCHEMA = readdirSync(MIG_DIR)
+19-  .filter((f) => f.endsWith(".sql"))
+20-  .sort()
+21-  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+22-  .join("\n");
+--
+29-}
+30-
+31-let db: Queryable;
+32-beforeEach(() => {
+33-  db = freshDb();
+34-});
+35-
+36-describe("seed + inventory repositories", () => {
+37:  it("seeds 5 channels and assembles campaign target channels", async () => {
+38-    await seedDatabase(db);
+39-    const campaigns = await listCampaigns(db);
+40-    const food = campaigns.find((c) => c.campaignId === "camp_food_a");
+41:    expect(food?.targetChannels).toEqual(["channel_food"]);
+42-    const appliance = campaigns.find((c) => c.campaignId === "camp_appliance_b");
+43:    expect(appliance?.targetChannels).toContain("channel_food");
+44:    expect(appliance?.targetChannels).toContain("channel_entertainment");
+45-  });
+46-
+47-  it("returns creatives with numeric duration/priority/weight", async () => {
+48-    await seedDatabase(db);
+49-    const creatives = await listCreatives(db);
+50-    const food30 = creatives.find((c) => c.creativeId === "cr_food_a_30");
+51-    expect(food30).toMatchObject({ duration: 30, priority: 10, weight: 100, status: "ready" });
+52-    expect(typeof food30!.duration).toBe("number");
+--
+56-describe("decision persistence round-trip (PRD §46, §47)", () => {
+57-  it("persists a decided pod and reads the full payload back", async () => {
+58-    await seed
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+OT NULL DEFAULT 0,
+migrations/001_init.sql-94-  seed              TEXT,
+migrations/001_init.sql-95-  decision_payload  JSONB NOT NULL
+migrations/001_init.sql-96-);
+migrations/001_init.sql-97-
+migrations/001_init.sql-98-CREATE TABLE ad_pods (
+migrations/001_init.sql-99-  id                TEXT PRIMARY KEY,
+migrations/001_init.sql-100-  decision_id       TEXT NOT NULL REFERENCES ad_decisions(id) ON DELETE CASCADE,
+migrations/001_init.sql-101-  break_duration    NUMERIC NOT NULL,
+--
+migrations/001_init.sql-108-  id                BIGSERIAL PRIMARY KEY,
+migrations/001_init.sql-109-  pod_id            TEXT NOT NULL REFERENCES ad_pods(id) ON DELETE CASCADE,
+migrations/001_init.sql-110-  position          INTEGER NOT NULL,
+migrations/001_init.sql-111-  item_type         TEXT NOT NULL,             -- 'AD' | 'SLATE'
+migrations/001_init.sql-112-  creative_id       TEXT REFERENCES creatives(id),
+migrations/001_init.sql-113-  duration          NUMERIC NOT NULL,
+migrations/001_init.sql-114-  start_offset      NUMERIC NOT NULL,
+migrations/001_init.sql-115-  end_offset        NUMERIC NOT NULL
+migrations/001_init.sql-116-);
+migrations/001_init.sql-117-
+migrations/001_init.sql-118-CREATE TABLE manifest_requests (
+migrations/001_init.sql-119-  id                BIGSERIAL PRIMARY KEY,
+migrations/001_init.sql:120:  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+migrations/001_init.sql:121:  channel_id        TEXT NOT NULL REFERENCES channels(id),
+migrations/001_init.sql-122-  requested_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/001_init.sql-123-  variant           TEXT,
+migrations/001_init.sql-124-  stitched          BOOLEAN NOT NULL DEFAULT false,
+migrations/001_init.sql-125-  generation_ms     NUMERIC
+migrations/001_init.sql-126-);
+migrations/001_init.sql-127-
+migrations/001_init.sql-128--- Append-only canonical event stream (PRD §26, §29, §30). Source for analytics.
+migrations/001_init.sql-129-CREATE TABLE events (
+migrations/001_init.sql-130-  event_id          TEXT PRIMARY KEY,
+migrations/001_init.sql-131-  event_type        TEXT NOT NULL,
+migrations/001_init.sql-132-  ts                TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/001_init.sql:133:  session_id        TEXT,
+migrations/001_init.sql:134:  channel_id        TEXT,
+migrations/001_init.sql-135-  opportunity_id    TEXT,
+migrations/001_init.sql-136-  pod_id            TEXT,
+migrations/001_init.sql-137-  ad_id             TEXT,
+migrations/001_init.sql-138-  campaign_id       TEXT,
+migrations/001_init.sql-139-  creative_id       TEXT,
+migrations/001_init.sql-140-  program_id        TEXT,
+migrations/001_init.sql-141-  playhead_position NUMERIC,
+migrations/001_init.sql-142-  device_type       TEXT,
+migrations/001_init.sql-143-  country           TEXT,
+migrations/001_init.sql-144-  payload           JSONB
+migrations/001_init.sql-145-);
+migrations/001_init.sql-146-
+migrations/001_init.sql:147:CREATE INDEX idx_events_session   ON events (session_id, ts);
+migrations/001_init.sql-148-CREATE INDEX idx_events_type      ON events (event_type, ts);
+migrations/001_init.sql:149:CREATE INDEX idx_opps_channel     ON ad_opportunities (channel_id, start_time);
+migrations/001_init.sql-150-CREATE INDEX idx_decisions_opp    ON ad_decisions (opportunity_id);
+migrations/001_init.sql:151:CREATE INDEX idx_sessions_channel ON playback_sessions (channel_id, created_at);
+--
+migrations/005_beacons.sql:3:-- tracking does not depend on the client. One row per (session, opportunity, event, url); the unique
+migrations/005_beacons.sql-4--- key dedups repeated beacons (e.g. a quartile re-fired on a manifest refresh).
+migrations/005_beacons.sql-5-
+migrations/005_beacons.sql-6-CREATE TABLE beacon_deliveries (
+migrations/005_beacons.sql-7-  id             BIGSERIAL PRIMARY KEY,
+--
+migrations/005_beacons.sql-6--- Server-side ad tracking (VAST). When the player reports an ad event, the server relays the ad's
+migrations/005_beacons.sql-7--- third-party VAST tracking URLs itself (durable queue, retried + deduped) so impression/quartile
+migrations/005_beacons.sql:8:  session_id     TEXT NOT NULL,
+migrations/005_beacons.sql-9-  opportunity_id TEXT NOT NULL,
+migrations/005_beacons.sql-10-  creative_id    TEXT,
+migrations/005_beacons.sql-11-  event_type     TEXT NOT NULL,
+migrations/005_beacons.sql-12-  url            TEXT NOT NULL,
+migrations/005_beacons.sql-13-  status         TEXT NOT NULL DEFAULT 'pending',   -- pending | sent | failed
+migrations/005_beacons.sql-14-  attempts       INTEGER NOT NULL DEFAULT 0,
+migrations/005_beacons.sql-15-  last_error     TEXT,
+migrations/005_beacons.sql-16-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+migrations/005_beacons.sql-17-  sent_at        TIMESTAMPTZ,
+migrations/005_beacons.sql:18:  UNIQUE (session_id, opportunity_id, event_type, url)
+migrations/005_beacons.sql-19-);
+migrations/005_beacons.sql-20-
+migrations/005_beacons.sql-21-CREATE INDEX idx_beacons_pending ON beacon_deliveries (status, created_at);
+e6f3e04d76cc:/app#

@@ -1,0 +1,27 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+_engine.py tests/test_schedule_rights.py
+.....................                                                                                                                                    [100%]
+======================================================================= warnings summary =======================================================================
+../usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install
+ `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_threa
+d.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+21 passed, 2 warnings in 5.14s
+root@8a95af6f6baa:/app# grep -n '^def test_' tests/test_rights_takedown.py
+44:def test_takedown_blocks_and_lift_restores(client):
+68:def test_takedown_reports_affected_events_and_agreements(client, db):
+99:def test_takedown_raises_incident(client, db):
+110:def test_series_takedown_blocks_member_asset(client, db):
+127:def test_invalid_scope_type_rejected(client):
+root@8a95af6f6baa:/app#

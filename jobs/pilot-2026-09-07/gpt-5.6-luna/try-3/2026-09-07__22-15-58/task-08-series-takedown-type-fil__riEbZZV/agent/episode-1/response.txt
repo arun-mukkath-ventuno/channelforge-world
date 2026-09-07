@@ -1,0 +1,18 @@
+{
+  "analysis": "The relevant path is identified: app/repositories/rights.py provides active_takedown_for_asset(), and app/services/asset_eligibility.py and schedules.py call it. The grep output shows explicit series handling around lines 161-187, so the defect is likely in that matching query or in how the asset's series relationship is represented. No changes have been made yet.",
+  "plan": "Inspect the complete rights repository function, the RightsTakedown and Asset models, and the rights takedown/eligibility tests for expected behavior. Compare series creation and asset linkage fields, then patch only application source. Run focused rights tests and inspect git diff, followed by restart-api.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,240p' app/repositories/rights.py && printf '\\n--- asset eligibility ---\\n' && sed -n '1,130p' app/services/asset_eligibility.py\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' '--- models ---' && grep -RInE 'class (Asset|Series|RightsTakedown)|series_id|scope_type|scope_id' app/models app/schemas | head -240\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' '--- rights tests ---' && sed -n '1,280p' tests/test_rights_takedown.py && printf '%s\\n' '--- eligibility references ---' && grep -RInE 'series.*takedown|takedown.*series|active_takedown_for_asset|rights_takedown' tests | head -200\n",
+      "duration": 0.3
+    }
+  ]
+}

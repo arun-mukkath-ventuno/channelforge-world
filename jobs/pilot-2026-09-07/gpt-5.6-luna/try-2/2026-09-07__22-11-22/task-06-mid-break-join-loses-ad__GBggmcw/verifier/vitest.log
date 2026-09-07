@@ -1,0 +1,109 @@
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/data-plane/src/avails.test.ts (13 tests | 2 failed) 13ms
+   × detectAvails (PRD §9, §41) > ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet) 6ms
+     → expected [ { opportunityId: 'opp_ch_0', …(7) } ] to deeply equal []
+   × detectAvails (PRD §9, §41) > recovers a break whose opening tag has already scrolled out of the window (real worker/origin.py + worker/cue_schedule.py output: full 6-line playlist header, CUE-IN before its DATERANGE-IN) 1ms
+     → expected [] to have a length of 1 but got +0
+(node:1394) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for accessing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1394) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for accessing router options. The router options will be removed in `fastify@6`.
+ ❯ packages/data-plane/src/server.test.ts (2 tests | 2 failed) 41ms
+   × data-plane manifest hot path — mid-break join/reconnect (PRD §41 extension) > reattaches the same decided pod once a break's opening tag ages out of the window, instead of falling back to raw origin or re-deciding 38ms
+     → expected '0' to be '1' // Object.is equality
+   × data-plane manifest hot path — mid-break join/reconnect (PRD §41 extension) > still decides fresh (does not crash or wrongly cache) for a session that never saw this break's opening tag at all 2ms
+     → expected '0' to be '1' // Object.is equality
+ ✓ packages/data-plane/src/media.test.ts (5 tests) 4ms
+ ✓ packages/core/src/scte.test.ts (11 tests) 4ms
+ ✓ packages/data-plane/src/stitch.test.ts (3 tests) 3ms
+ ✓ packages/data-plane/src/origin.test.ts (4 tests) 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts > detectAvails (PRD §9, §41) > ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)
+AssertionError: expected [ { opportunityId: 'opp_ch_0', …(7) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "channelId": "ch",
++     "declaredDuration": 30,
++     "duration": 30,
++     "endLine": 3,
++     "measuredDuration": 6,
++     "opportunityId": "opp_ch_0",
++     "startLine": 1,
++     "startSequence": 0,
++   },
++ ]
+
+ ❯ packages/data-plane/src/avails.test.ts:71:35
+     69|   it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet…
+     70|     const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30"…
+     71|     expect(detectAvails(m, "ch")).toEqual([]);
+       |                                   ^
+     72|   });
+     73| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts > detectAvails (PRD §9, §41) > recovers a break whose opening tag has already scrolled out of the window (real worker/origin.py + worker/cue_schedule.py output: full 6-line playlist header, CUE-IN before its DATERANGE-IN)
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ packages/data-plane/src/avails.test.ts:165:20
+    163|     ]);
+    164|     const avails = detectAvails(m, "channel_food");
+    165|     expect(avails).toHaveLength(1);
+       |                    ^
+    166|     expect(avails[0]!.externalBreakId).toBe("BRK-old-0009");
+    167|     // Only the visible portion (2 segments before the CUE-IN) counts …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  packages/data-plane/src/server.test.ts > data-plane manifest hot path — mid-break join/reconnect (PRD §41 extension) > reattaches the same decided pod once a break's opening tag ages out of the window, instead of falling back to raw origin or re-deciding
+AssertionError: expected '0' to be '1' // Object.is equality
+
+Expected: "1"
+Received: "0"
+
+ ❯ packages/data-plane/src/server.test.ts:97:45
+     95|     const res2 = await app.inject({ method: "GET", url });
+     96|     expect(res2.statusCode).toBe(200);
+     97|     expect(res2.headers["x-ssai-stitched"]).toBe("1");
+       |                                             ^
+     98|     // The SAME ad must reattach — not raw origin passthrough, and not…
+     99|     expect(res2.body).toContain("cr-first");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  packages/data-plane/src/server.test.ts > data-plane manifest hot path — mid-break join/reconnect (PRD §41 extension) > still decides fresh (does not crash or wrongly cache) for a session that never saw this break's opening tag at all
+AssertionError: expected '0' to be '1' // Object.is equality
+
+Expected: "1"
+Received: "0"
+
+ ❯ packages/data-plane/src/server.test.ts:122:44
+    120|     const res = await app.inject({ method: "GET", url: `/v1/hls/${toke…
+    121|     expect(res.statusCode).toBe(200);
+    122|     expect(res.headers["x-ssai-stitched"]).toBe("1");
+       |                                            ^
+    123|     expect(res.body).toContain("cr-new");
+    124|     expect(decideCalls).toBe(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+ Test Files  2 failed | 4 passed (6)
+      Tests  4 failed | 34 passed (38)
+   Start at  16:45:52
+   Duration  935ms (transform 148ms, setup 0ms, collect 274ms, tests 69ms, environment 1ms, prepare 173ms)
+

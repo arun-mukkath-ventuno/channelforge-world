@@ -1,0 +1,14 @@
+{
+  "analysis": "Now I understand. The agent restarts the SSAI service via `restart-ssai`, with the service selected by the `SSAI_SERVICE` env var. The bug is about session records going stale - this is in the control-plane where sessions are managed. Let me check what env vars are set.",
+  "plan": "Check environment and the current state. The fix needs to be on the control-plane side. Let me also check if there's a docker-entrypoint to know how the services are launched.",
+  "commands": [
+    {
+      "keystrokes": "env | grep -i ssa\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /usr/local/bin/docker-entrypoint.sh\n",
+      "duration": 0.1
+    }
+  ]
+}

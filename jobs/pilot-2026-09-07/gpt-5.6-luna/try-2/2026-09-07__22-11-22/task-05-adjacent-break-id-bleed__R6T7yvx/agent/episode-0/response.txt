@@ -1,0 +1,14 @@
+{
+  "analysis": "The terminal is at /app with no command output yet. I need inspect the service source, identify cue-marker parsing and producer break ID state handling, reproduce or locate the back-to-back break defect, apply a minimal source-only fix, run relevant tests, and restart the affected service.",
+  "plan": "First list the repository and service structure, then search for marker parsing, break IDs, and stateful logic. Inspect the relevant implementation and tests without modifying tests. After identifying the likely stale-state or marker-boundary bug, patch only application source, run focused tests (and broader available checks if practical), then restart the service using the repository's existing service mechanism and verify its status.",
+  "commands": [
+    {
+      "keystrokes": "pwd && printf '\\n-- top-level --\\n' && ls -la && printf '\\n-- files --\\n' && find . -maxdepth 2 -type f | sort | sed -n '1,200p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '%s\\n' '-- marker/break references --' && grep -RInE 'producer.?break|break.?id|cue.?marker|cuepoint|ad.?break|splice' --exclude-dir=.git --exclude='*.lock' . | head -300\n",
+      "duration": 0.5
+    }
+  ]
+}

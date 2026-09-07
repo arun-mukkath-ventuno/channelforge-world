@@ -1,0 +1,47 @@
+New Terminal Output:
+
+root@b904aa471694:/app# PYTHONDONTWRITEBYTECODE=1 python - <<'PY'
+> import uuid
+> from sqlalchemy import create_engine
+> from sqlalchemy.orm import Session
+> from app.models import Asset, RightsTakedown
+> from app.repositories.rights import active_takedown_for_asset
+> engine = create_engine('sqlite://')
+> RightsTakedown.__table__.create(engine)
+> org, other_org, asset_id, series_id = [uuid.uuid4() for _ in range(4)]
+> asset = Asset(id=asset_id, organization_id=org, series_id=series_id)
+> cases = [
+>     ('series member', org, 'series', series_id, 'active', True),
+>     ('direct asset', org, 'asset', asset_id, 'active', True),
+>     ('lifted series', org, 'series', series_id, 'lifted', False),
+>     ('other organization', other_org, 'series', series_id, 'active', False),
+>     ('unrelated series', org, 'series', uuid.uuid4(), 'active', False),
+>     ('asset scope with series ID', org, 'asset', series_id, 'active', False),
+>     ('series scope with asset ID', org, 'series', asset_id, 'active', False),
+> ]
+> with Session(engine) as db:
+>     for name, tenant, scope, target, status, expected in cases:
+>         row = RightsTakedown(organization_id=tenant, scope_type=scope, scope_id=target, status=status, reason='check')
+>         db.add(row)
+>         db.flush()
+>         assert (active_takedown_for_asset(db, org_id=org, asset=asset) is not None) == expected, name
+>         db.delete(row)
+>         db.flush()
+>         print('PASS:', name)
+>     asset.series_id = None
+>     db.add(RightsTakedown(organization_id=org, scope_type='series', scope_id=series_id, status='active', reason='check'))
+>     db.flush()
+>     assert active_takedown_for_asset(db, org_id=org, asset=asset) is None
+>     print('PASS: asset without series')
+> PY
+PASS: series member
+PASS: direct asset
+PASS: lifted series
+PASS: other organization
+PASS: unrelated series
+PASS: asset scope with series ID
+PASS: series scope with asset ID
+PASS: asset without series
+root@b904aa471694:/app# PYTHONDONTWRITEBYTECODE=1 APP_ENV=test DATABASE_URL=sqlite:// python -m pytest -q -p no:cacheprovider tests/test_rights_takedown.py test
+s/test_rights_engine.py tests/test_per_agreement_eligibility.py tests/test_rights_enforcement.py tests/test_eligibility.py tests/test_schedule_rights.py
+

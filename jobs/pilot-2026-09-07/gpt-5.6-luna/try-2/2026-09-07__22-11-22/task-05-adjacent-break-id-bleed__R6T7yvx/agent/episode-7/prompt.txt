@@ -1,0 +1,123 @@
+New Terminal Output:
+
+c97b28b93225:/app# python3 - <<'PY'
+> from pathlib import Path
+> p = Path('packages/data-plane/src/avails.ts')
+> s = p.read_text()
+> old = '''      });
+>       open = null;
+>       continue;
+> '''
+> new = '''      });
+>       open = null;
+>       // A following CUE-OUT may be adjacent with no segment URI in between.
+>       // Do not let this break's DATERANGE ID become the next break's ID.
+>       blockBreakId = undefined;
+>       continue;
+> '''
+> if old not in s:
+>     raise SystemExit('target block not found')
+> p.write_text(s.replace(old, new, 1))
+> PY
+bash: python3: command not found
+c97b28b93225:/app# sed -n '92,125p' packages/data-plane/src/avails.ts
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      // The URI line follows; advance the sequence when we consume it below.
+    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+      mediaSequence += 1;
+      blockBreakId = undefined;
+    }
+  }
+c97b28b93225:/app# npx vitest run packages/data-plane/src/avails.test.ts packages/core/src/scte.test.ts
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+
+ Test Files  2 passed (2)
+      Tests  21 passed (21)
+   Start at  16:42:30
+   Duration  385ms (transform 87ms, setup 0ms, collect 101ms, tests 9ms, environment 0ms, prepare 83ms)
+
+c97b28b93225:/app# npm run typecheck
+
+> ssaiadserver@0.1.0 typecheck
+> tsc --build
+
+c97b28b93225:/app# npm run build
+
+> ssaiadserver@0.1.0 build
+> npm run build --workspaces --if-present
+
+
+> @ssai/admin-web@0.1.0 build
+> vite build
+
+vite v6.4.3 building for production...
+transforming (1587) ../../node_modules/react-dom/cjs/react-dom.production.min.jsnode --input-type=module -e 'import { detectAvails } from "./packages/data-plane
+/dist/avails.js"; const m=["#EXT-X-MEDIA-SEQUENCE:0","#EXT-X-CUE-OUT:30","#EXT-X-DATERANGE:ID=\"BRK-first\"","#EXTINF:6,","a.ts","#EXT-X-CUE-IN","#EXT-X-CUE-OUT
+:15","#EXT-X-DATERANGE:ID=\"BRK-second\"","#EXTINF:6,","b.ts","#EXT-X-CUE-IN"].join("\\n"); console.log(detectAvails(m,"ch").map(x=>x.externalBreakId));'
+✓ 1600 modules transformed.
+dist/index.html                   0.48 kB │ gzip:  0.31 kB
+dist/assets/index-B6R8QqZS.css   35.10 kB │ gzip:  6.60 kB
+dist/assets/index-GUROw0s8.js   280.07 kB │ gzip: 88.34 kB
+✓ built in 1.72s
+
+> @ssai/control-plane@0.1.0 build
+> tsc --build
+
+
+> @ssai/core@0.1.0 build
+> tsc --build
+
+
+> @ssai/creative-worker@0.1.0 build
+> tsc --build
+
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+
+> @ssai/persistence@0.1.0 build
+> tsc --build
+
+
+> @ssai/storage@0.1.0 build
+> tsc --build
+
+ps aux | grep '[n]ode.*data-plane\|[t]sx.*data-plane' || true
+c97b28b93225:/app# node --input-type=module -e 'import { detectAvails } from "./packages/data-plane/dist/avails.js"; const m=["#EXT-X-MEDIA-SEQUENCE:0","#EXT-X-
+CUE-OUT:30","#EXT-X-DATERANGE:ID=\"BRK-first\"","#EXTINF:6,","a.ts","#EXT-X-CUE-IN","#EXT-X-CUE-OUT:15","#EXT-X-DATERANGE:ID=\"BRK-second\"","#EXTINF:6,","b.ts"
+,"#EXT-X-CUE-IN"].join("\\n"); console.log(detectAvails(m,"ch").map(x=>x.externalBreakId));'
+[]
+c97b28b93225:/app# ps aux | grep '[n]ode.*data-plane\|[t]sx.*data-plane' || true
+c97b28b93225:/app#

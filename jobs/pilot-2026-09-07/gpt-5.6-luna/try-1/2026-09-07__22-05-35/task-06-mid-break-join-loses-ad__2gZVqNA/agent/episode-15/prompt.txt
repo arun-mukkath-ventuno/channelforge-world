@@ -1,0 +1,134 @@
+Previous response had warnings:
+WARNINGS: - Command 1 should end with newline when followed by another command. Otherwise the two commands will be concatenated together on the same line.
+
+New Terminal Output:
+
+727f8e3dc8f6:/app# npm run typechecknpx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts
+npm error Missing script: "typechecknpx"
+npm error
+npm error Did you mean this?
+npm error   npm run typecheck # run the "typecheck" package script
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /root/.npm/_logs/2026-09-07T16_39_41_732Z-debug-0.log
+727f8e3dc8f6:/app# nl -ba packages/data-plane/src/avails.ts | sed -n '35,180p'; printf '\nRunning processes:\n'; ps -ef 2>/dev/null | sed -n '1,100p'
+    35	const EXTINF = /^#EXTINF:([\d.]+)/;
+    36	const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+    37	
+    38	/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+    39	 *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+    40	export function detectAvails(manifest: string, channelId: string): Avail[] {
+    41	  const lines = manifest.split("\n");
+    42	
+    43	  let mediaSequence = 0;
+    44	  let lastPdt: string | undefined;
+    45	  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    46	  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    47	  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    48	  let blockBreakId: string | undefined;
+    49	  const avails: Avail[] = [];
+    50	
+    51	  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    52	  let open: {
+    53	    startLine: number;
+    54	    startSequence: number;
+    55	    declaredDuration?: number;
+    56	    measuredDuration: number;
+    57	    pdt?: string;
+    58	    externalBreakId?: string;
+    59	  } | null = null;
+    60	
+    61	  for (let i = 0; i < lines.length; i++) {
+    62	    const line = lines[i]!;
+    63	    const trimmed = line.trim();
+    64	
+    65	    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    66	    if (seqMatch) {
+    67	      mediaSequence = Number(seqMatch[1]);
+    68	      continue;
+    69	    }
+    70	
+    71	    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    72	    if (pdtMatch) {
+    73	      lastPdt = pdtMatch[1]!.trim();
+    74	      // continue — PDT applies to the next segment.
+    75	    }
+    76	
+    77	    const marker = parseMarkerLine(line, i);
+    78	    if (marker?.kind === "daterange" && marker.id) {
+    79	      blockBreakId = marker.id;
+    80	      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+    81	      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+    82	      continue;
+    83	    }
+    84	    if (marker?.kind === "cue_out" && !open) {
+    85	      open = {
+    86	        startLine: i,
+    87	        startSequence: mediaSequence,
+    88	        measuredDuration: 0,
+    89	        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      finishAvail(open, i);
+    98	      open = null;
+    99	      continue;
+   100	    }
+   101	
+   102	    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+   103	    const infMatch = trimmed.match(EXTINF);
+   104	    if (infMatch) {
+   105	      const segDur = Number(infMatch[1]);
+   106	      if (open) open.measuredDuration += segDur;
+   107	      // The URI line follows; advance the sequence when we consume it below.
+   108	    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+   109	      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+   110	      mediaSequence += 1;
+   111	      blockBreakId = undefined;
+   112	    }
+   113	  }
+   114	
+   115	  // A late tune-in can see the middle of a break without its CUE-IN: the
+   116	  // origin window ends before the break does. Treat the visible portion as an
+   117	  // active avail so it uses the same deterministic opportunity id and session
+   118	  // decision/cache path as a continuously-polling viewer.
+   119	  if (open) {
+   120	    finishAvail(open, lines.length - 1);
+   121	  }
+   122	
+   123	  return avails;
+   124	
+   125	  function finishAvail(state: NonNullable<typeof open>, endLine: number): void {
+   126	    const declared = state.declaredDuration;
+   127	    avails.push({
+   128	      opportunityId: `opp_${channelId}_${state.startSequence}`,
+   129	      channelId,
+   130	      ...(state.externalBreakId === undefined ? {} : { externalBreakId: state.externalBreakId }),
+   131	      duration: declared ?? state.measuredDuration,
+   132	      ...(declared === undefined ? {} : { declaredDuration: declared }),
+   133	      measuredDuration: state.measuredDuration,
+   134	      startSequence: state.startSequence,
+   135	      ...(state.pdt === undefined ? {} : { programDateTime: state.pdt }),
+   136	      startLine: state.startLine,
+   137	      endLine,
+   138	    });
+   139	  }
+   140	}
+
+Running processes:
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   95 root      0:00 [tmux: client]
+   96 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   97 root      0:00 bash --login
+   98 root      0:00 cat
+  111 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  115 root      0:00 /bin/bash
+  705 root      0:00 ps -ef
+  706 root      0:00 sed -n 1,100p
+727f8e3dc8f6:/app#

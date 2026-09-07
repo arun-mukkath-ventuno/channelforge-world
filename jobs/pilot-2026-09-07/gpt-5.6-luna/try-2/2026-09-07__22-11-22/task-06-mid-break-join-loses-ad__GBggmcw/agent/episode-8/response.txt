@@ -1,0 +1,22 @@
+{
+  "analysis": "The exact defect is confirmed: the detector only emits on CUE-IN and the existing test explicitly codifies ignoring an incomplete trailing avail. That behavior is incompatible with live HLS sliding windows, where a mid-break first request must still expose the active break so the session can read or create the same (session, opportunity) pod. The test suite must not be modified, so the old test will correctly fail after the bug fix; we should change application source only and validate with targeted checks/typecheck, noting the stale test expectation.",
+  "plan": "Patch avails.ts to emit an open trailing avail at the end of the current playlist. Preserve all complete-avail behavior and use lines.length - 1 as endLine so stitching covers only the visible in-progress region. Update comments in source to describe active trailing avails. Avoid changing tests. Run typecheck/build and the existing data-plane tests to identify expected failure from the now-obsolete test, then run a direct runtime check for partial detection and inspect service processes before restarting the data plane.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.ts | sed -n '90,190p'\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('packages/data-plane/src/avails.ts')\ns = p.read_text()\ns = s.replace('''/** Detect all complete avails in the manifest. Incomplete trailing avails (a\\n *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */''', '''/** Detect all avails visible in the manifest, including an active trailing\\n * avail whose CUE-IN has not entered the live window yet. */''')\nneedle = '''    }\\n  }\\n\\n  return avails;\\n}'''\nreplacement = '''    }\\n  }\\n\\n  // A live playlist may begin or end while a break is in progress, so its\\n  // CUE-IN can be outside this window. Expose the visible portion using the\\n  // same start-sequence opportunity id; this lets reconnecting sessions reuse\\n  // the decision made before the window slid.\\n  if (open) {\\n    const declared = open.declaredDuration;\\n    avails.push({\\n      opportunityId: `opp_${channelId}_${open.startSequence}`,\\n      channelId,\\n      ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),\\n      duration: declared ?? open.measuredDuration,\\n      ...(declared === undefined ? {} : { declaredDuration: declared }),\\n      measuredDuration: open.measuredDuration,\\n      startSequence: open.startSequence,\\n      ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),\\n      startLine: open.startLine,\\n      endLine: lines.length - 1,\\n    });\\n  }\\n\\n  return avails;\\n}'''\nif needle not in s:\n    raise SystemExit('target not found')\np.write_text(s.replace(needle, replacement, 1))\nPY\n\ngit diff -- packages/data-plane/src/avails.ts\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm run typecheck\nnpm run build --workspace @ssai/data-plane\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "node --input-type=module -e \"import('./packages/data-plane/dist/avails.js').then(({detectAvails})=>console.log(detectAvails('#EXT-X-MEDIA-SEQUENCE:100\\\\n#EXT-X-CUE-OUT:30\\\\n#EXTINF:6.000,\\\\nslate.ts','ch')))\"\n",
+      "duration": 0.5
+    }
+  ]
+}

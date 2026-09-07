@@ -1,0 +1,199 @@
+New Terminal Output:
+root@d6b56ecad4a0:/app# pwd && printf '\nTop-level files:\n' && find . -maxdepth 2 -type f | sort | sed -n '1,160p'
+/app
+
+Top-level files:
+./Dockerfile
+./alembic.ini
+./app/__init__.py
+./app/clock.py
+./app/config.py
+./app/db.py
+./app/main.py
+./app/redis_client.py
+./channelforge_api.egg-info/PKG-INFO
+./channelforge_api.egg-info/SOURCES.txt
+./channelforge_api.egg-info/dependency_links.txt
+./channelforge_api.egg-info/requires.txt
+./channelforge_api.egg-info/top_level.txt
+./migrations/env.py
+./migrations/script.py.mako
+./pyproject.toml
+./tests/__init__.py
+./tests/conftest.py
+./tests/helpers.py
+./tests/test_admin.py
+./tests/test_alerts.py
+./tests/test_analysis.py
+./tests/test_as_run.py
+./tests/test_asset_delete.py
+./tests/test_asset_metadata.py
+./tests/test_audience.py
+./tests/test_audit.py
+./tests/test_audit_expansion.py
+./tests/test_auth.py
+./tests/test_authorization_matrix.py
+./tests/test_auto_normalize.py
+./tests/test_branding.py
+./tests/test_caption_parse.py
+./tests/test_captions.py
+./tests/test_certification.py
+./tests/test_channel_status.py
+./tests/test_clock_generation.py
+./tests/test_collections.py
+./tests/test_cue_plan.py
+./tests/test_cue_validation.py
+./tests/test_dashboard_gaps.py
+./tests/test_dayparts.py
+./tests/test_destinations.py
+./tests/test_distribution_adapter_contract.py
+./tests/test_distribution_gate.py
+./tests/test_dropbox.py
+./tests/test_editorial_model.py
+./tests/test_effective_at.py
+./tests/test_eligibility.py
+./tests/test_epg.py
+./tests/test_epg_api.py
+./tests/test_epg_delivery.py
+./tests/test_fallback_resolution.py
+./tests/test_fast_status.py
+./tests/test_flow_gaps.py
+./tests/test_gdrive.py
+./tests/test_health.py
+./tests/test_heartbeat_detector.py
+./tests/test_horizon_extension.py
+./tests/test_http_delivery.py
+./tests/test_incident.py
+./tests/test_integration_boundaries.py
+./tests/test_library_import.py
+./tests/test_lifecycle.py
+./tests/test_media_bulk_and_filters.py
+./tests/test_migration_drift.py
+./tests/test_noc.py
+./tests/test_normalization_robustness.py
+./tests/test_notifications.py
+./tests/test_oauth_callback.py
+./tests/test_operator_role.py
+./tests/test_organizations.py
+./tests/test_output_failover.py
+./tests/test_output_heartbeat.py
+./tests/test_output_probe_sweep.py
+./tests/test_output_profiles.py
+./tests/test_password_reset.py
+./tests/test_per_agreement_eligibility.py
+./tests/test_plans.py
+./tests/test_platform_storage.py
+./tests/test_preview.py
+./tests/test_probes.py
+./tests/test_profile_presets.py
+./tests/test_programming.py
+./tests/test_programming_blocks.py
+./tests/test_public_epg.py
+./tests/test_qc.py
+./tests/test_quickstart.py
+./tests/test_reconciliation.py
+./tests/test_reconciliation_runs.py
+./tests/test_reconciliation_wiring.py
+./tests/test_recurring_blocks.py
+./tests/test_redundancy.py
+./tests/test_resumable_uploads.py
+./tests/test_rights_enforcement.py
+./tests/test_rights_engine.py
+./tests/test_rights_takedown.py
+./tests/test_schedule_alerts.py
+./tests/test_schedule_rights.py
+./tests/test_schedules.py
+./tests/test_service_accounts.py
+./tests/test_sftp.py
+./tests/test_ssai_adapter_contract.py
+./tests/test_ssai_adserver_adapter.py
+./tests/test_ssai_delivery.py
+./tests/test_start_timeout.py
+./tests/test_storage.py
+./tests/test_vast_tag.py
+./tests/test_webhooks.py
+./tests/test_webhooks_api.py
+./tests/test_youtube.py
+./tests/test_youtube_alerts.py
+./tests/test_youtube_broadcast_reconcile.py
+root@d6b56ecad4a0:/app# printf '\nTakedown-related paths:\n' && find . -type f | grep -Ei 'takedown|eligib|series|episode' | head -200
+
+Takedown-related paths:
+./app/models/series.py
+./app/services/eligibility.py
+./app/services/rights_takedown.py
+./app/services/asset_eligibility.py
+./app/repositories/series.py
+./migrations/versions/dd00ee11ff22_rights_takedowns.py
+./migrations/versions/ff66aa77bb88_series_season_and_editorial_metadata.py
+./tests/test_rights_takedown.py
+./tests/test_per_agreement_eligibility.py
+./tests/test_eligibility.py
+root@d6b56ecad4a0:/app# printf '\nSearch references:\n' && grep -RInE 'takedown|series_id|episode|eligible' --exclude-dir=.git --exclude-dir=node_modules . | he
+ad -300
+
+Search references:
+./app/schemas/rights.py:87:    takedown: TakedownOut
+./app/schemas/library.py:17:    """One episode row. Unknown keys are allowed (editorial fields applied by the service).
+./app/schemas/library.py:29:    episode_number: int | None = None
+./app/schemas/library.py:30:    content_type: str = "episode"
+./app/schemas/library.py:36:    episodes: list[EpisodeImportIn] = Field(default_factory=list)
+./app/schemas/library.py:60:    series_id: uuid.UUID | None = None
+./app/schemas/media.py:97:    episode_number: int | None = Field(default=None, ge=0)
+./app/schemas/media.py:134:    episode_number: int | None
+./app/api/rights.py:25:from app.services import rights_admin, rights_takedown
+./app/api/rights.py:73:# --- Emergency takedown (§8.3) ---
+./app/api/rights.py:75:@router.get("/organizations/{org_id}/rights/takedowns")
+./app/api/rights.py:76:def list_take
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ibrary_import.py:23:                "episode_number": 2, "rating": "TV-G",  # missing genre -> ineligible
+./tests/test_library_import.py:39:    assert rows["EP-1"]["eligibility"]["verdict"] == "eligible"
+./tests/test_library_import.py:40:    assert rows["EP-2"]["eligibility"]["verdict"] == "ineligible"
+./tests/test_library_import.py:49:    payload["episodes"][1]["genre"] = "Wellness"  # fix the previously-ineligible episode
+./tests/test_library_import.py:50:    payload["episodes"][0]["title"] = "Morning Flow (v2)"
+./tests/test_library_import.py:56:    # Now both episodes are eligible.
+./tests/test_library_import.py:57:    assert all(r["eligibility"]["verdict"] == "eligible" for r in body["rows"])
+./tests/test_library_import.py:68:    payload["episodes"].append({"external_reference": "", "title": "Broken"})  # invalid row
+./tests/test_library_import.py:72:    assert actions.count("created") == 2  # the two valid episodes still imported
+./tests/test_library_import.py:83:    assert resp.json()["verdict"] == "eligible"
+./tests/test_quickstart.py:156:    assert "no eligible assets" in resp.json()["detail"]
+./tests/test_rights_engine.py:115:    asset = Asset(organization_id=org, title="Ep", series_id=series.id)
+./tests/test_per_agreement_eligibility.py:10:    "episodes": [
+./tests/test_per_agreement_eligibility.py:11:        {"external_reference": "EP-1", "title": "Flow", "episode_number": 1,
+./tests/test_per_agreement_eligibility.py:55:def test_asset_eligible_in_india_blocked_in_us(client):
+./tests/test_per_agreement_eligibility.py:63:    assert _verdict(client, org, asset_id, india)["verdict"] == "eligible"
+./tests/test_per_agreement_eligibility.py:65:    assert us_result["verdict"] == "ineligible"
+./tests/test_per_agreement_eligibility.py:77:    # No agreement -> metadata only -> still eligible despite the US exclusion.
+./tests/test_per_agreement_eligibility.py:78:    assert _verdict(client, org, asset_id)["verdict"] == "eligible"
+./tests/test_per_agreement_eligibility.py:94:    # Import an episode missing genre (metadata-ineligible) ...
+./tests/test_per_agreement_eligibility.py:98:        "episodes": [{"external_reference": "E", "title": "E", "episode_number": 1,
+./tests/test_per_agreement_eligibility.py:108:    assert result["verdict"] == "ineligible"
+./tests/test_captions.py:16:    "episodes": [
+./tests/test_captions.py:17:        {"external_reference": "EP-1", "title": "Flow", "episode_number": 1,
+./tests/test_captions.py:86:    """A caption-requiring profile makes an un-captioned asset ineligible, then eligible once
+./tests/test_eligibility.py:19:def test_complete_metadata_is_eligible():
+./tests/test_eligibility.py:37:def test_missing_required_is_ineligible():
+./tests/test_eligibility.py:44:def test_episode_requires_episode_number():
+./tests/test_eligibility.py:45:    asset = _asset(content_type="episode", genre="Drama", rating="TV-14",
+./tests/test_eligibility.py:48:    asset.episode_number = 3
+./tests/test_eligibility.py:52:def test_non_editorial_types_are_always_eligible():
+./tests/test_eligibility.py:58:    """Foreshadows §9.5: a stricter profile can flip an asset to ineligible."""
+./tests/test_schedule_rights.py:1:"""Rights + takedown enforced at schedule validation / publish (PRD 3.0 §8.2)."""
+./tests/test_schedule_rights.py:17:    "episodes": [
+./tests/test_schedule_rights.py:18:        {"external_reference": "EP-1", "title": "Flow", "episode_number": 1,
+./tests/test_schedule_rights.py:51:    # No rights issue before the takedown.
+./tests/test_schedule_rights.py:52:    assert not any("takedown" in i or "rights" in i for i in schedules.validate(db, version))
+./tests/test_schedule_rights.py:55:        f"/api/organizations/{org}/rights/takedowns",
+./tests/test_schedule_rights.py:59:    assert any("takedown" in i for i in issues)
+./tests/test_dashboard_gaps.py:40:def test_normalize_all_enqueues_only_eligible(client, db, monkeypatch):
+./tests/test_dashboard_gaps.py:52:    eligible1 = _asset(db, org, conn, compat="transcode_required", norm="pending")
+./tests/test_dashboard_gaps.py:53:    eligible2 = _asset(db, org, conn, compat="compatible", norm="failed")
+./tests/test_dashboard_gaps.py:60:    assert set(normalized) == {str(eligible1.id), str(eligible2.id)}
+./tests/test_fallback_resolution.py:63:def test_resolve_filler_returns_first_eligible_airable_clip(client, db, tmp_path):
+./tests/test_fallback_resolution.py:82:def test_resolve_filler_skips_ineligible_and_unnormalized(client, db, tmp_path):
+./tests/test_fallback_resolution.py:101:    assert fake.downloads == [f"normalized/{good.id}.mp4"]  # only the eligible one fetched
+./tests/test_service_accounts.py:29:    "episodes": [
+./tests/test_service_accounts.py:30:        {"external_reference": "EP-1", "title": "Flow", "episode_number": 1,
+./tests/test_service_accounts.py:56:    assert resp.json()["rows"][0]["eligibility"]["verdict"] == "eligible"
+./tests/test_service_accounts.py:84:    assert resp.json()["verdict"] == "eligible"
+root@d6b56ecad4a0:/app#

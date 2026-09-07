@@ -1,0 +1,170 @@
+New Terminal Output:
+
+ff6148ea39e4:/app# nl -ba packages/data-plane/src/avails.test.ts | sed -n '100,190p'; echo '--- focused tests ---'; npm run test --workspace @ssai/data-plane
+   100	    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+   101	  });
+   102	
+   103	  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+   104	    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+   105	    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+   106	  });
+   107	
+   108	  it("does not leak one break's id onto a later break that has none", () => {
+   109	    const m = manifest([
+   110	      "#EXT-X-MEDIA-SEQUENCE:0",
+   111	      "#EXT-X-CUE-OUT:30",
+   112	      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+   113	      "#EXTINF:6.000,",
+   114	      "a.ts",
+   115	      "#EXT-X-CUE-IN",
+   116	      "#EXTINF:6.000,",
+   117	      "b.ts",
+   118	      "#EXT-X-CUE-OUT:15",
+   119	      "#EXTINF:6.000,",
+   120	      "c.ts",
+   121	      "#EXT-X-CUE-IN",
+   122	    ]);
+   123	    const avails = detectAvails(m, "ch");
+   124	    expect(avails).toHaveLength(2);
+   125	    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+   126	    expect(avails[1]!.externalBreakId).toBeUndefined();
+   127	  });
+   128	
+   129	  it("detects multiple avails in one window", () => {
+   130	    const m = manifest([
+   131	      "#EXT-X-MEDIA-SEQUENCE:0",
+   132	      "#EXT-X-CUE-OUT:30",
+   133	      "#EXTINF:6.000,",
+   134	      "a.ts",
+   135	      "#EXT-X-CUE-IN",
+   136	      "#EXTINF:6.000,",
+   137	      "b.ts",
+   138	      "#EXT-X-CUE-OUT:15",
+   139	      "#EXTINF:6.000,",
+   140	      "c.ts",
+   141	      "#EXT-X-CUE-IN",
+   142	    ]);
+   143	    const avails = detectAvails(m, "ch");
+   144	    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+   145	  });
+   146	});
+--- focused tests ---
+
+> @ssai/data-plane@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app/packages/data-plane
+
+ ✓ src/avails.test.ts (10)
+ ✓ src/media.test.ts (5)
+ ✓ src/origin-slice4.test.ts (7)
+ ✓ src/origin.test.ts (4)
+ ✓ src/stitch.test.ts (3)
+
+ Test Files  5 passed (5)
+      Tests  29 passed (29)
+   Start at  16:47:17
+   Duration  841ms (transform 144ms, setup 0ms, collect 185ms, tests 23ms, environment 1ms, prepare 199ms)
+
+ff6148ea39e4:/app# python3 - <<'PY'
+> from pathlib import Path
+> p = Path('packages/data-plane/src/avails.ts')
+> s = p.read_text()
+> old = '''      });
+>       open = null;
+>       continue;
+> '''
+> new = '''      });
+>       open = null;
+>       // A CUE-IN closes this avail's marker block. With back-to-back breaks
+>       // there may be no segment URI between this CUE-IN and the next CUE-OUT,
+>       // so do not let the prior break's DATERANGE ID leak into the next one.
+>       blockBreakId = undefined;
+>       continue;
+> '''
+> if old not in s:
+>     raise SystemExit('target text not found')
+> p.write_text(s.replace(old, new, 1))
+> PY
+bash: python3: command not found
+ff6148ea39e4:/app# sed -n '88,125p' packages/data-plane/src/avails.ts
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      // The URI line follows; advance the sequence when we consume it below.
+    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+      mediaSequence += 1;
+      blockBreakId = undefined;
+    }
+  }
+ff6148ea39e4:/app# npm run test --workspace @ssai/data-plane && npm run build --workspace @ssai/data-plane
+
+> @ssai/data-plane@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app/packages/data-plane
+
+ ✓ src/avails.test.ts (10)
+ ✓ src/media.test.ts (5)
+ ✓ src/origin-slice4.test.ts (7)
+ ✓ src/origin.test.ts (4)
+ ✓ src/stitch.test.ts (3)
+
+ Test Files  5 passed (5)
+      Tests  29 passed (29)
+   Start at  16:47:20
+   Duration  667ms (transform 82ms, setup 0ms, collect 112ms, tests 20ms, environment 1ms, prepare 165ms)
+
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+ff6148ea39e4:/app# ps aux 2>/dev/null | sed -n '1,120p'; echo '--- listening ---'; (ss -ltnp 2>/dev/null || netstat -ltnp 2>/dev/null || true)
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   95 root      0:00 [tmux: client]
+   96 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   97 root      0:00 bash --login
+   98 root      0:00 cat
+  111 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  115 root      0:00 /bin/bash
+  526 root      0:00 [esbuild]
+  688 root      0:00 [esbuild]
+  801 root      0:00 ps aux
+  802 root      0:00 sed -n 1,120p
+--- listening ---
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name
+tcp        0      0 127.0.0.11:41707        0.0.0.0:*               LISTEN      -
+ff6148ea39e4:/app#

@@ -1,0 +1,18 @@
+New Terminal Output:
+
+eb5fd8e45b3d:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const p = 'packages/persistence/src/repositories/sessions.ts';
+> let s = fs.readFileSync(p, 'utf8');
+> s = s.replace('/** Create the session if absent; idempotent so ad-decision can ensure it exists. */', '/** Create the session if absent; otherwise refresh its
+ current channel. */');
+> s = s.replace('ON CONFLICT (id) DO NOTHING', 'ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id');
+> fs.writeFileSync(p, s);
+> JS
+eb5fd8e45b3d:/app# npm run build --workspace @ssai/control-plane
+
+> @ssai/control-plane@0.1.0 build
+> tsc --build
+
+npx vitest run packages/persistence/src packages/control-plane/src
+

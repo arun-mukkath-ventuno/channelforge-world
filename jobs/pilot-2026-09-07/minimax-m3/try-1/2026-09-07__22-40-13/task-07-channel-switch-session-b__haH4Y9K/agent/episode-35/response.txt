@@ -1,0 +1,6 @@
+{
+  "analysis": "All 142 tests across 22 test files pass. \n\nThe fix is minimal and correct:\n\n**Bug**: When a viewer changed channels but kept the same session id, the session record's `channel_id` column remained stuck on the original channel. This was because `ensureSession` used `ON CONFLICT (id) DO NOTHING`, so subsequent calls for the same session id were no-ops at the DB level.\n\n**Fix**: Changed `ON CONFLICT (id) DO NOTHING` to `ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id` in `packages/persistence/src/repositories/sessions.ts`. This means:\n- The first call for a session id creates the row with the initial channel (unchanged behavior).\n- Subsequent calls for an existing session id now update the `channel_id` to the most recent value, so the session record reflects whichever channel it was most recently associated with.\n- Ad decisions, opportunities, and events are still scoped to the channel each individual request names (unchanged behavior — those INSERT paths already carry the right channel per call).\n\nThe control-plane service has been rebuilt and restarted to reflect the change.",
+  "plan": "Task is complete.",
+  "commands": [],
+  "task_complete": true
+}

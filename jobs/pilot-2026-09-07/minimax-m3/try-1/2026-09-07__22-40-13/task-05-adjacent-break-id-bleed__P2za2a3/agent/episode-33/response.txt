@@ -1,0 +1,14 @@
+{
+  "analysis": "The template literal is being evaluated by JavaScript, but I used ${channelId} which JS interprets as a variable. I need to escape the dollar sign. Let me use a different approach - read the file and find the unique part to replace.",
+  "plan": "Use a simpler approach - just replace the unique part `open = null;\\n      continue;\\n    }` with the updated version.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/fix.js << 'JSEOF'\nconst fs = require(\"fs\");\nconst path = \"packages/data-plane/src/avails.ts\";\nlet content = fs.readFileSync(path, \"utf8\");\n// Match the unique CUE-IN close block by anchoring on its unique content\nconst pattern = /endLine: i,\\n\\s+\\}\\);\\n\\s+open = null;\\n\\s+continue;\\n\\s+\\}/;\nconst replacement = `endLine: i,\n      });\n      open = null;\n      // The DATERANGE id belonged to the avail we just closed; clear it so a CUE-OUT that\n      // immediately follows (back-to-back breaks, no media URI in between) does not pick it up.\n      blockBreakId = undefined;\n      continue;\n    }`;\nif (!pattern.test(content)) {\n  console.log(\"ERROR: pattern not found\");\n  process.exit(1);\n}\ncontent = content.replace(pattern, replacement);\nfs.writeFileSync(path, content);\nconsole.log(\"SUCCESS\");\nJSEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "node /tmp/fix.js\n",
+      "duration": 0.5
+    }
+  ]
+}

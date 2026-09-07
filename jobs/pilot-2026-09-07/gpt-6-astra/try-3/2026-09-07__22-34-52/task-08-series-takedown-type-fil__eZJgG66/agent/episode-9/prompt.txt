@@ -1,0 +1,41 @@
+New Terminal Output:
+
+32 passed, 2 warnings in 7.77s
+root@b904aa471694:/app# diff -u app/repositories/rights.py.orig app/repositories/rights.py; restart-api
+--- app/repositories/rights.py.orig     2026-09-05 07:37:17.000000000 +0000
++++ app/repositories/rights.py  2026-09-07 17:05:46.352159012 +0000
+@@ -5,7 +5,7 @@
+ import uuid
+ from datetime import datetime
+
+-from sqlalchemy import func, select
++from sqlalchemy import and_, func, or_, select
+ from sqlalchemy.orm import Session
+
+ from app.models import (
+@@ -161,15 +161,19 @@
+ def active_takedown_for_asset(
+     db: Session, *, org_id: uuid.UUID, asset: Asset
+ ) -> RightsTakedown | None:
+-    """An active takedown covering this asset directly or via its series, if any."""
+-    scope_ids = [asset.id]
++    """An active takedown covering this asset, if any."""
++    scope_matches = [and_(
++        RightsTakedown.scope_type == "asset", RightsTakedown.scope_id == asset.id
++    )]
+     if asset.series_id is not None:
+-        scope_ids.append(asset.series_id)
++        scope_matches.append(and_(
++            RightsTakedown.scope_type == "series", RightsTakedown.scope_id == asset.series_id
++        ))
+     return db.scalar(
+         select(RightsTakedown).where(
+             RightsTakedown.organization_id == org_id,
+             RightsTakedown.status == "active",
+-            RightsTakedown.scope_id.in_(scope_ids),
++            or_(*scope_matches),
+         )
+     )
+
+API restarted (pid 1558)
+root@b904aa471694:/app#

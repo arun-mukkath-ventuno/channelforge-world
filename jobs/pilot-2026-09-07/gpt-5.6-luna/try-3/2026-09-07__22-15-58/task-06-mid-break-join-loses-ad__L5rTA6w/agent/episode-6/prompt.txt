@@ -1,0 +1,165 @@
+New Terminal Output:
+
+703450db135d:/app# echo '===== server 1 ====='; sed -n '1,180p' packages/data-plane/src/server.ts; echo '===== server 2 ====='; sed -n '181,380p' packages/data-
+plane/src/server.ts
+===== server 1 =====
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+
+import Fastify from "fastify";
+import { verifySession, type PodItem } from "@ssai/core";
+import type { PodCache } from "@ssai/persistence";
+import type { ObjectStore } from "@ssai/storage";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider, type PodDecider } from "./decider.js";
+
+export interface DataPlaneDeps {
+  podCache: PodCache;
+  origin: OriginClient;
+  /** Object store holding prepared creative HLS (creatives/{id}/…). */
+  store: ObjectStore;
+  /** Optional: resolves a pod when none is cached. Omit → cache miss means slate. */
+  decider?: PodDecider;
+  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+  sessionSecret?: string;
+  logger?: boolean;
+}
+
+export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+
+// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+
+const CONTENT_TYPES: Record<string, string> = {
+  ts: "video/mp2t",
+  m3u8: "application/vnd.apple.mpegurl",
+  m4s: "video/iso.segment",
+  mp4: "video/mp4",
+  aac: "audio/aac",
+};
+
+export function buildServer(deps: DataPlaneDeps) {
+  // Signed tokens are long — raise the route param length limit (default 100).
+  const app = Fastify({ logger: deps.logger ?? true, maxParamLength: 4096 });
+  const { podCache, origin, decider, store } = deps;
+  const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+
+  app.get("/health", async () => ({ status: "ok", plane: "data" }));
+
+  // Personalized media playlist (PRD §11, §22, §24, §52).
+  app.get("/v1/hls/:token/:channel/:variant.m3u8", async (req, reply) => {
+    const { token, channel, variant } = req.params as { token: string; channel: string; variant: string };
+
+    // Verify the signed playback token (PRD §57) before doing any work.
+    const claims = verifySession(token, sessionSecret);
+    if (!claims) return reply.code(403).send({ error: "invalid_session_token" });
+    if (claims.ch !== channel) return reply.code(403).send({ error: "channel_mismatch" });
+    const session = claims.sid;
+
+    let originResult;
+    try {
+      originResult = await origin.fetchMediaPlaylist(channel, variant);
+    } catch (err) {
+      req.log.error({ err }, "origin fetch failed with no cached copy");
+      return reply.code(502).send({ error: "origin_unavailable" });
+    }
+
+    // Absolutize the origin's relative content URIs against the real origin URL so the player
+    // pulls content straight from ChannelForge (ad segments stay absolute SSAI paths).
+    const originBody = absolutizeManifest(originResult.body, origin.originUrlFor(channel, variant));
+    const avails = detectAvails(originBody, channel);
+
+    // Resolve a pod for each avail (cache, else decide once), then resolve its
+    // media from the store into concrete segments.
+    const rendered = new Map<string, RenderedPodItem[]>();
+    for (const avail of avails) {
+      let pod: PodItem[] | undefined;
+      const cached = await podCache.get(session, avail.opportunityId);
+      if (cached) pod = cached.pod;
+      else if (decider) {
+        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+        if (decided) pod = decided;
+      }
+      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+    }
+
+    const { manifest, stitched } = stitchManifest(originBody, avails, rendered);
+
+    reply.header("content-type", "application/vnd.apple.mpegurl");
+    reply.header("x-ssai-avails", String(avails.length));
+    reply.header("x-ssai-stitched", String(stitched.length));
+    if (originResult.stale) reply.header("x-ssai-origin", "stale");
+    return manifest;
+  });
+
+  // Serve prepared creative segments the stitched manifest points at (PRD §14).
+  app.get("/v1/segments/:creativeId/:file", async (req, reply) => {
+    const { creativeId, file } = req.params as { creativeId: string; file: string };
+    if (!SAFE_ID.test(creativeId) || !SAFE_FILE.test(file)) {
+      return reply.code(400).send({ error: 
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+e = new MemoryPodCache();
+packages/persistence/src/pod-cache.test.ts:24:    const cache = new MemoryPodCache();
+packages/persistence/src/pod-cache.test.ts:30:    const cache = new MemoryPodCache();
+packages/persistence/src/reconciliation.ts:16:  opportunityId: string;
+packages/persistence/src/reconciliation.ts:116:        opportunityId: o.id,
+packages/persistence/src/pod-cache.ts:12:  sessionId: string;
+packages/persistence/src/pod-cache.ts:13:  opportunityId: string;
+packages/persistence/src/pod-cache.ts:19:export interface PodCache {
+packages/persistence/src/pod-cache.ts:20:  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+packages/persistence/src/pod-cache.ts:22:  del(sessionId: string, opportunityId: string): Promise<void>;
+packages/persistence/src/pod-cache.ts:25:function key(sessionId: string, opportunityId: string): string {
+packages/persistence/src/pod-cache.ts:26:  return `pod:${sessionId}:${opportunityId}`;
+packages/persistence/src/pod-cache.ts:32:export class RedisPodCache implements PodCache {
+packages/persistence/src/pod-cache.ts:35:  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+packages/persistence/src/pod-cache.ts:36:    const raw = await this.redis.get(key(sessionId, opportunityId));
+packages/persistence/src/pod-cache.ts:41:    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+packages/persistence/src/pod-cache.ts:44:  async del(sessionId: string, opportunityId: string): Promise<void> {
+packages/persistence/src/pod-cache.ts:45:    await this.redis.del(key(sessionId, opportunityId));
+packages/persistence/src/pod-cache.ts:49:export class MemoryPodCache implements PodCache {
+packages/persistence/src/pod-cache.ts:52:  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+packages/persistence/src/pod-cache.ts:53:    return this.store.get(key(sessionId, opportunityId)) ?? null;
+packages/persistence/src/pod-cache.ts:57:    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+packages/persistence/src/pod-cache.ts:60:  async del(sessionId: string, opportunityId: string): Promise<void> {
+packages/persistence/src/pod-cache.ts:61:    this.store.delete(key(sessionId, opportunityId));
+packages/persistence/src/repositories/opportunities.ts:17:      opp.opportunityId,
+packages/persistence/src/repositories/events.ts:10:  sessionId?: string | null;
+packages/persistence/src/repositories/events.ts:12:  opportunityId?: string | null;
+packages/persistence/src/repositories/events.ts:35:      e.sessionId ?? null,
+packages/persistence/src/repositories/events.ts:37:      e.opportunityId ?? null,
+packages/persistence/src/repositories/events.ts:56:export async function getEventsBySession(db: Queryable, sessionId: string): Promise<StoredEvent[]> {
+packages/persistence/src/repositories/events.ts:60:      [sessionId],
+packages/persistence/src/repositories/events.ts:68:    sessionId: (r.session_id as string) ?? null,
+packages/persistence/src/repositories/events.ts:70:    opportunityId: (r.opportunity_id as string) ?? null,
+packages/persistence/src/repositories/decisions.ts:25:      decision.opportunityId,
+packages/persistence/src/repositories/decisions.ts:26:      decision.sessionId,
+packages/persistence/src/repositories/decisions.ts:61:  opportunityId: string;
+packages/persistence/src/repositories/decisions.ts:62:  sessionId: string;
+packages/persistence/src/repositories/decisions.ts:80:    opportunityId: r.opportunity_id,
+packages/persistence/src/repositories/decisions.ts:81:    sessionId: r.session_id,
+packages/persistence/src/repositories/decisions.ts:93:export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {
+packages/persistence/src/repositories/decisions.ts:97:      [sessionId],
+packages/persistence/src/repositories/decisions.ts:103:export async function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<StoredDeci
+sion[]> {
+packages/persistence/src/repositories/decisions.ts:107:      [opportunityId],
+packages/persistence/src/repositories/sessions.ts:36:/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+packages/persistence/src/repositories/beacons.ts:8:  sessionId: string;
+packages/persistence/src/repositories/beacons.ts:9:  opportunityId: string;
+packages/persistence/src/repositories/beacons.ts:17:  sessionId: string;
+packages/persistence/src/repositories/beacons.ts:18:  opportunityId: string;
+packages/persistence/src/repositories/beacons.ts:39:  sessionId: r.session_id,
+packages/persistence/src/repositories/beacons.ts:40:  opportunityId: r.opportunity_id,
+packages/persistence/src/repositories/beacons.ts:54:    [b.sessionId, b.opportunityId, b.creativeId ?? null, b.eventType, b.url],
+703450db135d:/app# find . -maxdepth 3 -type f \( -name 'docker-compose*.yml' -o -name 'compose*.yml' -o -name 'Dockerfile*' -o -name '*.service' \) -print
+703450db135d:/app#

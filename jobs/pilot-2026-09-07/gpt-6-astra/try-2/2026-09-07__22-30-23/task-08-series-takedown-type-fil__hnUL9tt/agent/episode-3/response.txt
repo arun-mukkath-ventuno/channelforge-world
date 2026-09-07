@@ -1,0 +1,10 @@
+{
+  "analysis": "Rights policy resolution already uses asset.series_id, but the terminal truncated the takedown query. I need a smaller excerpt to confirm its exact behavior.",
+  "plan": "Read focused excerpts of the query, model, and existing test setup before making a minimal change.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '158,215p' app/repositories/rights.py; sed -n '95,150p' app/models/rights.py; grep -n 'series_id' app/models/asset.py; sed -n '1,110p' tests/conftest.py; sed -n '1,210p' tests/test_rights_takedown.py\n",
+      "duration": 0.1
+    }
+  ]
+}

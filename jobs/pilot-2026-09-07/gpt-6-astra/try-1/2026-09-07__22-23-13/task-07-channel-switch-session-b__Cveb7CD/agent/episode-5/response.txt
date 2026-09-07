@@ -1,0 +1,14 @@
+{
+  "analysis": "The upsert now updates only the session's channel_id on conflict. All four existing repository tests pass. Decision, opportunity, and event code remains unchanged. Because workspace imports normally use prebuilt dist files, the service must load the corrected source explicitly to honor the restriction against modifying files outside application source.",
+  "plan": "Run an in-memory regression check covering repeated channel switches and preservation of session metadata. Then start the currently stopped control plane with a runtime module-resolution hook that loads the corrected repository source, leaving build artifacts and configuration untouched.",
+  "commands": [
+    {
+      "keystrokes": "node --import tsx --input-type=module <<'JS'\nimport assert from 'node:assert/strict';\nimport fs from 'node:fs';\nimport { newDb } from 'pg-mem';\nimport { ensureSession, getSession } from './packages/persistence/src/repositories/sessions.ts';\nconst mem = newDb();\nfor (const f of fs.readdirSync('migrations').filter(f => f.endsWith('.sql')).sort()) mem.public.none(fs.readFileSync(`migrations/${f}`, 'utf8'));\nconst { Pool } = mem.adapters.createPg();\nconst db = new Pool();\nawait ensureSession(db, { id: 'switch-check', channelId: 'channel-a', deviceType: 'web', country: 'IN', anonymousId: 'viewer', ipHash: 'hash', userAgent: 'agent' });\nconst original = (await db.query('SELECT * FROM playback_sessions WHERE id = $1', ['switch-check'])).rows[0];\nfor (const channelId of ['channel-a', 'channel-b', 'channel-c', 'channel-a']) {\n  await ensureSession(db, { id: 'switch-check', channelId });\n  assert.equal((await getSession(db, 'switch-check')).channelId, channelId);\n  const current = (await db.query('SELECT * FROM playback_sessions WHERE id = $1', ['switch-check'])).rows[0];\n  assert.deepEqual(current, { ...original, channel_id: channelId });\n}\nassert.equal((await db.query('SELECT count(*) FROM playback_sessions')).rows[0].count, 1);\nawait db.end();\nconsole.log('PASS: latest channel wins; same-channel calls are idempotent; all other session fields are preserved.');\nJS\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "nohup node --import tsx --input-type=module -e 'import { registerHooks } from \"node:module\"; import { pathToFileURL } from \"node:url\"; const oldUrl = pathToFileURL(\"/app/packages/persistence/dist/repositories/sessions.js\").href; const newUrl = pathToFileURL(\"/app/packages/persistence/src/repositories/sessions.ts\").href; registerHooks({ resolve(specifier, context, nextResolve) { const result = nextResolve(specifier, context); return result.url === oldUrl ? { ...result, url: newUrl } : result; } }); process.argv[1] = \"/app/packages/control-plane/src/server.ts\"; await import(process.argv[1]);' >/dev/null 2>&1 &\nsleep 1; ps aux; wget -qO- http://127.0.0.1:4000/health\n",
+      "duration": 2
+    }
+  ]
+}

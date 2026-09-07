@@ -1,0 +1,26 @@
+{
+  "analysis": "The defect is confirmed in active_takedown_for_asset(): it collects both the asset ID and series ID, but then restricts RightsTakedown.scope_type to 'asset'. Therefore a series-scoped takedown can never match. The targeted fix is to query asset scope against asset.id and, when present, series scope against asset.series_id, while retaining organization and active-status filtering.",
+  "plan": "Patch only app/repositories/rights.py using an explicit SQLAlchemy OR condition. Run the focused rights takedown tests, then run the broader eligibility/rights tests if practical. Review the diff to ensure only application source changed, and execute restart-api as required.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('app/repositories/rights.py')\ns = p.read_text()\nold = '''    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )\n'''\nnew = '''    scope_match = (RightsTakedown.scope_type == \"asset\") & (RightsTakedown.scope_id == asset.id)\n    if asset.series_id is not None:\n        scope_match = scope_match | (\n            (RightsTakedown.scope_type == \"series\")\n            & (RightsTakedown.scope_id == asset.series_id)\n        )\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            scope_match,\n        )\n    )\n'''\nif old not in s:\n    raise SystemExit('expected code block not found')\np.write_text(s.replace(old, new))\nPY\n\ngit diff -- app/repositories/rights.py\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "pytest -q tests/test_rights_takedown.py\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "pytest -q tests/test_eligibility.py tests/test_rights_engine.py tests/test_per_agreement_eligibility.py\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "git status --short && git diff --check && git diff --stat\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "restart-api\n",
+      "duration": 1.0
+    }
+  ]
+}

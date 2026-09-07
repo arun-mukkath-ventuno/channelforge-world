@@ -1,0 +1,14 @@
+{
+  "analysis": "The terminal is at /app with no commands executed yet. I need inspect the repository structure, identify the takedown eligibility logic and how series-scoped takedowns are matched to member episodes, then make a minimal application-source fix without touching tests. Afterward I will run relevant tests or checks and restart the API.",
+  "plan": "First inspect the project files and git status. Search the source for takedown, series, eligibility, and blocking logic. Trace the active-takedown matching path, identify why a series scope does not match an episode's parent series, patch only the relevant application code, run targeted tests (without modifying tests), inspect the diff, and execute restart-api.",
+  "commands": [
+    {
+      "keystrokes": "pwd && printf '\\nTop-level files:\\n' && find . -maxdepth 2 -type f | sort | sed -n '1,160p' && printf '\\nGit status:\\n' && git status --short\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "printf '\\nTakedown references:\\n' && grep -RInE \"takedown|take.?down|series\" --exclude-dir=.git --exclude-dir=tests . | sed -n '1,240p'\n",
+      "duration": 0.5
+    }
+  ]
+}

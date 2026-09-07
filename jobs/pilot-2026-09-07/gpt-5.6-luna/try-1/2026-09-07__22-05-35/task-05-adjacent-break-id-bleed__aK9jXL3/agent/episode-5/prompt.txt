@@ -1,0 +1,179 @@
+New Terminal Output:
+
+c5e0ec7d0eb6:/app# grep -RInE 'parseMarkerLine|ParsedMarker|externalBreakId|opportunityId|breakStart|CUE-OUT|DATERANGE' packages/core/src packages/data-plane/sr
+c packages/persistence/src --include='*.ts' | head -300
+grep: unrecognized option: include=*.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+c5e0ec7d0eb6:/app# printf '%s\n' '### data-plane avails'; nl -ba packages/data-plane/src/avails.ts | sed -n '1,360p'; printf '%s\n' '### data-plane stitch'; nl
+-ba packages/data-plane/src/stitch.ts | sed -n '1,420p'; printf '%s\n' '### data-plane origin rewrite'; nl -ba packages/data-plane/src/origin-rewrite.ts | sed -
+n '1,360p'
+### data-plane avails
+     1	// Avail detection over an origin media playlist (PRD §9, §22, §41).
+     2	//
+     3	// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+     4	// *deterministic* opportunity id derived from the channel + the media sequence
+     5	// of the avail's first segment. Determinism matters: every viewer's data-plane
+     6	// request and the decisioning path must agree on the same opportunity id for a
+     7	// given break without coordinating, so the cached pod is found on the hot path.
+     8	
+     9	import { parseMarkerLine } from "@ssai/core";
+    10	
+    11	export interface Avail {
+    12	  opportunityId: string;
+    13	  channelId: string;
+    14	  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+    15	   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+    16	   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+    17	   *  by contrast, is a media-sequence-derived id independent of the producer). */
+    18	  externalBreakId?: string;
+    19	  /** Break duration: the marker's declared duration, or the summed segment time. */
+    20	  duration: number;
+    21	  /** Declared duration from the marker, if it carried a valid one. */
+    22	  declaredDuration?: number;
+    23	  /** Actual duration summed from the segments inside the avail. */
+    24	  measuredDuration: number;
+    25	  /** Media sequence number of the first segment inside the avail. */
+    26	  startSequence: number;
+    27	  programDateTime?: string;
+    28	  /** Line index of the CUE-OUT marker. */
+    29	  startLine: number;
+    30	  /** Line index of the CUE-IN marker. */
+    31	  endLine: number;
+    32	}
+    33	
+    34	const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+    35	const EXTINF = /^#EXTINF:([\d.]+)/;
+    36	const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+    37	
+    38	/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+    39	 *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+    40	export function detectAvails(manifest: string, channelId: string): Avail[] {
+    41	  const lines = manifest.split("\n");
+    42	
+    43	  let mediaSequence = 0;
+    44	  let lastPdt: string | undefined;
+    45	  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    46	  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    47	  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    48	  let blockBreakId: string | undefined;
+    49	  const avails: Avail[] = [];
+    50	
+    51	  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    52	  let open: {
+    53	    startLine: number;
+    54	    startSequence: number;
+    55	    declaredDuration?: number;
+    56	    measuredDuration: number;
+    57	    pdt?: string;
+    58	    externalBreakId?: string;
+    59	  } | null = null;
+    60	
+    61	  for (let i = 0; i < lines.length; i++) {
+    62	    const line = lines[i]!;
+    63	    const trimmed = line.trim();
+    64	
+    65	    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    66	    if (seqMatch) {
+    67	      mediaSequence = Number(seqMatch[1]);
+    68	      continue;
+    69	    }
+    70	
+    71	    const pdtMatch = tri
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ort function decide(input: DecideInput): AdDecision {
+    18	  const { opportunity, session } = input;
+    19	
+    20	  const { eligible, rejected } = evaluateEligibility({
+    21	    channelId: opportunity.channelId,
+    22	    breakDuration: opportunity.breakDuration,
+    23	    now: input.now,
+    24	    creatives: input.creatives,
+    25	    campaigns: input.campaigns,
+    26	  });
+    27	
+    28	  const pod = buildPod({
+    29	    breakDuration: opportunity.breakDuration,
+    30	    eligible,
+    31	    ...(input.seed === undefined ? {} : { seed: input.seed }),
+    32	  });
+    33	
+    34	  return {
+    35	    opportunityId: opportunity.opportunityId,
+    36	    sessionId: session.sessionId,
+    37	    channelId: opportunity.channelId,
+    38	    breakDuration: opportunity.breakDuration,
+    39	    eligible,
+    40	    rejected: [...rejected, ...pod.rejected],
+    41	    pod: pod.pod,
+    42	    adSeconds: pod.adSeconds,
+    43	    slateSeconds: pod.slateSeconds,
+    44	    ...(input.seed === undefined ? {} : { seed: input.seed }),
+    45	  };
+    46	}
+### data-plane tests around avails/stitch
+packages/data-plane/src/avails.test.ts:41:  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/src/avails.test.ts:88:    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+packages/data-plane/src/avails.test.ts:100:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+packages/data-plane/src/avails.test.ts:103:  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+packages/data-plane/src/avails.test.ts:105:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:108:  it("does not leak one break's id onto a later break that has none", () => {
+packages/data-plane/src/avails.test.ts:125:    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+packages/data-plane/src/avails.test.ts:126:    expect(avails[1]!.externalBreakId).toBeUndefined();
+packages/core/src/eligibility.test.ts:32:function evalOne(cr: Creative, camp: Campaign, channelId = "channel_food", breakDuration = 60) {
+packages/core/src/eligibility.test.ts:35:    breakDuration,
+packages/core/src/eligibility.test.ts:79:  it("rejects a creative longer than the whole break", () => {
+packages/core/src/eligibility.test.ts:87:      breakDuration: 60,
+packages/core/src/pod.test.ts:11:describe("buildPod — the break is always fully filled (PRD §18-21, §59)", () => {
+packages/core/src/pod.test.ts:13:    const r = buildPod({ breakDuration: 30, eligible: [cr("a", 30)], seed: SEED });
+packages/core/src/pod.test.ts:21:    const r = buildPod({ breakDuration: 60, eligible: [cr("a", 30), cr("b", 30)], seed: SEED });
+packages/core/src/pod.test.ts:25:    // Contiguous offsets across the break.
+packages/core/src/pod.test.ts:32:    const r = buildPod({ breakDuration: 60, eligible: [cr("a", 30)], seed: SEED });
+packages/core/src/pod.test.ts:40:    const r = buildPod({ breakDuration: 60, eligible: [], seed: SEED });
+packages/core/src/pod.test.ts:49:      breakDuration: 90,
+packages/core/src/pod.test.ts:61:  it("always sums pod durations to the break duration", () => {
+packages/core/src/pod.test.ts:62:    for (const breakDuration of [15, 30, 45, 60, 75, 90, 120]) {
+packages/core/src/pod.test.ts:63:      const r = buildPod({ breakDuration, eligible: [cr("a", 30), cr("b", 15)], seed: SEED });
+packages/core/src/pod.test.ts:65:      expect(total).toBe(breakDuration);
+packages/core/src/pod.test.ts:73:      breakDuration: 30,
+packages/core/src/pod.test.ts:83:    const first = buildPod({ breakDuration: 30, eligible, seed: SEED });
+packages/core/src/pod.test.ts:84:    const second = buildPod({ breakDuration: 30, eligible, seed: SEED });
+packages/core/src/scte.test.ts:4:describe("parseMarkerLine — cue markers (PRD §9, §60 task 3)", () => {
+packages/core/src/scte.test.ts:7:    expect(m).toMatchObject({ kind: "cue_out", duration: 60, lineIndex: 5 });
+packages/core/src/scte.test.ts:12:    expect(m).toMatchObject({ kind: "cue_out", duration: 60 });
+packages/core/src/scte.test.ts:27:    expect(m).toMatchObject({ kind: "cue_in", lineIndex: 9 });
+packages/core/src/scte.test.ts:38:    expect(m).toMatchObject({ kind: "cue_out", invalidDuration: true });
+packages/core/src/scte.test.ts:42:  it("returns null for non-marker lines", () => {
+packages/core/src/scte.test.ts:50:    expect(m).toMatchObject({ kind: "daterange", duration: 30 });
+packages/core/src/scte.test.ts:53:  it("extracts the DATERANGE ID (ChannelForge threads its break_id there)", () => {
+packages/core/src/scte.test.ts:56:    expect(m).toMatchObject({ kind: "daterange", id: "BRK-a11e5310-0003", duration: 90 });
+packages/core/src/scte.test.ts:61:    expect(m?.kind).toBe("daterange");
+c5e0ec7d0eb6:/app#

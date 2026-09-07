@@ -1,0 +1,183 @@
+New Terminal Output:
+
+703450db135d:/app# sed -n '1,150p' packages/data-plane/src/avails.ts; sed -n '1,220p' packages/data-plane/src/avails.test.ts
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+
+import { parseMarkerLine } from "@ssai/core";
+
+export interface Avail {
+  opportunityId: string;
+  channelId: string;
+  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+   *  by contrast, is a media-sequence-derived id independent of the producer). */
+  externalBreakId?: string;
+  /** Break duration: the marker's declared duration, or the summed segment time. */
+  duration: number;
+  /** Declared duration from the marker, if it carried a valid one. */
+  declaredDuration?: number;
+  /** Actual duration summed from the segments inside the avail. */
+  measuredDuration: number;
+  /** Media sequence number of the first segment inside the avail. */
+  startSequence: number;
+  programDateTime?: string;
+  /** Line index of the CUE-OUT marker. */
+  startLine: number;
+  /** Line index of the CUE-IN marker. */
+  endLine: number;
+}
+
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+export function detectAvails(manifest: string, channelId: string): Avail[] {
+  const lines = manifest.split("\n");
+
+  let mediaSequence = 0;
+  let lastPdt: string | undefined;
+  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+    measuredDuration: number;
+    pdt?: string;
+    externalBreakId?: string;
+  } | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    if (seqMatch) {
+      mediaSequence = Number(seqMatch[1]);
+      continue;
+    }
+
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    if (pdtMatch) {
+      lastPdt = pdtMatch[1]!.trim();
+      // continue — PDT applies to the next segment.
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      // The URI lin
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+:    expect(manifest).not.toContain("#EXT-X-CUE-OUT");
+packages/data-plane/src/avails.test.ts:11:      "#EXT-X-MEDIA-SEQUENCE:100",
+packages/data-plane/src/avails.test.ts:16:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:19:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:34:    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6
+.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+packages/data-plane/src/avails.test.ts:35:    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CU
+E-IN"]);
+packages/data-plane/src/avails.test.ts:43:      "#EXT-X-MEDIA-SEQUENCE:0",
+packages/data-plane/src/avails.test.ts:44:      "#EXT-X-CUE-OUT:oops",
+packages/data-plane/src/avails.test.ts:49:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:59:      "#EXT-X-MEDIA-SEQUENCE:0",
+packages/data-plane/src/avails.test.ts:61:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:64:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:69:  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+packages/data-plane/src/avails.test.ts:70:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/src/avails.test.ts:76:      "#EXT-X-MEDIA-SEQUENCE:200",
+packages/data-plane/src/avails.test.ts:79:      "#EXT-X-CUE-OUT:90",
+packages/data-plane/src/avails.test.ts:84:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:91:  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+packages/data-plane/src/avails.test.ts:93:      "#EXT-X-MEDIA-SEQUENCE:0",
+packages/data-plane/src/avails.test.ts:95:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:98:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:104:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"
+]);
+packages/data-plane/src/avails.test.ts:110:      "#EXT-X-MEDIA-SEQUENCE:0",
+packages/data-plane/src/avails.test.ts:111:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:115:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:118:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:121:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:131:      "#EXT-X-MEDIA-SEQUENCE:0",
+packages/data-plane/src/avails.test.ts:132:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:135:      "#EXT-X-CUE-IN",
+packages/data-plane/src/avails.test.ts:138:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:141:      "#EXT-X-CUE-IN",
+packages/core/src/scte.ts:4://   #EXT-X-CUE-OUT:60
+packages/core/src/scte.ts:5://   #EXT-X-CUE-OUT:DURATION=60
+packages/core/src/scte.ts:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/src/scte.ts:7://   #EXT-X-CUE-IN
+packages/core/src/scte.ts:12:// (infer the boundary from CUE-IN, otherwise preserve origin).
+packages/core/src/scte.ts:35:  // CUE-IN: no attributes.
+packages/core/src/scte.ts:36:  if (trimmed === "#EXT-X-CUE-IN") {
+packages/core/src/scte.ts:40:  // CUE-OUT: value may be a bare number or DURATION=<n>.
+packages/core/src/scte.ts:41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/src/scte.ts:42:  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/core/src/scte.ts:43:    const value = trimmed.slice("#EXT-X-CUE-OUT".length).replace(/^:/, "").trim();
+packages/core/src/scte.test.ts:5:  it("parses bare-number CUE-OUT: #EXT-X-CUE-OUT:60", () => {
+packages/core/src/scte.test.ts:6:    const m = parseMarkerLine("#EXT-X-CUE-OUT:60", 5);
+packages/core/src/scte.test.ts:10:  it("parses attribute-form CUE-OUT: #EXT-X-CUE-OUT:DURATION=60", () => {
+packages/core/src/scte.test.ts:11:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=60", 0);
+packages/core/src/scte.test.ts:16:    const m = parseMarkerLine("#EXT-X-CUE-OUT:DURATION=90,SCTE35=abc", 0);
+packages/core/src/scte.test.ts:21:    const m = parseMarkerLine("#EXT-X-CUE-OUT:29.97", 0);
+packages/core/src/scte.test.ts:25:  it("parses CUE-IN with no attributes", () => {
+packages/core/src/scte.test.ts:26:    const m = parseMarkerLine("#EXT-X-CUE-IN", 9);
+packages/core/src/scte.test.ts:31:  it("ignores CUE-OUT-CONT as a new avail", () => {
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/src/scte.test.ts:36:  it("flags an unparseable CUE-OUT duration instead of throwing (PRD §41)", () => {
+packages/core/src/scte.test.ts:37:    const m = parseMarkerLine("#EXT-X-CUE-OUT:oops", 0);
+703450db135d:/app#

@@ -1,0 +1,151 @@
+New Terminal Output:
+
+5d6083492e48:/app# cat packages/data-plane/src/server.ts
+// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+//
+// The manifest hot path:
+//   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+//   (cache hit, else ask the Ad Decision Service once) → resolve pod media from
+//   the object store → stitch → return.
+// It also serves the stored creative segments the stitched manifest references.
+// No DB, no transcode on this path.
+
+import Fastify from "fastify";
+import { verifySession, type PodItem } from "@ssai/core";
+import type { PodCache } from "@ssai/persistence";
+import type { ObjectStore } from "@ssai/storage";
+import { OriginClient } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+import { detectAvails } from "./avails.js";
+import { resolvePodSegments, type RenderedPodItem } from "./media.js";
+import { stitchManifest } from "./stitch.js";
+import { HttpPodDecider, type PodDecider } from "./decider.js";
+
+export interface DataPlaneDeps {
+  podCache: PodCache;
+  origin: OriginClient;
+  /** Object store holding prepared creative HLS (creatives/{id}/…). */
+  store: ObjectStore;
+  /** Optional: resolves a pod when none is cached. Omit → cache miss means slate. */
+  decider?: PodDecider;
+  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+  sessionSecret?: string;
+  logger?: boolean;
+}
+
+export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+
+// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+const SAFE_ID = /^[A-Za-z0-9_-]+$/;
+const SAFE_FILE = /^[A-Za-z0-9_-]+\.(ts|m3u8|m4s|mp4|aac)$/;
+
+const CONTENT_TYPES: Record<string, string> = {
+  ts: "video/mp2t",
+  m3u8: "application/vnd.apple.mpegurl",
+  m4s: "video/iso.segment",
+  mp4: "video/mp4",
+  aac: "audio/aac",
+};
+
+export function buildServer(deps: DataPlaneDeps) {
+  // Signed tokens are long — raise the route param length limit (default 100).
+  const app = Fastify({ logger: deps.logger ?? true, maxParamLength: 4096 });
+  const { podCache, origin, decider, store } = deps;
+  const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+
+  app.get("/health", async () => ({ status: "ok", plane: "data" }));
+
+  // Personalized media playlist (PRD §11, §22, §24, §52).
+  app.get("/v1/hls/:token/:channel/:variant.m3u8", async (req, reply) => {
+    const { token, channel, variant } = req.params as { token: string; channel: string; variant: string };
+
+    // Verify the signed playback token (PRD §57) before doing any work.
+    const claims = verifySession(token, sessionSecret);
+    if (!claims) return reply.code(403).send({ error: "invalid_session_token" });
+    if (claims.ch !== channel) return reply.code(403).send({ error: "channel_mismatch" });
+    const session = claims.sid;
+
+    let originResult;
+    try {
+      originResult = await origin.fetchMediaPlaylist(channel, variant);
+    } catch (err) {
+      req.log.error({ err }, "origin fetch failed with no cached copy");
+      return reply.code(502).send({ error: "origin_unavailable" });
+    }
+
+    // Absolutize the origin's relative content URIs against the real origin URL so the player
+    // pulls content straight from ChannelForge (ad segments stay absolute SSAI paths).
+    const originBody = absolutizeManifest(originResult.body, origin.originUrlFor(channel, variant));
+    const avails = detectAvails(originBody, channel);
+
+    // Resolve a pod for each avail (cache, else decide once), then resolve its
+    // media from the store into concrete segments.
+    const rendered = new Map<string, RenderedPodItem[]>();
+    for (const avail of avails) {
+      let pod: PodItem[] | undefined;
+      const cached = await podCache.get(session, avail.opportunityId);
+      if (cached) pod = cached.pod;
+      else if (decider) {
+        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+        if (decided) pod = decided;
+      }
+      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+    }
+
+    const { manifest, stitched } = stitchManifest(originBody, avails, rendered);
+
+    reply.header("content-type", "application/vnd.apple.mpegurl");
+    reply.header("x-ssai-avails", String(avails.length));
+    reply.header("x-ssai-stitched", String(stitched.length));
+    if (originResult.stale) reply.header("x-ssai-origin", "stale");
+    return manifest;
+  });
+
+  // Serve prepared creative segments the stitched manifest points at (PRD §14).
+  app.get("/v1/segments/:creativeId/:file", async (req, reply) => {
+    const { creativeId, file } = req.params as { creativeId: string; file: string };
+    if (!SAFE_ID.test(creativeId) || !SAFE_FILE.test(file)) {
+      return reply.code(400).send({ error: "invalid segment path" });
+    }
+    return serveStored(reply, store, `creatives/${creativeId}/${file}`, file);
+  });
+
+  // Serve prepared slate segments (PRD §20).
+  app.get("/v1/slate/:slateId/:file", async (req, reply) => {
+    const { slateId, file } = req.params as { slateId: string; file: string };
+    if (!SAFE_ID.test(slateId) || !SAFE_FILE.test(file)) {
+      return reply.code(400).send({ error: "invalid segment path" });
+    }
+    return serveStored(reply, store, `slates/${slateId}/${file}`, file);
+  });
+
+  return app;
+}
+
+async function serveStored(reply: import("fastify").FastifyReply, store: ObjectStore, key: string, file: string) {
+  try {
+    const data = await store.get(key);
+    const ext = file.split(".").pop()!;
+    reply.header("content-type", CONTENT_TYPES[ext] ?? "application/octet-stream");
+    reply.header("cache-control", "public, max-age=31536000, immutable");
+    return reply.send(data);
+  } catch {
+    return reply.code(404).send({ error: "segment_not_found" });
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+  const { createObjectStoreFromEnv } = await import("@ssai/storage");
+  const podCache = new RedisPodCache(createRedis());
+  const origin = new OriginClient();
+  const store = await createObjectStoreFromEnv();
+  const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? "http://localhost:4000";
+  const decider = new HttpPodDecider(controlPlaneUrl);
+  const app = buildServer({ podCache, origin, store, decider });
+  app.listen({ port: Number(process.env.DATA_PLANE_PORT ?? 4010), host: "0.0.0.0" }).catch((err) => {
+    app.log.error(err);
+    process.exit(1);
+  });
+}
+5d6083492e48:/app#

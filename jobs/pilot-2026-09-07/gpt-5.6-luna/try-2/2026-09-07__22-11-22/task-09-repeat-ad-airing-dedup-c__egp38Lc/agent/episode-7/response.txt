@@ -1,0 +1,22 @@
+{
+  "analysis": "The defect is confirmed. Each parsed ad window has a stable occurrence-specific start timestamp, but sendAdBeacon only sends session_id and ad_id. The ingestion service therefore derives the same event ID for every airing of a repeated creative in one session because pod_id is empty. The watcher already deduplicates one airing using adId + start, so using that same stable occurrence identity as pod_id preserves duplicate-beacon collapse while separating later airings.",
+  "plan": "Add an optional podId argument to sendAdBeacon and include pod_id in the SSAI event payload. In the watcher, derive pod_id as a stable value from the ad window start (prefixed for clarity) and pass it for every lifecycle beacon from that window. This is minimal, keeps ad_id as the creative/ad identity, and remains stable across manifest refreshes. Then run the existing tests and TypeScript/build checks. Since no service is running in this container, start/restart the Next service as appropriate after validation.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('src/lib/ssai.ts')\ns = p.read_text()\ns = s.replace('export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\\n  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });', 'export function sendAdBeacon(\\n  sessionId: string,\\n  event: AdBeacon,\\n  adId: string,\\n  podId?: string,\\n): void {\\n  const body = JSON.stringify({\\n    event,\\n    session_id: sessionId,\\n    pod_id: podId,\\n    ad_id: adId,\\n  });')\ns = s.replace('          sendAdBeacon(opts.sessionId, beacon, w.adId);', '          // The ad ID identifies the creative; the window start identifies this airing.\\n          // Keep both stable across manifest refreshes so retries dedupe without\\n          // collapsing a later airing of the same creative.\\n          sendAdBeacon(opts.sessionId, beacon, w.adId, `airing_${w.start}`);')\np.write_text(s)\nPY\nsed -n '34,62p' src/lib/ssai.ts; sed -n '154,174p' src/lib/ssai.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "pnpm test -- --run",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "pnpm exec tsc --noEmit",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "pnpm build",
+      "duration": 5.0
+    }
+  ]
+}

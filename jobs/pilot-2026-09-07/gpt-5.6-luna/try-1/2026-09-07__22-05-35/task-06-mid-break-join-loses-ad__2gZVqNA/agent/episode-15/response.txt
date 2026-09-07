@@ -1,0 +1,18 @@
+{
+  "analysis": "The source change is present and correctly finalizes an open avail at the end of the manifest. The prior validation commands were concatenated due to missing newline, so neither typecheck nor Vitest ran. There is no running application service in the container, only the shell/recording processes. One source comment still describes the old behavior and should be corrected as part of the targeted application-source fix.",
+  "plan": "Update the stale `avails.ts` comment, then run typecheck and targeted tests as separate commands with explicit newlines. The existing incomplete-trailing-avail test is expected to fail because it asserts the defect; leave it unchanged. Run the remaining/full tests and build the data-plane artifact. Since no service process is running, there is nothing to restart; rebuilding the service artifact is the available way to make the compiled output reflect the fix.",
+  "commands": [
+    {
+      "keystrokes": "node <<'NODE'\nconst fs = require('fs');\nconst p = 'packages/data-plane/src/avails.ts';\nlet s = fs.readFileSync(p, 'utf8');\ns = s.replace('/** Detect all complete avails in the manifest. Incomplete trailing avails (a\\n *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */', '/** Detect complete avails and an active trailing avail visible at the end of the manifest. */');\nfs.writeFileSync(p, s);\nNODE\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "npm run typecheck\n",
+      "duration": 4.0
+    },
+    {
+      "keystrokes": "npx vitest run packages/data-plane/src/avails.test.ts packages/data-plane/src/stitch.test.ts\n",
+      "duration": 4.0
+    }
+  ]
+}

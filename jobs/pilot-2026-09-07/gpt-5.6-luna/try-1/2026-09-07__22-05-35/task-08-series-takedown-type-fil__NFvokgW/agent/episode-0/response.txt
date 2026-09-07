@@ -1,0 +1,18 @@
+{
+  "analysis": "The terminal is idle at /app, and no repository contents or prior work are visible. I need inspect the project structure, locate the takedown eligibility logic and series/episode relationship handling, then make a minimal application-source fix without modifying tests or configuration. Afterward I will run focused tests if available and restart the API.",
+  "plan": "First inspect the repository and identify the application source and relevant takedown code. Search for takedown, series, episode, eligibility, and active-scope logic. Read the surrounding implementation and tests for expected behavior, then patch only the application code so an active series-scoped takedown also matches member episodes. Run targeted tests or the relevant test suite, inspect the diff to ensure only allowed files changed, and execute restart-api.",
+  "commands": [
+    {
+      "keystrokes": "pwd && printf '\\nTop-level files:\\n' && find . -maxdepth 2 -type f | sort | sed -n '1,160p'\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '\\nTakedown-related paths:\\n' && find . -type f | grep -Ei 'takedown|eligib|series|episode' | head -200\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '\\nSearch references:\\n' && grep -RInE 'takedown|series_id|episode|eligible' --exclude-dir=.git --exclude-dir=node_modules . | head -300\n",
+      "duration": 1.0
+    }
+  ]
+}

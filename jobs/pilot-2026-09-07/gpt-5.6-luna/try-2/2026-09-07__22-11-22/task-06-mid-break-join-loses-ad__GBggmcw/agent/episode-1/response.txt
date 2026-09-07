@@ -1,0 +1,14 @@
+{
+  "analysis": "The repository root contains only package metadata at shallow depth; the application source is likely nested deeper than the previous max-depth search. Node dependencies are installed. I need locate workspace/package directories and inspect package scripts before searching the implementation.",
+  "plan": "Inspect hidden entries, package.json, and all tracked or non-node_modules files at greater depth. Identify the service package and available test/start commands, then search source for manifest, ad break, session, decision, and reconnect handling.",
+  "commands": [
+    {
+      "keystrokes": "ls -la; printf '\\n-- package.json --\\n'; cat package.json; printf '\\n-- source files --\\n'; find . -path './node_modules' -prune -o -type f -print | sort | head -300\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "printf '\\n-- likely symbols --\\n'; grep -RInE --exclude-dir=node_modules --exclude='*.lock' '(manifest|ad.?break|decision|session|reconnect|stitch)' . | head -300\n",
+      "duration": 0.5
+    }
+  ]
+}

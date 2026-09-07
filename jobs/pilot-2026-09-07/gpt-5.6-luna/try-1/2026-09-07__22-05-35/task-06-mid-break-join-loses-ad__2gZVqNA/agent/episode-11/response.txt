@@ -1,0 +1,14 @@
+{
+  "analysis": "The actual defect is in avail detection: `detectAvails` explicitly ignores an open CUE-OUT without a CUE-IN. A viewer whose first request arrives while the break is still active therefore produces zero avails, so the data plane never calls the decider and leaves origin content untouched. This exactly matches the report and also explains reconnects: even an earlier decision cannot be found because the current manifest no longer yields the opportunity. The prior idempotency hypothesis is secondary and would not fix the missing detection. No files have been modified and no service process is currently running in the container.",
+  "plan": "Inspect the remainder of `avails.ts` and `stitch.ts` to confirm how an active trailing avail can be represented. Modify detection minimally to emit an active avail through the end of the current playlist, while preserving deterministic opportunity IDs and existing complete-avail behavior. Update only application source (not tests), run the relevant data-plane tests and full typecheck/build, then restart the data-plane service if a runnable service is present; otherwise rebuild the service artifacts and report that no process exists to restart.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba packages/data-plane/src/avails.ts | sed -n '90,190p'; printf '\\n===== stitch implementation =====\\n'; nl -ba packages/data-plane/src/stitch.ts | sed -n '1,260p'\n",
+      "duration": 0.6
+    },
+    {
+      "keystrokes": "grep -RIn -E 'endLine|detectAvails|incomplete trailing|CUE-IN' packages/data-plane/src --exclude='*.test.ts' 2>/dev/null | sed -n '1,180p'\n",
+      "duration": 0.4
+    }
+  ]
+}

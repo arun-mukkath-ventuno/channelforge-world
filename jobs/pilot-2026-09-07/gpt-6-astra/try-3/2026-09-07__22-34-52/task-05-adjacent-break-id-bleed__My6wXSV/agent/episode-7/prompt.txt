@@ -1,0 +1,56 @@
+New Terminal Output:
+
+1a789d16c4fd:/app# node --input-type=module <<'JS'
+> import fs from 'node:fs';
+> const p = 'packages/data-plane/src/avails.ts';
+> const s = fs.readFileSync(p, 'utf8');
+> const old = '    if (marker?.kind === "daterange" && marker.id) {\n      blockBreakId = marker.id;';
+> const replacement = String.raw`    if (marker?.kind === "daterange" && marker.id) {
+>       // A closing-only DATERANGE belongs to the previous break, not the next
+>       // CUE-OUT in this tag block (back-to-back breaks have no URI between them).
+>       // Keep accepting untyped DATERANGEs and ranges carrying both OUT and IN.
+>       const attrs = marker.raw.slice(marker.raw.indexOf(":") + 1);
+>       if (/(?:^|,)\s*SCTE35-IN\s*=/i.test(attrs) &&
+>           !/(?:^|,)\s*SCTE35-OUT\s*=/i.test(attrs)) continue;
+>       blockBreakId = marker.id;`;
+> if (!s.includes(old)) throw Error('target not found');
+> fs.writeFileSync(p, s.replace(old, replacement));
+> JS
+1a789d16c4fd:/app# node --import tsx --input-type=module <<'JS'
+> import assert from 'node:assert/strict';
+> import { detectAvails } from './packages/data-plane/src/avails.ts';
+> let checks = 0;
+> for (const endBeforeCueIn of [false, true]) {
+>  for (const startBeforeCueOut of [false, true]) {
+>   for (const attrs of [',SCTE35-OUT=0xFC', '', ',SCTE35-OUT=0xFC,SCTE35-IN=0xFC']) {
+>    for (const hasId of [false, true]) {
+>     const close = '#EXT-X-DATERANGE:ID="first",SCTE35-IN=0xFC';
+>     const start = '#EXT-X-DATERANGE:ID="second"' + attrs;
+>     const boundary = endBeforeCueIn ? [close, '#EXT-X-CUE-IN'] : ['#EXT-X-CUE-IN', close];
+>     const next = hasId ? (startBeforeCueOut ? [start, '#EXT-X-CUE-OUT:6'] : ['#EXT-X-CUE-OUT:6', start]) : ['#EXT-X-CUE-OUT:6'];
+>     const m = ['#EXT-X-CUE-OUT:6','#EXT-X-DATERANGE:ID="first",SCTE35-OUT=0xFC','#EXTINF:6,','a.ts',...boundary,...next,'#EXTINF:6,','b.ts','#EXT-X-CUE-IN'].j
+oin('\n');
+>     const avails = detectAvails(m, 'ch');
+>     assert.deepEqual(avails.map(a => a.externalBreakId), ['first', hasId ? 'second' : undefined]);
+>     assert.deepEqual(avails.map(a => a.opportunityId), ['opp_ch_0', 'opp_ch_1']);
+>     checks++;
+>    }
+>   }
+>  }
+> }
+> console.log(`${checks} adjacent-break checks passed`);
+> JS
+24 adjacent-break checks passed
+1a789d16c4fd:/app# ./node_modules/.bin/vitest run packages/data-plane/src packages/core/src
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/core/src/eligibility.test.ts (9)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+

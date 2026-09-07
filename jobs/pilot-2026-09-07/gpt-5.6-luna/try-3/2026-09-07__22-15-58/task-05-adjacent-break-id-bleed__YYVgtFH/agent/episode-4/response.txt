@@ -1,0 +1,26 @@
+{
+  "analysis": "The core parser already supports bare and attribute CUE-OUT syntax, CUE-IN, DATERANGE, continuation markers, and DATERANGE IDs. The stable producer ID is carried as `externalBreakId`. The combined output was truncated before exposing the data-plane implementation, which is the most likely location of the boundary bug. The grep also confirms opportunity IDs and break fields are used across the data plane and persistence.",
+  "plan": "Inspect the data-plane files in smaller chunks, especially avails and origin handling, plus the exact relevant tests. Trace marker-to-opportunity construction and state transitions around adjacent markers. Then reproduce with a small focused test or existing test command, patch only application source, build, and restart the affected service.",
+  "commands": [
+    {
+      "keystrokes": "echo '===== avails.ts ====='; nl -ba packages/data-plane/src/avails.ts; echo '===== origin.ts ====='; nl -ba packages/data-plane/src/origin.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "echo '===== origin-rewrite.ts ====='; nl -ba packages/data-plane/src/origin-rewrite.ts; echo '===== segment.ts ====='; nl -ba packages/data-plane/src/segment.ts; echo '===== decider.ts ====='; nl -ba packages/data-plane/src/decider.ts\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "echo '===== avails tests ====='; nl -ba packages/data-plane/src/avails.test.ts; echo '===== origin tests ====='; nl -ba packages/data-plane/src/origin.test.ts\n",
+      "duration": 0.6
+    },
+    {
+      "keystrokes": "echo '===== origin slice tests ====='; nl -ba packages/data-plane/src/origin-slice4.test.ts; echo '===== stitch ====='; nl -ba packages/data-plane/src/stitch.ts; echo '===== stitch tests ====='; nl -ba packages/data-plane/src/stitch.test.ts\n",
+      "duration": 0.8
+    },
+    {
+      "keystrokes": "echo '===== server ====='; nl -ba packages/data-plane/src/server.ts; echo '===== persistence index/cache ====='; nl -ba packages/persistence/src/index.ts; nl -ba packages/persistence/src/pod-cache.ts\n",
+      "duration": 0.6
+    }
+  ]
+}

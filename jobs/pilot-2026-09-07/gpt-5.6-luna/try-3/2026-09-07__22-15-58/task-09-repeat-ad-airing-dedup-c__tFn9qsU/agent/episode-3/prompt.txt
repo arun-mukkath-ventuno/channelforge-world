@@ -1,0 +1,192 @@
+New Terminal Output:
+
+6af9ee0f4d51:/app# printf '%s\n' '--- source files ---'; find src -type f -print | sort; printf '%s\n' '--- all matching lines ---'; grep -RniE 'beacon|impressi
+on|quartile|completion|creative|airing|session|dedup|ad|advert|tracking|vast|ssai' src | head -500
+--- source files ---
+src/app/api/fast/admin/channels/[id]/route.ts
+src/app/api/fast/admin/channels/route.ts
+src/app/api/fast/admin/login/route.ts
+src/app/api/fast/admin/logout/route.ts
+src/app/api/fast/admin/reset/route.ts
+src/app/api/fast/ads/current/route.ts
+src/app/api/fast/channels/[id]/now/route.ts
+src/app/api/fast/channels/[id]/route.ts
+src/app/api/fast/channels/[id]/schedule/route.ts
+src/app/api/fast/channels/route.ts
+src/app/api/fast/events/route.ts
+src/app/api/fast/guide/route.ts
+src/app/api/fast/hls/[...path]/route.ts
+src/app/api/fast/routes.test.ts
+src/app/api/fast/status/route.ts
+src/app/api/fast/xmltv/route.ts
+src/app/fast-world/admin/layout.tsx
+src/app/fast-world/admin/page.tsx
+src/app/fast-world/live/LiveClient.tsx
+src/app/fast-world/live/ops/layout.tsx
+src/app/fast-world/live/ops/page.tsx
+src/app/fast-world/live/page.tsx
+src/app/globals.css
+src/app/icon.svg
+src/app/layout.tsx
+src/app/page.tsx
+src/app/robots.ts
+src/app/sitemap.ts
+src/components/fast/AgentTab.tsx
+src/components/fast/ArtWork.tsx
+src/components/fast/Bridge.tsx
+src/components/fast/ChannelsTab.tsx
+src/components/fast/FastPlayer.tsx
+src/components/fast/GuideTab.tsx
+src/components/fast/HomeTab.tsx
+src/components/fast/HoodTab.tsx
+src/components/fast/Logo.tsx
+src/components/fast/OperatorStrip.tsx
+src/components/fast/PlayerBand.tsx
+src/components/fast/ProgramDialog.tsx
+src/components/fast/StatusStrip.tsx
+src/components/fast/ui.tsx
+src/lib/admin-auth.test.ts
+src/lib/admin-auth.ts
+src/lib/channel-config-store.test.ts
+src/lib/channel-config-store.ts
+src/lib/channelforge-epg.test.ts
+src/lib/channelforge-epg.ts
+src/lib/channels-seam.test.ts
+src/lib/channels.test.ts
+src/lib/channels.ts
+src/lib/fast-challenges.ts
+src/lib/fast-client.test.ts
+src/lib/fast-client.ts
+src/lib/fast-view.test.ts
+src/lib/fast-view.ts
+src/lib/manifest-probe.test.ts
+src/lib/manifest-probe.ts
+src/lib/ssai.test.ts
+src/lib/ssai.ts
+src/lib/telemetry-store.test.ts
+src/lib/telemetry-store.ts
+--- all matching lines ---
+src/app/sitemap.ts:1:import type { MetadataRoute } from "next";
+src/app/sitemap.ts:5:export default function sitemap(): MetadataRoute.Sitemap {
+src/app/layout.tsx:1:import type { Metadata } from "next";
+src/app/layout.tsx:12:export const metadata: Metadata = {
+src/app/layout.tsx:16:  metadataBase: new URL("https://fast-world-tv.vercel.app"),
+src/app/layout.tsx:28:}: Readonly<{ children: React.ReactNode }>) {
+src/app/api/fast/hls/[...path]/route.ts:4:// headers, so a browser MSE player (Shaka on Chrome/Firefox) can't fetch its
+src/app/api/fast/hls/[...path]/route.ts:6:// makes them same-origin, adds CORS, and fixes the segment MIME type. Because
+src/app/api/fast/hls/[...path]/route.ts:11:// Production-grade path is to enable CORS (+ correct MIME) on ChannelForge and
+src/app/api/fast/hls/[...path]/route.ts:34:    return new Response("bad path", { status: 400 });
+src/app/api/fast/hls/[...path]/route.ts:38:  const range = req.headers.get("range");
+src/app/api/fast/hls/[...path]/route.ts:44:      headers: range ? { range } : undefined,
+src/app/api/fast/hls/[...path]/route.ts:50:  const headers = new Headers();
+src/app/api/fast/hls/[...path]/route.ts:51:  const ct = contentType(rel) || res.headers.get("content-type") || "application/octet-stream";
+src/app/api/fast/hls/[...path]/route.ts:52:  headers.set("content-type", ct);
+src/app/api/fast/hls/[...path]/route.ts:53:  headers.set("access-control-allow-origin", "*");
+src/app/api/fast/hls/[...path]/route.ts:54:  headers.set("cache-control", "no-store");
+src/app/api/fast/hls/[...path]/route.ts:55:  const cr = res.headers.get("content-range");
+src/app/api/fast/hls/[...path]/route.ts:56:  if (cr) headers.set("content-range", cr);
+src/app/api/fast/hls/[...path]/route.ts:57:  headers.set("accept-ranges", res.headers.get("accept-ranges") || "bytes");
+src/app/api/fast/hls/[...path]/route.ts:59:  return new Response(res.body, { status: res.status, headers });
+src/app/api/fast/hls/[...path]/route.ts:65:    headers: {
+src/app/api/fast/hls/[...path]/route.ts:68:      "access-control-allow-headers": "range",
+src/app/api/fast/ads/current/route.ts:1:// GET /api/fast/ads/current?channel=<id>
+src/app/api/fast/ads/current/route.ts:2:// Real SCTE-35 ad-break state for a channel: fetches the channel's live media
+src/app/api/fast/ads/current/route.ts:5:// timing. Powers the AD-BREAK flag, the playout timeline's ad segment, and the
+src/app/api/fast/ads/current/route.ts:6:// operator SCTE/SSAI column — real, not the mid-roll estimate. ~8s cache.
+src/app/api/fast/ads/current/route.ts:9:import { parseScteAvails, type ScteAvail } from "@/lib/ssai";
+src/app/api/fast/ads/current/route.ts:13:type AdState = {
+src/app/api/fast/ads/current/route.ts:25:const cache = new M
+[... output limited to 10000 bytes; 72 interior bytes omitted ...]
+.map(Number);
+    const stRaw = ((await this.cmd<string[]>(["LRANGE", `${K}:startup`, 0, -1])) ?? []).map(Number);
+    const st = summarize(stRaw);
+    return {
+      backend: "redis",
+      eventsToday,
+      sessions,
+      viewersByChannel,
+      errorsByChannel,
+      switch: summarize(swRaw),
+      startup: { count: st.count, avgMs: st.avgMs },
+    };
+  }
+}
+
+// --- singleton ------------------------------------------------------------
+declare global {
+  // eslint-disable-next-line no-var
+  var __fastTelemetryStore: Store | undefined;
+}
+
+export function telemetry(): Store {
+  if (!globalThis.__fastTelemetryStore) {
+    const env = redisEnv();
+    globalThis.__fastTelemetryStore = env ? new RedisStore(env.url, env.token) : new MemoryStore();
+  }
+  return globalThis.__fastTelemetryStore;
+}
+6af9ee0f4d51:/app# printf '%s\n' '--- environment and mounts ---'; env | sort; printf '%s\n' '--- mounts ---'; cat /proc/mounts; printf '%s\n' '--- git ---'; gi
+t status --short 2>/dev/null; git log --oneline -8 2>/dev/null
+--- environment and mounts ---
+ASCIINEMA_REC=1
+ASCIINEMA_SESSION=a68c8938978b5822836dbc791eebc46d
+CHARSET=UTF-8
+COLORTERM=truecolor
+FAST_HLS_101=http://localhost:4010/v1/hls/world/channel_101/index.m3u8
+FAST_HLS_102=http://localhost:4010/v1/hls/world/channel_102/index.m3u8
+HOME=/root
+HOSTNAME=6af9ee0f4d51
+LANG=C.UTF-8
+LC_COLLATE=C
+NODE_VERSION=22.23.2
+PAGER=less
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+PWD=/app
+SHELL=/bin/bash
+SHLVL=3
+TERM=tmux-256color
+TERM_PROGRAM=tmux
+TERM_PROGRAM_VERSION=3.7c
+TMUX=/tmp/tmux-0/default,95,0
+TMUX_PANE=%0
+YARN_VERSION=1.22.22
+_=/usr/bin/env
+--- mounts ---
+overlay / overlay rw,relatime,lowerdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3810/fs:/var/lib/desktop-containerd/d
+aemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3809/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3808/fs:/var/
+lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3807/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs
+/snapshots/3806/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3805/fs:/var/lib/desktop-containerd/daemon/io.containerd.
+snapshotter.v1.overlayfs/snapshots/3804/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3803/fs:/var/lib/desktop-containe
+rd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3802/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3801/fs:/
+var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3800/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overl
+ayfs/snapshots/3799/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3798/fs:/var/lib/desktop-containerd/daemon/io.contain
+erd.snapshotter.v1.overlayfs/snapshots/2429/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/2428/fs:/var/lib/desktop-cont
+ainerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/2427/fs:/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/2389/
+fs,upperdir=/var/lib/desktop-containerd/daemon/io.containerd.snapshotter.v1.overlayfs/snapshots/3811/fs,workdir=/var/lib/desktop-containerd/daemon/io.containerd
+.snapshotter.v1.overlayfs/snapshots/3811/work 0 0
+proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+tmpfs /dev tmpfs rw,nosuid,size=65536k,mode=755 0 0
+devpts /dev/pts devpts rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=666 0 0
+sysfs /sys sysfs ro,nosuid,nodev,noexec,relatime 0 0
+cgroup /sys/fs/cgroup cgroup2 ro,nosuid,nodev,noexec,relatime 0 0
+mqueue /dev/mqueue mqueue rw,nosuid,nodev,noexec,relatime 0 0
+shm /dev/shm tmpfs rw,nosuid,nodev,noexec,relatime,size=65536k 0 0
+/run/host_mark/Users /logs/verifier fakeowner rw,nosuid,nodev,relatime,fakeowner 0 0
+/run/host_mark/Users /logs/agent fakeowner rw,nosuid,nodev,relatime,fakeowner 0 0
+/run/host_mark/Users /logs/artifacts fakeowner rw,nosuid,nodev,relatime,fakeowner 0 0
+/dev/vda1 /etc/resolv.conf ext4 rw,relatime,discard 0 0
+/dev/vda1 /etc/hostname ext4 rw,relatime,discard 0 0
+/dev/vda1 /etc/hosts ext4 rw,relatime,discard 0 0
+proc /proc/bus proc ro,nosuid,nodev,noexec,relatime 0 0
+proc /proc/fs proc ro,nosuid,nodev,noexec,relatime 0 0
+proc /proc/irq proc ro,nosuid,nodev,noexec,relatime 0 0
+proc /proc/sys proc ro,nosuid,nodev,noexec,relatime 0 0
+proc /proc/sysrq-trigger proc ro,nosuid,nodev,noexec,relatime 0 0
+tmpfs /proc/interrupts tmpfs rw,nosuid,size=65536k,mode=755 0 0
+tmpfs /proc/kcore tmpfs rw,nosuid,size=65536k,mode=755 0 0
+tmpfs /proc/keys tmpfs rw,nosuid,size=65536k,mode=755 0 0
+tmpfs /proc/scsi tmpfs ro,relatime,size=4k,nr_inodes=1 0 0
+tmpfs /proc/timer_list tmpfs rw,nosuid,size=65536k,mode=755 0 0
+tmpfs /sys/firmware tmpfs ro,relatime,size=4k,nr_inodes=1 0 0
+--- git ---
+6af9ee0f4d51:/app#

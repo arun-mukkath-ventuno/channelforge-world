@@ -1,0 +1,105 @@
+{
+    "id": "6668d947-a15a-4256-9922-ecab4265ae36",
+    "task_name": "channelforge-world/cf-series-takedown-type-filter-bug",
+    "trial_name": "task-08-series-takedown-type-fil__zzWe7oi",
+    "trial_uri": "file:///Users/arunmukkath/Work/ventuno-labs/channelforge-world/jobs/pilot-2026-09-07/minimax-m3/try-2/2026-09-07__22-58-52/task-08-series-takedown-type-fil__zzWe7oi",
+    "task_id": {
+        "path": "tasks/task-08-series-takedown-type-filter-bug"
+    },
+    "source": "tasks",
+    "task_checksum": "84c5a1284d18b5aff0c8bcc59d6b06f860b095738bb8cb54acd0d1fd5cc92332",
+    "config": {
+        "task": {
+            "path": "tasks/task-08-series-takedown-type-filter-bug",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "tasks"
+        },
+        "trial_name": "task-08-series-takedown-type-fil__zzWe7oi",
+        "trials_dir": "jobs/pilot-2026-09-07/minimax-m3/try-2/2026-09-07__22-58-52",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": "terminus-2",
+            "import_path": null,
+            "model_name": "openrouter/minimax/minimax-m3:free",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "env": {},
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "8416e815-e22b-424c-91e8-04eefe5a5da8"
+    },
+    "agent_info": {
+        "name": "terminus-2",
+        "version": "2.0.0",
+        "model_info": {
+            "name": "minimax/minimax-m3:free",
+            "provider": "openrouter"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 0,
+        "n_cache_tokens": 0,
+        "n_output_tokens": 0,
+        "cost_usd": null,
+        "rollout_details": [],
+        "metadata": {
+            "n_episodes": 1,
+            "api_request_times_msec": [],
+            "summarization_count": 0
+        }
+    },
+    "verifier_result": null,
+    "exception_info": {
+        "exception_type": "NotFoundError",
+        "exception_message": "litellm.NotFoundError: NotFoundError: OpenrouterException - {\"error\":{\"message\":\"This model is unavailable for free. The paid version is available now - use this slug instead: minimax/minimax-m3\",\"code\":404},\"user_id\":\"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm\"}",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 164, in _make_common_async_call\n    response = await async_httpx_client.post(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/logging_utils.py\", line 190, in async_wrapper\n    result = await func(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/http_handler.py\", line 510, in post\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/http_handler.py\", line 466, in post\n    response.raise_for_status()\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/httpx/_models.py\", line 829, in raise_for_status\n    raise HTTPStatusError(message, request=request, response=self)\nhttpx.HTTPStatusError: Client error '404 Not Found' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/main.py\", line 611, in acompletion\n    response = await init_response\n               ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 296, in async_completion\n    response = await self._make_common_async_call(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 189, in _make_common_async_call\n    raise self._handle_error(e=e, provider_config=provider_config)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 4630, in _handle_error\n    raise provider_config.get_error_class(\nlitellm.llms.openrouter.common_utils.OpenRouterException: {\"error\":{\"message\":\"This model is unavailable for free. The paid version is available now - use this slug instead: minimax/minimax-m3\",\"code\":404},\"user_id\":\"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm\"}\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/trial/trial.py\", line 961, in run\n    await self._execute_agent()\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/trial/trial.py\", line 370, in _execute_agent\n    await asyncio.wait_for(\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1605, in run\n    await self._run_agent_loop(\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1306, in _run_agent_loop\n    ) = await self._handle_llm_interaction(\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1181, in _handle_llm_interaction\n    llm_response = await self._query_llm(\n                   ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 193, in async_wrapped\n    return await copy(fn, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1171, in _query_llm\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1004, in _query_llm\n    llm_response = await chat.chat(\n                   ^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/chat.py\", line 89, in chat\n    llm_response: LLMResponse = await self._model.call(\n                                ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 193, in async_wrapped\n    return await copy(fn, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py\", line 396, in call\n    self._handle_litellm_error(e)\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py\", line 631, in _handle_litellm_error\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py\", line 360, in call\n    response = await litellm.acompletion(**completion_kwargs)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/utils.py\", line 2040, in wrapper_async\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/utils.py\", line 1861, in wrapper_async\n    result = await original_function(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/main.py\", line 630, in acompletion\n    raise exception_type(\n          ^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py\", line 2398, in exception_type\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py\", line 2278, in exception_type\n    raise NotFoundError(\nlitellm.exceptions.NotFoundError: litellm.NotFoundError: NotFoundError: OpenrouterException - {\"error\":{\"message\":\"This model is unavailable for free. The paid version is available now - use this slug instead: minimax/minimax-m3\",\"code\":404},\"user_id\":\"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm\"}\n",
+        "occurred_at": "2026-09-07T23:00:57.584542"
+    },
+    "started_at": "2026-09-07T17:30:13.941020Z",
+    "finished_at": "2026-09-07T17:30:59.563481Z",
+    "environment_setup": {
+        "started_at": "2026-09-07T17:30:13.943463Z",
+        "finished_at": "2026-09-07T17:30:24.423615Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-09-07T17:30:24.423753Z",
+        "finished_at": "2026-09-07T17:30:32.476159Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-09-07T17:30:32.476358Z",
+        "finished_at": "2026-09-07T17:30:57.359408Z"
+    },
+    "verifier": null,
+    "step_results": null
+}

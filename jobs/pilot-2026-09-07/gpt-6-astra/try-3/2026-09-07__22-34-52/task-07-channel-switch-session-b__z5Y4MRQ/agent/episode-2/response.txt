@@ -1,0 +1,10 @@
+{
+  "analysis": "The repository has separate control-plane and data-plane packages and prebuilt artifacts. The container uses BusyBox grep, so source searches need portable options.",
+  "plan": "Search source files for session persistence and inspect the service startup scripts.",
+  "commands": [
+    {
+      "keystrokes": "find packages -path '*/src/*' -name '*.ts' ! -name '*.test.ts' -exec grep -nH -E 'INSERT INTO sessions|UPDATE sessions|upsertSession|channel_id.*COALESCE|ON CONFLICT' {} \\;; cat packages/data-plane/package.json; cat packages/control-plane/package.json; find packages/data-plane/src -type f\n",
+      "duration": 0.1
+    }
+  ]
+}

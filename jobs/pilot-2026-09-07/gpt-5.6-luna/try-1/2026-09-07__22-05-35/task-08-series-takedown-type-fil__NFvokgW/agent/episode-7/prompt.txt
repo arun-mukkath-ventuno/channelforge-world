@@ -1,0 +1,41 @@
+Current Terminal Screen:
+    )
+
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset directly or via its series, if any."""
+    scope_match = (RightsTakedown.scope_type == "asset") & (
+        RightsTakedown.scope_id == asset.id
+    )
+    if asset.series_id is not None:
+        scope_match = scope_match | (
+            (RightsTakedown.scope_type == "series")
+            & (RightsTakedown.scope_id == asset.series_id)
+        )
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            scope_match,
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+        return [scope_id]
+    if scope_type == "series":
+        return list(
+            db.scalars(
+                select(Asset.id).where(
+                    Asset.organization_id == org_id, Asset.series_id == scope_id
+                )
+            )
+        )
+    return []
+root@d6b56ecad4a0:/app# pytest -q tests/test_rights_takedown.py tests/test_schedule_rights.py tests/test_rights_engine.py tests/test_asset_metadata.py
+

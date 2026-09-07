@@ -1,0 +1,14 @@
+{
+  "analysis": "The first inventory shows only package metadata at shallow depth, so the application source is likely under a hidden directory or deeper than two levels. The search command did not run because this BusyBox grep lacks GNU's --exclude-dir option; no repository content was searched yet.",
+  "plan": "Inspect all top-level entries, package scripts, and deeper source files while excluding node_modules using find rather than unsupported grep options. Then search the discovered source for manifest/ad-break/session state handling.",
+  "commands": [
+    {
+      "keystrokes": "ls -la; printf '\\nPackage manifest:\\n'; cat package.json; printf '\\nSource-like files (excluding node_modules/.git):\\n'; find . -path './node_modules' -prune -o -path './.git' -prune -o -type f -print | sort | sed -n '1,240p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "find . -path './node_modules' -prune -o -path './.git' -prune -o -type f -print0 | xargs -0 grep -nE -e 'ad.?break' -e 'manifest' -e 'decision' -e 'session' -e 'reconnect' -e 'tune.?in' 2>/dev/null | sed -n '1,300p'\n",
+      "duration": 1.0
+    }
+  ]
+}
