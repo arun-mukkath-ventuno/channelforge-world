@@ -428,6 +428,59 @@ task quality. Full evaluation matrix (more models/attempts) deferred to the pilo
 (`docs/poc-scope.md` Step 4); these two runs were exploratory confirmation that the task
 discriminates.
 
+## The fifth task, completing the set: task-09 (FW-006)
+
+`tasks/task-09-repeat-ad-airing-dedup-collision` closes out the 5-task set (task-05..09). Real,
+undiscovered-until-investigated defect in `fastworldtv`'s `sendAdBeacon`/`startAdBeaconWatcher`
+(`src/lib/ssai.ts`): the beacon it fires only ever carries `{event, session_id, ad_id}`. The real
+server's dedup key (`ssaiadserver`'s `events-normalize.ts::deriveEventId`) is
+`[session_id, pod_id, ad_id, eventType]` — but the client never sends `pod_id`, even though
+`startAdBeaconWatcher`'s `tick()` already has exactly the right per-airing value on hand (the ad
+window's own `start`, parsed from the manifest's DATERANGE `START-DATE`, fresh for every real
+airing). Because `pod_id` is always empty on the wire, a creative that legitimately airs a second
+time later in the same session computes the *same* deterministic `event_id` as its first airing,
+and the server's `ON CONFLICT (event_id) DO NOTHING` silently drops the repeat — undercounting
+analytics with no error anywhere. Single-repo write boundary (fastworldtv only); verified `oracle`
+→ `task_success: 1.0`, `nop` → `0.0`.
+
+**Grader hardening, found and closed before any real-agent run:**
+- **Reward hack (confirmed live)**: a "fix" that adds *any* arbitrarily-named field
+  (`totally_unrelated_field_the_server_never_reads`) — deterministic per airing, identity fields
+  untouched — satisfied a first-pass grader that only checked "the two payloads differ / the
+  repeated one matches". Root cause: that check never verified the added field was the one the real
+  server's dedup key actually reads. Fixed by embedding a trusted, verbatim copy of the real
+  `deriveEventId` in the verifier and grading against *that* — a fix now has to produce a genuinely
+  different real dedup id for two airings, and the identical id for a repeated one. Re-verified: the
+  same exploit now scores `0.0`.
+- **Scoping gap, not a reward hack — found via a real `gpt-5.6-luna` run**: closing the above
+  turned the task partially unfair. `pod_id` never appears anywhere in `fastworldtv`'s own source,
+  so nothing inside a fastworldtv-only container lets an agent discover that the real server expects
+  exactly that field name — the first hardened run had luna correctly diagnose the mechanism and
+  independently converge on the same design as the oracle, then name the new field `airing_id`
+  instead, failing for a reason it had no way to see coming. Fixed by making the environment
+  genuinely cross-repo: a read-only copy of `ssaiadserver`'s `events-normalize.ts` (never built,
+  never on the fix's own path) is now baked into the image at `/reference/ssaiadserver/...`, giving
+  the agent the same access a real engineer fixing this bug would have.
+- **Environment tooling gap — also found via a real run, not assumed**: even with the reference
+  file in place, the next luna run correctly diagnosed the bug and derived the exact right `pod_id`
+  fix twice, but every edit attempt silently failed — this task's Dockerfile (mirrored from
+  `world/fastweb/Dockerfile`, never meant to be agent-facing) never installed `patch` or `python3`,
+  unlike every sibling task's Dockerfile, and the base `node:22-alpine` image has neither built in.
+  The agent then declared the task complete despite its own final `grep` proving the fix never
+  landed — a real overconfidence failure worth noting alongside the environment gap. Fixed by adding
+  `patch python3` to the image.
+
+**Real-agent results (`terminus-2`), post-hardening — a real discriminating task:**
+
+| Model | Turns | What happened |
+|---|---|---|
+| `openai/gpt-5.6-luna` | 9 | `task_success: 1.0`. Read the reference file, correctly derived `pod_id` from `` `${w.adId}:${w.start}` ``, matching the oracle's fix exactly. |
+| `openrouter/minimax/minimax-m3:free` | 45 | `task_success: 0.0`. Correctly identified that `pod_id` needed to be added and vary per airing, but sourced it from a fabricated manifest attribute (`X-POD-ID`/`ID`) that doesn't exist in practice, falling back to `adId` itself when absent — collapsing both airings' `pod_id` to the same value and reproducing the exact bug it was meant to fix. Never noticed `AdWindow.start` (already unique per airing, already in scope) was the value actually needed. |
+
+Three real, distinct hardening passes on one task — a reward hack, a scoping fairness gap, and an
+environment tooling gap — each found by actually running the task against a real model rather than
+assumed, matching this repo's established discipline for every prior task.
+
 ## External world-readiness assessment
 
 See `docs/world-blueprint-assessment.md` — a condensed, in-repo copy of an external review's
