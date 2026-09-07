@@ -89,8 +89,11 @@ and "actually good at this."
 
 ## Status
 
-- `openai/gpt-6-astra` — in POC roster, not yet run. Newest OpenAI generation on the account's key;
-  no trajectory data yet.
+- `openai/gpt-6-astra` — **working, needs `--ak temperature=1`.** First smoke-test hit
+  `litellm.BadRequestError`: the model rejects `terminus-2`'s default `temperature=0.7` outright
+  ("Only the default (1) value is supported"). Not a broken model string — re-ran with
+  `--ak temperature=1` and got a clean `task_success: 1.0` on task-05, 1m52s. Always pass
+  `--ak temperature=1` for this model.
 - `openai/gpt-5.6-luna` — working, used for every real-agent run recorded in `docs/ecosystem.md`.
 - Groq (`gpt-oss-120b`, `qwen3.6-27b`) — key configured, but unusable for this workload right now
   (8,000 TPM account-wide cap, Dev Tier upgrade temporarily unavailable). See finding above.
