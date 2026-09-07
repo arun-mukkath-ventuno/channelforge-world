@@ -1,0 +1,14 @@
+# Task-specific environment. `main` (required name — see harbor.constants.MAIN_SERVICE_NAME)
+# builds from this task's own Dockerfile (pristine fastworldtv source; no injected regression —
+# see environment/Dockerfile). No ssai-control/ssai-data/postgres/redis dependency: the defect and
+# its fix live entirely in the browser-side beacon watcher (src/lib/ssai.ts), which the verifier
+# exercises directly via vitest against mocked fetch — no live SSAI backend is involved.
+
+services:
+  main:
+    build:
+      context: ../../..
+      dockerfile: tasks/task-09-repeat-ad-airing-dedup-collision/environment/Dockerfile
+    environment:
+      FAST_HLS_101: http://localhost:4010/v1/hls/world/channel_101/index.m3u8
+      FAST_HLS_102: http://localhost:4010/v1/hls/world/channel_102/index.m3u8

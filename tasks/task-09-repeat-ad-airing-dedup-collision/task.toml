@@ -1,0 +1,35 @@
+# Same schema as tasks/task-01-rights-window-bugfix/task.toml (harbor 0.22.0's TaskConfig,
+# schema_version "1.4"). See docs/harbor-install.md.
+schema_version = "1.4"
+artifacts = []
+
+[task]
+name = "channelforge-world/fast-repeat-ad-airing-dedup-collision"
+version = "1.0.0"
+description = "Fix a repeat airing of the same creative in one session being silently dropped as a duplicate."
+authors = []
+keywords = ["bugfix", "fastworldtv", "analytics"]
+
+[metadata]
+
+[verifier]
+timeout_sec = 300.0
+collect = []
+
+[verifier.env]
+
+[agent]
+timeout_sec = 1800.0
+
+[environment]
+# Same known gap as task-01/02/05/06/07/08 — see docs/harbor-install.md "Known gaps".
+network_mode = "public"
+build_timeout_sec = 900.0
+os = "linux"
+cpus = 2
+memory_mb = 2048
+storage_mb = 4096
+
+[environment.env]
+
+[solution.env]
