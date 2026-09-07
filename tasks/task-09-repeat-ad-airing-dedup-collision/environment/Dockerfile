@@ -15,7 +15,7 @@
 
 FROM node:22-alpine
 
-RUN apk add --no-cache bash && corepack enable && corepack prepare pnpm@9.12.0 --activate
+RUN apk add --no-cache bash patch python3 && corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 WORKDIR /app
 
