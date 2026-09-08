@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Look at that! `CUE-OUT-CONT` is mentioned in `scte.ts` and `scte.test.ts`: `// Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.` and `it(\"ignores CUE-OUT-CONT as a new avail\", ...)`.\nWait! Currently, `parseMarkerLine` parses `#EXT-X-CUE-OUT-CONT`, but `detectAvails` ignores it because it's not a `#EXT-X-CUE-OUT`!\nLet's inspect `packages/core/src/scte.ts` around `CUE-OUT-CONT` or how `CUE-OUT-CONT` is structured.",
+  "plan": "Check `packages/core/src/scte.ts` and `packages/core/src/scte.test.ts` for `CUE-OUT-CONT` handling.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn -C 5 \"CUE-OUT-CONT\" packages/core/\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

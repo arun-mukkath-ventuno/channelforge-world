@@ -1,0 +1,79 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# grep -rn "CUE-OUT-CONT" packages/
+packages/core/src/scte.ts:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/src/scte.ts:41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/src/scte.ts:42:  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/core/src/scte.test.ts:31:  it("ignores CUE-OUT-CONT as a new avail", () => {
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/dist/scte.js:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/dist/scte.js:22:    // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/dist/scte.js:23:    if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+c37cf208f09f:/app# grep -rn -C 5 "CUE-OUT-CONT" packages/core/
+packages/core/src/scte.ts-1-// HLS ad-marker parsing (PRD §9, §22, §41).
+packages/core/src/scte.ts-2-//
+packages/core/src/scte.ts-3-// Supports the MVP-preferred form and common interoperability variants:
+packages/core/src/scte.ts-4-//   #EXT-X-CUE-OUT:60
+packages/core/src/scte.ts-5-//   #EXT-X-CUE-OUT:DURATION=60
+packages/core/src/scte.ts:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/src/scte.ts-7-//   #EXT-X-CUE-IN
+packages/core/src/scte.ts-8-//   #EXT-X-DATERANGE:...,DURATION=60,SCTE35-OUT=...
+packages/core/src/scte.ts-9-//
+packages/core/src/scte.ts-10-// This parser is deliberately tolerant: an unparseable duration does not throw,
+packages/core/src/scte.ts-11-// it yields a marker flagged invalid so the caller can apply PRD §41 fallback
+--
+packages/core/src/scte.ts-36-  if (trimmed === "#EXT-X-CUE-IN") {
+packages/core/src/scte.ts-37-    return { kind: "cue_in", lineIndex, raw: trimmed };
+packages/core/src/scte.ts-38-  }
+packages/core/src/scte.ts-39-
+packages/core/src/scte.ts-40-  // CUE-OUT: value may be a bare number or DURATION=<n>.
+packages/core/src/scte.ts:41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/src/scte.ts:42:  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/core/src/scte.ts-43-    const value = trimmed.slice("#EXT-X-CUE-OUT".length).replace(/^:/, "").trim();
+packages/core/src/scte.ts-44-    const duration = parseCueOutDuration(value);
+packages/core/src/scte.ts-45-    return {
+packages/core/src/scte.ts-46-      kind: "cue_out",
+packages/core/src/scte.ts-47-      lineIndex,
+--
+packages/core/src/scte.test.ts-26-    const m = parseMarkerLine("#EXT-X-CUE-IN", 9);
+packages/core/src/scte.test.ts-27-    expect(m).toMatchObject({ kind: "cue_in", lineIndex: 9 });
+packages/core/src/scte.test.ts-28-    expect(m?.duration).toBeUndefined();
+packages/core/src/scte.test.ts-29-  });
+packages/core/src/scte.test.ts-30-
+packages/core/src/scte.test.ts:31:  it("ignores CUE-OUT-CONT as a new avail", () => {
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/src/scte.test.ts-33-    expect(m).toBeNull();
+packages/core/src/scte.test.ts-34-  });
+packages/core/src/scte.test.ts-35-
+packages/core/src/scte.test.ts-36-  it("flags an unparseable CUE-OUT duration instead of throwing (PRD §41)", () => {
+packages/core/src/scte.test.ts-37-    const m = parseMarkerLine("#EXT-X-CUE-OUT:oops", 0);
+--
+packages/core/dist/scte.js-1-// HLS ad-marker parsing (PRD §9, §22, §41).
+packages/core/dist/scte.js-2-//
+packages/core/dist/scte.js-3-// Supports the MVP-preferred form and common interoperability variants:
+packages/core/dist/scte.js-4-//   #EXT-X-CUE-OUT:60
+packages/core/dist/scte.js-5-//   #EXT-X-CUE-OUT:DURATION=60
+packages/core/dist/scte.js:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/dist/scte.js-7-//   #EXT-X-CUE-IN
+packages/core/dist/scte.js-8-//   #EXT-X-DATERANGE:...,DURATION=60,SCTE35-OUT=...
+packages/core/dist/scte.js-9-//
+packages/core/dist/scte.js-10-// This parser is deliberately tolerant: an unparseable duration does not throw,
+packages/core/dist/scte.js-11-// it yields a marker flagged invalid so the caller can apply PRD §41 fallback
+--
+packages/core/dist/scte.js-17-    // CUE-IN: no attributes.
+packages/core/dist/scte.js-18-    if (trimmed === "#EXT-X-CUE-IN") {
+packages/core/dist/scte.js-19-        return { kind: "cue_in", lineIndex, raw: trimmed };
+packages/core/dist/scte.js-20-    }
+packages/core/dist/scte.js-21-    // CUE-OUT: value may be a bare number or DURATION=<n>.
+packages/core/dist/scte.js:22:    // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/dist/scte.js:23:    if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/core/dist/scte.js-24-        const value = trimmed.slice("#EXT-X-CUE-OUT".length).replace(/^:/, "").trim();
+packages/core/dist/scte.js-25-        const duration = parseCueOutDuration(value);
+packages/core/dist/scte.js-26-        return {
+packages/core/dist/scte.js-27-            kind: "cue_out",
+packages/core/dist/scte.js-28-            lineIndex,
+c37cf208f09f:/app#

@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "All 30 tests in packages/data-plane passed successfully, including our new back-to-back ad breaks test! \nLet's check instructions: \"When you believe the fix is correct, restart whichever service needs it so the running system reflects your change. Do not modify the test suite, CI configuration, or any files outside this service's application source. Your fix should be minimal and targeted at the actual defect.\"\nWait, did we modify the test suite? The instruction says: \"Do not modify the test suite, CI configuration, or any files outside this service's application source.\" \nAh! \"Do not modify the test suite\". We added a test in `packages/data-plane/src/avails.test.ts`, which is part of the test suite. We should revert `packages/data-plane/src/avails.test.ts` so we don't modify the test suite, while keeping our fix in `packages/data-plane/src/avails.ts`!",
+  "plan": "Revert packages/data-plane/src/avails.test.ts using git checkout or node.",
+  "commands": [
+    {
+      "keystrokes": "git checkout packages/data-plane/src/avails.test.ts\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

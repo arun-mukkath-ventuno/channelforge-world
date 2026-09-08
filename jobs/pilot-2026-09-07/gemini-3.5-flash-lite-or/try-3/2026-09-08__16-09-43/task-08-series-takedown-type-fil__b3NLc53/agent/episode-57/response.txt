@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Ah, the python string passed to `-c` had unescaped triple quotes inside triple quotes. Let's write a small temporary python script file or use single quotes for the docstring inside the string.",
+  "plan": "Create an update script file and run it.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' > update_rights.py\npath = \"app/repositories/rights.py\"\nwith open(path, \"r\") as f:\n    text = f.read()\n\ntext = text.replace(\"from sqlalchemy import func, select\", \"from sqlalchemy import func, or_, select\")\n\ntarget = '''def active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )'''\n\nreplacement = '''def active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    clauses = [\n        (RightsTakedown.scope_type == \"asset\") & (RightsTakedown.scope_id == asset.id)\n    ]\n    if asset.series_id is not None:\n        clauses.append(\n            (RightsTakedown.scope_type == \"series\") & (RightsTakedown.scope_id == asset.series_id)\n        )\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            or_(*clauses),\n        )\n    )'''\n\nassert target in text\ntext = text.replace(target, replacement, 1)\n\nwith open(path, \"w\") as f:\n    f.write(text)\nprint(\"Successfully updated rights.py\")\nEOF\npython3 update_rights.py\nrm update_rights.py\n",
+      "duration": 1.5
+    }
+  ],
+  "task_complete": false
+}
+```

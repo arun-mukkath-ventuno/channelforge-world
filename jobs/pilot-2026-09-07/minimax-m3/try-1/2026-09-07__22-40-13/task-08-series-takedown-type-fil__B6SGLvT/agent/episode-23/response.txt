@@ -1,6 +1,0 @@
-{
-  "analysis": "The fix is in place and verified. The bug was in `active_takedown_for_asset` in `app/repositories/rights.py` - it filtered by `RightsTakedown.scope_type == \"asset\"` which excluded series-scoped takedowns, even though `scope_ids` correctly included both `asset.id` and `asset.series_id`. Removing that filter allows the function to properly find series-scoped takedowns that should block an asset. The API has been restarted.",
-  "plan": "Task is complete.",
-  "commands": [],
-  "task_complete": true
-}

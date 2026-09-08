@@ -1,0 +1,62 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@e61efb547692:/app# python3 -c '
+> with open("app/repositories/rights.py", "r") as f:
+>     content = f.read()
+>
+> old_import = "from sqlalchemy import func, select"
+> new_import = "from sqlalchemy import func, or_, select"
+> assert old_import in content
+> content = content.replace(old_import, new_import, 1)
+>
+> old_func = """def active_takedown_for_asset(
+>     db: Session, *, org_id: uuid.UUID, asset: Asset
+> ) -> RightsTakedown | None:
+>     """An active takedown covering this asset, if any."""
+>     scope_ids = [asset.id]
+>     if asset.series_id is not None:
+>         scope_ids.append(asset.series_id)
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == "active",
+>             RightsTakedown.scope_type == "asset",
+>             RightsTakedown.scope_id.in_(scope_ids),
+>         )
+>     )"""
+>
+> new_func = """def active_takedown_for_asset(
+>     db: Session, *, org_id: uuid.UUID, asset: Asset
+> ) -> RightsTakedown | None:
+>     """An active takedown covering this asset, if any."""
+>     clauses = [
+>         (RightsTakedown.scope_type == "asset") & (RightsTakedown.scope_id == asset.id)
+>     ]
+>     if asset.series_id is not None:
+>         clauses.append(
+>             (RightsTakedown.scope_type == "series") & (RightsTakedown.scope_id == asset.series_id)
+>         )
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == "active",
+>             or_(*clauses),
+>         )
+>     )"""
+>
+> assert old_func in content
+> content = content.replace(old_func, new_func, 1)
+>
+> with open("app/repositories/rights.py", "w") as f:
+>     f.write(content)
+> print("Successfully updated app/repositories/rights.py")
+> '
+  File "<string>", line 13
+    """An active takedown covering this asset, if any."""
+       ^^
+SyntaxError: invalid syntax
+root@e61efb547692:/app#

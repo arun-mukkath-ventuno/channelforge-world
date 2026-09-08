@@ -1,0 +1,88 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+93629a20d375:/app# cat packages/data-plane/src/stitch.ts
+// Manifest stitching (PRD §22-25). Given an origin media playlist, its detected
+// avails, and the *resolved* pod media for each avail, replace each avail's
+// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+// synthesized for slate). Avails without resolved media are left as origin (their
+// ChannelForge slate plays) — playback survives ad failure (§42).
+//
+// Pure and synchronous by design: no DB, no transcode, no network. Segment media
+// is resolved beforehand (see media.ts) so this stays a lean string transform.
+
+import type { Avail } from "./avails.js";
+import type { RenderedPodItem } from "./media.js";
+
+export interface StitchOptions {
+  /** Emit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+  emitAdMetadata?: boolean;
+}
+
+export interface StitchResult {
+  manifest: string;
+  /** Opportunity ids that were stitched (had resolved media). */
+  stitched: string[];
+}
+
+/** Replace each avail that has resolved pod media; leave the rest untouched. */
+export function stitchManifest(
+  origin: string,
+  avails: Avail[],
+  rendered: Map<string, RenderedPodItem[]>,
+  opts: StitchOptions = {},
+): StitchResult {
+  const emitMeta = opts.emitAdMetadata ?? true;
+  const lines = origin.split("\n");
+
+  const availByStart = new Map<number, Avail>();
+  for (const a of avails) availByStart.set(a.startLine, a);
+
+  const out: string[] = [];
+  const stitched: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const avail = availByStart.get(i);
+    const pod = avail ? rendered.get(avail.opportunityId) : undefined;
+
+    if (avail && pod && pod.length > 0) {
+      out.push(...renderPod(pod, emitMeta, avail.programDateTime));
+      stitched.push(avail.opportunityId);
+      i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+      continue;
+    }
+    out.push(lines[i]!);
+  }
+
+  return { manifest: out.join("\n"), stitched };
+}
+
+function renderPod(pod: RenderedPodItem[], emitMeta: boolean, breakStart?: string): string[] {
+  const out: string[] = [];
+  for (const item of pod) {
+    out.push("#EXT-X-DISCONTINUITY"); // timing/encoding boundary (PRD §24)
+
+    if (item.type === "ad" && emitMeta && item.creativeId) {
+      const start = breakStart
+        ? new Date(new Date(breakStart).getTime() + item.startOffset * 1000).toISOString()
+        : undefined;
+      out.push(
+        `#EXT-X-DATERANGE:ID="${item.creativeId}",CLASS="com.fastworld.ad",` +
+          (start ? `START-DATE="${start}",` : "") +
+          `DURATION=${item.duration},X-AD-ID="${item.creativeId}"` +
+          (item.campaignId ? `,X-CAMPAIGN-ID="${item.campaignId}"` : ""),
+      );
+    }
+
+    for (const seg of item.segments) {
+      out.push(`#EXTINF:${seg.duration.toFixed(3)},`);
+      out.push(seg.uri);
+    }
+  }
+  out.push("#EXT-X-DISCONTINUITY"); // rejoin origin content (PRD §24)
+  return out;
+}
+93629a20d375:/app#

@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "In `app/repositories/rights.py`, `active_takedown_for_asset` incorrectly filtered `RightsTakedown.scope_type == \"asset\"`. We need to update it to support both asset-scoped and series-scoped active takedowns.",
+  "plan": "Edit `app/repositories/rights.py` to import `or_` from `sqlalchemy` and update `active_takedown_for_asset`.",
+  "commands": [
+    {
+      "keystrokes": "python3 -c \"from sqlalchemy import func, select, or_\" \n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

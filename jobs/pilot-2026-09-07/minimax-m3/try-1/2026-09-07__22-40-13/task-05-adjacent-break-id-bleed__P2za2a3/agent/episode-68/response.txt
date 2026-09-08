@@ -1,6 +1,0 @@
-{
-  "analysis": "The fix is complete and verified:\n\n1. **Bug found**: In `packages/data-plane/src/avails.ts`, `blockBreakId` (which tracks DATERANGE IDs from origin tag blocks) was only cleared when a media URI line was encountered. For back-to-back ad breaks (where CUE-IN immediately follows by CUE-OUT with no URI in between), the first break's DATERANGE id would leak to the second break.\n\n2. **Fix applied**: Added `blockBreakId = undefined;` in the CUE-IN handler, immediately after closing the avail. This is the natural point because the DATERANGE id belonged to the just-closed avail.\n\n3. **Verified**:\n   - All 29 existing data-plane tests pass\n   - The dist build has the fix\n   - The data-plane service is running on port 4010 with the fix (responding to health checks)\n   - The fix is minimal (single line + comment) and targeted\n   - All marker syntax support preserved (CUE-OUT, CUE-IN, DATERANGE in any position, CUE-OUT-CONT)",
-  "plan": "Task is complete.",
-  "commands": [],
-  "task_complete": true
-}

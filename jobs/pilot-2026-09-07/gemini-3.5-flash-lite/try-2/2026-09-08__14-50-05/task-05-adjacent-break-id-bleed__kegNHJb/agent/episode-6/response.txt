@@ -1,0 +1,11 @@
+{
+  "analysis": "The test suite ran successfully. Now let's add a test case to `packages/data-plane/src/avails.test.ts` for back-to-back ad breaks with zero gap between them (e.g., CUE-IN immediately followed by CUE-OUT / DATERANGE for the next break), and fix the bug in `detectAvails` where `blockBreakId` leaks across back-to-back breaks or where `open.externalBreakId` gets incorrectly assigned or not updated.",
+  "plan": "Examine how back-to-back breaks occur and update `detectAvails` in `packages/data-plane/src/avails.ts` so that `blockBreakId` is cleared or properly scoped when an avail ends (`CUE-IN`), or when a new `CUE-OUT` / `DATERANGE` is processed.",
+  "commands": [
+    {
+      "keystrokes": "git diff\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

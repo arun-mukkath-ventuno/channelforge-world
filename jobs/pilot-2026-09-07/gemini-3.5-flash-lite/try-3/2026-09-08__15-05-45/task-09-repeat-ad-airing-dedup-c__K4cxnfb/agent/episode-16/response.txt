@@ -1,0 +1,21 @@
+```json
+{
+  "analysis": "We need to update `sendAdBeacon` to include `pod_id` (using `w.start` or a unique pod identifier for that ad window), so that the ingestion service's deduplication logic (`basis = [raw.session_id, raw.pod_id ?? '', raw.ad_id ?? '', eventType]`) treats separate airings of the same creative as distinct events.",
+  "plan": "Update `src/lib/ssai.ts` to accept `podId?: string` in `sendAdBeacon` (or pass `String(w.start)` as `pod_id`), then rebuild/restart the service.",
+  "commands": [
+    {
+      "keystrokes": "node -e '\nconst fs = require(\"fs\");\nlet code = fs.readFileSync(\"src/lib/ssai.ts\", \"utf8\");\ncode = code.replace(\n  \"export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\",\n  \"export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId?: string): void {\"\n).replace(\n  \"const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });\",\n  \"const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, pod_id: podId });\"\n).replace(\n  \"sendAdBeacon(opts.sessionId, beacon, w.adId);\",\n  \"sendAdBeacon(opts.sessionId, beacon, w.adId, String(w.start));\"\n);\nfs.writeFileSync(\"src/lib/ssai.ts\", code, \"utf8\");\n'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "git diff src/lib/ssai.ts\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "pnpm build\n",
+      "duration": 3.0
+    }
+  ],
+  "task_complete": false
+}
+```

@@ -1,0 +1,46 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+272d9b32010c:/app# npx vitest run packages/data-plane
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/data-plane/src/avails.test.ts (0)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts [ packages/data-plane/src/avails.test.ts ]
+Error: Transform failed with 1 error:
+/app/packages/data-plane/src/avails.test.ts:150:25: ERROR: Expected "]" but found "ID"
+  Plugin: vite:esbuild
+  File: /app/packages/data-plane/src/avails.test.ts:150:25
+
+  Expected "]" but found "ID"
+  148|        "#EXT-X-MEDIA-SEQUENCE:0",
+  149|        "#EXT-X-CUE-OUT:30",
+  150|        "#EXT-X-DATERANGE:"ID=\"BRK-1\",SCTE35-OUT=0xFC",
+     |                           ^
+  151|        "#EXTINF:6.000,",
+  152|        "a.ts",
+
+ ❯ failureErrorWithLog node_modules/vite/node_modules/esbuild/lib/main.js:1472:15
+ ❯ node_modules/vite/node_modules/esbuild/lib/main.js:755:50
+ ❯ responseCallbacks.<computed> node_modules/vite/node_modules/esbuild/lib/main.js:622:9
+ ❯ handleIncomingPacket node_modules/vite/node_modules/esbuild/lib/main.js:677:12
+ ❯ Socket.readFromStdout node_modules/vite/node_modules/esbuild/lib/main.js:600:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  19 passed (19)
+   Start at  09:18:01
+   Duration  590ms (transform 68ms, setup 0ms, collect 89ms, tests 14ms, environment 0ms, prepare 144ms)
+
+272d9b32010c:/app#

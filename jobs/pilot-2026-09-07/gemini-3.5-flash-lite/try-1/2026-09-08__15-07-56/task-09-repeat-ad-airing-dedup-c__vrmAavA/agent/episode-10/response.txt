@@ -1,0 +1,11 @@
+{
+  "analysis": "Ah, I accidentally included `_plan_:` instead of `"plan":` in my JSON. Let's fix that immediately. We understand the issue: `deriveEventId` in the ingestion server uses `session_id`, `pod_id`, `ad_id`, and `eventType`. `sendAdBeacon` sends `session_id`, `ad_id`, and `event`, but does not send `pod_id` (or equivalent). Since `pod_id` is missing across different airings of the same creative, the basis for `deriveEventId` is identical, causing the second airing's beacons to be deduplicated/ignored. We need to check what `pod_id` or unique identifier for the ad slot/window/opportunity can be passed in `sendAdBeacon`.",
+  "plan": "Examine tests and codebase for `AdWindow` and how `podId` or opportunity / ad window is structured.",
+  "commands": [
+    {
+      "keystrokes": "cat src/lib/ssai.test.ts\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

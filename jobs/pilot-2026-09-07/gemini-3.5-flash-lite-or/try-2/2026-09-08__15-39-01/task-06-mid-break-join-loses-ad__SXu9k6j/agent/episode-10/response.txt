@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Data plane tests passed. Now let's carefully analyze the bug description again:\n\n'A partner reports that some viewer sessions never see any ad play during part of an ad break — they just get the channel's own default content for that stretch instead — even though the break was scheduled and ad-filled correctly, and other, continuously-connected viewers on the very same channel saw a normal ad-stitched break at the same time.\n\nThey've isolated the trigger: it only affects a session whose *first* manifest request for a given break lands after the break has already been playing for a while — a fresh tune-in, a reconnect after a network blip, or just a client that was slow to start polling. Anything that was already polling before the break started is unaffected, all the way through the same break.\n\nIt isn't about ad availability, eligibility, or a bad decision — a session that's affected by this never even shows up as having tried. And it isn't only new viewers either: the *same* session, if it had already been decided an ad for this exact break earlier (before reconnecting), still doesn't get it back — it re-enters the break and gets nothing for whatever's left of it.\n\nFind and fix the defect. Do not change how ads are detected or decided for the common case (a session polling continuously through a break), and do not disable or bypass ad decisioning as a shortcut to make the symptom go away. When you believe the fix is correct, restart whichever service needs it so the running system reflects your change.'\n\nWait! Let's understand how a session gets an ad pod decided and cached, or how an avail / opportunity ID is determined, or how `opportunityId` is generated!\nLet's look at `avails.ts` and `decider.ts` and `server.ts` and `core/src/decide.ts` or `core/src/pod.ts` or persistence `pod-cache.ts`.\nLet's cat `packages/core/src/decide.ts`, `packages/core/src/pod.ts`, `packages/persistence/src/pod-cache.ts`.",
+  "plan": "Check core decide and pod cache implementations.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/core/src/decide.ts\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}
+```

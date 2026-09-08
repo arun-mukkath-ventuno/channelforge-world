@@ -1,0 +1,35 @@
+```json
+{
+  "analysis": "`or_` is available from `sqlalchemy`. Let's check how `app/repositories/rights.py` should be modified.
+Let's review the exact function we want in `app/repositories/rights.py`:
+```python
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    \"\"\"An active takedown covering this asset directly or via its series, if any.\"\"\"
+    conditions = [
+        (RightsTakedown.scope_type == "asset") & (RightsTakedown.scope_id == asset.id)
+    ]
+    if asset.series_id is not None:
+        conditions.append(
+            (RightsTakedown.scope_type == "series") & (RightsTakedown.scope_id == asset.series_id)
+        )
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            or_(*conditions),
+        )
+    )
+```
+Let's check if there are any other places where `active_takedown_for_asset` or takedowns are used.",
+  "plan": "Write a python script or use python to update `app/repositories/rights.py` cleanly.",
+  "commands": [
+    {
+      "keystrokes": "python3 -c '\nwith open(\"app/repositories/rights.py\", \"r\") as f:\n    content = f.read()\n\nold_import = \"from sqlalchemy import func, select\"\nnew_import = \"from sqlalchemy import func, or_, select\"\nassert old_import in content\ncontent = content.replace(old_import, new_import, 1)\n\nold_func = \"\"\"def active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )\"\"\"\n\nnew_func = \"\"\"def active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset directly or via its series, if any.\"\"\"\n    conditions = [\n        (RightsTakedown.scope_type == \"asset\") & (RightsTakedown.scope_id == asset.id)\n    ]\n    if asset.series_id is not None:\n        conditions.append(\n            (RightsTakedown.scope_type == \"series\") & (RightsTakedown.scope_id == asset.series_id)\n        )\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            or_(*conditions),\n        )\n    )\"\"\"\n\nassert old_func in content, \"old_func not found\"\ncontent = content.replace(old_func, new_func, 1)\n\nwith open(\"app/repositories/rights.py\", \"w\") as f:\n    f.write(content)\nprint(\"Successfully updated app/repositories/rights.py\")\n'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

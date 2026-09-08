@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Let's update `sendAdBeacon` to accept `podId?: string` (or `pod_id?: string`) and pass `pod_id: podId` in the JSON body, and in `startAdBeaconWatcher` pass `String(w.start)` (or `w.start`) as `podId`.\nWait, let's check what type `pod_id` expects in the reference server: `pod_id?: string;`. So passing `String(w.start)` or `w.start` (converted to string or kept as is if JSON.stringify handles numbers, but string is safer) is great.\nLet's also add unit tests in `src/lib/ssai.test.ts` to verify that `sendAdBeacon` includes `pod_id` when provided, or test `startAdBeaconWatcher` behavior.",
+  "plan": "Update `src/lib/ssai.ts` to include `podId` in `sendAdBeacon` and `startAdBeaconWatcher`, add tests, and run `pnpm test` (specifically `npx vitest run src/lib/ssai.test.ts`).",
+  "commands": [
+    {
+      "keystrokes": "pnpm vitest run src/lib/ssai.test.ts\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

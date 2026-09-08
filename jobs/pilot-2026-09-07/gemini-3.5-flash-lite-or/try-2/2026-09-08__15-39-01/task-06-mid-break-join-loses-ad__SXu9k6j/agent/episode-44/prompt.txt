@@ -1,0 +1,86 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+7c2ffd298999:/app# grep -rn "opportunity_id" packages/
+packages/control-plane/src/server.ts:167:      opportunity_id?: string;
+packages/control-plane/src/server.ts:172:    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+packages/control-plane/src/server.ts:173:      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+packages/control-plane/src/server.ts:179:      opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:229:          opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:239:      opportunityId: body.opportunity_id,
+packages/control-plane/src/events-normalize.ts:51:  opportunity_id?: string;
+packages/control-plane/src/events-normalize.ts:114:    opportunityId: raw.opportunity_id ?? null,
+packages/control-plane/src/server.test.ts:196:        opportunity_id: "opp_channel_yoga_202",
+packages/control-plane/dist/events-normalize.d.ts:9:    opportunity_id?: string;
+packages/control-plane/dist/server.test.js:170:                opportunity_id: "opp_channel_yoga_202",
+packages/control-plane/dist/server.js:119:        if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+packages/control-plane/dist/server.js:120:            return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+packages/control-plane/dist/server.js:125:            opportunityId: body.opportunity_id,
+packages/control-plane/dist/server.js:171:                    opportunityId: body.opportunity_id,
+packages/control-plane/dist/server.js:180:            opportunityId: body.opportunity_id,
+packages/control-plane/dist/events-normalize.js:61:        opportunityId: raw.opportunity_id ?? null,
+packages/data-plane/src/decider.ts:37:          opportunity_id: avail.opportunityId,
+packages/data-plane/dist/decider.js:25:                    opportunity_id: avail.opportunityId,
+packages/persistence/src/reconciliation.ts:71:    await db.query<{ id: string; opportunity_id: string }>(
+packages/persistence/src/reconciliation.ts:72:      "SELECT id, opportunity_id FROM ad_decisions",
+packages/persistence/src/reconciliation.ts:77:    if (inScope.has(d.opportunity_id)) decisionToOpp.set(d.id, d.opportunity_id);
+packages/persistence/src/reconciliation.ts:95:    await db.query<{ opportunity_id: string | null; event_type: string; c: number }>(
+packages/persistence/src/reconciliation.ts:96:      `SELECT opportunity_id, event_type, COUNT(*) AS c FROM events
+packages/persistence/src/reconciliation.ts:97:       WHERE event_type LIKE 'ad_%' AND opportunity_id IS NOT NULL
+packages/persistence/src/reconciliation.ts:98:       GROUP BY opportunity_id, event_type`,
+packages/persistence/src/reconciliation.ts:103:    if (!e.opportunity_id || !inScope.has(e.opportunity_id)) continue;
+packages/persistence/src/reconciliation.ts:104:    const m = eventsByOpp.get(e.opportunity_id) ?? new Map<string, number>();
+packages/persistence/src/reconciliation.ts:106:    eventsByOpp.set(e.opportunity_id, m);
+packages/persistence/src/repositories/events.ts:27:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+packages/persistence/src/repositories/events.ts:70:    opportunityId: (r.opportunity_id as string) ?? null,
+packages/persistence/src/repositories/decisions.ts:21:       (id, opportunity_id, session_id, requested_at, completed_at, eligible_count, selected_count, seed,
+decision_payload)
+packages/persistence/src/repositories/decisions.ts:70:  opportunity_id: string;
+packages/persistence/src/repositories/decisions.ts:80:    opportunityId: r.opportunity_id,
+packages/persistence/src/repositories/decisions.ts:91:  "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+packages/persistence/src/repositories/decisions.ts:106:      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+packages/persistence/src/repositories/beacons.ts:29:  opportunity_id: string;
+packages/persistence/src/repositories/beacons.ts:40:  opportunityId: r.opportunity_id,
+packages/persistence/src/repositories/beacons.ts:51:    `INSERT INTO beacon_deliveries (session_id, opportunity_id, creative_id, event_type, url)
+packages/persistence/src/repositories/beacons.ts:53:     ON CONFLICT (session_id, opportunity_id, event_type, url) DO NOTHING`,
+packages/persistence/dist/reconciliation.js:30:    const decisionRows = (await db.query("SELECT id, opportunity_id FROM ad_decisions")).rows;
+packages/persistence/dist/reconciliation.js:33:        if (inScope.has(d.opportunity_id))
+packages/persistence/dist/reconciliation.js:34:            decisionToOpp.set(d.id, d.opportunity_id);
+packages/persistence/dist/reconciliation.js:47:    const eventRows = (await db.query(`SELECT opportunity_id, event_type, COUNT(*) AS c FROM events
+packages/persistence/dist/reconciliation.js:48:       WHERE event_type LIKE 'ad_%' AND opportunity_id IS NOT NULL
+packages/persistence/dist/reconciliation.js:49:       GROUP BY opportunity_id, event_type`)).rows;
+packages/persistence/dist/reconciliation.js:52:        if (!e.opportunity_id || !inScope.has(e.opportunity_id))
+packages/persistence/dist/reconciliation.js:54:        const m = eventsByOpp.get(e.opportunity_id) ?? new Map();
+packages/persistence/dist/reconciliation.js:56:        eventsByOpp.set(e.opportunity_id, m);
+packages/persistence/dist/repositories/decisions.js:7:       (id, opportunity_id, session_id, requested_at, completed_at, eligible_count, selected_count, seed,
+decision_payload)
+packages/persistence/dist/repositories/decisions.js:37:        opportunityId: r.opportunity_id,
+packages/persistence/dist/repositories/decisions.js:46:const DECISION_COLS = "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+packages/persistence/dist/repositories/decisions.js:52:    const rows = (await db.query(`SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORD
+ER BY requested_at`, [opportunityId])).rows;
+packages/persistence/dist/repositories/beacons.js:7:    opportunityId: r.opportunity_id,
+packages/persistence/dist/repositories/beacons.js:16:    await db.query(`INSERT INTO beacon_deliveries (session_id, opportunity_id, creative_id, event_type, url
+)
+packages/persistence/dist/repositories/beacons.js:18:     ON CONFLICT (session_id, opportunity_id, event_type, url) DO NOTHING`, [b.sessionId, b.opportunityId,
+b.creativeId ?? null, b.eventType, b.url]);
+packages/persistence/dist/repositories/events.js:5:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+packages/persistence/dist/repositories/events.js:34:        opportunityId: r.opportunity_id ?? null,
+7c2ffd298999:/app# grep -rn "ChannelForge" packages/
+packages/admin-web/package.json:6:  "description": "SSAI operator console — Vite + React + Tailwind v4 + shadcn-style UI, matching the ChannelForge design syste
+m.",
+packages/admin-web/src/content/user-guide.md:4:ChannelForge produces, finds the ad breaks in them, decides which ads fill each break,
+packages/admin-web/src/content/user-guide.md:19:| **Channel** | A ChannelForge-produced linear HLS channel this ad server fills. SSAI reads its origin manifest;
+ it does not schedule programming. |
+packages/admin-web/src/content/user-guide.md:35:**Channels → New channel.** Give it a name and the ChannelForge origin URL (the channel's
+packages/admin-web/src/content/user-guide.md:37:don't schedule programming here — ChannelForge owns that.
+packages/admin-web/src/content/user-guide.md:71:ChannelForge origin  →  SSAI detects the avail  →  ad decision (pod)  →  stitch into the
+packages/admin-web/src/content/user-guide.md:84:Every ChannelForge channel you fill. The table shows the origin URL SSAI reads and the
+packages/admin-web/src/content/user-guide.md:158:falls back to slate; a deeper failure falls back to the unmodified ChannelForge stream.
+packages/admin-web/src/content/user-guide.md:167:No. ChannelForge owns programming, schedules, and where the ad breaks are. SSAI only decides
+packages/admin-web/src/pages/ChannelsPage.tsx:22:        description="ChannelForge channels this ad server fills."
+packages/admin-web/src/index.css:4: * FAST World SSAI design tokens — shares the ChannelForge operations-room system
+packages/admin-web/src/index.css:41:  /* Status + severity palette (first-class, matches ChannelForge) */
+

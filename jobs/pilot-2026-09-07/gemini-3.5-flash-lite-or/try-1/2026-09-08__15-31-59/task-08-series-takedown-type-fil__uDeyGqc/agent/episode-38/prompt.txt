@@ -1,0 +1,39 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@7da54ed4678f:/app# grep -n -C 15 "active_takedown_for_asset" app/repositories/rights.py
+146-
+147-
+148-def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+149-    return list(
+150-        db.scalars(
+151-            select(RightsTakedown)
+152-            .where(
+153-                RightsTakedown.organization_id == org_id,
+154-                RightsTakedown.status == "active",
+155-            )
+156-            .order_by(RightsTakedown.created_at.desc())
+157-        )
+158-    )
+159-
+160-
+161:def active_takedown_for_asset(
+162-    db: Session, *, org_id: uuid.UUID, asset: Asset
+163-) -> RightsTakedown | None:
+164-    """An active takedown covering this asset, if any."""
+165-    scope_ids = [asset.id]
+166-    if asset.series_id is not None:
+167-        scope_ids.append(asset.series_id)
+168-    return db.scalar(
+169-        select(RightsTakedown).where(
+170-            RightsTakedown.organization_id == org_id,
+171-            RightsTakedown.status == "active",
+172-            RightsTakedown.scope_type == "asset",
+173-            RightsTakedown.scope_id.in_(scope_ids),
+174-        )
+175-    )
+176-
+root@7da54ed4678f:/app#

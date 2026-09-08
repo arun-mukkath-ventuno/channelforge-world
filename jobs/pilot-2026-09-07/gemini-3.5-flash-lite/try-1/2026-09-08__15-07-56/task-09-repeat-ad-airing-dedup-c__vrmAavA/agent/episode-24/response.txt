@@ -1,0 +1,11 @@
+{
+  "analysis": "Let's restore `src/lib/ssai.test.ts` to its original content to strictly follow 'Do not modify the test suite'.",
+  "plan": "Use python to restore `src/lib/ssai.test.ts` to remove the test suite modification.",
+  "commands": [
+    {
+      "keystrokes": "python3 -c \"\nwith open('src/lib/ssai.test.ts', 'r') as f:\n    content = f.read()\nidx = content.find('describe(\"parseAdWindows with id\"')\nif idx != -1:\n    content = content[:idx]\nwith open('src/lib/ssai.test.ts', 'w') as f:\n    f.write(content.strip() + '\\n')\nprint('Restored ssai.test.ts')\n\"\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

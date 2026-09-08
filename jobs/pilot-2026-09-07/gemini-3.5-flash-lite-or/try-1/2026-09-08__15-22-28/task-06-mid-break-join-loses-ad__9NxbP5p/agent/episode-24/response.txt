@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Wait, where are the SQL migration files? Let's search for any files or templates or git history or perhaps they are located somewhere else, or maybe we missed them in the file list. Let's check `find /app -name "*.sql"` or `find / -name "*.sql"`. Wait, earlier `find / -name \"*.sql\" 2>/dev/null` returned nothing. Wait, why did tests fail with `ENOENT: no such file or directory, scandir '/app/migrations'`? Because there is no `/app/migrations` directory! Wait, why is there no migrations directory? Let's check if there's any other directory or if we can create the schema or if the migration files should be created or if they were supposed to be provided. Wait, let's re-read the prompt and check if there are other files or git repo. Wait, is there a `.git`? We checked `ls -la .git` and it said no such file or directory. Wait, let's check `git status` via `npx` or check if `git` repo exists higher up or if there's any untracked files.",
+  "plan": "Check `git` using `npx` or check parent directories for `.git`.",
+  "commands": [
+    {
+      "keystrokes": "find / -name ".git" 2>/dev/null\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

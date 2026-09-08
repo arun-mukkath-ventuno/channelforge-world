@@ -1,0 +1,122 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@e61efb547692:/app# sed -n '100,220p' app/repositories/rights.py
+        scope_targets.append(("channel", channel_id))
+    if agreement_id is not None:
+        scope_targets.append(("agreement", agreement_id))
+
+    applicable: list[ApplicablePolicy] = []
+    for scope_type, scope_id in scope_targets:
+        assignments = db.scalars(
+            select(RightsAssignment).where(
+                RightsAssignment.organization_id == org_id,
+                RightsAssignment.scope_type == scope_type,
+                RightsAssignment.scope_id == scope_id,
+                RightsAssignment.enabled.is_(True),
+            )
+        )
+        for assignment in assignments:
+            version = _latest_version(db, assignment.policy_id)
+            if version is not None:
+                applicable.append(
+                    ApplicablePolicy(
+                        version=version, scope_type=scope_type, priority=assignment.priority
+                    )
+                )
+
+    applicable.sort(
+        key=lambda a: (_SPECIFICITY.get(a.scope_type, 0), a.priority), reverse=True
+    )
+    return applicable
+
+
+# --- Takedowns (§8.3) ---
+
+def create_takedown(db: Session, **fields) -> RightsTakedown:
+    takedown = RightsTakedown(**fields)
+    db.add(takedown)
+    db.flush()
+    return takedown
+
+
+def get_takedown(
+    db: Session, *, org_id: uuid.UUID, takedown_id: uuid.UUID
+) -> RightsTakedown | None:
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+        )
+    )
+
+
+def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+    return list(
+        db.scalars(
+            select(RightsTakedown)
+            .where(
+                RightsTakedown.organization_id == org_id,
+                RightsTakedown.status == "active",
+            )
+            .order_by(RightsTakedown.created_at.desc())
+        )
+    )
+
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+        return [scope_id]
+    if scope_type == "series":
+        return list(
+            db.scalars(
+                select(Asset.id).where(
+                    Asset.organization_id == org_id, Asset.series_id == scope_id
+                )
+            )
+        )
+    return []
+
+
+def affected_future_events(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+) -> list[ScheduleEvent]:
+    """Future events in *published* schedule versions that reference the taken-down asset(s)."""
+    asset_ids = _covered_asset_ids(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id)
+    if not asset_ids:
+        return []
+    return list(
+        db.scalars(
+            select(ScheduleEvent)
+            .join(ScheduleVersion, ScheduleVersion.id == ScheduleEvent.schedule_version_id)
+            .where(
+                ScheduleEvent.organization_id == org_id,
+                ScheduleEvent.asset_id.in_(asset_ids),
+                ScheduleEvent.planned_start > now,
+                ScheduleVersion.status == "published",
+            )
+            .order_by(ScheduleEvent.planned_start)
+        )
+    )
+root@e61efb547692:/app#

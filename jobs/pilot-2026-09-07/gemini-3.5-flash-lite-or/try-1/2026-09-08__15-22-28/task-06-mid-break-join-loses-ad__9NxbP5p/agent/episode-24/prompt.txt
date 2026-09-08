@@ -1,0 +1,77 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# cat packages/persistence/src/repositories/channels.ts
+// Channel repository (PRD §33, §44).
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface Channel {
+  id: string;
+  name: string;
+  originUrl: string;
+  slateId: string | null;
+  status: string;
+  createdAt: string;
+}
+
+interface ChannelRow {
+  id: string;
+  name: string;
+  origin_url: string;
+  slate_id: string | null;
+  status: string;
+  created_at: unknown;
+}
+
+export interface ChannelInput {
+  id: string;
+  name: string;
+  originUrl: string;
+  slateId?: string | null;
+  status?: string;
+}
+
+export async function insertChannel(db: Queryable, input: ChannelInput): Promise<void> {
+  await db.query(
+    `INSERT INTO channels (id, name, origin_url, slate_id, status)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (id) DO UPDATE SET
+       name = EXCLUDED.name,
+       origin_url = EXCLUDED.origin_url,
+       slate_id = EXCLUDED.slate_id,
+       status = EXCLUDED.status`,
+    [input.id, input.name, input.originUrl, input.slateId ?? null, input.status ?? "active"],
+  );
+}
+
+function toChannel(r: ChannelRow): Channel {
+  return {
+    id: r.id,
+    name: r.name,
+    originUrl: r.origin_url,
+    slateId: r.slate_id,
+    status: r.status,
+    createdAt: toIso(r.created_at),
+  };
+}
+
+export async function listChannels(db: Queryable): Promise<Channel[]> {
+  const rows = (await db.query<ChannelRow>("SELECT * FROM channels ORDER BY id")).rows;
+  return rows.map(toChannel);
+}
+
+export async function getChannel(db: Queryable, id: string): Promise<Channel | null> {
+  const rows = (await db.query<ChannelRow>("SELECT * FROM channels WHERE id = $1", [id])).rows;
+  return rows[0] ? toChannel(rows[0]) : null;
+}
+
+/** Set (or clear) the channel's VAST ad-tag URL — the tag the control plane ingests into creatives. */
+export async function setVastTag(db: Queryable, id: string, tagUrl: string | null): Promise<void> {
+  await db.query("UPDATE channels SET vast_tag_url = $2 WHERE id = $1", [id, tagUrl]);
+}
+c37cf208f09f:/app#

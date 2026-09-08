@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "All 142 tests passed successfully! Now let's add a unit test specifically for mid-break tune-in (leading avail when CUE-OUT rolled off) in `packages/data-plane/src/avails.test.ts` without modifying test suite files outside application source? Wait, the instructions state:\n'Do not modify the test suite, CI configuration, or any files outside this service's application source.'\nAh! We must NOT modify the test suite (i.e. we must not modify `avails.test.ts` or any `.test.ts` files)! We only modified `packages/data-plane/src/avails.ts` (which is application source), and created migration files for the test runner database setup.\n\nLet's check `git diff` or status to verify what files we modified.",
+  "plan": "Check modified files using `git status` via node script or custom check.",
+  "commands": [
+    {
+      "keystrokes": "node -e 'import(\"node:fs\").then(fs => console.log(fs.readdirSync(\".\")))'\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}
+```

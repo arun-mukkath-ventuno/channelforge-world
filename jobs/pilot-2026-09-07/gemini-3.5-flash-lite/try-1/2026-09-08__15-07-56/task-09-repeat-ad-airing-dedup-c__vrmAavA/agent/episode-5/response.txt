@@ -1,0 +1,15 @@
+{
+  "analysis": "Let's check how `deriveEventId` works in `events-normalize.ts`:\n```ts\n  const isAdLifecycle = eventType.startsWith(\"ad_\") && eventType !== \"ad_error\";\n  if (isAdLifecycle && raw.session_id) {\n    const basis = [raw.session_id, raw.pod_id ?? \"\", raw.ad_id ?? \"\", eventType].join(\"|\");\n    return `evt_${createHash(\"sha1\").update(basis).digest(\"hex\").slice(0, 24)}`;\n  }\n```\nWait! Look at `basis`: `[raw.session_id, raw.pod_id ?? \"\", raw.ad_id ?? \"\", eventType].join(\"|\")`.\nIf the same session later plays the *same creative* again (e.g. `ad_id` or `creative_id` is the same, but in a *different* pod/opportunity/break, or even if `pod_id` is reused or not unique/present), wait, what fields identify the airing or the pod? Let's check how ads and pods are represented in this repo (`src/lib/ssai.ts`, client telemetry sending, etc.).",
+  "plan": "Search for where ad events are sent or constructed in `src/`. Let's search for `ad_start` or `pod_id` or `opportunity_id` or `event` in `src/`.",
+  "commands": [
+    {
+      "keystrokes": "git grep -i pod_id src/\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "git grep -i ad_id src/\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

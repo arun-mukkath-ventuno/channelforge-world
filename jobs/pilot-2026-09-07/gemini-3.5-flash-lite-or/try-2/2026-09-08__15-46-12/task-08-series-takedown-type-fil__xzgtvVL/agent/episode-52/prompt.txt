@@ -1,0 +1,91 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@d9556c177726:/app# sed -n '150,200p' app/repositories/rights.py
+        db.scalars(
+            select(RightsTakedown)
+            .where(
+                RightsTakedown.organization_id == org_id,
+                RightsTakedown.status == "active",
+            )
+            .order_by(RightsTakedown.created_at.desc())
+        )
+    )
+
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+        return [scope_id]
+    if scope_type == "series":
+        return list(
+            db.scalars(
+                select(Asset.id).where(
+                    Asset.organization_id == org_id, Asset.series_id == scope_id
+                )
+            )
+        )
+    return []
+
+
+def affected_future_events(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+) -> list[ScheduleEvent]:
+    """Future events in *published* schedule versions that reference the taken-down asset(s)."""
+    asset_ids = _covered_asset_ids(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id)
+    if not asset_ids:
+        return []
+root@d9556c177726:/app# sed -n '690,720p' app/services/schedules.py
+        "PRD recommends at least 72h (7 days ideal)."
+    ]
+
+
+def _rights_issues(
+    db: Session, *, event, asset: Asset, start: datetime, end: datetime
+) -> list[str]:
+    """Rights + takedown gate at publish (§8.2 validation/publication point, ADR-5).
+
+    Channel-level publish has no single agreement/territory, so this catches the
+    agreement-independent denials — validity window, blackout, linear/AVOD permission, and active
+    takedowns. Territory/partner-specific rights are enforced per agreement at distributor
+    eligibility. Falls back to the asset's legacy rights window when no policy is assigned.
+    """
+    org_id = asset.organization_id
+    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+        return [f"'{event.title}': asset is under an active emergency takedown"]
+    policies = rights_repo.resolve_applicable(
+        db, org_id=org_id, asset=asset, channel_id=event.channel_id
+    )
+    ctx = rights_engine.RightsContext(air_start=start, air_end=end, language=asset.language)
+    decision = rights_engine.evaluate(policies, ctx, asset=asset)
+    if not decision.allowed:
+        codes = ", ".join(sorted({r.code for r in decision.reasons}))
+        return [f"'{event.title}': rights not valid for its air time ({codes})"]
+    return []
+
+
+def validate(db: Session, version: ScheduleVersion) -> list[str]:
+    """Return a list of issues; empty means the timeline is publishable."""
+    channel = db.get(Channel, version.channel_id)
+root@d9556c177726:/app#

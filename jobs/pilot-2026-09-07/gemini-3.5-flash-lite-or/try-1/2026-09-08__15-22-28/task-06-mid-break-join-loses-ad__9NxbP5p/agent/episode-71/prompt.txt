@@ -1,0 +1,152 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# npm test
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/control-plane/src/beacons.test.ts (6)
+ ✓ packages/control-plane/src/events-normalize.test.ts (7)
+ ❯ packages/control-plane/src/server.test.ts (15) 338ms
+   ✓ write APIs (PRD §43) (6)
+   ✓ creative source upload (PRD §14) (3)
+   ✓ admin auth (PRD §57) (3)
+   ✓ VAST tag ingestion endpoint (1)
+   ❯ per-break reconciliation (ChannelForge telemetry blueprint) (2)
+     × records external_break_id from an ad-decision and lists it per break
+     ✓ gates /v1/reconciliation/breaks behind the admin cookie
+ ✓ packages/control-plane/src/vast-fetch.test.ts (5)
+ ✓ packages/control-plane/src/vast-inventory.test.ts (4)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/core/src/eligibility.test.ts (9)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/core/src/session-token.test.ts (6)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+ ✓ packages/creative-worker/src/validate.test.ts (6)
+ ✓ packages/creative-worker/src/worker.test.ts (5)
+ ❯ packages/persistence/src/analytics.test.ts (5)
+   ❯ getAnalytics (PRD §31, §32) (5)
+     × computes fill from delivered pods
+       ⠇ [ beforeEach ]
+     × classifies breaks filled / partial / unfilled
+       ⠦ [ beforeEach ]
+     × counts ad lifecycle events and completion rate
+       ⠴ [ beforeEach ]
+     × reports the impression↔completion gap (PRD §27): started but did not complete
+       ⠼ [ beforeEach ]
+     × reports streaming session metrics
+       ⠼ [ beforeEach ]
+ ✓ packages/persistence/src/pod-cache.test.ts (3)
+ ❯ packages/persistence/src/reconciliation.test.ts (4)
+   ❯ getBreakDeliveries — per-break reconciliation detail (4)
+     × keys a filled break by its externalBreakId with ad seconds + impressions
+       ⠋ [ beforeEach ]
+     × reports an unfilled break (no decision) as filled=false
+       ⠧ [ beforeEach ]
+     × aggregates ad seconds + impressions across multiple viewer sessions of one break
+       ⠦ [ beforeEach ]
+     × filters by channel and since
+       ⠴ [ beforeEach ]
+ ✓ packages/persistence/src/repositories.test.ts (4)
+ ✓ packages/storage/src/s3.test.ts (4)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/control-plane/src/server.test.ts > per-break reconciliation (ChannelForge telemetry blueprint) > records external_break_id from an ad-decision a
+nd lists it per break
+AssertionError: expected 500 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 500
+
+ ❯ packages/control-plane/src/server.test.ts:201:28
+    199|       },
+    200|     });
+    201|     expect(dec.statusCode).toBe(200);
+       |                            ^
+    202|
+    203|     const res = await app.inject({ method: "GET", url: "/v1/reconciliation/breaks?channel=channel_yoga" });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  packages/persistence/src/analytics.test.ts > getAnalytics (PRD §31, §32) > computes fill from delivered pods
+ FAIL  packages/persistence/src/analytics.test.ts > getAnalytics (PRD §31, §32) > classifies breaks filled / partial / unfilled
+ FAIL  packages/persistence/src/analytics.test.ts > getAnalytics (PRD §31, §32) > counts ad lifecycle events and completion rate
+ FAIL  packages/persistence/src/analytics.test.ts > getAnalytics (PRD §31, §32) > reports the impression↔completion gap (PRD §27): started but did not complete
+ FAIL  packages/persistence/src/analytics.test.ts > getAnalytics (PRD §31, §32) > reports streaming session metrics
+Error: null value in column "device_type" violates not-null constraint
+
+🐜 This seems to be an execution error, which means that your request syntax seems okay,
+    but the resulting statement cannot be executed → Probably not a pg-mem error.
+
+*️⃣ Failed SQL statement: INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ('s1', 'channel_food', null, null, null, null, null)
+     ON CONFLICT (id) DO NOTHING;
+
+👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+
+
+ ❯ ColRef.checkConstraints node_modules/pg-mem/src/column.ts:227:19
+ ❯ MemoryTable.doInsert node_modules/pg-mem/src/table.ts:374:15
+ ❯ Insert.performMutation node_modules/pg-mem/src/execution/records-mutations/insert.ts:182:44
+ ❯ Insert._doExecuteOnce node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:60:29
+ ❯ Insert.enumerate node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:72:29
+ ❯ SelectExec.execute node_modules/pg-mem/src/execution/select.ts:279:41
+ ❯ node_modules/pg-mem/src/execution/statement-exec.ts:210:42
+ ❯ pushExecutionCtx node_modules/pg-mem/src/utils.ts:404:16
+ ❯ node_modules/pg-mem/src/execution/statement-exec.ts:198:54
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  packages/persistence/src/reconciliation.test.ts > getBreakDeliveries — per-break reconciliation detail > keys a filled break by its externalBreakId with
+ad seconds + impressions
+ FAIL  packages/persistence/src/reconciliation.test.ts > getBreakDeliveries — per-break reconciliation detail > reports an unfilled break (no decision) as fille
+d=false
+ FAIL  packages/persistence/src/reconciliation.test.ts > getBreakDeliveries — per-break reconciliation detail > aggregates ad seconds + impressions across multi
+ple viewer sessions of one break
+ FAIL  packages/persistence/src/reconciliation.test.ts > getBreakDeliveries — per-break reconciliation detail > filters by channel and since
+Error: null value in column "device_type" violates not-null constraint
+
+🐜 This seems to be an execution error, which means that your request syntax seems okay,
+    but the resulting statement cannot be executed → Probably not a pg-mem error.
+
+*️⃣ Failed SQL statement: INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ('s1', 'channel_yoga', null, null, null, null, null)
+     ON CONFLICT (id) DO NOTHING;
+
+👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+
+
+ ❯ ColRef.checkConstraints node_modules/pg-mem/src/column.ts:227:19
+ ❯ MemoryTable.doInsert node_modules/pg-mem/src/table.ts:374:15
+ ❯ Insert.performMutation node_modules/pg-mem/src/execution/records-mutations/insert.ts:182:44
+ ❯ Insert._doExecuteOnce node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:60:29
+ ❯ Insert.enumerate node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:72:29
+ ❯ SelectExec.execute node_modules/pg-mem/src/execution/select.ts:279:41
+ ❯ node_modules/pg-mem/src/execution/statement-exec.ts:210:42
+ ❯ pushExecutionCtx node_modules/pg-mem/src/utils.ts:404:16
+ ❯ node_modules/pg-mem/src/execution/statement-exec.ts:198:54
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ Test Files  3 failed | 19 passed (22)
+      Tests  10 failed | 132 passed (142)
+   Start at  09:57:42
+   Duration  4.42s (transform 268ms, setup 0ms, collect 1.07s, tests 1.15s, environment 3ms, prepare 643ms)
+
+c37cf208f09f:/app#

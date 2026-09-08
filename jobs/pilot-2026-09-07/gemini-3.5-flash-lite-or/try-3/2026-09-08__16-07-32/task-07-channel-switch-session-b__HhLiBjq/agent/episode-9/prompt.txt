@@ -1,0 +1,80 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+89cfbf2f1a44:/app# grep -rn "ensureSession" packages/
+packages/control-plane/src/server.ts:133:    await sessionsRepo.ensureSession(pool, {
+packages/control-plane/src/server.ts:210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+packages/control-plane/dist/server.js:90:        await sessionsRepo.ensureSession(pool, {
+packages/control-plane/dist/server.js:152:            await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id });
+packages/persistence/src/repositories.test.ts:10:import { ensureSession, getSession } from "./repositories/sessions.js";
+packages/persistence/src/repositories.test.ts:81:    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+packages/persistence/src/reconciliation.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/reconciliation.test.ts:70:  await ensureSession(db, { id: "s1", channelId: "channel_yoga" });
+packages/persistence/src/reconciliation.test.ts:71:  await ensureSession(db, { id: "s2", channelId: "channel_yoga" });
+packages/persistence/src/analytics.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/analytics.test.ts:68:  await ensureSession(db, { id: "s1", channelId: "channel_food" });
+packages/persistence/src/repositories/sessions.ts:37:export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+packages/persistence/dist/repositories/sessions.js:4:export async function ensureSession(db, input) {
+packages/persistence/dist/repositories/sessions.d.ts:21:export declare function ensureSession(db: Queryable, input: SessionInput): Promise<void>;
+89cfbf2f1a44:/app# grep -n -C 15 "ensureSession" packages/persistence/src/repositories.test.ts
+1-import { describe, it, expect, beforeEach } from "vitest";
+2-import { readFileSync, readdirSync } from "node:fs";
+3-import { fileURLToPath } from "node:url";
+4-import { dirname, join, resolve } from "node:path";
+5-import { newDb } from "pg-mem";
+6-import type { Queryable } from "./db.js";
+7-import { seedDatabase } from "./seed.js";
+8-import { campaignsAsMap, listCampaigns } from "./repositories/campaigns.js";
+9-import { listCreatives } from "./repositories/creatives.js";
+10:import { ensureSession, getSession } from "./repositories/sessions.js";
+11-import { upsertOpportunity } from "./repositories/opportunities.js";
+12-import { saveDecision, getDecisionsBySession } from "./repositories/decisions.js";
+13-import { appendEvent, getEventsBySession } from "./repositories/events.js";
+14-import { decide, type AdOpportunity, type SessionContext } from "@ssai/core";
+15-
+16-const here = dirname(fileURLToPath(import.meta.url));
+17-const MIG_DIR = resolve(here, "../../../migrations");
+18-const SCHEMA = readdirSync(MIG_DIR)
+19-  .filter((f) => f.endsWith(".sql"))
+20-  .sort()
+21-  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+22-  .join("\n");
+23-
+24-function freshDb(): Queryable {
+25-  const mem = newDb();
+--
+66-      breakDuration: 60,
+67-      source: "cue_out",
+68-      signalType: "cue_out",
+69-    };
+70-    const session: SessionContext = { sessionId: "sess_1", channelId: "channel_food" };
+71-
+72-    const decision = decide({
+73-      opportunity,
+74-      session,
+75-      creatives,
+76-      campaigns,
+77-      now: "2026-08-29T12:15:00Z",
+78-      seed: "demo",
+79-    });
+80-
+81:    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+82-    await upsertOpportunity(db, opportunity);
+83-    await saveDecision(db, {
+84-      decisionId: "dec_1",
+85-      podId: "pod_1",
+86-      decision,
+87-      requestedAt: "2026-08-29T12:15:00Z",
+88-      completedAt: "2026-08-29T12:15:00Z",
+89-    });
+90-
+91-    const stored = await getDecisionsBySession(db, "sess_1");
+92-    expect(stored).toHaveLength(1);
+93-    expect(stored[0]!.selectedCount).toBe(decision.pod.filter((p) => p.type === "ad").length);
+94-    // Full payload reconstructable (RL evaluation, PRD §56).
+95-    expect(stored[0]!.decision.pod).toEqual(decision.pod);
+96-    expect(stored[0]!.decision.breakDuration).toBe(60);
+89cfbf2f1a44:/app#

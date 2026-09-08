@@ -1,0 +1,45 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+Current Terminal Screen:
+app/services/rights_takedown.py:112:    takedown = rights_repo.get_takedown(db, org_id=org_id, takedown_id=takedown_id)
+app/services/rights_takedown.py:113:    if takedown is None:
+app/services/rights_takedown.py:115:    if takedown.status == "active":
+app/services/rights_takedown.py:116:        takedown.status = "lifted"
+app/services/rights_takedown.py:117:        takedown.lifted_at = now_utc()
+app/services/rights_takedown.py:118:        takedown.lifted_by = actor_id
+app/services/rights_takedown.py:120:            db, org_id=org_id, dedup_key=f"rights_takedown:{takedown.id}"
+app/services/rights_takedown.py:123:            db, action="rights_takedown.lift", actor_user_id=actor_id, organization_id=org_id,
+app/services/rights_takedown.py:124:            object_type="rights_takedown", object_id=str(takedown.id),
+app/services/rights_takedown.py:128:    return takedown
+app/services/schedules.py:697:    """Rights + takedown gate at publish (§8.2 validation/publication point, ADR-5).
+app/services/schedules.py:701:    takedowns. Territory/partner-specific rights are enforced per agreement at distributor
+app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+app/services/schedules.py:706:        return [f"'{event.title}': asset is under an active emergency takedown"]
+app/services/asset_eligibility.py:48:    # An active emergency takedown blocks the asset absolutely, before any policy check (§8.3).
+app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+app/services/asset_eligibility.py:50:    if takedown is not None:
+app/services/asset_eligibility.py:52:            code="rights_takedown", field="rights", severity="error",
+app/services/asset_eligibility.py:53:            message="Asset is under an active emergency takedown.",
+app/repositories/rights.py:131:def create_takedown(db: Session, **fields) -> RightsTakedown:
+app/repositories/rights.py:132:    takedown = RightsTakedown(**fields)
+app/repositories/rights.py:133:    db.add(takedown)
+app/repositories/rights.py:135:    return takedown
+app/repositories/rights.py:138:def get_takedown(
+app/repositories/rights.py:139:    db: Session, *, org_id: uuid.UUID, takedown_id: uuid.UUID
+app/repositories/rights.py:143:            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+app/repositories/rights.py:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py:161:def active_takedown_for_asset(
+app/repositories/rights.py:164:    """An active takedown covering this asset, if any."""
+app/repositories/rights.py.orig:131:def create_takedown(db: Session, **fields) -> RightsTakedown:
+app/repositories/rights.py.orig:132:    takedown = RightsTakedown(**fields)
+app/repositories/rights.py.orig:133:    db.add(takedown)
+app/repositories/rights.py.orig:135:    return takedown
+app/repositories/rights.py.orig:138:def get_takedown(
+app/repositories/rights.py.orig:139:    db: Session, *, org_id: uuid.UUID, takedown_id: uuid.UUID
+app/repositories/rights.py.orig:143:            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+app/repositories/rights.py.orig:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py.orig:161:def active_takedown_for_asset(
+app/repositories/rights.py.orig:164:    """An active takedown covering this asset directly or via its series, if any."""
+root@d9556c177726:/app#

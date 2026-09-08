@@ -1,0 +1,154 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+packages/admin-web/src/components/layout/AppShell.tsx:22:  { to: "/sessions", label: "Sessions", icon: Users },
+packages/admin-web/dist/assets/index-RpeE7pin.js:147: */const og=_t("Users",[["path",{d:"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",key:"1yyitq"}],["circle",{cx
+:"9",cy:"7",r:"4",key:"nufk8"}],["path",{d:"M22 21v-2a4 4 0 0 0-3-3.87",key:"kshegd"}],["path",{d:"M16 3.13a4 4 0 0 1 0 7.75",key:"1da9ce"}]]);function uf(l){va
+r i,s,u="";if(typeof l=="string"||typeof l=="number")u+=l;else if(typeof l=="object")if(Array.isArray(l)){var c=l.length;for(i=0;i<c;i++)l[i]&&(s=uf(l[i]))&&(u&
+&(u+=" "),u+=s)}else for(s in l)l[s]&&(u&&(u+=" "),u+=s);return u}function cf(){for(var l,i,s=0,u="",c=arguments.length;s<c;s++)(l=arguments[s])&&(i=uf(l))&&(u&
+&(u+=" "),u+=i);return u}const Ad=l=>typeof l=="boolean"?`${l}`:l===0?"0":l,Od=cf,ag=(l,i)=>s=>{var u;if((i==null?void 0:i.variants)==null)return Od(l,s==null?v
+oid 0:s.class,s==null?void 0:s.className);const{variants:c,defaultVariants:d}=i,m=Object.keys(c).map(x=>{const y=s==null?void 0:s[x],C=d==null?void 0:d[x];if(y=
+==null)return null;const w=Ad(y)||Ad(C);return c[x][w]}),g=s&&Object.entries(s).reduce((x,y)=>{let[C,w]=y;return w===void 0||(x[C]=w),x},{}),h=i==null||(u=i.com
+poundVariants)===null||u===void 0?void 0:u.reduce((x,y)=>{let{class:C,className:w,...$}=y;return Object.entries($).every(P=>{let[A,R]=P;return Array.isArray(R)?
+R.includes({...d,...g}[A]):{...d,...g}[A]===R})?[...x,C,w]:x},[]);return Od(l,m,h,s==null?void 0:s.class,s==null?void 0:s.className)},pa="-",ug=l=>{const i=dg(l
+),{conflictingClassGroups:s,conflictingClassGroupModifiers:u}=l;return{getClassGroupId:m=>{const g=m.split(pa);return g[0]===""&&g.length!==1&&g.shift(),df(g,i)
+||cg(m)},getConflictingClassGroupIds:(m,g)=>{const h=s[m]||[];return g&&u[m]?[...h,...u[m]]:h}}},df=(l,i)=>{var m;if(l.length===0)return i.classGroupId;const s=
+l[0],u=i.nextPart.get(s),c=u?df(l.slice(1),u):void 0;if(c)return c;if(i.validators.length===0)return;const d=l.join(pa);return(m=i.validators.find(({validator:g
+})=>g(d)))==null?void 0:m.classGroupId},$d=/^\[(.+)\]$/,cg=l=>{if($d.test(l)){const i=$d.exec(l)[1],s=i==null?void 0:i.substring(0,i.indexOf(":"));if(s)return"a
+rbitrary.."+s}},dg=l=>{const{theme:i,prefix:s}=l,u={nextPart:new Map,validators:[]};return pg(Object.entries(l.classGroups),s).forEach(([d,m])=>{la(m,u,d,i)}),u
+},la=(l,i,s,u)=>{l.forEach(c=>{if(typeof c=="string"){const d=c===""?i:Md(i,c);d.classGroupId=s;return}if(typeof c=="function"){if(fg(c)){la(c(u),i,s,u);return}
+i.validators.push({validator:c,classGroupId:s});return}Object.entries(c).forEach(([d,m])=>{la(m,Md(i,d),s,u)})})},Md=(l,i)=>{let s=l;return i.split(pa).forEach(
+u=>{s.nextPart.has(u)||s.nextPart.set(u,{nextPart:new Map,validators:[]}),s=s.nextPart.get(u)}),s},fg=l=>l.isThemeGetter,pg=(l,i)=>i?l.map(([s,u])=>{const c=u.m
+ap(d=>typeof d=="string"?i+d:typeof d=="object"?Object.fromEntries(Object.entries(d).map(([m,g])=>[i+m,g])):d);return[s,c]}):l,hg=l=>{if(l<1)return{get:()=>{},s
+et:()=>{}};let i=0,s=new Map,u=new Map;const c=(d,m)=>{s.set(d,m),i++,i>l&&(i=0,u=s,s=new Map)};return{get(d){let m=s.get(d);if(m!==void 0)return m;if((m=u.get(
+d))!==void 0)return c(d,m),m},set(d,m){s.has(d)?s.set(d,m):c(d,m)}}},ff="!",mg=l=>{const{separator:i,experimentalParseClassName:s}=l,u=i.length===1,c=i[0],d=i.l
+ength,m=g=>{const h=[];let x=0,y=0,C;for(let R=0;R<g.length;R++){let G=g[R];if(x===0){if(G===c&&(u||g.slice(R,R+d)===i)){h.push(g.slice(y,R)),y=R+d;continue}if(
+G==="/"){C=R;continue}}G==="["?x++:G==="]"&&x--}const w=h.length===0?g:g.substring(y),$=w.startsWith(ff),P=$?w.substring(1):w,A=C&&C>y?C-y:void 0;return{modifie
+rs:h,hasImportantModifier:$,baseClassName:P,maybePostfixModifierPosition:A}};return s?g=>s({className:g,parseClassName:m}):m},gg=l=>{if(l.length<=1)return l;con
+st i=[];let s=[];return l.forEach(u=>{u[0]==="["?(i.push(...s.sort(),u),s=[]):s.push(u)}),i.push(...s.sort()),i},vg=l=>({cache:hg(l.cacheSize),parseClassName:mg
+(l),...ug(l)}),yg=/\s+/,xg=(l,i)=>{const{parseClassName:s,getClassGroupId:u,getConflictingClassGroupIds:c}=i,d=[],m=l.trim().split(yg);let g="";for(let h=m.leng
+th-1;h>=0;h-=1){const x=m[h],{modifiers:y,hasImportantModifier:C,baseClassName:w,maybePostfixModifierPosition:$}=s(x);let P=!!$,A=u(P?w.substring(0,$):w);if(!A)
+{if(!P){g=x+(g.length>0?" "+g:g);continue}if(A=u(w),!A){g=x+(g.length>0?" "+g:g);continue}P=!1}const R=gg(y).join(":"),G=C?R+ff:R,Q=G+A;if(d.includes(Q))continu
+e;d.push(Q);const Y=c(A,P);for(let Z=0;Z<Y.length;++Z){const ue=Y[Z];d.push(G+ue)}g=x+(g.length>0?" "+g:g)}return g};function kg(){let l=0,i,s,u="";for(;l<argum
+ents.length;)(i=arguments[l++])&&(s=pf(i))&&(u&&(u+=" "),u+=s);return u}const pf=l=>{if(typeof l=="string")return l;let i,s="";for(let u=0;u<l.length;u++)l[u]&&
+(i=pf(l[u]))&&(s&&(s+=" "),s+=i);return s};function wg(l,...i){let s,u,c,d=m;function m(h){const x=i.reduce((y,C)=>C(y),l());return s=vg(x),u=s.cache.get,c=s.ca
+che.set,d=g,g(h)}function g(h){const
+[... output limited to 10000 bytes; 72 interior bytes omitted ...]
+,MAAM,GAAG,IAAI,CAAC;CAC5B;AAYD,MAAM,WAAW
+,YAAY;IAC3B,EAAE,EAAE,MAAM,CAAC;IACX,SAAS,EAAE,MAAM,CAAC;IAClB,UAAU,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IAC3B,OAAO,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IACxB,WAAW,CAAC,EAAE,
+MAAM,GAAG,IAAI,CAAC;IAC5B,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IACvB,SAAS,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;CAC3B;AAED,oFAAoF;AACpF,wBAAsB,aAAa,CAAC,EAAE,EAAE,SAAS,EA
+AE,KAAK,EAAE,YAAY,GAAG,OAAO,CAAC,IAAI,CAAC,CAerF;AAED,wBAAsB,YAAY,CAAC,EAAE,EAAE,SAAS,EAAE,EAAE,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAE3E;AAcD,wBAAsB,UAAU,CAAC,E
+AAE,EAAE,SAAS,EAAE,EAAE,EAAE,MAAM,GAAG,OAAO,CAAC,eAAe,GAAG,IAAI,CAAC,CAG3F;AAED,wBAAsB,YAAY,CAAC,EAAE,EAAE,SAAS,EAAE,KAAK,SAAM,GAAG,OAAO,CAAC,eAAe,EAAE,CAAC,CAK
+zF"}
+packages/persistence/dist/repositories/sessions.d.ts:25://# sourceMappingURL=sessions.d.ts.map
+77729b58f5eb:/app# sed -n '120,225p' packages/control-plane/src/server.ts
+  app.post("/admin/api/logout", async (_req, reply) => {
+    reply.clearCookie("ssai_admin", { path: "/" });
+    return { ok: true };
+  });
+
+  app.get("/health", async () => ({ status: "ok", plane: "control" }));
+
+  // ── Sessions (PRD §11, §12) ──────────────────────────────────────────────
+  app.post("/v1/sessions", async (req, reply) => {
+    const body = (req.body ?? {}) as { channel_id?: string; device_type?: string; country?: string };
+    if (!body.channel_id) return reply.code(400).send({ error: "channel_id is required" });
+
+    const sessionId = `sess_${randomUUID()}`;
+    await sessionsRepo.ensureSession(pool, {
+      id: sessionId,
+      channelId: body.channel_id,
+      deviceType: body.device_type ?? "web",
+      country: body.country ?? null,
+    });
+    await eventsRepo.appendEvent(pool, {
+      eventId: randomUUID(),
+      eventType: "session_created",
+      sessionId,
+      channelId: body.channel_id,
+    });
+
+    // Signed playback token (PRD §57): the data plane verifies it before serving.
+    const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+    return {
+      session_id: sessionId,
+      channel_id: body.channel_id,
+      playback_token: token,
+      playback_url: `${dataPlaneUrl}/v1/hls/${token}/${body.channel_id}/master.m3u8`,
+    };
+  });
+
+  app.get("/v1/sessions/:id", async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const session = await sessionsRepo.getSession(pool, id);
+    return session ?? reply.code(404).send({ error: "not_found" });
+  });
+
+  // ── Ad Decision (PRD §15, §16, §35) ──────────────────────────────────────
+  app.post("/v1/ad-decision", async (req, reply) => {
+    const body = (req.body ?? {}) as {
+      session_id?: string;
+      channel_id?: string;
+      opportunity_id?: string;
+      external_break_id?: string;
+      duration?: number;
+      seed?: string;
+    };
+    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+    }
+
+    const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+    const now = new Date().toISOString();
+    const opportunity: AdOpportunity = {
+      opportunityId: body.opportunity_id,
+      channelId: body.channel_id,
+      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+      breakStart: now,
+      breakDuration: body.duration,
+      source: "cue_out",
+      signalType: "cue_out",
+    };
+    const session: SessionContext = { sessionId, channelId: body.channel_id };
+
+    // Inventory from Postgres.
+    const [creatives, campaignMap] = await Promise.all([
+      creativesRepo.listCreatives(pool),
+      campaignsRepo.campaignsAsMap(pool),
+    ]);
+
+    const seed = body.seed ?? process.env.AD_DECISION_SEED;
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns: campaignMap,
+      now,
+      ...(seed ? { seed } : {}),
+    });
+
+    const decisionId = `dec_${randomUUID()}`;
+    const podId = `pod_${randomUUID()}`;
+
+    // Persist opportunity + session + decision atomically (PRD §46, §47).
+    await withTransaction(pool, async (tx) => {
+      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+      await oppsRepo.upsertOpportunity(tx, opportunity);
+      await decisionsRepo.saveDecision(tx, {
+        decisionId,
+        podId,
+        decision,
+        requestedAt: now,
+        completedAt: new Date().toISOString(),
+      });
+      for (const [type, extra] of [
+        ["ad_opportunity_detected", {}],
+        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+      ] as const) {
+        await eventsRepo.appendEvent(tx, {
+          eventId: randomUUID(),
+77729b58f5eb:/app#

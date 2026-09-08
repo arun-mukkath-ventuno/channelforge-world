@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Look at `deriveEventId`: \n```ts\n  const isAdLifecycle = eventType.startsWith(\"ad_\") && eventType !== \"ad_error\";\n  if (isAdLifecycle && raw.session_id) {\n    const basis = [raw.session_id, raw.pod_id ?? \"\", raw.ad_id ?? \"\", eventType].join(\"|\");\n    return `evt_${createHash(\"sha1\").update(basis).digest(\"hex\").slice(0, 24)}`;\n  }\n```\nWait, if the *same creative* plays again later in the same session, it might be in a *different* pod (or same pod_id / ad_id if pod_id/ad_id aren't unique per break/airing, or if pod_id and ad_id are reused or empty!). Let's search in our own app source (`/app/src/lib`) to see how telemetry events are sent and what fields (`pod_id`, `ad_id`, `opportunity_id`, etc.) are populated when sending ad events.",
+  "plan": "Search for telemetry or ad event sending logic in `/app/src/lib` using grep or find.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn \"pod_id\" src/lib/ || grep -rn \"ad_id\" src/lib/\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

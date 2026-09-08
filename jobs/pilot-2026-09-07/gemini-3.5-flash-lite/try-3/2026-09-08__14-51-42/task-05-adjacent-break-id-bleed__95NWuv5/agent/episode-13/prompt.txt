@@ -1,0 +1,50 @@
+New Terminal Output:
+
+4a72389f16f4:/app# python3 -c '
+> with open("packages/data-plane/src/avails.test.ts", "a") as f:
+>     f.write("""
+> describe(\"back-to-back ad breaks\", () => {
+>   it(\"does not leak first break's externalBreakId onto second break when there is zero gap\", () => {
+bash: syntax error near unexpected token `('
+4a72389f16f4:/app#     const m = manifest([
+bash: syntax error near unexpected token `('
+4a72389f16f4:/app#       \"#EXT-X-MEDIA-SEQUENCE:0\",
+bash: "#EXT-X-MEDIA-SEQUENCE:0",: command not found
+4a72389f16f4:/app#       \"#EXT-X-CUE-OUT:30\",
+bash: "#EXT-X-CUE-OUT:30",: command not found
+4a72389f16f4:/app#       '#EXT-X-DATERANGE:ID=\"BRK-1\",PLANNED-DURATION=30',
+bash: #EXT-X-DATERANGE:ID=\"BRK-1\",PLANNED-DURATION=30,: command not found
+4a72389f16f4:/app#       \"#EXTINF:6.000,\",
+bash: "#EXTINF:6.000,",: command not found
+4a72389f16f4:/app#       \"a.ts\",
+bash: "a.ts",: command not found
+4a72389f16f4:/app#       \"#EXT-X-CUE-IN\",
+bash: "#EXT-X-CUE-IN",: command not found
+4a72389f16f4:/app#       \"#EXT-X-CUE-OUT:15\",
+bash: "#EXT-X-CUE-OUT:15",: command not found
+4a72389f16f4:/app#       '#EXT-X-DATERANGE:ID=\"BRK-2\",PLANNED-DURATION=15',
+bash: #EXT-X-DATERANGE:ID=\"BRK-2\",PLANNED-DURATION=15,: command not found
+4a72389f16f4:/app#       \"#EXTINF:6.000,\",
+bash: "#EXTINF:6.000,",: command not found
+4a72389f16f4:/app#       \"b.ts\",
+bash: "b.ts",: command not found
+4a72389f16f4:/app#       \"#EXT-X-CUE-IN\",
+bash: "#EXT-X-CUE-IN",: command not found
+4a72389f16f4:/app#     ]);
+bash: syntax error near unexpected token `)'
+4a72389f16f4:/app#     const avails = detectAvails(m, \"ch\");
+bash: syntax error near unexpected token `('
+4a72389f16f4:/app#     expect(avails).toHaveLength(2);
+bash: syntax error near unexpected token `avails'
+4a72389f16f4:/app#     expect(avails[0]!.externalBreakId).toBe(\"BRK-1\");
+bash: !.externalBreakId: event not found
+4a72389f16f4:/app#     expect(avails[1]!.externalBreakId).toBe(\"BRK-2\");
+bash: !.externalBreakId: event not found
+4a72389f16f4:/app#   });
+bash: syntax error near unexpected token `}'
+4a72389f16f4:/app# });
+bash: syntax error near unexpected token `}'
+4a72389f16f4:/app# """)
+> '
+> npx vitest run packages/data-plane
+>

@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "The grep result earlier showed:\n- `packages/persistence/src/analytics.ts:63: \"SELECT channel_id, created_at, last_activity_at FROM playback_sessions\"`\n- `packages/persistence/src/repositories/sessions.ts:39: INSERT INTO playback_sessions ...`\n- `packages/persistence/src/repositories/sessions.ts:55: UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1`\n- `packages/persistence/src/repositories/sessions.ts:71: SELECT * FROM playback_sessions WHERE id = $1`\n- `packages/persistence/src/repositories/sessions.ts:77: SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1`\n\nThat's literally all places interacting with `playback_sessions` in database queries!\nLet's check `packages/persistence/src/repositories/sessions.ts` again:\n```ts\nexport async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {\n  await db.query(\n    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)\n     VALUES ($1, $2, $3, $4, $5, $6, $7)\n     ON CONFLICT (id) DO UPDATE SET\n       channel_id = EXCLUDED.channel_id`,\n    [\n      input.id,\n      input.channelId,\n      input.deviceType ?? null,\n      input.country ?? null,\n      input.anonymousId ?? null,\n      input.ipHash ?? null,\n      input.userAgent ?? null,\n    ],\n  );\n}\n```\n\nLet's write a unit test in `packages/persistence/src/repositories.test.ts` (or a new test case) specifically testing that when `ensureSession` is called with a new `channelId` for an existing session ID, the session's recorded `channelId` updates to the new channel ID.",
+  "plan": "Add a test for session channel update on `ensureSession` in `packages/persistence/src/repositories.test.ts`, update `packages/persistence/src/repositories/sessions.ts`, and run tests.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' >> packages/persistence/src/repositories.test.ts\n\ndescribe(\"session channel switching\", () => {\n  it(\"updates session recorded channel when ensureSession is called with a new channel\", async () => {\n    await ensureSession(db, { id: \"sess_switch\", channelId: \"channel_food\" });\n    let sess = await getSession(db, \"sess_switch\");\n    expect(sess?.channelId).toBe(\"channel_food\");\n\n    await ensureSession(db, { id: \"sess_switch\", channelId: \"channel_yoga\" });\n    sess = await getSession(db, \"sess_switch\");\n    expect(sess?.channelId).toBe(\"channel_yoga\");\n  });\n});\nEOF\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

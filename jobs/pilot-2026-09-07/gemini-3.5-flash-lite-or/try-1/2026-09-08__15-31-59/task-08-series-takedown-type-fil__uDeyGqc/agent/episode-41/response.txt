@@ -1,0 +1,61 @@
+```json
+{
+  "analysis": "Look at `active_takedown_for_asset`:
+```python
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    \"\"\"An active takedown covering this asset, if any.\"\"\"
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+```
+Here, `scope_ids` contains `[asset.id]` and optionally `asset.series_id`. But `RightsTakedown.scope_type == "asset"` is hardcoded!
+When a takedown is scoped to a series, `RightsTakedown.scope_type` is `"series"`, and `RightsTakedown.scope_id` is the series ID (`asset.series_id`).
+Therefore, `active_takedown_for_asset` should match takedowns where either:
+1. `scope_type == "asset"` and `scope_id == asset.id` (or `scope_id.in_(scope_ids)` where scope_ids has asset.id)
+OR
+2. `scope_type == "series"` and `scope_id == asset.series_id` (if `asset.series_id` is not None).
+
+Alternatively, we can query `RightsTakedown` where:
+- `organization_id == org_id`
+- `status == "active"`
+- `(scope_type == "asset" AND scope_id == asset.id)` OR `(scope_type == "series" AND scope_id == asset.series_id)` (if `asset.series_id` is not None).
+
+Or using `or_` / `tuple_` or a combination of conditions:
+```python
+    conditions = [
+        (RightsTakedown.scope_type == "asset") & (RightsTakedown.scope_id == asset.id)
+    ]
+    if asset.series_id is not None:
+        conditions.append(
+            (RightsTakedown.scope_type == "series") & (RightsTakedown.scope_id == asset.series_id)
+        )
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            or_(*conditions),
+        )
+    )
+```
+Let's check if there are other places where takedowns or scopes are checked or queried. Let's search across the codebase for `scope_type` or `takedown`."
+  ,
+  "plan": "Search for other occurrences of `takedown` or `scope_type` in `app/` to ensure no other places have similar bugs.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn \"takedown\" app/\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

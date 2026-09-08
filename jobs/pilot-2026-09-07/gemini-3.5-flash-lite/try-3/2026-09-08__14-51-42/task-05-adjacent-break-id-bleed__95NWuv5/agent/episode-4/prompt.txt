@@ -1,0 +1,72 @@
+New Terminal Output:
+
+4a72389f16f4:/app# grep -rnwi "break" packages/*/src
+packages/admin-web/src/content/user-guide.md:4:ChannelForge produces, finds the ad breaks in them, decides which ads fill each break,
+packages/admin-web/src/content/user-guide.md:11:real ads at each break.
+packages/admin-web/src/content/user-guide.md:20:| **Ad opportunity (avail)** | A break in the channel signalled by an SCTE marker (`EXT-X-CUE-OUT` … `CUE-IN`).
+Each avail has a duration to fill. |
+packages/admin-web/src/content/user-guide.md:23:| **Ad decision** | For a given break, the set of eligible creatives and the ones selected — deterministic given
+ the same seed and inventory. |
+packages/admin-web/src/content/user-guide.md:24:| **Pod** | The ordered list of items that fills a break: ad segments plus slate. A pod always sums to the full
+break duration. |
+packages/admin-web/src/content/user-guide.md:25:| **Slate** | Fallback media ("We'll be right back") that fills any break time not covered by ads, so the break
+is always complete. |
+packages/admin-web/src/content/user-guide.md:26:| **Session** | One viewer's playback. It gets a signed playback URL; the ad decision is made once per break per
+ session and cached. |
+packages/admin-web/src/content/user-guide.md:27:| **Fill rate** | How much of the available break time was filled with advertising vs. slate. |
+packages/admin-web/src/content/user-guide.md:62:Once creatives are `ready`, any viewer session on the channel plays real ads at each break.
+packages/admin-web/src/content/user-guide.md:75:For every break, the decision is made **once per session** and cached, so the manifest hot
+packages/admin-web/src/content/user-guide.md:77:creative, the decision service down — the break falls back to slate. **Playback always
+packages/admin-web/src/content/user-guide.md:86:sequence, so the same break is identified consistently across every viewer.
+packages/admin-web/src/content/user-guide.md:118:- **Fill** — duration fill rate (ad seconds ÷ available break seconds), slate rate, and the
+packages/admin-web/src/content/user-guide.md:135:**Why is a break showing all slate even though I have creatives?**
+packages/admin-web/src/content/user-guide.md:138:break. Open **Debug** for that session — the rejected list names the exact reason for each
+packages/admin-web/src/content/user-guide.md:147:**Why did a 60-second break only get 45 seconds of ads?**
+packages/admin-web/src/content/user-guide.md:149:eligible creatives only sum to 45 seconds, the last 15 seconds are slate — the break is
+packages/admin-web/src/content/user-guide.md:156:**Does an advertising failure ever break playback?**
+packages/admin-web/src/content/user-guide.md:157:No. If the decision service is down, no ads are eligible, or a creative is missing, the break
+packages/admin-web/src/content/user-guide.md:168:what fills each break and stitches it in.
+packages/admin-web/src/pages/DebugPage.tsx:74:                  Ad decision — {row.opportunityId} · {row.decision.breakDuration}s break
+packages/control-plane/src/vast.ts:7:// input yields `{ ads: [], errors: [...] }` so a bad tag degrades to slate, never crashes a break.
+packages/control-plane/src/vast-fetch.ts:4:// (→ the break slates) with a captured error, never crashing the decision.
+packages/control-plane/src/server.ts:280:  // Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/control-plane/src/server.ts:282:  // producer's external_break_id so ChannelForge can attach delivery to its planned break (§17).
+packages/control-plane/src/server.test.ts:187:describe("per-break reconciliation (ChannelForge telemetry blueprint)", () => {
+packages/control-plane/src/server.test.ts:188:  it("records external_break_id from an ad-decision and lists it per break", async () => {
+packages/core/src/scte.ts:16:  /** Break duration in seconds, when the marker carries one. */
+packages/core/src/eligibility.test.ts:79:  it("rejects a creative longer than the whole break", () => {
+packages/core/src/pod.ts:8://   - The break is ALWAYS fulfilled to its full duration: any remaining time is
+packages/core/src/types.ts:5:/** A detected ad-break opportunity (PRD §10, §45). */
+packages/core/src/types.ts:9:  /** The producer's stable break id (ChannelForge's break_id, from the DATERANGE ID), when the
+packages/core/src/types.ts:10:   *  origin carried one. Lets reconciliation key a delivery back to the exact planned break. */
+packages/core/src/types.ts:12:  /** ISO-8601 timestamp of the break start. */
+packages/core/src/types.ts:14:  /** Intended break duration in seconds. */
+packages/core/src/types.ts:70:  /** Seconds from break start where this item begins. */
+packages/core/src/eligibility.ts:8:  /** Total break duration in seconds. */
+packages/core/src/eligibility.ts:25: * AND start_date <= now <= end_date AND duration fits the remaining break.
+packages/core/src/eligibility.ts:27: * Here we gate on the *full* break duration (a creative longer than the whole
+packages/core/src/eligibility.ts:28: * break can never fit); packing against remaining avail happens in the pod
+packages/core/src/pod.test.ts:11:describe("buildPod — the break is always fully filled (PRD §18-21, §59)", () => {
+packages/core/src/pod.test.ts:25:    // Contiguous offsets across the break.
+packages/core/src/pod.test.ts:61:  it("always sums pod durations to the break duration", () => {
+packages/core/src/rng.ts:43:      break;
+packages/core/src/rng.ts:51:        break;
+packages/data-plane/src/avails.ts:7:// given break without coordinating, so the cached pod is found on the hot path.
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:16:   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+packages/data-plane/src/avails.ts:19:  /** Break duration: the marker's declared duration, or the summed segment time. */
+packages/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/src/avails.test.ts:108:  it("does not leak one break's id onto a later break that has none", () => {
+packages/persistence/src/reconciliation.test.ts:74:describe("getBreakDeliveries — per-break reconciliation detail", () => {
+packages/persistence/src/reconciliation.test.ts:75:  it("keys a filled break by its externalBreakId with ad seconds + impressions", async () => {
+packages/persistence/src/reconciliation.test.ts:108:  it("reports an unfilled break (no decision) as filled=false", async () => {
+packages/persistence/src/reconciliation.test.ts:115:  it("aggregates ad seconds + impressions across multiple viewer sessions of one break", async () => {
+packages/persistence/src/analytics.test.ts:41:// A partially-filled break: 30s ad + 30s slate.
+packages/persistence/src/analytics.test.ts:86:    // One break, partially filled → opportunity fill rate 1.0 (it contained ≥1 ad).
+packages/persistence/src/reconciliation.ts:1:// Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/persistence/src/reconciliation.ts:3:// The global /v1/analytics aggregate can't tell ChannelForge whether a *specific* planned break was
+packages/persistence/src/reconciliation.ts:4:// filled. This assembles one row per ad opportunity — keyed by the producer's own break id
+packages/persistence/src/reconciliation.ts:21:  /** True when any delivered pod for this break contained ads. */
+packages/persistence/src/pod-cache.ts:29:/** Default pod TTL: long enough to outlast a break, short enough to self-clean. */
+packages/persistence/src/repositories/opportunities.ts:14:       -- keep a previously-captured break id if a later decision omits it (COALESCE new-first).
+4a72389f16f4:/app#

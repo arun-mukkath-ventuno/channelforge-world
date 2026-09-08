@@ -1,0 +1,55 @@
+{
+  "analysis": "Look closely at `detectAvails` in `packages/data-plane/src/avails.ts`:\n\n```ts
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+```
+
+Wait! When back-to-back ad breaks happen: one break ending at the exact instant the next one begins, with no regular programming in between.
+That means a `CUE-IN` happens at the exact same line/instant as a `CUE-OUT` (or right after, with zero gap/segments between `CUE-IN` and `CUE-OUT`).
+Wait, let's see how back-to-back avails are formatted in HLS or how `detectAvails` handles `cue_in` and `cue_out`.
+When `marker?.kind === "cue_in" && open`, it closes the open avail (`open = null;`). But wait! If the line also has a `cue_out` or if the next line/same block has a `cue_out`, what happens to `open` or `blockBreakId`?
+Wait, if `cue_in` closes `open`, does it reset `blockBreakId`? Or if `cue_out` happens immediately, what happens to `blockBreakId`?
+Let's read `packages/persistence/src/repositories/opportunities.ts` as well to see how opportunities/break IDs are stored or updated.",
+  "plan": "Inspect packages/persistence/src/repositories/opportunities.ts",
+  "commands": [
+    {
+      "keystrokes": "cat packages/persistence/src/repositories/opportunities.ts\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

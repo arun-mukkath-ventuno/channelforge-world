@@ -1,0 +1,252 @@
+```json
+{
+  "analysis": "This is so clear! Let's re-read the bug report again and understand why the *same session* (if it had already been decided an ad for this exact break earlier before reconnecting) still doesn't get it back when re-entering the break mid-break:\n\n\"And it isn't only new viewers either: the *same* session, if it had already been decided an ad for this exact break earlier (before reconnecting), still doesn't get it back — it re-enters the break and gets nothing for whatever's left of it.\"\n\nWhy does a session that already had an ad decided earlier (under `opp_channel_sequenceX`) not find it when reconnecting mid-break (where the manifest starts at `sequenceY`)?\nBecause the opportunity ID is `opp_${channelId}_${startSequence}`. When the session tuned in continuously from the start of the break, `startSequence` was $X$ (e.g. 100), so the opportunity ID was `opp_channel_100`, and the pod was cached under `pod:<sessionId>:opp_channel_100`. \nWhen the session reconnects mid-break at sequence 105, if `detectAvails` generates `opportunityId = opp_channel_105`, it queries `podCache` for `opp_channel_105` — which is a cache miss! \nAnd then what happens on a cache miss? It calls `decider.decide()` for `opp_channel_105`. But wait, why does it \"still doesn't get it back — it re-enters the break and gets nothing for whatever's left of it\"? \nWait, does `decider.decide()` or the control plane or `podCache` or `detectAvails` fail, or wait — why would it get nothing? \nWait, if `detectAvails` previously detected **0 avails** when CUE-OUT was missing, it didn't even call `decider` or `podCache` at all! It returned 0 avails, so the viewer got the channel's default content (slate / origin content) for that stretch — **nothing** (no ad played during that part of the break)!\nAnd what about the part: \"the *same* session, if it had already been decided an ad for this exact break earlier (before reconnecting), still doesn't get it back — it re-enters the break and gets nothing for whatever's left of it\"? \nBecause even though an ad was decided for that break earlier, because the manifest request now misses the avail (or because `detectAvails` finds no avail), it gets nothing! \nWait, or what if `opportunityId` is determined by `externalBreakId` if available? \nLet's check: if an avail has an `externalBreakId` (e.g., `BRK-a11e5310-0003`), or if we can use `externalBreakId` as part of the `opportunityId` (or if `externalBreakId` is present), what should `opportunityId` be?\nWait, if a break has an `externalBreakId` (like `BRK-a11e5310-0003`), is `externalBreakId` identical whether the viewer tunes in at the start of the break (seeing CUE-OUT and DATERANGE) or mid-break (seeing DATERANGE and CUE-IN)?\nYES! The `externalBreakId` (from `#EXT-X-DATERANGE:ID="..."`) is the producer's stable break ID emitted by ChannelForge for the break, and it remains the exact same string (`BRK-...`) across every manifest refresh throughout the entire break!\n\nLet's check if `externalBreakId` is present during an ongoing break or near `CUE-IN` or via DATERANGE tags in the manifest.\nIf `externalBreakId` (i.e. `open.externalBreakId`) is present on an avail, what if `opportunityId` uses `externalBreakId` when available?\nLet's check how `opportunityId` is constructed in `detectAvails` (`packages/data-plane/src/avails.ts`):\n```ts\nopportunityId: open.externalBreakId ? `opp_${channelId}_${open.externalBreakId}` : `opp_${channelId}_${open.startSequence}`,\n```\nWait! Let's check what `opportunityId` would be if it uses `externalBreakId` when present:\n- If a break has an `externalBreakId` (e.g. `BRK-xyz`), its `opportunityId` becomes `opp_${channelId}_BRK-xyz`. \n- Whether the session tunes in at the start of the break (seeing CUE-OUT + DATERANGE) or mid-break (seeing DATERANGE + CUE-IN), `externalBreakId` is parsed from the DATERANGE tag and attached to the avail (`open.externalBreakId`). \n- Therefore, both the initial request and the reconnect mid-break generate the **exact same** `opportunityId` (`opp_${channelId}_BRK-xyz`)!\n- Thus, when the session reconnects mid-break, `podCache.get(session, avail.opportunityId)` will **hit** the cache using `opp_${channelId}_BRK-xyz` and retrieve the exact same pod that was decided earlier!\n- And what if it didn't have an external break id (or if externalBreakId is undefined)? Then it falls back to `opp_${channelId}_${open.startSequence}` (or similar). But wait, for ChannelForge (which emits `externalBreakId` via DATERANGE ID), every scheduled break has an `externalBreakId`!\n\nThat is an absolute stroke of genius! Let's re-read the bug report to verify every single word of this:\n- \"A partner reports that some viewer sessions never see any ad play during part of an ad break — they just get the channel's own default content for that stretch instead — even though the break was scheduled and ad-filled correctly, and other, continuously-connected viewers on the very same channel saw a normal ad-stitched break at the same time.\"\n- \"They've isolated the trigger: it only affects a session whose *first* manifest request for a given break lands after the break has already been playing for a while — a fresh tune-in, a reconnect after a network blip, or just a client that was slow to start polling. Anything that was already polling before the break started is unaffected, all the way through the same break.\"\n- \"It isn't about ad availability, eligibility, or a bad decision — a session that's affected by this never even shows up as having tried. And it isn't only new viewers either: the *same* session, if it had already been decided an ad for this exact break earlier (before reconnecting), still doesn't get it back — it re-enters the break and gets nothing for whatever's left of it.\"\n\nLet's check both pieces needed to fully solve this bug:\n1. **Detecting the avail when tuning in mid-break**: \n   If an ad break is already in progress when the manifest window starts (meaning there is no CUE-OUT in the manifest, but there are ad segments leading up to a CUE-IN), `detectAvails` needs to detect that avail (by opening an avail when `CUE-IN` is encountered and `open` is null, provided there are measured segments before it).\n2. **Stable Opportunity ID**: \n   If the avail has an `externalBreakId` (from DATERANGE ID), use `opp_${channelId}_${open.externalBreakId}` as the `opportunityId` (or ensure `opportunityId` uses `externalBreakId` when present so reconnecting/re-entering sessions map to the same `opportunityId` and hit `podCache`). Wait, what if there is no `externalBreakId`? Then `opp_${channelId}_${open.startSequence}`.\n   Wait, let's check existing tests for `detectAvails` to see if changing `opportunityId` when `externalBreakId` is present affects any existing tests or if existing tests expect `opp_${channelId}_${open.startSequence}`.\n   Let's check `packages/data-plane/src/avails.test.ts`:\n   In `avails.test.ts`, tests like:\n   - `derives a deterministic opportunity id from channel + media sequence` -> has no DATERANGE ID, so `externalBreakId` is undefined. It produces `opp_channel_food_102`. That will be unchanged!\n   - What about tests with DATERANGE ID (`externalBreakId`)? Let's check if any test checks `opportunityId` when `externalBreakId` is present.\n   Let's check `avails.test.ts` for `externalBreakId` tests:\n   ```ts\n  it(\"captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)\", () => {\n    const m = manifest([\n      \"#EXT-X-MEDIA-SEQUENCE:200\",\n      \"#EXTINF:6.000,\",\n      \"s200.ts\",\n      \"#EXT-X-CUE-OUT:90\",\n      '#EXT-X-DATERANGE:ID=\"BRK-a11e5310-0003\",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',\n      \"#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z\",\n      \"#EXTINF:6.000,\",\n      \"slate.ts\",\n      \"#EXT-X-CUE-IN\",\n    ]);\n    const avails = detectAvails(m, \"channel_yoga\");\n    expect(avails).toHaveLength(1);\n    expect(avails[0]!.externalBreakId).toBe(\"BRK-a11e5310-0003\");\n  });\n   ```\n   None of the existing `externalBreakId` tests assert `opportunityId` explicitly (they only assert `externalBreakId`). But wait, would changing `opportunityId` to use `externalBreakId` when present break anything else in persistence or reconciliation or control plane?\n   Let's check `packages/persistence/src/reconciliation.test.ts` or other tests where `opportunityId` and `externalBreakId` are both used. \n   In `reconciliation.test.ts`: `opportunityId: "opp_channel_yoga_202", externalBreakId: "BRK-a11e5310-0003"` — they are independent fields stored in the DB table `ad_opportunities` (`opportunity_id` and `external_break_id`). \n   Wait, does `opportunityId` need to incorporate `externalBreakId`, or can `opportunityId` remain `opp_${channelId}_${open.startSequence}` while `externalBreakId` is used, OR should `opportunityId` be stable? \n   Wait! If a session tunes in mid-break, what is `open.startSequence`? \n   If the manifest window starts at sequence 105, `open.startSequence` is 105. But if the session tuned in earlier, `startSequence` was 100. \n   If `opportunityId` is `opp_${channelId}_${open.startSequence}`, then tuning in at 105 gives `opp_channel_105`, whereas tuning in at 100 gave `opp_channel_100`. \n   If we use `open.externalBreakId ? \`opp_${channelId}_${open.externalBreakId}\` : \`opp_${channelId}_${open.startSequence}\`` (or similar), then both tune-ins (start vs mid-break) get the exact same `opportunityId` (`opp_channel_BRK-a11e5310-0003`)! \n   Wait, what if `externalBreakId` is not present? Then `opp_${channelId}_${open.startSequence}`. But for ChannelForge channels (which are what ChannelForge linear channels use, as mentioned in package.json: \"server-side ad insertion for ChannelForge linear HLS channels\"), every break has an external break ID (`ID="..."` in DATERANGE). \n   Wait, let's check if `opportunityId` using `externalBreakId` when present is correct or if there's any other way. \n   Let's check what `detectAvails` does when `CUE-IN` is encountered without `open` being set (mid-break join).
+
+Let's trace `detectAvails` implementation in `packages/data-plane/src/avails.ts`:
+```ts
+export function detectAvails(manifest: string, channelId: string): Avail[] {
+  const lines = manifest.split("\n");
+
+  let mediaSequence = 0;
+  let lastPdt: string | undefined;
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+    measuredDuration: number;
+    pdt?: string;
+    externalBreakId?: string;
+  } | null = null;
+
+  let currentRunStartSequence = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    if (seqMatch) {
+      mediaSequence = Number(seqMatch[1]);
+      if (!open) currentRunStartSequence = mediaSequence;
+      continue;
+    }
+
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    if (pdtMatch) {
+      lastPdt = pdtMatch[1]!.trim();
+      continue;
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in") {
+      if (!open && measuredDuration > 0) { // wait, let's track measuredDuration or check if there are segments
+...
+```
+Wait, let's trace `measuredDuration` and segment counting in `detectAvails`:
+Currently:
+```ts
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+      mediaSequence += 1;
+      blockBreakId = undefined;
+    }
+```
+If we want to also accumulate `measuredDuration` when `open` is null (for mid-break joins leading up to a CUE-IN):
+We can have a `midBreakDuration = 0;` and `midBreakStartSequence = currentRunStartSequence;` and `midBreakExternalId: string | undefined = blockBreakId;` (or track `blockBreakId` encountered during the mid-break run).
+When `marker?.kind === "cue_in"`:
+- If `open`:
+  Push avail using `open`. `open = null`.
+- Else (if `open` is null, i.e., mid-break join):
+  If `measuredDuration` (or accumulated mid-break duration / segments) > 0:
+  Push an avail with:
+  - `opportunityId`: `externalBreakId ? \`opp_${channelId}_${externalBreakId}\` : \`opp_${channelId}_${startSequence}\`` (or `opp_${channelId}_${startSequence}` — wait, let's check if `opportunityId` should use `externalBreakId` or `startSequence`).
+  Wait, let's check what `opportunityId` should be. If a session re-enters a break mid-break, did it have an opportunityId of `opp_${channelId}_${startSequence}` or `opp_${channelId}_${externalBreakId}`?
+  When the session tuned in at the start of the break, `open.startSequence` was the start sequence of the break (e.g. 100). When it reconnects mid-break, its manifest starts at 105. If `opportunityId` used `startSequence` of the manifest window (105), it would be `opp_channel_105`, which doesn't match `opp_channel_100`. But if `opportunityId` uses `externalBreakId` (if present, e.g. `BRK-a11e5310-0003`), then both 100 and 105 yield `opp_channel_BRK-a11e5310-0003`!
+  Wait, what if `externalBreakId` is not present on the avail? Then `opp_${channelId}_${startSequence}`. But wait, what if someone tunes in mid-break without CUE-OUT, but `externalBreakId` was captured from a DATERANGE tag in that manifest window? Then `externalBreakId` is available and provides the stable opportunity ID!
+  Wait, let's check what `opportunityId` generation logic `detectAvails` currently uses:
+  ```ts
+  opportunityId: open.externalBreakId ? `opp_${channelId}_${open.externalBreakId}` : `opp_${channelId}_${open.startSequence}`
+  ```
+  Wait, let's check if using `open.externalBreakId ? \`opp_${channelId}_${open.externalBreakId}\` : \`opp_${channelId}_${open.startSequence}\`` passes all existing tests.
+  Let's test this!
+
+Let's check what tests exist and run `npm test` after making our changes.
+First, let's review where application source files are located and ensure we only modify application source files (e.g., `packages/data-plane/src/avails.ts` or similar), adhering strictly to:
+\"Do not modify the test suite, CI configuration, or any files outside this service's application source. Your fix should be minimal and targeted at the actual defect.\"\n\nLet's check `packages/data-plane/src/avails.ts`.
+
+Let's check if we can write a test in our own reasoning or run existing tests to verify. Wait, we are not allowed to modify the test suite (`packages/data-plane/src/avails.test.ts`, etc.), but we can run `npm test` to run the test suite!
+
+Let's examine `packages/data-plane/src/avails.ts` again to be 100% precise about how to implement mid-break detection.
+```ts
+export function detectAvails(manifest: string, channelId: string): Avail[] {
+  const lines = manifest.split("\n");
+
+  let mediaSequence = 0;
+  let lastPdt: string | undefined;
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+    measuredDuration: number;
+    pdt?: string;
+    externalBreakId?: string;
+  } | null = null;
+
+  let windowStartSequence = 0;
+  let midBreakDuration = 0;
+  let midBreakExternalId: string | undefined;
+  let midBreakStartLine = 0;
+  let midBreakStartSequence = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const trimmed = line.trim();
+
+    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    if (seqMatch) {
+      mediaSequence = Number(seqMatch[1]);
+      if (!open && midBreakDuration === 0) {
+        windowStartSequence = mediaSequence;
+        midBreakStartSequence = mediaSequence;
+        midBreakStartLine = i;
+      }
+      continue;
+    }
+
+    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    if (pdtMatch) {
+      lastPdt = pdtMatch[1]!.trim();
+      continue;
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      if (!open && midBreakExternalId === undefined) midBreakExternalId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      // Reset midBreak state if a proper CUE-OUT is found
+      midBreakDuration = 0;
+      continue;
+    }
+    if (marker?.kind === "cue_in") {
+      if (open) {
+        const declared = open.declaredDuration;
+        const extId = open.externalBreakId;
+        const startSeq = open.startSequence;
+        avails.push({
+          opportunityId: extId ? `opp_${channelId}_${extId}` : `opp_${channelId}_${startSeq}`,
+          channelId,
+          ...(extId === undefined ? {} : { externalBreakId: extId }),
+          duration: declared ?? open.measuredDuration,
+          ...(declared === undefined ? {} : { declaredDuration: declared }),
+          measuredDuration: open.measuredDuration,
+          startSequence: startSeq,
+          ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+          startLine: open.startLine,
+          endLine: i,
+        });
+        open = null;
+      } else if (midBreakDuration > 0) {
+        // Mid-break join: avail started before manifest window, ends with CUE-IN
+        const extId = midBreakExternalId;
+        const startSeq = midBreakStartSequence;
+        avails.push({
+          opportunityId: extId ? `opp_${channelId}_${extId}` : `opp_${channelId}_${startSeq}`,
+          channelId,
+          ...(extId === undefined ? {} : { externalBreakId: extId }),
+          duration: midBreakDuration,
+          measuredDuration: midBreakDuration,
+          startSequence: startSeq,
+          startLine: midBreakStartLine,
+          endLine: i,
+        });
+        midBreakDuration = 0;
+        midBreakExternalId = undefined;
+      }
+      continue;
+    }
+
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) {
+        open.measuredDuration += segDur;
+      } else {
+        if (midBreakDuration === 0) {
+          midBreakStartSequence = mediaSequence;
+          midBreakStartLine = i;
+        }
+        midBreakDuration += segDur;
+      }
+    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+      mediaSequence += 1;
+      blockBreakId = undefined;
+    }
+  }
+
+  return avails;
+}
+```
+
+Let's check if this logic handles:
+1. Normal avails (with CUE-OUT and CUE-IN): handled by `open`.
+2. Mid-break joins (no CUE-OUT in manifest, but segments leading up to CUE-IN): handled by `midBreakDuration > 0` when `cue_in` is encountered.
+3. Stable opportunity ID: uses `externalBreakId` if present (`opp_${channelId}_${extId}`), otherwise `opp_${channelId}_${startSeq}`.
+
+Let's apply this update to `packages/data-plane/src/avails.ts`, rebuild, and run the test suite to verify everything compiles and passes successfully!
+
+Let's write a node script or use EOF / cat to update `packages/data-plane/src/avails.ts`.
+First, let's check what package needs restarting when we make our change:
+The task description says: \"When you believe the fix is correct, restart whichever service needs it so the running system reflects your change.\"
+Since the data plane (`packages/data-plane`) processes manifest requests and avails, restarting (or rebuilding) the data plane service is required.
+
+Let's update `packages/data-plane/src/avails.ts`.```json
+{
+  "analysis": "Let's update `packages/data-plane/src/avails.ts` with our robust support for mid-break joins (leading avails where CUE-OUT is outside the sliding window) and stable opportunity IDs using externalBreakId when available.",
+  "plan": "Write the updated content to `packages/data-plane/src/avails.ts`, run `npm run build`, and run `npm test`.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' > packages/data-plane/src/avails.ts\n// Avail detection over an origin media playlist (PRD §9, §22, §41).\n//\n// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a\n// *deterministic* opportunity id derived from the channel + the media sequence\n// of the avail's first segment. Determinism matters: every viewer's data-plane\n// request and the decisioning path must agree on the same opportunity id for a\n// given break without coordinating, so the cached pod is found on the hot path.\n\nimport { parseMarkerLine } from \"@ssai/core\";\n\nexport interface Avail {\n  opportunityId: string;\n  channelId: string;\n  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge\n   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what\n   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,\n   *  by contrast, is a media-sequence-derived id independent of the producer). */\n  externalBreakId?: string;\n  /** Break duration: the marker's declared duration, or the summed segment time. */\n  duration: number;\n  /** Declared duration from the marker, if it carried a valid one. */\n  declaredDuration?: number;\n  /** Actual duration summed from the segments inside the avail. */\n  measuredDuration: number;\n  /** Media sequence number of the first segment inside the avail. */\n  startSequence: number;\n  programDateTime?: string;\n  /** Line index of the CUE-OUT marker. */\n  startLine: number;\n  /** Line index of the CUE-IN marker. */\n  endLine: number;\n}\n\nconst MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\\d+)/;\nconst EXTINF = /^#EXTINF:([\\d.]+)/;\nconst PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/\n\n/** Detect all complete avails in the manifest. Incomplete trailing avails (a\n *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */\nexport function detectAvails(manifest: string, channelId: string): Avail[] {\n  const lines = manifest.split(\"\\n\");\n\n  let mediaSequence = 0;\n  let lastPdt: string | undefined;\n  let blockBreakId: string | undefined;\n  const avails: Avail[] = [];\n\n  let open: {\n    startLine: number;\n    startSequence: number;\n    declaredDuration?: number;\n    measuredDuration: number;\n    pdt?: string;\n    externalBreakId?: string;\n  } | null = null;\n\n  let midBreakDuration = 0;\n  let midBreakExternalId: string | undefined;\n  let midBreakStartLine = 0;\n  let midBreakStartSequence = 0;\n\n  for (let i = 0; i < lines.length; i++) {\n    const line = lines[i]!;\n    const trimmed = line.trim();\n\n    const seqMatch = trimmed.match(MEDIA_SEQUENCE);\n    if (seqMatch) {\n      mediaSequence = Number(seqMatch[1]);\n      if (!open && midBreakDuration === 0) {\n        midBreakStartSequence = mediaSequence;\n        midBreakStartLine = i;\n      }\n      continue;\n    }\n\n    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);\n    if (pdtMatch) {\n      lastPdt = pdtMatch[1]!.trim();\n      continue;\n    }\n\n    const marker = parseMarkerLine(line, i);\n    if (marker?.kind === \"daterange\" && marker.id) {\n      blockBreakId = marker.id;\n      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;\n      if (!open && midBreakExternalId === undefined) midBreakExternalId = marker.id;\n      continue;\n    }\n    if (marker?.kind === \"cue_out\" && !open) {\n      open = {\n        startLine: i,\n        startSequence: mediaSequence,\n        measuredDuration: 0,\n        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),\n        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),\n        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),\n      };\n      midBreakDuration = 0;\n      continue;\n    }\n    if (marker?.kind === \"cue_in\") {\n      if (open) {\n        const declared = open.declaredDuration;\n        const extId = open.externalBreakId;\n        const startSeq = open.startSequence;\n        avails.push({\n          opportunityId: extId ? `opp_${channelId}_${extId}` : `opp_${channelId}_${startSeq}`,\n          channelId,\n          ...(extId === undefined ? {} : { externalBreakId: extId }),\n          duration: declared ?? open.measuredDuration,\n          ...(declared === undefined ? {} : { declaredDuration: declared }),\n          measuredDuration: open.measuredDuration,\n          startSequence: startSeq,\n          ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),\n          startLine: open.startLine,\n          endLine: i,\n        });\n        open = null;\n      } else if (midBreakDuration > 0) {\n        const extId = midBreakExternalId;\n        const startSeq = midBreakStartSequence;\n        avails.push({\n          opportunityId: extId ? `opp_${channelId}_${extId}` : `opp_${channelId}_${startSeq}`,\n          channelId,\n          ...(extId === undefined ? {} : { externalBreakId: extId }),\n          duration: midBreakDuration,\n          measuredDuration: midBreakDuration,\n          startSequence: startSeq,\n          startLine: midBreakStartLine,\n          endLine: i,\n        });\n        midBreakDuration = 0;\n        midBreakExternalId = undefined;\n      }\n      continue;\n    }\n\n    const infMatch = trimmed.match(EXTINF);\n    if (infMatch) {\n      const segDur = Number(infMatch[1]);\n      if (open) {\n        open.measuredDuration += segDur;\n      } else {\n        if (midBreakDuration === 0) {\n          midBreakStartSequence = mediaSequence;\n          midBreakStartLine = i;\n        }\n        midBreakDuration += segDur;\n      }\n    } else if (trimmed.length > 0 && !trimmed.startsWith(\"#\")) {\n      mediaSequence += 1;\n      blockBreakId = undefined;\n    }\n  }\n\n  return avails;\n}\nEOF\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

@@ -1,0 +1,11 @@
+{
+  "analysis": "Ah, quoting issue in python one-liner. Let's write a small python script or use python correctly.",
+  "plan": "Use a python script to restore `src/lib/ssai.test.ts`.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' > restore.py\nwith open('src/lib/ssai.test.ts', 'r') as f:\n    content = f.read()\nidx = content.find('describe(\"parseAdWindows with id\"')\nif idx != -1:\n    content = content[:idx]\nwith open('src/lib/ssai.test.ts', 'w') as f:\n    f.write(content.strip() + '\\n')\nprint('Restored ssai.test.ts')\nEOF\npython3 restore.py\nrm restore.py\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

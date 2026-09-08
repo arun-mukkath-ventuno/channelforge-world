@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Let's examine how the backend service or ingestion service derives event IDs, and how `sendAdBeacon` sends ad events. In `events-normalize.ts` (from reference): \n`const basis = [raw.session_id, raw.pod_id ?? '', raw.ad_id ?? '', eventType].join('|');` \n`return \`evt_\${createHash(\"sha1\").update(basis).digest(\"hex\").slice(0, 24)}\`;`\n\nWhen `sendAdBeacon` sends an ad beacon: \n`const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });` \nNotice that `pod_id` is NOT sent in `sendAdBeacon`! Because `pod_id` is missing (or undefined), two different airings of the *same* creative in the same session have the same `session_id`, empty/undefined `pod_id`, same `ad_id`, and same `eventType` (e.g. `ad_start`). Therefore, `deriveEventId` produces the exact same `eventId` for both airings! Because of `ON CONFLICT (event_id) DO NOTHING` in the database repository, the second airing's events are completely dropped / ignored by the ingestion service.\n\nTo fix this, we should include `pod_id` (or whatever uniquely identifies the ad break / airing window, or `opportunity_id`, or `start` / `w.start`) in the beacon payload sent to the SSAI ingestion endpoint! Let's check what fields the ingestion service (`/reference/ssaiadserver`) accepts and how `pod_id` or similar is used.",
+  "plan": "Check `events-normalize.ts` in reference again to see what fields `RawEvent` supports (`pod_id`, `opportunity_id`, etc.), and update `sendAdBeacon` and `startAdBeaconWatcher` in `src/lib/ssai.ts` to include `pod_id` or `opportunity_id` or `start` / unique window identifier in the beacon payload.",
+  "commands": [
+    {
+      "keystrokes": "cat /reference/ssaiadserver/control-plane/events-normalize.ts\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

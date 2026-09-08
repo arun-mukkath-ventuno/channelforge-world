@@ -1,0 +1,85 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@7da54ed4678f:/app# grep -rn "takedown" app/
+app/schemas/rights.py:87:    takedown: TakedownOut
+app/api/rights.py:25:from app.services import rights_admin, rights_takedown
+app/api/rights.py:73:# --- Emergency takedown (§8.3) ---
+app/api/rights.py:75:@router.get("/organizations/{org_id}/rights/takedowns")
+app/api/rights.py:76:def list_takedowns(
+app/api/rights.py:80:        TakedownOut.model_validate(t) for t in rights_repo.list_active_takedowns(db, org_id)
+app/api/rights.py:84:@router.get("/organizations/{org_id}/rights/takedowns/preview")
+app/api/rights.py:85:def preview_takedown(
+app/api/rights.py:92:    affected = rights_takedown.preview(
+app/api/rights.py:101:@router.post("/organizations/{org_id}/rights/takedowns", status_code=status.HTTP_201_CREATED)
+app/api/rights.py:102:def place_takedown(
+app/api/rights.py:109:    takedown, affected = rights_takedown.place_takedown(
+app/api/rights.py:114:        takedown=TakedownOut.model_validate(takedown),
+app/api/rights.py:122:@router.post("/organizations/{org_id}/rights/takedowns/{takedown_id}/lift")
+app/api/rights.py:123:def lift_takedown(
+app/api/rights.py:125:    takedown_id: uuid.UUID,
+app/api/rights.py:130:    takedown = rights_takedown.lift_takedown(
+app/api/rights.py:131:        db, org_id=org_id, actor_id=principal.user_id, takedown_id=takedown_id, meta=meta,
+app/api/rights.py:133:    return TakedownOut.model_validate(takedown)
+app/api/library.py:93:    # Composite eligibility = metadata + takedown + rights. With an agreement, rights are judged
+app/api/library.py:96:    # takedown blocks either way.
+app/models/enums.py:150:    RIGHTS_TAKEDOWN = "rights_takedown"
+app/models/rights.py:96:    """An emergency takedown on an asset or series (PRD 3.0 §8.3, ADR-5).
+app/models/rights.py:103:    __tablename__ = "rights_takedowns"
+app/services/webhooks.py:41:    "rights.conflict", "rights.takedown",
+app/services/rights_takedown.py:1:"""Emergency rights takedown (PRD 3.0 §8.3, ADR-5).
+app/services/rights_takedown.py:3:Placing a takedown is a non-destructive override: it blocks the target (asset or series) at every
+app/services/rights_takedown.py:68:def place_takedown(
+app/services/rights_takedown.py:81:        raise ServiceError("A takedown requires a reason.")
+app/services/rights_takedown.py:84:    takedown = rights_repo.create_takedown(
+app/services/rights_takedown.py:91:        db, org_id=org_id, alert_type="rights_takedown", severity="critical",
+app/services/rights_takedown.py:92:        message=f"Emergency takedown on {scope_type} {scope_id}: {reason}",
+app/services/rights_takedown.py:94:        dedup_key=f"rights_takedown:{takedown.id}",
+app/services/rights_takedown.py:97:        db, action="rights_takedown.place", actor_user_id=actor_id, organization_id=org_id,
+app/services/rights_takedown.py:98:        object_type="rights_takedown", object_id=str(takedown.id),
+app/services/rights_takedown.py:105:    return takedown, affected
+app/services/rights_takedown.py:108:def lift_takedown(
+app/services/rights_takedown.py:110:    takedown_id: uuid.UUID, meta: RequestMeta,
+app/services/rights_takedown.py:112:    takedown = rights_repo.get_takedown(db, org_id=org_id, takedown_id=takedown_id)
+app/services/rights_takedown.py:113:    if takedown is None:
+app/services/rights_takedown.py:115:    if takedown.status == "active":
+app/services/rights_takedown.py:116:        takedown.status = "lifted"
+app/services/rights_takedown.py:117:        takedown.lifted_at = now_utc()
+app/services/rights_takedown.py:118:        takedown.lifted_by = actor_id
+app/services/rights_takedown.py:120:            db, org_id=org_id, dedup_key=f"rights_takedown:{takedown.id}"
+app/services/rights_takedown.py:123:            db, action="rights_takedown.lift", actor_user_id=actor_id, organization_id=org_id,
+app/services/rights_takedown.py:124:            object_type="rights_takedown", object_id=str(takedown.id),
+app/services/rights_takedown.py:128:    return takedown
+app/services/schedules.py:697:    """Rights + takedown gate at publish (§8.2 validation/publication point, ADR-5).
+app/services/schedules.py:701:    takedowns. Territory/partner-specific rights are enforced per agreement at distributor
+app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+app/services/schedules.py:706:        return [f"'{event.title}': asset is under an active emergency takedown"]
+app/services/asset_eligibility.py:48:    # An active emergency takedown blocks the asset absolutely, before any policy check (§8.3).
+app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+app/services/asset_eligibility.py:50:    if takedown is not None:
+app/services/asset_eligibility.py:52:            code="rights_takedown", field="rights", severity="error",
+app/services/asset_eligibility.py:53:            message="Asset is under an active emergency takedown.",
+app/repositories/rights.py:131:def create_takedown(db: Session, **fields) -> RightsTakedown:
+app/repositories/rights.py:132:    takedown = RightsTakedown(**fields)
+app/repositories/rights.py:133:    db.add(takedown)
+app/repositories/rights.py:135:    return takedown
+app/repositories/rights.py:138:def get_takedown(
+app/repositories/rights.py:139:    db: Session, *, org_id: uuid.UUID, takedown_id: uuid.UUID
+app/repositories/rights.py:143:            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+app/repositories/rights.py:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py:161:def active_takedown_for_asset(
+app/repositories/rights.py:164:    """An active takedown covering this asset, if any."""
+app/repositories/rights.py.orig:131:def create_takedown(db: Session, **fields) -> RightsTakedown:
+app/repositories/rights.py.orig:132:    takedown = RightsTakedown(**fields)
+app/repositories/rights.py.orig:133:    db.add(takedown)
+app/repositories/rights.py.orig:135:    return takedown
+app/repositories/rights.py.orig:138:def get_takedown(
+app/repositories/rights.py.orig:139:    db: Session, *, org_id: uuid.UUID, takedown_id: uuid.UUID
+app/repositories/rights.py.orig:143:            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+app/repositories/rights.py.orig:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py.orig:161:def active_takedown_for_asset(
+app/repositories/rights.py.orig:164:    """An active takedown covering this asset directly or via its series, if any."""
+root@7da54ed4678f:/app#

@@ -1,0 +1,83 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+
+New Terminal Output:
+
+55fce30fd0f0:/app# grep -rn "producer" /app/packages --include=*.ts | grep -v node_modules | grep -v dist | head -40
+grep: unrecognized option: include=*.ts
+BusyBox v1.37.0 (2026-01-10 15:38:28 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+	-H	Add 'filename:' prefix
+	-h	Do not add 'filename:' prefix
+	-n	Add 'line_no:' prefix
+	-l	Show only names of files that match
+	-L	Show only names of files that don't match
+	-c	Show only count of matching lines
+	-o	Show only the matching part of line
+	-q	Quiet. Return 0 if PATTERN is found, 1 otherwise
+	-v	Select non-matching lines
+	-s	Suppress open and read errors
+	-r	Recurse
+	-R	Recurse and dereference symlinks
+	-i	Ignore case
+	-w	Match whole words only
+	-x	Match whole lines only
+	-F	PATTERN is a literal (not regexp)
+	-E	PATTERN is an extended regexp
+	-m N	Match up to N times per file
+	-A N	Print N lines of trailing context
+	-B N	Print N lines of leading context
+	-C N	Same as '-A N -B N'
+	-e PTRN	Pattern to match
+	-f FILE	Read pattern from file
+55fce30fd0f0:/app# grep -rn "cue\|marker\|break" /app/packages/data-plane/src/*.ts | head -60
+/app/packages/data-plane/src/avails.test.ts:41:  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+/app/packages/data-plane/src/avails.test.ts:108:  it("does not leak one break's id onto a later break that has none", () => {
+/app/packages/data-plane/src/avails.ts:7:// given break without coordinating, so the cached pod is found on the hot path.
+/app/packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+/app/packages/data-plane/src/avails.ts:15:   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+/app/packages/data-plane/src/avails.ts:16:   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+/app/packages/data-plane/src/avails.ts:19:  /** Break duration: the marker's declared duration, or the summed segment time. */
+/app/packages/data-plane/src/avails.ts:21:  /** Declared duration from the marker, if it carried a valid one. */
+/app/packages/data-plane/src/avails.ts:28:  /** Line index of the CUE-OUT marker. */
+/app/packages/data-plane/src/avails.ts:30:  /** Line index of the CUE-IN marker. */
+/app/packages/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+/app/packages/data-plane/src/avails.ts:77:    const marker = parseMarkerLine(line, i);
+/app/packages/data-plane/src/avails.ts:78:    if (marker?.kind === "daterange" && marker.id) {
+/app/packages/data-plane/src/avails.ts:79:      blockBreakId = marker.id;
+/app/packages/data-plane/src/avails.ts:81:      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+/app/packages/data-plane/src/avails.ts:84:    if (marker?.kind === "cue_out" && !open) {
+/app/packages/data-plane/src/avails.ts:89:        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+/app/packages/data-plane/src/avails.ts:96:    if (marker?.kind === "cue_in" && open) {
+/app/packages/data-plane/src/decider.ts:41:            : { external_break_id: avail.externalBreakId }),
+/app/packages/data-plane/src/stitch.ts:56:function renderPod(pod: RenderedPodItem[], emitMeta: boolean, breakStart?: string): string[] {
+/app/packages/data-plane/src/stitch.ts:62:      const start = breakStart
+/app/packages/data-plane/src/stitch.ts:63:        ? new Date(new Date(breakStart).getTime() + item.startOffset * 1000).toISOString()
+55fce30fd0f0:/app# grep -rn "producer\|break" /app/packages/control-plane/src/*.ts | head -60
+/app/packages/control-plane/src/server.test.ts:187:describe("per-break reconciliation (ChannelForge telemetry blueprint)", () => {
+/app/packages/control-plane/src/server.test.ts:188:  it("records external_break_id from an ad-decision and lists it per break", async () => {
+/app/packages/control-plane/src/server.test.ts:197:        external_break_id: "BRK-a11e5310-0003",
+/app/packages/control-plane/src/server.test.ts:203:    const res = await app.inject({ method: "GET", url: "/v1/reconciliation/breaks?channel=channel_yoga" });
+/app/packages/control-plane/src/server.test.ts:205:    const { breaks } = res.json() as { breaks: Array<{ opportunityId: string; externalBreakId: string | null
+}> };
+/app/packages/control-plane/src/server.test.ts:206:    expect(breaks).toHaveLength(1);
+/app/packages/control-plane/src/server.test.ts:207:    expect(breaks[0]).toMatchObject({
+/app/packages/control-plane/src/server.test.ts:214:  it("gates /v1/reconciliation/breaks behind the admin cookie", async () => {
+/app/packages/control-plane/src/server.test.ts:216:    expect((await authed.inject({ method: "GET", url: "/v1/reconciliation/breaks" })).statusCode).toBe(401);
+/app/packages/control-plane/src/server.ts:168:      external_break_id?: string;
+/app/packages/control-plane/src/server.ts:181:      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+/app/packages/control-plane/src/server.ts:182:      breakStart: now,
+/app/packages/control-plane/src/server.ts:183:      breakDuration: body.duration,
+/app/packages/control-plane/src/server.ts:241:      breakDuration: body.duration,
+/app/packages/control-plane/src/server.ts:280:  // Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+/app/packages/control-plane/src/server.ts:282:  // producer's external_break_id so ChannelForge can attach delivery to its planned break (§17).
+/app/packages/control-plane/src/server.ts:283:  app.get("/v1/reconciliation/breaks", async (req) => {
+/app/packages/control-plane/src/server.ts:285:    const breaks = await getBreakDeliveries(pool, {
+/app/packages/control-plane/src/server.ts:289:    return { breaks };
+/app/packages/control-plane/src/vast-fetch.ts:4:// (→ the break slates) with a captured error, never crashing the decision.
+/app/packages/control-plane/src/vast.ts:7:// input yields `{ ads: [], errors: [...] }` so a bad tag degrades to slate, never crashes a break.
+55fce30fd0f0:/app#

@@ -1,0 +1,11 @@
+{
+  "analysis": "Look at this line in `upsertOpportunity`: `external_break_id = COALESCE(EXCLUDED.external_break_id, ad_opportunities.external_break_id)`!\nWait! If a previous opportunity existed with ID `id` (wait, `id` is `opp.opportunityId`, which is `opp_${channelId}_${open.startSequence}`), wait, do back-to-back breaks share the same `opportunityId` or different ones?\nLet's check how `opportunityId` is generated: `opp_${channelId}_${open.startSequence}`. If there are back-to-back breaks, they start at different media sequences, so they have different `opportunityId`s.\nWait, why does `COALESCE(EXCLUDED.external_break_id, ad_opportunities.external_break_id)` keep a previously-captured break id if a later decision omits it? Wait, `ON CONFLICT (id)` is on `id` (the opportunityId). But wait, what about `detectAvails` in `packages/data-plane/src/avails.ts`?\nLet's check `detectAvails.test.ts` or `avails.test.ts` to see existing tests for avails.",
+  "plan": "Check packages/data-plane/src/avails.test.ts",
+  "commands": [
+    {
+      "keystrokes": "cat packages/data-plane/src/avails.test.ts\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

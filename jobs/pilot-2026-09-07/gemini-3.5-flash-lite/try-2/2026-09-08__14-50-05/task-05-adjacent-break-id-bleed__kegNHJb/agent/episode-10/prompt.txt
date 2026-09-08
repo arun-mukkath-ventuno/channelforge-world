@@ -1,0 +1,59 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+6ffc6e27cc99:/app# cat << 'EOF' > update.py
+> with open('packages/data-plane/src/avails.ts', 'r') as f:
+>     content = f.read()
+>
+> # Clear blockBreakId on cue_in
+> old_code = '''    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: `opp_${channelId}_${open.startSequence}`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       continue;
+>     }'''
+>
+> new_code = '''    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: `opp_${channelId}_${open.startSequence}`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       blockBreakId = undefined;
+>       continue;
+>     }'''
+>
+> assert old_code in content, "old_code not found"
+> content = content.replace(old_code, new_code)
+>
+> with open('packages/data-plane/src/avails.ts', 'w') as f:
+>     f.write(content)
+> print("Updated successfully")
+> EOF
+6ffc6e27cc99:/app# python3 update.py
+bash: python3: command not found
+6ffc6e27cc99:/app# rm update.py
+6ffc6e27cc99:/app#

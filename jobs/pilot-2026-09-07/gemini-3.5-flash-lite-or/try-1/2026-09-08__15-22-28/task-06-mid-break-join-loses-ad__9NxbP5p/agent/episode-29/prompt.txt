@@ -1,0 +1,60 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# grep -rn "FROM \|INTO \|UPDATE \|JOIN " packages/persistence/src/repositories/
+packages/persistence/src/repositories/opportunities.ts:8:    `INSERT INTO ad_opportunities (id, channel_id, external_break_id, program_id, start_time, duration,
+ marker_type, marker_payload, status)
+packages/persistence/src/repositories/opportunities.ts:10:     ON CONFLICT (id) DO UPDATE SET
+packages/persistence/src/repositories/channels.ts:34:    `INSERT INTO channels (id, name, origin_url, slate_id, status)
+packages/persistence/src/repositories/channels.ts:36:     ON CONFLICT (id) DO UPDATE SET
+packages/persistence/src/repositories/channels.ts:57:  const rows = (await db.query<ChannelRow>("SELECT * FROM channels ORDER BY id")).rows;
+packages/persistence/src/repositories/channels.ts:62:  const rows = (await db.query<ChannelRow>("SELECT * FROM channels WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/channels.ts:68:  await db.query("UPDATE channels SET vast_tag_url = $2 WHERE id = $1", [id, tagUrl]);
+packages/persistence/src/repositories/events.ts:26:    `INSERT INTO events
+packages/persistence/src/repositories/events.ts:59:      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+packages/persistence/src/repositories/slates.ts:36:    `INSERT INTO slates (id, scope, channel_id, hls_path, duration)
+packages/persistence/src/repositories/slates.ts:38:     ON CONFLICT (id) DO UPDATE SET
+packages/persistence/src/repositories/slates.ts:58:  const rows = (await db.query<SlateRow>("SELECT * FROM slates ORDER BY id")).rows;
+packages/persistence/src/repositories/creatives.ts:29:    `INSERT INTO creatives (id, campaign_id, name, duration, status, priority, weight)
+packages/persistence/src/repositories/creatives.ts:31:     ON CONFLICT (id) DO UPDATE SET
+packages/persistence/src/repositories/creatives.ts:55:  const rows = (await db.query<CreativeRow>("SELECT * FROM creatives")).rows;
+packages/persistence/src/repositories/creatives.ts:60:  const rows = (await db.query<CreativeRow>("SELECT * FROM creatives WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/creatives.ts:77:  const rows = (await db.query<PrepRow>("SELECT * FROM creatives WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/creatives.ts:84:  const rows = (await db.query<PrepRow>("SELECT * FROM creatives WHERE status = $1 ORDER BY created_at", [
+status])).rows;
+packages/persistence/src/repositories/creatives.ts:89:  await db.query("UPDATE creatives SET source_uri = $2 WHERE id = $1", [id, sourceUri]);
+packages/persistence/src/repositories/creatives.ts:94:  await db.query("UPDATE creatives SET tracking = $2 WHERE id = $1", [id, JSON.stringify(tracking)]);
+packages/persistence/src/repositories/creatives.ts:100:    "SELECT tracking FROM creatives WHERE id = $1", [id],
+packages/persistence/src/repositories/creatives.ts:113:  await db.query("UPDATE creatives SET status = $2, prep_error = $3 WHERE id = $1", [id, status, prepErro
+r]);
+packages/persistence/src/repositories/creatives.ts:127:    `INSERT INTO creative_variants (id, creative_id, bandwidth, resolution, hls_path, segment_duration)
+packages/persistence/src/repositories/creatives.ts:129:     ON CONFLICT (id) DO UPDATE SET
+packages/persistence/src/repositories/creatives.ts:141:      "SELECT * FROM creative_variants WHERE creative_id = $1",
+packages/persistence/src/repositories/decisions.ts:20:    `INSERT INTO ad_decisions
+packages/persistence/src/repositories/decisions.ts:37:    `INSERT INTO ad_pods (id, decision_id, break_duration, ad_seconds, slate_seconds)
+packages/persistence/src/repositories/decisions.ts:44:      `INSERT INTO ad_pod_items (pod_id, position, item_type, creative_id, duration, start_offset, end_off
+set)
+packages/persistence/src/repositories/decisions.ts:96:      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE session_id = $1 ORDER BY requested_at`,
+packages/persistence/src/repositories/decisions.ts:106:      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+packages/persistence/src/repositories/sessions.ts:39:    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent
+)
+packages/persistence/src/repositories/sessions.ts:55:  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+packages/persistence/src/repositories/sessions.ts:71:  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/sessions.ts:77:    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [
+limit])
+packages/persistence/src/repositories/beacons.ts:51:    `INSERT INTO beacon_deliveries (session_id, opportunity_id, creative_id, event_type, url)
+packages/persistence/src/repositories/beacons.ts:61:      "SELECT * FROM beacon_deliveries WHERE status = 'pending' ORDER BY created_at LIMIT $1",
+packages/persistence/src/repositories/beacons.ts:70:    "UPDATE beacon_deliveries SET status = 'sent', attempts = attempts + 1, sent_at = now() WHERE id = $1",
+packages/persistence/src/repositories/beacons.ts:82:      `UPDATE beacon_deliveries
+packages/persistence/src/repositories/beacons.ts:96:      "SELECT status, COUNT(*) AS c FROM beacon_deliveries GROUP BY status",
+packages/persistence/src/repositories/campaigns.ts:27:    `INSERT INTO campaigns (id, advertiser, start_date, end_date, status)
+packages/persistence/src/repositories/campaigns.ts:29:     ON CONFLICT (id) DO UPDATE SET
+packages/persistence/src/repositories/campaigns.ts:39:    await db.query("DELETE FROM campaign_channels WHERE campaign_id = $1", [input.id]);
+packages/persistence/src/repositories/campaigns.ts:42:        `INSERT INTO campaign_channels (campaign_id, channel_id) VALUES ($1, $2)
+packages/persistence/src/repositories/campaigns.ts:51:  const rows = (await db.query<CampaignRow>("SELECT * FROM campaigns")).rows;
+packages/persistence/src/repositories/campaigns.ts:53:    await db.query<{ campaign_id: string; channel_id: string }>("SELECT campaign_id, channel_id FROM campa
+ign_channels")
+c37cf208f09f:/app#

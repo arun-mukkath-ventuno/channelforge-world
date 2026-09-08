@@ -1,0 +1,94 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+ls -la ..
+packages/creative-worker/src/worker.test.ts:15:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/vast-inventory.test.ts:16:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/beacons.test.ts:16:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/server.test.ts:12:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/server.test.js:11:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/beacons.test.js:9:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/vast-inventory.test.js:9:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/repositories.test.ts:17:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/reconciliation.test.ts:18:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/index.ts:1:// @ssai/persistence — Postgres repositories, migrations, and the Redis pod cache.
+packages/persistence/src/analytics.test.ts:18:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/cli/migrate.ts:1:// CLI: apply pending migrations against DATABASE_URL.
+packages/persistence/src/cli/migrate.ts:11:const migrationsDir = resolve(here, "../../../../migrations");
+packages/persistence/src/cli/migrate.ts:15:  const ran = await runMigrations(pool, migrationsDir);
+packages/persistence/src/cli/migrate.ts:16:  console.log(ran.length ? `Applied migrations: ${ran.join(", ")}` : "No pending migrations.");
+packages/persistence/src/migrate.ts:1:// Minimal forward-only migration runner. Applies migrations/*.sql in filename
+packages/persistence/src/migrate.ts:2:// order, tracking applied files in schema_migrations.
+packages/persistence/src/migrate.ts:8:export async function runMigrations(db: Queryable, migrationsDir: string): Promise<string[]> {
+packages/persistence/src/migrate.ts:10:    `CREATE TABLE IF NOT EXISTS schema_migrations (
+packages/persistence/src/migrate.ts:16:  const files = readdirSync(migrationsDir)
+packages/persistence/src/migrate.ts:20:  const appliedRows = await db.query<{ name: string }>("SELECT name FROM schema_migrations");
+packages/persistence/src/migrate.ts:26:    const sql = readFileSync(join(migrationsDir, file), "utf8");
+packages/persistence/src/migrate.ts:28:    await db.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
+packages/persistence/dist/index.js:1:// @ssai/persistence — Postgres repositories, migrations, and the Redis pod cache.
+packages/persistence/dist/migrate.d.ts:2:export declare function runMigrations(db: Queryable, migrationsDir: string): Promise<string[]>;
+packages/persistence/dist/migrate.js:1:// Minimal forward-only migration runner. Applies migrations/*.sql in filename
+packages/persistence/dist/migrate.js:2:// order, tracking applied files in schema_migrations.
+packages/persistence/dist/migrate.js:5:export async function runMigrations(db, migrationsDir) {
+packages/persistence/dist/migrate.js:6:    await db.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
+packages/persistence/dist/migrate.js:10:    const files = readdirSync(migrationsDir)
+packages/persistence/dist/migrate.js:13:    const appliedRows = await db.query("SELECT name FROM schema_migrations");
+packages/persistence/dist/migrate.js:19:        const sql = readFileSync(join(migrationsDir, file), "utf8");
+packages/persistence/dist/migrate.js:21:        await db.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
+packages/persistence/dist/cli/migrate.js:1:// CLI: apply pending migrations against DATABASE_URL.
+packages/persistence/dist/cli/migrate.js:9:const migrationsDir = resolve(here, "../../../../migrations");
+packages/persistence/dist/cli/migrate.js:12:    const ran = await runMigrations(pool, migrationsDir);
+packages/persistence/dist/cli/migrate.js:13:    console.log(ran.length ? `Applied migrations: ${ran.join(", ")}` : "No pending migrations.");
+c37cf208f09f:/app# ls -la ..
+total 100
+drwxr-xr-x    1 root     root          4096 Sep  8 09:52 .
+drwxr-xr-x    1 root     root          4096 Sep  8 09:52 ..
+-rwxr-xr-x    1 root     root             0 Sep  8 09:52 .dockerenv
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 app
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 bin
+drwxr-xr-x    5 root     root           340 Sep  8 09:52 dev
+drwxr-xr-x    1 root     root          4096 Sep  8 09:52 etc
+drwxr-xr-x    1 root     root          4096 Jul 29 17:27 home
+drwxr-xr-x    1 root     root          4096 Jun 13 16:39 lib
+drwxr-xr-x    5 root     root          4096 Sep  8 09:52 logs
+drwxr-xr-x    5 root     root          4096 Jun 13 16:39 media
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 mnt
+drwxr-xr-x    1 root     root          4096 Jul 29 17:57 opt
+dr-xr-xr-x  287 root     root             0 Sep  8 09:52 proc
+drwx------    1 root     root          4096 Sep  5 09:09 root
+drwxr-xr-x    3 root     root          4096 Jun 13 16:39 run
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 sbin
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 srv
+dr-xr-xr-x   11 root     root             0 Sep  8 09:52 sys
+drwxrwxrwt    1 root     root          4096 Sep  8 09:52 tmp
+drwxr-xr-x    1 root     root          4096 Jul 29 17:57 usr
+drwxr-xr-x    1 root     root          4096 Jun 13 16:39 var
+c37cf208f09f:/app# ls -la ..
+total 100
+drwxr-xr-x    1 root     root          4096 Sep  8 09:52 .
+drwxr-xr-x    1 root     root          4096 Sep  8 09:52 ..
+-rwxr-xr-x    1 root     root             0 Sep  8 09:52 .dockerenv
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 app
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 bin
+drwxr-xr-x    5 root     root           340 Sep  8 09:52 dev
+drwxr-xr-x    1 root     root          4096 Sep  8 09:52 etc
+drwxr-xr-x    1 root     root          4096 Jul 29 17:27 home
+drwxr-xr-x    1 root     root          4096 Jun 13 16:39 lib
+drwxr-xr-x    5 root     root          4096 Sep  8 09:52 logs
+drwxr-xr-x    5 root     root          4096 Jun 13 16:39 media
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 mnt
+drwxr-xr-x    1 root     root          4096 Jul 29 17:57 opt
+dr-xr-xr-x  287 root     root             0 Sep  8 09:52 proc
+drwx------    1 root     root          4096 Sep  5 09:09 root
+drwxr-xr-x    3 root     root          4096 Jun 13 16:39 run
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 sbin
+drwxr-xr-x    2 root     root          4096 Jun 13 16:39 srv
+dr-xr-xr-x   11 root     root             0 Sep  8 09:52 sys
+drwxrwxrwt    1 root     root          4096 Sep  8 09:52 tmp
+drwxr-xr-x    1 root     root          4096 Jul 29 17:57 usr
+drwxr-xr-x    1 root     root          4096 Jun 13 16:39 var
+c37cf208f09f:/app# find / -name "migrations" 2>/dev/null
+c37cf208f09f:/app#

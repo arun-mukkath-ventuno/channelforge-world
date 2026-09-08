@@ -1,0 +1,82 @@
+New Terminal Output:
+
+955ede1a9bcd:/app# find ./packages/control-plane/src ./packages/data-plane/src ./packages/core/src -type f 2>/dev/null | head -60
+./packages/control-plane/src/vast.ts
+./packages/control-plane/src/events-normalize.test.ts
+./packages/control-plane/src/vast-inventory.test.ts
+./packages/control-plane/src/vast-fetch.test.ts
+./packages/control-plane/src/vast.test.ts
+./packages/control-plane/src/vast-fetch.ts
+./packages/control-plane/src/server.ts
+./packages/control-plane/src/vast-inventory.ts
+./packages/control-plane/src/events-normalize.ts
+./packages/control-plane/src/beacons.test.ts
+./packages/control-plane/src/beacons.ts
+./packages/control-plane/src/server.test.ts
+./packages/data-plane/src/avails.ts
+./packages/data-plane/src/origin.ts
+./packages/data-plane/src/media.test.ts
+./packages/data-plane/src/stitch.ts
+./packages/data-plane/src/stitch.test.ts
+./packages/data-plane/src/server.ts
+./packages/data-plane/src/decider.ts
+./packages/data-plane/src/origin.test.ts
+./packages/data-plane/src/media.ts
+./packages/data-plane/src/origin-slice4.test.ts
+./packages/data-plane/src/origin-rewrite.ts
+./packages/data-plane/src/avails.test.ts
+./packages/data-plane/src/segment.ts
+./packages/core/src/session-token.test.ts
+./packages/core/src/scte.ts
+./packages/core/src/eligibility.test.ts
+./packages/core/src/pod.ts
+./packages/core/src/scte.test.ts
+./packages/core/src/types.ts
+./packages/core/src/index.ts
+./packages/core/src/decide.ts
+./packages/core/src/session-token.ts
+./packages/core/src/eligibility.ts
+./packages/core/src/pod.test.ts
+./packages/core/src/rng.ts
+955ede1a9bcd:/app# grep -ri "channel" ./packages/control-plane/src ./packages/data-plane/src ./packages/core/src 2>/dev/null | head -40
+./packages/control-plane/src/events-normalize.test.ts:      channel_id: "channel_food",
+./packages/control-plane/src/vast-inventory.test.ts:  channels as channelsRepo,
+./packages/control-plane/src/vast-inventory.test.ts:    const items = vastToInventory("channel_art", [ad()]);
+./packages/control-plane/src/vast-inventory.test.ts:    expect(items[0]!.campaignId).toBe("camp_vast_channel_art");
+./packages/control-plane/src/vast-inventory.test.ts:    // deterministic: same channel+media → same id
+./packages/control-plane/src/vast-inventory.test.ts:    expect(vastToInventory("channel_art", [ad()])[0]!.creativeId).toBe(items[0]!.creativeId);
+./packages/control-plane/src/vast-inventory.test.ts:    // different channel → different id
+./packages/control-plane/src/vast-inventory.test.ts:    expect(vastToInventory("channel_mix", [ad()])[0]!.creativeId).not.toBe(items[0]!.creativeId);
+./packages/control-plane/src/vast-inventory.test.ts:    await channelsRepo.insertChannel(db, { id: "channel_art", name: "Art", originUrl: "http://o/art" });
+./packages/control-plane/src/vast-inventory.test.ts:      channelId: "channel_art", tagUrl: "https://tag/x",
+./packages/control-plane/src/vast-inventory.test.ts:    const vc = camps.find((c) => c.campaignId === vastCampaignId("channel_art"));
+./packages/control-plane/src/vast-inventory.test.ts:    expect(vc?.targetChannels).toEqual(["channel_art"]);
+./packages/control-plane/src/vast-inventory.test.ts:    await ingestVastTag(db, { channelId: "channel_art", tagUrl: "https://tag/x", fetchImpl });
+./packages/control-plane/src/vast-inventory.test.ts:    const r = await ingestVastTag(db, { channelId: "channel_art", tagUrl: "https://tag/x", fetchImpl });
+./packages/control-plane/src/server.ts:// Owns campaigns, creatives, channels, sessions, ad decisioning, event
+./packages/control-plane/src/server.ts:  channels as channelsRepo,
+./packages/control-plane/src/server.ts:    const body = (req.body ?? {}) as { channel_id?: string; device_type?: string; country?: string };
+./packages/control-plane/src/server.ts:    if (!body.channel_id) return reply.code(400).send({ error: "channel_id is required" });
+./packages/control-plane/src/server.ts:      channelId: body.channel_id,
+./packages/control-plane/src/server.ts:      channelId: body.channel_id,
+./packages/control-plane/src/server.ts:    const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+./packages/control-plane/src/server.ts:      channel_id: body.channel_id,
+./packages/control-plane/src/server.ts:      playback_url: `${dataPlaneUrl}/v1/hls/${token}/${body.channel_id}/master.m3u8`,
+./packages/control-plane/src/server.ts:      channel_id?: string;
+./packages/control-plane/src/server.ts:    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+./packages/control-plane/src/server.ts:      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+./packages/control-plane/src/server.ts:      channelId: body.channel_id,
+./packages/control-plane/src/server.ts:    const session: SessionContext = { sessionId, channelId: body.channel_id };
+./packages/control-plane/src/server.ts:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+./packages/control-plane/src/server.ts:          channelId: body.channel_id,
+./packages/control-plane/src/server.ts:      channelId: body.channel_id,
+./packages/control-plane/src/server.ts:  // Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+./packages/control-plane/src/server.ts:  // producer's external_break_id so ChannelForge can attach delivery to its planned break (§17).
+./packages/control-plane/src/server.ts:    const q = req.query as { since?: string; channel?: string };
+./packages/control-plane/src/server.ts:      ...(q.channel ? { channelId: q.channel } : {}),
+./packages/control-plane/src/server.ts:  app.get("/v1/channels", async () => channelsRepo.listChannels(pool));
+./packages/control-plane/src/server.ts:  app.get("/v1/channels/:id", async (req, reply) => {
+./packages/control-plane/src/server.ts:    return (await channelsRepo.getChannel(pool, id)) ?? reply.code(404).send({ error: "not_found" });
+./packages/control-plane/src/server.ts:  app.post("/v1/channels", async (req, reply) => {
+./packages/control-plane/src/server.ts:    await channelsRepo.insertChannel(pool, {
+955ede1a9bcd:/app#

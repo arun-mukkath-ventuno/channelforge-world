@@ -1,0 +1,11 @@
+{
+  "analysis": "Instead of complex shell one-liners, let's write a small node script or python script file using python file writing or cat with EOF, ensuring no bash quote issues.",
+  "plan": "Create a python script `add_test.py` and run it.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' > add_test.py\nwith open(\"packages/data-plane/src/avails.test.ts\", \"a\") as f:\n    f.write('''\ndescribe(\"back-to-back ad breaks\", () => {\n  it(\"does not leak first break's externalBreakId onto second break when there is zero gap\", () => {\n    const m = manifest([\n      \"#EXT-X-MEDIA-SEQUENCE:0\",\n      \"#EXT-X-CUE-OUT:30\",\n      '#EXT-X-DATERANGE:ID=\"BRK-1\",PLANNED-DURATION=30',\n      \"#EXTINF:6.000,\",\n      \"a.ts\",\n      \"#EXT-X-CUE-IN\",\n      \"#EXT-X-CUE-OUT:15\",\n      '#EXT-X-DATERANGE:ID=\"BRK-2\",PLANNED-DURATION=15',\n      \"#EXTINF:6.000,\",\n      \"b.ts\",\n      \"#EXT-X-CUE-IN\",\n    ]);\n    const avails = detectAvails(m, \"ch\");\n    expect(avails).toHaveLength(2);\n    expect(avails[0]!.externalBreakId).toBe(\"BRK-1\");\n    expect(avails[1]!.externalBreakId).toBe(\"BRK-2\");\n  });\n});\n''')\nEOF\npython3 add_test.py\nrm add_test.py\nnpx vitest run packages/data-plane\n",
+      "duration": 3.0
+    }
+  ],
+  "task_complete": false
+}

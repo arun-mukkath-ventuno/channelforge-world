@@ -1,0 +1,99 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+grep -rn "externalBreakId" packages/
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:15:   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+packages/data-plane/src/avails.ts:45:  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+packages/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/src/avails.ts:80:      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+packages/data-plane/src/avails.ts:91:        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+packages/data-plane/src/avails.ts:121:      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+packages/data-plane/src/stitch.ts:14:  /** Emit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+packages/data-plane/src/stitch.ts:66:        `#EXT-X-DATERANGE:ID="${item.creativeId}",CLASS="com.fastworld.ad",` +
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/src/avails.test.ts:80:      '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30',
+packages/data-plane/src/avails.test.ts:91:  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+packages/data-plane/src/avails.test.ts:94:      '#EXT-X-DATERANGE:ID="BRK-xyz-0001",PLANNED-DURATION=30,SCTE35-OUT=0xFC',
+packages/data-plane/src/avails.test.ts:103:  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+packages/data-plane/src/avails.test.ts:112:      '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+packages/data-plane/dist/stitch.js:39:            out.push(`#EXT-X-DATERANGE:ID="${item.creativeId}",CLASS="com.fastworld.ad",` +
+packages/data-plane/dist/avails.js:18:    // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+packages/data-plane/dist/avails.js:19:    // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/dist/avails.js:41:            // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+packages/data-plane/dist/avails.js:53:                // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+packages/data-plane/dist/avails.js:84:            // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+packages/data-plane/dist/avails.d.ts:4:    /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/dist/avails.d.ts:5:     *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+packages/data-plane/dist/stitch.d.ts:4:    /** Emit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+packages/persistence/src/reconciliation.ts:5:// (external_break_id, captured from the origin DATERANGE) — with fill, ad/slate seconds and the
+packages/persistence/src/reconciliation.ts:17:  /** ChannelForge's break_id, when the origin carried a DATERANGE ID. Null → not reconcilable. */
+packages/persistence/dist/reconciliation.js:5:// (external_break_id, captured from the origin DATERANGE) — with fill, ad/slate seconds and the
+packages/persistence/dist/reconciliation.d.ts:4:    /** ChannelForge's break_id, when the origin carried a DATERANGE ID. Null → not reconcilable. */
+packages/core/src/scte.ts:8://   #EXT-X-DATERANGE:...,DURATION=60,SCTE35-OUT=...
+packages/core/src/scte.ts:20:  /** DATERANGE id / raw payload, retained for debugging (PRD §46). */
+packages/core/src/scte.ts:22:  /** DATERANGE ID attribute, when present. ChannelForge threads its stable break_id here
+packages/core/src/scte.ts:23:   *  (`#EXT-X-DATERANGE:ID="BRK-…"`), so downstream reconciliation can key on it. */
+packages/core/src/scte.ts:53:  // DATERANGE: pull DURATION and PLANNED-DURATION attributes if present.
+packages/core/src/scte.ts:54:  if (trimmed.startsWith("#EXT-X-DATERANGE")) {
+packages/core/src/scte.ts:55:    const attrs = trimmed.slice("#EXT-X-DATERANGE".length).replace(/^:/, "");
+packages/core/src/scte.test.ts:47:  it("parses DATERANGE with a DURATION attribute", () => {
+packages/core/src/scte.test.ts:48:    const line = '#EXT-X-DATERANGE:ID="ad1",DURATION=30,SCTE35-OUT=0xFC';
+packages/core/src/scte.test.ts:53:  it("extracts the DATERANGE ID (ChannelForge threads its break_id there)", () => {
+packages/core/src/scte.test.ts:54:    const line = '#EXT-X-DATERANGE:ID="BRK-a11e5310-0003",PLANNED-DURATION=90,SCTE35-OUT=0xFC30';
+packa
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+e5310-0003",
+packages/control-plane/dist/server.test.js:182:            externalBreakId: "BRK-a11e5310-0003",
+packages/control-plane/dist/server.js:127:            ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+packages/data-plane/src/avails.ts:18:  externalBreakId?: string;
+packages/data-plane/src/avails.ts:58:    externalBreakId?: string;
+packages/data-plane/src/avails.ts:81:      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+packages/data-plane/src/avails.ts:92:        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+packages/data-plane/src/avails.ts:101:        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+packages/data-plane/src/decider.ts:39:          ...(avail.externalBreakId === undefined
+packages/data-plane/src/decider.ts:41:            : { external_break_id: avail.externalBreakId }),
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/src/avails.test.ts:88:    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+packages/data-plane/src/avails.test.ts:100:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+packages/data-plane/src/avails.test.ts:103:  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+packages/data-plane/src/avails.test.ts:105:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:125:    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+packages/data-plane/src/avails.test.ts:126:    expect(avails[1]!.externalBreakId).toBeUndefined();
+packages/data-plane/dist/decider.js:27:                    ...(avail.externalBreakId === undefined
+packages/data-plane/dist/decider.js:29:                        : { external_break_id: avail.externalBreakId }),
+packages/data-plane/dist/avails.js:42:            if (open && open.externalBreakId === undefined)
+packages/data-plane/dist/avails.js:43:                open.externalBreakId = marker.id;
+packages/data-plane/dist/avails.js:54:                ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+packages/data-plane/dist/avails.js:63:                ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+packages/data-plane/dist/avails.d.ts:8:    externalBreakId?: string;
+packages/persistence/src/reconciliation.test.ts:75:  it("keys a filled break by its externalBreakId with ad seconds + impressions", async () => {
+packages/persistence/src/reconciliation.test.ts:76:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_202", externalBreakId: "BRK-a11e5310-0
+003" }));
+packages/persistence/src/reconciliation.test.ts:97:      externalBreakId: "BRK-a11e5310-0003",
+packages/persistence/src/reconciliation.test.ts:109:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_9", externalBreakId: "BRK-nofill-0001
+" }));
+packages/persistence/src/reconciliation.test.ts:112:    expect(breaks[0]).toMatchObject({ filled: false, adSeconds: 0, impressions: 0, externalBreakId: "BRK-nof
+ill-0001" });
+packages/persistence/src/reconciliation.test.ts:116:    await upsertOpportunity(db, opp({ opportunityId: "opp_multi", externalBreakId: "BRK-multi" }));
+packages/persistence/src/reconciliation.test.ts:139:    await upsertOpportunity(db, opp({ opportunityId: "opp_yoga", externalBreakId: "BRK-yoga", breakStart: "2
+026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:140:    await upsertOpportunity(db, opp({ opportunityId: "opp_food", channelId: "channel_food", externalBreakId:
+ "BRK-food", breakStart: "2026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:141:    await upsertOpportunity(db, opp({ opportunityId: "opp_old", externalBreakId: "BRK-old", breakStart: "202
+0-01-01T00:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:144:    expect(yoga.map((b) => b.externalBreakId).sort()).toEqual(["BRK-old", "BRK-yoga"]);
+packages/persistence/src/reconciliation.test.ts:147:    expect(recent.map((b) => b.externalBreakId)).toEqual(["BRK-yoga"]);
+packages/persistence/src/reconciliation.ts:18:  externalBreakId: string | null;
+packages/persistence/src/reconciliation.ts:117:        externalBreakId: o.external_break_id ?? null,
+packages/persistence/src/repositories/opportunities.ts:19:      opp.externalBreakId ?? null,
+packages/persistence/dist/reconciliation.js:66:            externalBreakId: o.external_break_id ?? null,
+packages/persistence/dist/repositories/opportunities.js:13:        opp.externalBreakId ?? null,
+packages/persistence/dist/reconciliation.d.ts:5:    externalBreakId: string | null;
+packages/core/src/types.ts:11:  externalBreakId?: string;
+packages/core/dist/types.d.ts:7:    externalBreakId?: string;
+7c2ffd298999:/app# grep -rn "externalBreakId" packages/
+

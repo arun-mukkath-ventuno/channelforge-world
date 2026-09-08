@@ -1,0 +1,169 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# npm test
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/control-plane/src/beacons.test.ts (6)
+ ✓ packages/control-plane/src/events-normalize.test.ts (7)
+ ❯ packages/control-plane/src/server.test.ts (15) 333ms
+   ✓ write APIs (PRD §43) (6)
+   ✓ creative source upload (PRD §14) (3)
+   ❯ admin auth (PRD §57) (3)
+     ✓ 401s a protected route without a cookie
+     ✓ rejects a wrong password, accepts the right one and gates on the cookie
+     × leaves the player endpoints public
+   ✓ VAST tag ingestion endpoint (1)
+   ❯ per-break reconciliation (ChannelForge telemetry blueprint) (2)
+     × records external_break_id from an ad-decision and lists it per break
+     ✓ gates /v1/reconciliation/breaks behind the admin cookie
+ ✓ packages/control-plane/src/vast-fetch.test.ts (5)
+ ✓ packages/control-plane/src/vast-inventory.test.ts (4)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/core/src/eligibility.test.ts (9)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/core/src/session-token.test.ts (6)
+ ✓ packages/creative-worker/src/validate.test.ts (6)
+ ✓ packages/creative-worker/src/worker.test.ts (5)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+ ❯ packages/persistence/src/analytics.test.ts (5)
+   ❯ getAnalytics (PRD §31, §32) (5)
+     × computes fill from delivered pods
+       ⠧ [ beforeEach ]
+     × classifies breaks filled / partial / unfilled
+       ⠴ [ beforeEach ]
+     × counts ad lifecycle events and completion rate
+       ⠸ [ beforeEach ]
+     × reports the impression↔completion gap (PRD §27): started but did not complete
+       ⠹ [ beforeEach ]
+     × reports streaming session metrics
+       ⠹ [ beforeEach ]
+ ✓ packages/persistence/src/pod-cache.test.ts (3)
+ ❯ packages/persistence/src/reconciliation.test.ts (4)
+   ❯ getBreakDeliveries — per-break reconciliation detail (4)
+     × keys a filled break by its externalBreakId with ad seconds + impressions
+       ⠇ [ beforeEach ]
+     × reports an unfilled break (no decision) as filled=false
+       ⠴ [ beforeEach ]
+     × aggregates ad seconds + impressions across multiple viewer sessions of one break
+       ⠼ [ beforeEach ]
+     × filters by channel and since
+       ⠼ [ beforeEach ]
+ ❯ packages/persistence/src/repositories.test.ts (4)
+   ✓ seed + inventory repositories (2)
+   ❯ decision persistence round-trip (PRD §46, §47) (1)
+     × persists a decided pod and reads the full payload back
+   ❯ event stream (PRD §26, §29, §30) (1)
+     × appends and reads events by session, ignoring duplicate event ids
+ ✓ packages/storage/src/s3.test.ts (4)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 13 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/control-plane/src/server.test.ts > admin auth (PRD §57) > leaves the player endpoints public
+AssertionError: expected 500 to be 202 // Object.is equality
+
+- Expected
++ Received
+
+- 202
++ 500
+
+ ❯ packages/control-plane/src/server.test.ts:175:26
+    173|     // POST /v1/events is public (player telemetry)
+    174|     const r = await app.inject({ method: "POST", url: "/v1/events", payload: { event_type: "ad_impression", session_id: "s1" } });
+    175|     expect(r.statusCode).toBe(202);
+       |                          ^
+    176|   });
+    177| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/13]⎯
+
+ FAIL  packages/control-plane/src/server.test.ts > per-break reconciliation (ChannelForge telemetry blueprint) > records external_break_id from an ad-decision a
+nd lists it per break
+AssertionError: expected 500 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 500
+
+ ❯ packages/control-plane/src/server.test.ts:201:28
+    199|       },
+    200|     });
+    201|     expect(dec.statusCode).toBe(200);
+       |                            ^
+    202|
+    203|     const res = await app.inject({ method: "GET", url: "/v1/reconciliation/breaks?chan
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+":"food_brand_a_30s","duration":30,"status":"re
+ady","priority":10,"weight":100},{"creativeId":"cr_appliance_b_15","campaignId":"camp_appliance_b","name":"appliance_brand_b_15s","duration":15,"status":"ready"
+,"priority":8,"weight":100},{"creativeId":"cr_coffee_30","campaignId":"camp_coffee","name":"coffee_30s","duration":30,"status":"ready","priority":6,"weight":100
+},{"creativeId":"cr_coffee_15","campaignId":"camp_coffee","name":"coffee_15s","duration":15,"status":"ready","priority":6,"weight":50}],"rejected":[{"creativeId
+":"cr_air_60","reason":"channel_mismatch"},{"creativeId":"cr_fitgear_30","reason":"channel_mismatch"},{"creativeId":"cr_fitgear_15","reason":"channel_mismatch"}
+,{"creativeId":"cr_bank_30","reason":"channel_mismatch"},{"creativeId":"cr_coffee_30","reason":"duration_exceeds_remaining_avail"}],"pod":[{"type":"ad","creativ
+eId":"cr_food_a_30","campaignId":"camp_food_a","duration":30,"position":0,"startOffset":0,"endOffset":30},{"type":"ad","creativeId":"cr_appliance_b_15","campaig
+nId":"camp_appliance_b","duration":15,"position":1,"startOffset":30,"endOffset":45},{"type":"ad","creativeId":"cr_coffee_15","campaignId":"camp_coffee","duratio
+n":15,"position":2,"startOffset":45,"endOffset":60}],"adSeconds":60,"slateSeconds":0,"seed":"demo"}'::jsonb);
+
+👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+
+
+ ❯ Alias.getColumn node_modules/pg-mem/src/transforms/alias.ts:116:15
+ ❯ node_modules/pg-mem/src/execution/records-mutations/insert.ts:53:53
+ ❯ Insert.visit node_modules/pg-mem/src/execution/records-mutations/insert.ts:51:56
+ ❯ node_modules/pg-mem/src/execution/records-mutations/insert.ts:37:40
+ ❯ StackOf.usingValue node_modules/pg-mem/src/parser/context.ts:11:20
+ ❯ new Insert node_modules/pg-mem/src/execution/records-mutations/insert.ts:37:22
+ ❯ buildWithable node_modules/pg-mem/src/execution/select.ts:40:20
+ ❯ new SelectExec node_modules/pg-mem/src/execution/select.ts:269:67
+ ❯ StatementExec._getExecutor node_modules/pg-mem/src/execution/statement-exec.ts:84:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/13]⎯
+
+ FAIL  packages/persistence/src/repositories.test.ts > event stream (PRD §26, §29, §30) > appends and reads events by session, ignoring duplicate event ids
+Error: insert or update on table "playback_sessions" violates foreign key constraint on table "events_session_id_fk"
+
+🐜 This seems to be an execution error, which means that your request syntax seems okay,
+    but the resulting statement cannot be executed → Probably not a pg-mem error.
+
+*️⃣ Failed SQL statement: INSERT INTO events
+       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+        campaign_id, creative_id, program_id, playhead_position, device_type, country, payload)
+     VALUES ('e1', 'ad_impression', COALESCE(null, now()), 'sess_1', null, null, null, 'cr_food_a_30', null, null, null, null, null, null, null::jsonb)
+     ON CONFLICT (event_id) DO NOTHING;
+
+👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+
+
+ ❯ node_modules/pg-mem/src/constraints/foreign-key.ts:160:23
+ ❯ Object.before node_modules/pg-mem/src/table.ts:419:25
+ ❯ MemoryTable.doInsert node_modules/pg-mem/src/table.ts:330:20
+ ❯ Insert.performMutation node_modules/pg-mem/src/execution/records-mutations/insert.ts:182:44
+ ❯ Insert._doExecuteOnce node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:60:29
+ ❯ Insert.enumerate node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:72:29
+ ❯ SelectExec.execute node_modules/pg-mem/src/execution/select.ts:279:41
+ ❯ node_modules/pg-mem/src/execution/statement-exec.ts:210:42
+ ❯ pushExecutionCtx node_modules/pg-mem/src/utils.ts:404:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/13]⎯
+
+ Test Files  4 failed | 18 passed (22)
+      Tests  13 failed | 129 passed (142)
+   Start at  09:57:08
+   Duration  4.52s (transform 317ms, setup 0ms, collect 1.14s, tests 1.18s, environment 3ms, prepare 661ms)
+
+c37cf208f09f:/app#

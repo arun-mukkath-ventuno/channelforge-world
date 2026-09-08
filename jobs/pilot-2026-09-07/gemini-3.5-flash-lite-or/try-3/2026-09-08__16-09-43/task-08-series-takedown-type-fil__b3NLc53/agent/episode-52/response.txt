@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "That grep output is extremely clean and comprehensive. Only `app/repositories/rights.py` line 172 (`RightsTakedown.scope_type == \"asset\"`) had the assumption that takedowns checked against assets are strictly asset-scoped!\n\nLet's check if there are any other places where takedowns or asset eligibility are checked or evaluated.\nLet's check `active_takedown_for_asset` in `app/repositories/rights.py` again:\n```python\ndef active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )\n```\nIf we change this to check for active takedowns where:\n- (`scope_type == 'asset'` and `scope_id == asset.id`)\n- OR (`scope_type == 'series'` and `scope_id == asset.series_id` [if `asset.series_id` is not None])\n\nLet's write this cleanly using `or_` from sqlalchemy:\n```python\nfrom sqlalchemy import func, or_, select\n\ndef active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    clauses = [\n        (RightsTakedown.scope_type == \"asset\") & (RightsTakedown.scope_id == asset.id)\n    ]\n    if asset.series_id is not None:\n        clauses.append(\n            (RightsTakedown.scope_type == \"series\") & (RightsTakedown.scope_id == asset.series_id)\n        )\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            or_(*clauses),\n        )\n    )\n```\n\nLet's check if there are any other repositories or services that check takedowns. Let's grep for `active_takedown` across `app/`.",
+  "plan": "Grep for `active_takedown` across `app/` to ensure no other places miss series takedowns.",
+  "commands": [
+    {
+      "keystrokes": "grep -n active_takedown app/**/*.py app/*.py\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

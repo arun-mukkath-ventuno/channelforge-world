@@ -1,0 +1,47 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# grep -rn -C 10 "CUE-OUT-CONT" packages/core/src/scte.ts
+1-// HLS ad-marker parsing (PRD §9, §22, §41).
+2-//
+3-// Supports the MVP-preferred form and common interoperability variants:
+4-//   #EXT-X-CUE-OUT:60
+5-//   #EXT-X-CUE-OUT:DURATION=60
+6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+7-//   #EXT-X-CUE-IN
+8-//   #EXT-X-DATERANGE:...,DURATION=60,SCTE35-OUT=...
+9-//
+10-// This parser is deliberately tolerant: an unparseable duration does not throw,
+11-// it yields a marker flagged invalid so the caller can apply PRD §41 fallback
+12-// (infer the boundary from CUE-IN, otherwise preserve origin).
+13-
+14-export interface ParsedMarker {
+15-  kind: "cue_out" | "cue_in" | "daterange";
+16-  /** Break duration in seconds, when the marker carries one. */
+--
+31-/** Parse a single manifest line into a marker, or null if it is not one. */
+32-export function parseMarkerLine(line: string, lineIndex: number): ParsedMarker | null {
+33-  const trimmed = line.trim();
+34-
+35-  // CUE-IN: no attributes.
+36-  if (trimmed === "#EXT-X-CUE-IN") {
+37-    return { kind: "cue_in", lineIndex, raw: trimmed };
+38-  }
+39-
+40-  // CUE-OUT: value may be a bare number or DURATION=<n>.
+41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+42:  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+43-    const value = trimmed.slice("#EXT-X-CUE-OUT".length).replace(/^:/, "").trim();
+44-    const duration = parseCueOutDuration(value);
+45-    return {
+46-      kind: "cue_out",
+47-      lineIndex,
+48-      raw: trimmed,
+49-      ...(duration === null ? { invalidDuration: value.length > 0 } : { duration }),
+50-    };
+51-  }
+52-
+c37cf208f09f:/app#

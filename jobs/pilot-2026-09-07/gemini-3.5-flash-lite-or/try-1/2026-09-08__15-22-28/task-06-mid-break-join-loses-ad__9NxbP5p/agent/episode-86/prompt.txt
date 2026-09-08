@@ -1,0 +1,149 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# cat << 'EOF' > packages/data-plane/src/avails.ts
+> import { parseMarkerLine } from "@ssai/core";
+>
+> export interface Avail {
+ion += >   opportunityId: string;
+>   channelId: string;
+>   externalBreakId?: string;
+>   duration: number;
+>   declaredDuration?: number;
+>   measuredDuration: number;
+>   startSequence: number;
+>   programDateTime?: string;
+>   startLine: number;
+>   endLine: number;
+> }
+>
+;
+}> const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/
+> const EXTINF = /^#EXTINF:([\d.]+)/
+> const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/
+>
+> export function detectAvails(manifest: string, channelId: string): Avail[] {
+>   const lines = manifest.split("\n");
+>
+>   let mediaSequence = 0;
+>   let lastPdt: string | undefined;
+>   let blockBreakId: string | undefined;
+>   const avails: Avail[] = [];
+>
+>   let open: {
+>     startLine: number;
+>     startSequence: number;
+>     declaredDuration?: number;
+>     measuredDuration: number;
+>     pdt?: string;
+>     externalBreakId?: string;
+>   } | null = null;
+>
+>   let leadingMeasuredDuration = 0;
+>   let leadingSegmentCount = 0;
+>   let leadingPdt: string | undefined;
+>   let leadingBreakId: string | undefined;
+>   let sawCueInOrOut = false;
+>
+>   for (let i = 0; i < lines.length; i++) {
+>     const line = lines[i]!;
+>     const trimmed = line.trim();
+>
+>     const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+>     if (seqMatch) {
+>       mediaSequence = Number(seqMatch[1]);
+>       continue;
+>     }
+>
+>     const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+>     if (pdtMatch) {
+>       lastPdt = pdtMatch[1]!.trim();
+>       if (!open && !sawCueInOrOut && leadingSegmentCount === 0) {
+>         leadingPdt = lastPdt;
+>       }
+>       continue;
+>     }
+>
+>     const marker = parseMarkerLine(line, i);
+>     if (marker?.kind === "daterange" && marker.id) {
+>       blockBreakId = marker.id;
+>       if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+>       if (!open && !sawCueInOrOut && leadingBreakId === undefined) leadingBreakId = marker.id;
+>       continue;
+>     }
+>     if (marker?.kind === "cue_out" && !open) {
+>       sawCueInOrOut = true;
+>       open = {
+>         startLine: i,
+>         startSequence: mediaSequence,
+>         measuredDuration: 0,
+>         ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+>         ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+>         ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+>       };
+>       continue;
+>     }
+>     if (marker?.kind === "cue_in") {
+>       sawCueInOrOut = true;
+>       if (open) {
+>         const declared = open.declaredDuration;
+>         avails.push({
+>           opportunityId: `opp_${channelId}_${open.startSequence}`,
+>           channelId,
+>           ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>           duration: declared ?? open.measuredDuration,
+>           ...(declared === undefined ? {} : { declaredDuration: declared }),
+>           measuredDuration: open.measuredDuration,
+>           startSequence: open.startSequence,
+>           ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>           startLine: open.startLine,
+>           endLine: i,
+>         });
+>         open = null;
+>         continue;
+>       } else if (!open && leadingSegmentCount > 0) {
+>         // Leading avail (mid-break tune-in: window started inside ad break)
+>         const startSeq = mediaSequence - leadingSegmentCount;
+>         avails.push({
+>           opportunityId: `opp_${channelId}_${startSeq}`,
+>           channelId,
+>           ...(leadingBreakId === undefined ? {} : { externalBreakId: leadingBreakId }),
+>           duration: leadingMeasuredDuration,
+>           measuredDuration: leadingMeasuredDuration,
+>           startSequence: startSeq,
+>           ...(leadingPdt === undefined ? {} : { programDateTime: leadingPdt }),
+>           startLine: 0,
+>           endLine: i,
+>         });
+>         leadingSegmentCount = 0;
+>         leadingMeasuredDuration = 0;
+>         leadingBreakId = undefined;
+>         leadingPdt = undefined;
+>         continue;
+>       }
+>       continue;
+>     }
+>
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) open.measuredDuration += segDur;
+>       else if (!open && !sawCueInOrOut) {
+>         leadingMeasuredDuration += segDur;
+>       }
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>       if (!open && !sawCueInOrOut) {
+>         leadingSegmentCount += 1;
+>       }
+>     }
+>   }
+>
+>   return avails;
+> }
+> EOF
+c37cf208f09f:/app#

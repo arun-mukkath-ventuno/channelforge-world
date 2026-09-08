@@ -1,0 +1,37 @@
+New Terminal Output:
+
+db6aface227e:/app# cat src/lib/ssai.test.ts
+import { describe, it, expect } from "vitest";
+
+import { parseAdWindows } from "./ssai";
+
+describe("parseAdWindows", () => {
+  it("extracts ad windows from EXT-X-DATERANGE ad markers", () => {
+    const manifest = [
+      "#EXTM3U",
+      "#EXTINF:6.000,",
+      "segment.ts",
+      '#EXT-X-DATERANGE:ID="cr_yoga_end_25",CLASS="com.fastworld.ad",START-DATE="2026-09-03T05:00:00.000Z",DURATION=25,X-AD-ID="cr_yoga_end_25",X-CAMPAIGN-ID="c
+amp_yoga_house"',
+    ].join("\n");
+    const windows = parseAdWindows(manifest);
+    expect(windows).toHaveLength(1);
+    expect(windows[0].adId).toBe("cr_yoga_end_25");
+    expect(windows[0].start).toBe(Date.parse("2026-09-03T05:00:00.000Z"));
+    expect(windows[0].end).toBe(windows[0].start + 25_000);
+  });
+
+  it("ignores non-ad DATERANGE and content lines", () => {
+    const manifest = [
+      "#EXTINF:2,",
+      "seg.ts",
+      '#EXT-X-DATERANGE:ID="x",CLASS="com.other.thing",START-DATE="2026-09-03T05:00:00.000Z",DURATION=10',
+    ].join("\n");
+    expect(parseAdWindows(manifest)).toEqual([]);
+  });
+});
+db6aface227e:/app# pnpm vitest run src/lib/ssai.test.ts
+
+ RUN  v3.2.7 /app
+
+

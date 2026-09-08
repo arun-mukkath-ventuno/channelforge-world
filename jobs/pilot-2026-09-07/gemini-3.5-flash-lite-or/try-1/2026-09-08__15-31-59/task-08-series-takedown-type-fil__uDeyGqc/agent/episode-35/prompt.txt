@@ -1,0 +1,227 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+tests/test_youtube.py ............                                                                                                                       [ 97%]
+tests/test_youtube_alerts.py ........                                                                                                                    [ 99%]
+tests/test_youtube_broadcast_reconcile.py .......                                                                                                        [100%]
+
+=========================================================================== FAILURES ===========================================================================
+___________________________________________________________ test_series_takedown_blocks_member_asset ___________________________________________________________
+
+client = <starlette.testclient.TestClient object at 0xffff7aede900>, db = <sqlalchemy.orm.session.Session object at 0xffff7aedfbc0>
+
+    def test_series_takedown_blocks_member_asset(client, db):
+        from app.models import Asset
+
+        org = first_org_id(signup(client))
+        asset_id = _import_asset(client, org)
+        series_id = db.get(Asset, uuid.UUID(asset_id)).series_id
+        assert series_id is not None
+
+        client.post(
+            f"/api/organizations/{org}/rights/takedowns",
+            json={"scope_type": "series", "scope_id": str(series_id), "reason": "series pulled"},
+        )
+        result = _verdict(client, org, asset_id)
+>       assert result["verdict"] == "ineligible"
+E       AssertionError: assert 'eligible' == 'ineligible'
+E
+E         - ineligible
+E         ? --
+E         + eligible
+
+tests/test_rights_takedown.py:123: AssertionError
+======================================================================= warnings summary =======================================================================
+../usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /usr/local/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install
+ `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:53
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:53: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_threa
+d.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================================================================== short test summary info ====================================================================
+FAILED tests/test_rights_takedown.py::test_series_takedown_blocks_member_asset - AssertionError: assert 'eligible' == 'ineligible'
+==================================================== 1 failed, 726 passed, 2 warnings in 299.88s (0:04:59) =====================================================
+root@7da54ed4678f:/app# find tests -name "*rights*" -o -name "*takedown*" -o -name "*eligibility*"
+tests/test_rights_takedown.py
+tests/test_rights_engine.py
+tests/test_per_agreement_eligibility.py
+tests/test_rights_enforcement.py
+tests/test_eligibility.py
+tests/test_schedule_rights.py
+root@7da54ed4678f:/app# C-c
+bash: C-c: command not found
+root@7da54ed4678f:/app# find tests -name "*rights*" -o -name "*takedown*" -o -name "*eligibility*"
+tests/test_rights_takedown.py
+tests/test_rights_engine.py
+tests/test_per_agreement_eligibility.py
+tests/test_rights_enforcement.py
+tests/test_eligibility.py
+tests/test_schedule_rights.py
+root@7da54ed4678f:/app# find tests -name "*rights*" -o -name "*takedown*" -o -name "*eligibility*"
+tests/test_rights_takedown.py
+tests/test_rights_engine.py
+tests/test_per_agreement_eligibility.py
+tests/test_rights_enforcement.py
+tests/test_eligibility.py
+tests/test_schedule_rights.py
+root@7da54ed4678f:/app#
+root@7da54ed4678f:/app# find tests -name "*rights*" -o -name "*takedown*" -o -name "*eligibility*"
+tests/test_rights_takedown.py
+tests/test_rights_engine.py
+tests/test_per_agreement_eligibility.py
+tests/test_rights_enforcement.py
+tests/test_eligibility.py
+tests/test_schedule_rights.py
+root@7da54ed4678f:/app# ls -1 tests/
+__init__.py
+conftest.py
+fixtures
+helpers.py
+test_admin.py
+test_alerts.py
+test_analysis.py
+test_as_run.py
+test_asset_delete.py
+test_asset_metadata.py
+test_audience.py
+test_audit.py
+test_audit_expansion.py
+test_auth.py
+test_authorization_matrix.py
+test_auto_normalize.py
+test_branding.py
+test_caption_parse.py
+test_captions.py
+test_certification.py
+test_channel_status.py
+test_clock_generation.py
+test_collections.py
+test_cue_plan.py
+test_cue_validation.py
+test_dashboard_gaps.py
+test_dayparts.py
+test_destinations.py
+test_distribution_adapter_contract.py
+test_distribution_gate.py
+test_dropbox.py
+test_editorial_model.py
+test_effective_at.py
+test_eligibility.py
+test_epg.py
+test_epg_ap
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ribution_adapter_contract.py
+test_distribution_gate.py
+test_dropbox.py
+test_editorial_model.py
+test_effective_at.py
+test_eligibility.py
+test_epg.py
+test_epg_api.py
+test_epg_delivery.py
+test_fallback_resolution.py
+test_fast_status.py
+test_flow_gaps.py
+test_gdrive.py
+test_health.py
+test_heartbeat_detector.py
+test_horizon_extension.py
+test_http_delivery.py
+test_incident.py
+test_integration_boundaries.py
+test_library_import.py
+test_lifecycle.py
+test_media_bulk_and_filters.py
+test_migration_drift.py
+test_noc.py
+test_normalization_robustness.py
+test_notifications.py
+test_oauth_callback.py
+test_operator_role.py
+test_organizations.py
+test_output_failover.py
+test_output_heartbeat.py
+test_output_probe_sweep.py
+test_output_profiles.py
+test_password_reset.py
+test_per_agreement_eligibility.py
+test_plans.py
+test_platform_storage.py
+test_preview.py
+test_probes.py
+test_profile_presets.py
+test_programming.py
+test_programming_blocks.py
+test_public_epg.py
+test_qc.py
+test_quickstart.py
+test_reconciliation.py
+test_reconciliation_runs.py
+test_reconciliation_wiring.py
+test_recurring_blocks.py
+test_redundancy.py
+test_resumable_uploads.py
+test_rights_enforcement.py
+test_rights_engine.py
+test_rights_takedown.py
+test_schedule_alerts.py
+test_schedule_rights.py
+test_schedules.py
+test_service_accounts.py
+test_sftp.py
+test_ssai_adapter_contract.py
+test_ssai_adserver_adapter.py
+test_ssai_delivery.py
+test_start_timeout.py
+test_storage.py
+test_vast_tag.py
+test_webhooks.py
+test_webhooks_api.py
+test_youtube.py
+test_youtube_alerts.py
+test_youtube_broadcast_reconcile.py
+root@7da54ed4678f:/app#
+root@7da54ed4678f:/app# ls tests
+__init__.py                   test_dashboard_gaps.py                 test_migration_drift.py            test_reconciliation_wiring.py
+conftest.py                   test_dayparts.py                       test_noc.py                        test_recurring_blocks.py
+fixtures                      test_destinations.py                   test_normalization_robustness.py   test_redundancy.py
+helpers.py                    test_distribution_adapter_contract.py  test_notifications.py              test_resumable_uploads.py
+test_admin.py                 test_distribution_gate.py              test_oauth_callback.py             test_rights_enforcement.py
+test_alerts.py                test_dropbox.py                        test_operator_role.py              test_rights_engine.py
+test_analysis.py              test_editorial_model.py                test_organizations.py              test_rights_takedown.py
+test_as_run.py                test_effective_at.py                   test_output_failover.py            test_schedule_alerts.py
+test_asset_delete.py          test_eligibility.py                    test_output_heartbeat.py           test_schedule_rights.py
+test_asset_metadata.py        test_epg.py                            test_output_probe_sweep.py         test_schedules.py
+test_audience.py              test_epg_api.py                        test_output_profiles.py            test_service_accounts.py
+test_audit.py                 test_epg_delivery.py                   test_password_reset.py             test_sftp.py
+test_audit_expansion.py       test_fallback_resolution.py            test_per_agreement_eligibility.py  test_ssai_adapter_contract.py
+test_auth.py                  test_fast_status.py                    test_plans.py                      test_ssai_adserver_adapter.py
+test_authorization_matrix.py  test_flow_gaps.py                      test_platform_storage.py           test_ssai_delivery.py
+test_auto_normalize.py        test_gdrive.py                         test_preview.py                    test_start_timeout.py
+test_branding.py              test_health.py                         test_probes.py                     test_storage.py
+test_caption_parse.py         test_heartbeat_detector.py             test_profile_presets.py            test_vast_tag.py
+test_captions.py              test_horizon_extension.py              test_programming.py                test_webhooks.py
+test_certification.py         test_http_delivery.py                  test_programming_blocks.py         test_webhooks_api.py
+test_channel_status.py        test_incident.py                       test_public_epg.py                 test_youtube.py
+test_clock_generation.py      test_integration_boundaries.py         test_qc.py                         test_youtube_alerts.py
+test_collections.py           test_library_import.py                 test_quickstart.py                 test_youtube_broadcast_reconcile.py
+test_cue_plan.py              test_lifecycle.py                      test_reconciliation.py
+test_cue_validation.py        test_media_bulk_and_filters.py         test_reconciliation_runs.py
+root@7da54ed4678f:/app# C-c
+bash: C-c: command not found
+root@7da54ed4678f:/app# C-c
+bash: C-c: command not found
+root@7da54ed4678f:/app#
+root@7da54ed4678f:/app# C-c
+bash: C-c: command not found
+root@7da54ed4678f:/app# C-c
+bash: C-c: command not found
+root@7da54ed4678f:/app#

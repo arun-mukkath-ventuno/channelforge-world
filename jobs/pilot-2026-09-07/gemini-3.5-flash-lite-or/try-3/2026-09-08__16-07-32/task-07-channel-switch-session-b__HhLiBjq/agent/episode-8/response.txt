@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Let's examine how `ensureSession` behaves and how sessions are created/updated. When a session makes an ad decision request (`/v1/ad-decision`), it calls `ensureSession(tx, { id: sessionId, channelId: body.channel_id! })`. \nIn `packages/persistence/src/repositories/sessions.ts`:\n```ts\nexport async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {\n  await db.query(\n    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)\n     VALUES ($1, $2, $3, $4, $5, $6, $7)\n     ON CONFLICT (id) DO NOTHING`,\n    [...\n```\nWait! If a session switches channels, the ad decision request provides the new `channel_id`. But `ensureSession` has `ON CONFLICT (id) DO NOTHING`, so it keeps the original `channel_id`! \nThe problem description states:\n'The fix should make a session's recorded channel reflect whichever channel it was most recently associated with — it does not need to keep a full channel-change history, and it must not change how ad decisions, opportunities, or events are themselves scoped or attributed (those are already correct).'\n\nWait, should `ensureSession` update `channel_id` on conflict, or should `ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id` (or update `channel_id` and `last_activity_at` or similar)? Wait, let's check what `ensureSession` is supposed to do, or if updating `channel_id` on conflict is correct.\nWait, let's check `persistence` tests and other usages of `ensureSession` to see if updating `channel_id` on conflict affects anything or if that's precisely what's expected.",
+  "plan": "Inspect `packages/persistence/src/repositories.test.ts` to see existing tests for sessions and ensureSession.",
+  "commands": [
+    {
+      "keystrokes": "grep -n -C 15 \"ensureSession\" packages/persistence/src/repositories.test.ts\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

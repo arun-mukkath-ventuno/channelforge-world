@@ -1,0 +1,32 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+272d9b32010c:/app# tail -n 25 packages/data-plane/src/avails.test.ts
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+  });
+  it("correctly attributes externalBreakId for back-to-back ad breaks with zero gap", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:30",
+      "#EXT-X-DATERANGE:ID="BRK-1",SCTE35-OUT=0xFC",
+      "#EXTINF:6.000,",
+      "a.ts",
+      "#EXT-X-CUE-IN",
+      "#EXT-X-CUE-OUT:30",
+      "#EXT-X-DATERANGE:ID="BRK-2",SCTE35-OUT=0xFC",
+      "#EXTINF:6.000,",
+      "b.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "ch");
+    expect(avails).toHaveLength(2);
+    expect(avails[0]!.externalBreakId).toBe("BRK-1");
+    expect(avails[1]!.externalBreakId).toBe("BRK-2");
+  });
+});272d9b32010c:/app#

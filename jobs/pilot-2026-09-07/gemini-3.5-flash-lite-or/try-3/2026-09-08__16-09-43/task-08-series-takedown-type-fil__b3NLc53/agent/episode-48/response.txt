@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Look at lines 161-175 in `app/repositories/rights.py`:\n```python\ndef active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )\n```\nNotice that `RightsTakedown.scope_type == \"asset\"` is hardcoded! When `scope_type` is `"series"`, `scope_type` in the database is `"series"`, but the query filters by `RightsTakedown.scope_type == "asset"`, so series-scoped takedowns are ignored when checking if an asset is covered by an active takedown!\n\nAlso, let's check what other functions in `app/repositories/rights.py` or elsewhere handle takedowns or affected events (like `affected_future_events`). Let's inspect `app/repositories/rights.py` around takedowns and affected events completely.",
+  "plan": "Inspect lines 100 to 250 of `app/repositories/rights.py`.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '100,220p' app/repositories/rights.py\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

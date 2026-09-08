@@ -1,0 +1,13 @@
+New Terminal Output:
+
+4a72389f16f4:/app# cat << 'EOF' > fix.cjs
+> const fs = require("fs");
+> let code = fs.readFileSync("packages/data-plane/src/avails.ts", "utf8");
+> code = code.replace("open = null;\n      continue;", "open = null;\n      blockBreakId = undefined;\n      continue;");
+> fs.writeFileSync("packages/data-plane/src/avails.ts", code);
+> console.log("FIXED");
+> EOF
+4a72389f16f4:/app# node fix.cjs
+FIXED
+4a72389f16f4:/app# rm fix.cjs
+4a72389f16f4:/app#

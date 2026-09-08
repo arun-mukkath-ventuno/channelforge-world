@@ -1,0 +1,40 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# cat packages/persistence/src/migrate.ts
+// Minimal forward-only migration runner. Applies migrations/*.sql in filename
+// order, tracking applied files in schema_migrations.
+
+import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import type { Queryable } from "./db.js";
+
+export async function runMigrations(db: Queryable, migrationsDir: string): Promise<string[]> {
+  await db.query(
+    `CREATE TABLE IF NOT EXISTS schema_migrations (
+       name TEXT PRIMARY KEY,
+       applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
+     )`,
+  );
+
+  const files = readdirSync(migrationsDir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+
+  const appliedRows = await db.query<{ name: string }>("SELECT name FROM schema_migrations");
+  const applied = new Set(appliedRows.rows.map((r) => r.name));
+
+  const ran: string[] = [];
+  for (const file of files) {
+    if (applied.has(file)) continue;
+    const sql = readFileSync(join(migrationsDir, file), "utf8");
+    await db.query(sql);
+    await db.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
+    ran.push(file);
+  }
+  return ran;
+}
+c37cf208f09f:/app#

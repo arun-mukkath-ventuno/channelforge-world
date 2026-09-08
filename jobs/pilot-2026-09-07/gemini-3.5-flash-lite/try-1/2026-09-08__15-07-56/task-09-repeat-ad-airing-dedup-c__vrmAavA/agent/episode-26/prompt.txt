@@ -1,0 +1,16 @@
+New Terminal Output:
+
+db6aface227e:/app# cat << 'EOF' > restore.py
+> with open('src/lib/ssai.test.ts', 'r') as f:
+>     content = f.read()
+> idx = content.find('describe("parseAdWindows with id"')
+> if idx != -1:
+>     content = content[:idx]
+> with open('src/lib/ssai.test.ts', 'w') as f:
+>     f.write(content.strip() + '\n')
+> print('Restored ssai.test.ts')
+> EOF
+db6aface227e:/app# python3 restore.py
+Restored ssai.test.ts
+db6aface227e:/app# rm restore.py
+db6aface227e:/app#

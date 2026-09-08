@@ -1,0 +1,41 @@
+New Terminal Output:
+
+ RUN  v3.2.7 /app
+
+ ✓ src/lib/ssai.test.ts (2 tests) 3ms
+   ✓ parseAdWindows > extracts ad windows from EXT-X-DATERANGE ad markers 2ms
+   ✓ parseAdWindows > ignores non-ad DATERANGE and content lines 0ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  09:39:22
+   Duration  157ms (transform 33ms, setup 0ms, collect 33ms, tests 3ms, environment 0ms, prepare 38ms)
+
+db6aface227e:/app# cat << 'EOF' >> src/lib/ssai.test.ts
+>
+> describe("parseAdWindows with id", () => {
+>   it("parses ID attribute into AdWindow", () => {
+>     const manifest = [
+>       '#EXT-X-DATERANGE:ID="ad_slot_1",CLASS="com.fastworld.ad",START-DATE="2026-09-03T05:00:00.000Z",DURATION=15,X-AD-ID="cr_house"',
+>     ].join("\n");
+>     const windows = parseAdWindows(manifest);
+>     expect(windows[0].id).toBe("ad_slot_1");
+>     expect(windows[0].adId).toBe("cr_house");
+>   });
+> });
+> EOF
+db6aface227e:/app# pnpm vitest run src/lib/ssai.test.ts
+
+ RUN  v3.2.7 /app
+
+ ✓ src/lib/ssai.test.ts (3 tests) 4ms
+   ✓ parseAdWindows > extracts ad windows from EXT-X-DATERANGE ad markers 2ms
+   ✓ parseAdWindows > ignores non-ad DATERANGE and content lines 1ms
+   ✓ parseAdWindows with id > parses ID attribute into AdWindow 0ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  09:39:25
+   Duration  180ms (transform 45ms, setup 0ms, collect 44ms, tests 4ms, environment 0ms, prepare 39ms)
+
+db6aface227e:/app#

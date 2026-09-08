@@ -1,0 +1,44 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+grep -rn "playback_sessions" .
+./packages/persistence/src/analytics.ts:63:      "SELECT channel_id, created_at, last_activity_at FROM playback_sessions",
+./packages/persistence/src/repositories/sessions.ts:39:    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_age
+nt)
+./packages/persistence/src/repositories/sessions.ts:55:  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+./packages/persistence/src/repositories/sessions.ts:71:  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+./packages/persistence/src/repositories/sessions.ts:77:    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1",
+ [limit])
+./packages/persistence/dist/analytics.js:15:    const sessionRows = (await db.query("SELECT channel_id, created_at, last_activity_at FROM playback_sessions")).r
+ows;
+./packages/persistence/dist/repositories/sessions.js:5:    await db.query(`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip
+_hash, user_agent)
+./packages/persistence/dist/repositories/sessions.js:18:    await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+./packages/persistence/dist/repositories/sessions.js:32:    const rows = (await db.query("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+./packages/persistence/dist/repositories/sessions.js:36:    const rows = (await db.query("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $
+1", [limit])).rows;
+npm test
+./migrations/001_init.sql:59:CREATE TABLE playback_sessions (
+./migrations/001_init.sql:89:  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+./migrations/001_init.sql:120:  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+./migrations/001_init.sql:151:CREATE INDEX idx_sessions_channel ON playback_sessions (channel_id, created_at);
+77729b58f5eb:/app# grep -rn "playback_sessions" .
+./packages/persistence/src/analytics.ts:63:      "SELECT channel_id, created_at, last_activity_at FROM playback_sessions",
+./packages/persistence/src/repositories/sessions.ts:39:    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_age
+nt)
+./packages/persistence/src/repositories/sessions.ts:55:  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+./packages/persistence/src/repositories/sessions.ts:71:  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+./packages/persistence/src/repositories/sessions.ts:77:    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1",
+ [limit])
+./packages/persistence/dist/analytics.js:15:    const sessionRows = (await db.query("SELECT channel_id, created_at, last_activity_at FROM playback_sessions")).r
+ows;
+./packages/persistence/dist/repositories/sessions.js:5:    await db.query(`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip
+_hash, user_agent)
+./packages/persistence/dist/repositories/sessions.js:18:    await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+./packages/persistence/dist/repositories/sessions.js:32:    const rows = (await db.query("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+./packages/persistence/dist/repositories/sessions.js:36:    const rows = (await db.query("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $
+1", [limit])).rows;
+

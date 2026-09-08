@@ -1,0 +1,89 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+7302aaa448af:/app# grep -rnI playback_sessions packages/
+packages/persistence/src/analytics.ts:63:      "SELECT channel_id, created_at, last_activity_at FROM playback_sessions",
+packages/persistence/src/repositories/sessions.ts:39:    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent
+)
+packages/persistence/src/repositories/sessions.ts:55:  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+packages/persistence/src/repositories/sessions.ts:71:  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/sessions.ts:77:    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [
+limit])
+packages/persistence/dist/analytics.js:15:    const sessionRows = (await db.query("SELECT channel_id, created_at, last_activity_at FROM playback_sessions")).row
+s;
+packages/persistence/dist/repositories/sessions.js:5:    await db.query(`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_h
+ash, user_agent)
+packages/persistence/dist/repositories/sessions.js:18:    await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+packages/persistence/dist/repositories/sessions.js:32:    const rows = (await db.query("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+packages/persistence/dist/repositories/sessions.js:36:    const rows = (await db.query("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1"
+, [limit])).rows;
+7302aaa448af:/app# grep -rnI sessions packages/
+packages/admin-web/src/App.tsx:24:          <Route path="/sessions" element={<SessionsPage />} />
+packages/admin-web/src/content/user-guide.md:111:Live playback sessions — one row per viewer. Each has the channel, when it started, and when
+packages/admin-web/src/pages/AnalyticsPage.tsx:21:            <Stat label="Active sessions" value={data.streaming.activeSessions} />
+packages/admin-web/src/pages/AnalyticsPage.tsx:44:          {data.streaming.sessionsByChannel.length > 0 && (
+packages/admin-web/src/pages/AnalyticsPage.tsx:50:                {data.streaming.sessionsByChannel.map((s) => (
+packages/admin-web/src/pages/AnalyticsPage.tsx:53:                    <span className="ml-2 font-semibold tabular-nums">{s.sessions}</span>
+packages/admin-web/src/pages/SessionsPage.tsx:11:  const { data, error } = useLoad(ssai.sessions);
+packages/admin-web/src/pages/SessionsPage.tsx:16:      <PageHeader title="Sessions" description="Active playback sessions — click a row to trace it." />
+packages/admin-web/src/pages/SessionsPage.tsx:23:            <div className="p-10 text-center text-sm text-muted-foreground">No sessions yet.</div>
+packages/admin-web/src/api/ssai.ts:39:    sessionsByChannel: { channelId: string; sessions: number }[];
+packages/admin-web/src/api/ssai.ts:104:  sessions: () => api.get<Session[]>("/v1/sessions"),
+packages/admin-web/src/components/layout/AppShell.tsx:22:  { to: "/sessions", label: "Sessions", icon: Users },
+packages/admin-web/dist/assets/index-RpeE7pin.js:147: */const og=_t("Users",[["path",{d:"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",key:"1yyitq"}],["circle",{cx
+:"9",cy:"7",r:"4",key:"nufk8"}],["path",{d:"M22 21v-2a4 4 0 0 0-3-3.87",key:"kshegd"}],["path",{d:"M16 3.13a4 4 0 0 1 0 7.75",key:"1da9ce"}]]);function uf(l){va
+r i,s,u="";if(typeof l=="string"||typeof l=="number")u+=l;else if(typeof l=="object")if(Array.isArray(l)){var c=l.length;for(i=0;i<c;i++)l[i]&&(s=uf(l[i]))&&(u&
+&(u+=" "),u+=s)}else for(s in l)l[s]&&(u&&(u+=" "),u+=s);return u}function cf(){for(var l,i,s=0,u="",c=arguments.length;s<c;s++)(l=arguments[s])&&(i=uf(l))&&(u&
+&(u+=" "),u+=i);return u}const Ad=l=>typeof l=="boolean"?`${l}`:l===0?"0":l,Od=cf,ag=(l,i)=>s=>{var u;if((i==null?void 0:i.variants)==null)return Od(l,s==null?v
+oid 0:s.class,s==null?void 0:s.className);const{variants:c,defaultVariants:d}=i,m=Object.keys(c).map(x=>{const y=s==null?void 0:s[x],C=d==null?void 0:d[x];if(y=
+==null)return null;const w=Ad(y)||Ad(C);return c[x][w]}),g=s&&Object.entries(s).reduce((x,y)=>{let[C,w]=y;return w===void 0||(x[C]=w),x},{}),h=i==null||(u=i.com
+poundVariants)===null||u===void 0?void 0:u.reduce((x,y)=>{let{class:C,className:w,...$}=y;return Object.entries($).every(P=>{let[A,R]=P;return Array.isArray(R)?
+R.includes({...d,...g}[A]):{...d,...g}[A]===R})?[...x,C,w]:x},[]);return Od(l,m,h,s==null?void 0:s.class,s==null?void 0:s.className)},pa="-",ug=l=>{const i=dg(l
+),{conflictingClassGroups:s,conflictingClassGroupModifiers:u}=l;return{getClassGroupId:m=>{const g=m.split(pa);return g[0]===""&&g.length!==1&&g.shift(),df(g,i)
+||cg(m)},getConflictingClassGroupIds:(m,g)=>{const h=s[m]||[];return g&&u[m]?[...h,...u[m]]:h}}},df=(l,i)=>{var m;if(l.length===0)return i.classGroupId;const s=
+l[0],u=i.nextPart.get(s),c=u?df(l.slice(1),u):void 0;if(c)return c;if(i.v
+[... output limited to 10000 bytes; 72 interior bytes omitted ...]
+,[34,2],[35,2],[36,2],[38,2],[7,2],[39,2],[44,2],[45,2],[40,2],[41,2],[42,2],[43,2],[8,2],[49,2],[46,2],[47,2],
+[48,2],[50,2],[9,2],[51,2],[52,2],[53,2],[55,2],[54,2],[1,2],[83,83],[93,84],[82,83],[103,85],[74,86],[73,87],[102,88],[96,89],[101,90],[76,91],[90,92],[75,93],
+[99,94],[71,95],[70,88],[100,96],[72,97],[77,98],[78,2],[81,98],[68,2],[104,99],[94,100],[85,101],[86,102],[88,103],[84,104],[87,105],[97,88],[79,106],[80,107],
+[89,108],[69,109],[92,100],[91,98],[95,2],[98,110],[180,111],[177,111],[182,112],[179,111],[178,2],[176,2],[181,2],[175,2],[173,113],[219,114],[220,115],[171,11
+6],[218,117],[172,2],[174,118],[206,119],[211,113],[217,113],[208,120],[207,113],[209,120],[214,121],[215,113],[213,121],[212,113],[216,113],[210,122]],"latestC
+hangedDtsFile":"./dist/cli/seed.d.ts","version":"5.9.3"}
+packages/persistence/dist/index.d.ts:10:export * as sessions from "./repositories/sessions.js";
+packages/persistence/dist/index.js:11:export * as sessions from "./repositories/sessions.js";
+packages/persistence/dist/analytics.js:15:    const sessionRows = (await db.query("SELECT channel_id, created_at, last_activity_at FROM playback_sessions")).row
+s;
+packages/persistence/dist/analytics.js:62:            sessionsByChannel: [...byChannel.entries()]
+packages/persistence/dist/analytics.js:63:                .map(([channelId, sessions]) => ({ channelId, sessions }))
+packages/persistence/dist/analytics.d.ts:6:        sessionsByChannel: {
+packages/persistence/dist/analytics.d.ts:8:            sessions: number;
+packages/persistence/dist/repositories/sessions.js:5:    await db.query(`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_h
+ash, user_agent)
+packages/persistence/dist/repositories/sessions.js:18:    await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+packages/persistence/dist/repositories/sessions.js:32:    const rows = (await db.query("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+packages/persistence/dist/repositories/sessions.js:36:    const rows = (await db.query("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1"
+, [limit])).rows;
+packages/persistence/dist/repositories/sessions.js:39://# sourceMappingURL=sessions.js.map
+packages/persistence/dist/repositories/sessions.js.map:1:{"version":3,"file":"sessions.js","sourceRoot":"","sources":["../../src/repositories/sessions.ts"],"nam
+es":[],"mappings":"AAAA,mDAAmD;AAGnD,OAAO,EAAE,KAAK,EAAE,MAAM,WAAW,CAAC;AAgClC,oFAAoF;AACpF,MAAM,CAAC,KAAK,UAAU,aAAa,CAAC,EAAa,EAAE,KAAmB;IACpE,MAAM,EAAE,CAAC,K
+AAK,CACZ;;iCAE6B,EAC7B;QACE,KAAK,CAAC,EAAE;QACR,KAAK,CAAC,SAAS;QACf,KAAK,CAAC,UAAU,IAAI,IAAI;QACxB,KAAK,CAAC,OAAO,IAAI,IAAI;QACrB,KAAK,CAAC,WAAW,IAAI,IAAI;QACzB
+,KAAK,CAAC,MAAM,IAAI,IAAI;QACpB,KAAK,CAAC,SAAS,IAAI,IAAI;KACxB,CACF,CAAC;AACJ,CAAC;AAED,MAAM,CAAC,KAAK,UAAU,YAAY,CAAC,EAAa,EAAE,EAAU;IAC1D,MAAM,EAAE,CAAC,KAAK,C
+AAC,qEAAqE,EAAE,CAAC,EAAE,CAAC,CAAC,CAAC;AAC9F,CAAC;AAED,SAAS,SAAS,CAAC,CAAa;IAC9B,OAAO;QACL,EAAE,EAAE,CAAC,CAAC,EAAE;QACR,SAAS,EAAE,CAAC,CAAC,UAAU;QACvB,SAAS,E
+AAE,KAAK,CAAC,CAAC,CAAC,UAAU,CAAC;QAC9B,cAAc,EAAE,KAAK,CAAC,CAAC,CAAC,gBAAgB,CAAC;QACzC,UAAU,EAAE,CAAC,CAAC,WAAW;QACzB,OAAO,EAAE,CAAC,CAAC,OAAO;QAClB,WAAW,EAAE,
+CAAC,CAAC,YAAY;KAC5B,CAAC;AACJ,CAAC;AAED,MAAM,CAAC,KAAK,UAAU,UAAU,CAAC,EAAa,EAAE,EAAU;IACxD,MAAM,IAAI,GAAG,CAAC,MAAM,EAAE,CAAC,KAAK,CAAa,+CAA+C,EAAE,CAAC,EAAE,C
+AAC,CAAC,CAAC,CAAC,IAAI,CAAC;IACtG,OAAO,IAAI,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,SAAS,CAAC,IAAI,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,IAAI,CAAC;AAC7C,CAAC;AAED,MAAM,CAAC
+,KAAK,UAAU,YAAY,CAAC,EAAa,EAAE,KAAK,GAAG,GAAG;IAC3D,MAAM,IAAI,GAAG,CACX,MAAM,EAAE,CAAC,KAAK,CAAa,yEAAyE,EAAE,CAAC,KAAK,CAAC,CAAC,CAC/G,CAAC,IAAI,CAAC;IACP,OAAO,
+IAAI,CAAC,GAAG,CAAC,SAAS,CAAC,CAAC;AAC7B,CAAC"}
+packages/persistence/dist/repositories/sessions.d.ts.map:1:{"version":3,"file":"sessions.d.ts","sourceRoot":"","sources":["../../src/repositories/sessions.ts"],
+"names":[],"mappings":"AAEA,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,UAAU,CAAC;AAG1C,MAAM,WAAW,eAAe;IAC9B,EAAE,EAAE,MAAM,CAAC;IACX,SAAS,EAAE,MAAM,CAAC;IAClB,SAAS,EAAE,MAAM
+,CAAC;IAClB,cAAc,EAAE,MAAM,CAAC;IACvB,UAAU,EAAE,MAAM,GAAG,IAAI,CAAC;IAC1B,OAAO,EAAE,MAAM,GAAG,IAAI,CAAC;IACvB,WAAW,EAAE,MAAM,GAAG,IAAI,CAAC;CAC5B;AAYD,MAAM,WAAW
+,YAAY;IAC3B,EAAE,EAAE,MAAM,CAAC;IACX,SAAS,EAAE,MAAM,CAAC;IAClB,UAAU,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IAC3B,OAAO,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IACxB,WAAW,CAAC,EAAE,
+MAAM,GAAG,IAAI,CAAC;IAC5B,MAAM,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;IACvB,SAAS,CAAC,EAAE,MAAM,GAAG,IAAI,CAAC;CAC3B;AAED,oFAAoF;AACpF,wBAAsB,aAAa,CAAC,EAAE,EAAE,SAAS,EA
+AE,KAAK,EAAE,YAAY,GAAG,OAAO,CAAC,IAAI,CAAC,CAerF;AAED,wBAAsB,YAAY,CAAC,EAAE,EAAE,SAAS,EAAE,EAAE,EAAE,MAAM,GAAG,OAAO,CAAC,IAAI,CAAC,CAE3E;AAcD,wBAAsB,UAAU,CAAC,E
+AAE,EAAE,SAAS,EAAE,EAAE,EAAE,MAAM,GAAG,OAAO,CAAC,eAAe,GAAG,IAAI,CAAC,CAG3F;AAED,wBAAsB,YAAY,CAAC,EAAE,EAAE,SAAS,EAAE,KAAK,SAAM,GAAG,OAAO,CAAC,eAAe,EAAE,CAAC,CAK
+zF"}
+packages/persistence/dist/repositories/sessions.d.ts:25://# sourceMappingURL=sessions.d.ts.map
+

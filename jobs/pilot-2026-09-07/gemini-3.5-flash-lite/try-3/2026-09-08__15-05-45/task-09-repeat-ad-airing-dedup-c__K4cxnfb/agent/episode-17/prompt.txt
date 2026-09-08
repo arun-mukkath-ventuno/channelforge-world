@@ -1,0 +1,39 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+672cf0f88e4a:/app# node -e '
+> const fs = require("fs");
+> let code = fs.readFileSync("src/lib/ssai.ts", "utf8");
+> code = code.replace(
+>   "export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {",
+>   "export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId?: string): void {"
+> ).replace(
+>   "const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });",
+>   "const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, pod_id: podId });"
+> ).replace(
+>   "sendAdBeacon(opts.sessionId, beacon, w.adId);",
+>   "sendAdBeacon(opts.sessionId, beacon, w.adId, String(w.start));"
+> );
+> fs.writeFileSync("src/lib/ssai.ts", code, "utf8");
+> '
+672cf0f88e4a:/app# git diff src/lib/ssai.ts
+bash: git: command not found
+672cf0f88e4a:/app# pnpm build
+
+> fast-world-tv@0.1.0 build /app
+> next build
+
+▲ Next.js 16.3.3 (Turbopack)
+✓ Running next.config.ts took 50ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 1700ms
+  Running TypeScript  .

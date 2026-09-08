@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Wait, there is no `.git` directory and no migrations folder! Let's check where the migrations folder is supposed to be. Wait, let's look at `packages/persistence/src/migrate.ts` or similar files. Wait, why would tests look for `../../../migrations`? Because tests expect a `migrations` directory at the project root (`/app/migrations`). But it's missing! Wait, did someone delete it or is it somewhere else? Let's check `find / -name "*migration*" 2>/dev/null` or search for any SQL schema files or table definitions across all source files.",
+  "plan": "Search for table creation statements or migration files across the system.",
+  "commands": [
+    {
+      "keystrokes": "find / -name "*migration*" 2>/dev/null\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

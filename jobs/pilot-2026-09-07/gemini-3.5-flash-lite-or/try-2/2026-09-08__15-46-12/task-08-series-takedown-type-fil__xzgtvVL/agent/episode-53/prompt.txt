@@ -1,0 +1,60 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@d9556c177726:/app# grep -rn 'scope_type' app/
+app/schemas/rights.py:46:    scope_type: str
+app/schemas/rights.py:56:    scope_type: str
+app/schemas/rights.py:63:    scope_type: str  # asset | series
+app/schemas/rights.py:78:    scope_type: str
+app/api/rights.py:67:        scope_type=payload.scope_type, scope_id=payload.scope_id, priority=payload.priority,
+app/api/rights.py:87:    scope_type: str,
+app/api/rights.py:93:        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id
+app/api/rights.py:110:        db, org_id=org_id, actor_id=principal.user_id, scope_type=payload.scope_type,
+app/models/rights.py:89:    scope_type: Mapped[str] = mapped_column(String(20), nullable=False)
+app/models/rights.py:106:    scope_type: Mapped[str] = mapped_column(String(20), nullable=False)  # asset | series
+app/services/rights_engine.py:41:    scope_type: str = "asset"
+app/services/rights_takedown.py:38:    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+app/services/rights_takedown.py:41:        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now
+app/services/rights_takedown.py:59:    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+app/services/rights_takedown.py:61:    if scope_type not in _VALID_SCOPES:
+app/services/rights_takedown.py:62:        raise ServiceError(f"Takedown scope_type must be one of {sorted(_VALID_SCOPES)}.")
+app/services/rights_takedown.py:64:        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now_utc()
+app/services/rights_takedown.py:73:    scope_type: str,
+app/services/rights_takedown.py:78:    if scope_type not in _VALID_SCOPES:
+app/services/rights_takedown.py:79:        raise ServiceError(f"Takedown scope_type must be one of {sorted(_VALID_SCOPES)}.")
+app/services/rights_takedown.py:85:        db, organization_id=org_id, scope_type=scope_type, scope_id=scope_id,
+app/services/rights_takedown.py:88:    affected = _affected(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now)
+app/services/rights_takedown.py:92:        message=f"Emergency takedown on {scope_type} {scope_id}: {reason}",
+app/services/rights_takedown.py:99:        after={"scope_type": scope_type, "scope_id": str(scope_id),
+app/services/rights_admin.py:63:    scope_type: str,
+app/services/rights_admin.py:68:    if scope_type not in VALID_SCOPE_TYPES:
+app/services/rights_admin.py:69:        raise ServiceError(f"Invalid scope_type: {scope_type!r}")
+app/services/rights_admin.py:74:        db, org_id=org_id, policy_id=policy_id, scope_type=scope_type,
+app/services/rights_admin.py:80:        after={"policy_id": str(policy_id), "scope_type": scope_type, "scope_id": str(scope_id)},
+app/repositories/rights.py:62:    db: Session, *, org_id: uuid.UUID, policy_id: uuid.UUID, scope_type: str,
+app/repositories/rights.py:66:        organization_id=org_id, policy_id=policy_id, scope_type=scope_type,
+app/repositories/rights.py:105:    for scope_type, scope_id in scope_targets:
+app/repositories/rights.py:109:                RightsAssignment.scope_type == scope_type,
+app/repositories/rights.py:119:                        version=version, scope_type=scope_type, priority=assignment.priority
+app/repositories/rights.py:124:        key=lambda a: (_SPECIFICITY.get(a.scope_type, 0), a.priority), reverse=True
+app/repositories/rights.py:172:            RightsTakedown.scope_type == "asset",
+app/repositories/rights.py:179:    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+app/repositories/rights.py:181:    if scope_type == "asset":
+app/repositories/rights.py:183:    if scope_type == "series":
+app/repositories/rights.py:195:    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+app/repositories/rights.py:198:    asset_ids = _covered_asset_ids(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id)
+app/repositories/rights.py.orig:62:    db: Session, *, org_id: uuid.UUID, policy_id: uuid.UUID, scope_type: str,
+app/repositories/rights.py.orig:66:        organization_id=org_id, policy_id=policy_id, scope_type=scope_type,
+app/repositories/rights.py.orig:105:    for scope_type, scope_id in scope_targets:
+app/repositories/rights.py.orig:109:                RightsAssignment.scope_type == scope_type,
+app/repositories/rights.py.orig:119:                        version=version, scope_type=scope_type, priority=assignment.priority
+app/repositories/rights.py.orig:124:        key=lambda a: (_SPECIFICITY.get(a.scope_type, 0), a.priority), reverse=True
+app/repositories/rights.py.orig:178:    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+app/repositories/rights.py.orig:180:    if scope_type == "asset":
+app/repositories/rights.py.orig:182:    if scope_type == "series":
+app/repositories/rights.py.orig:194:    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+app/repositories/rights.py.orig:197:    asset_ids = _covered_asset_ids(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id)
+root@d9556c177726:/app#

@@ -1,0 +1,119 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# cat packages/persistence/src/repositories/decisions.ts
+// Ad decision + pod persistence (PRD §46, §47). The full decision payload is
+// retained (JSONB) for debugging and RL evaluation.
+
+import type { AdDecision } from "@ssai/core";
+import type { Queryable } from "../db.js";
+
+export interface SaveDecisionInput {
+  decisionId: string;
+  podId: string;
+  decision: AdDecision;
+  requestedAt: string;
+  completedAt: string;
+}
+
+export async function saveDecision(db: Queryable, input: SaveDecisionInput): Promise<void> {
+  const { decision } = input;
+  const selectedCount = decision.pod.filter((p) => p.type === "ad").length;
+
+  await db.query(
+    `INSERT INTO ad_decisions
+       (id, opportunity_id, session_id, requested_at, completed_at, eligible_count, selected_count, seed, decision_payload)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)`,
+    [
+      input.decisionId,
+      decision.opportunityId,
+      decision.sessionId,
+      input.requestedAt,
+      input.completedAt,
+      decision.eligible.length,
+      selectedCount,
+      decision.seed ?? null,
+      JSON.stringify(decision),
+    ],
+  );
+
+  await db.query(
+    `INSERT INTO ad_pods (id, decision_id, break_duration, ad_seconds, slate_seconds)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [input.podId, input.decisionId, decision.breakDuration, decision.adSeconds, decision.slateSeconds],
+  );
+
+  for (const item of decision.pod) {
+    await db.query(
+      `INSERT INTO ad_pod_items (pod_id, position, item_type, creative_id, duration, start_offset, end_offset)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        input.podId,
+        item.position,
+        item.type === "ad" ? "AD" : "SLATE",
+        item.creativeId ?? null,
+        item.duration,
+        item.startOffset,
+        item.endOffset,
+      ],
+    );
+  }
+}
+
+export interface StoredDecision {
+  id: string;
+  opportunityId: string;
+  sessionId: string;
+  eligibleCount: number;
+  selectedCount: number;
+  decision: AdDecision;
+}
+
+interface DecisionRow {
+  id: string;
+  opportunity_id: string;
+  session_id: string;
+  eligible_count: number;
+  selected_count: number;
+  decision_payload: unknown;
+}
+
+function toStored(r: DecisionRow): StoredDecision {
+  return {
+    id: r.id,
+    opportunityId: r.opportunity_id,
+    sessionId: r.session_id,
+    eligibleCount: Number(r.eligible_count),
+    selectedCount: Number(r.selected_count),
+    decision: (typeof r.decision_payload === "string"
+      ? JSON.parse(r.decision_payload)
+      : r.decision_payload) as AdDecision,
+  };
+}
+
+const DECISION_COLS =
+  "id, opportunity_id, session_id, eligible_count, selected_count, decision_payload";
+
+export async function getDecisionsBySession(db: Queryable, sessionId: string): Promise<StoredDecision[]> {
+  const rows = (
+    await db.query<DecisionRow>(
+      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE session_id = $1 ORDER BY requested_at`,
+      [sessionId],
+    )
+  ).rows;
+  return rows.map(toStored);
+}
+
+export async function getDecisionsByOpportunity(db: Queryable, opportunityId: string): Promise<StoredDecision[]> {
+  const rows = (
+    await db.query<DecisionRow>(
+      `SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORDER BY requested_at`,
+      [opportunityId],
+    )
+  ).rows;
+  return rows.map(toStored);
+}
+c37cf208f09f:/app#

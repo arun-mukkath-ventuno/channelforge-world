@@ -1,0 +1,60 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+93629a20d375:/app# grep -rn "externalBreakId" packages/
+packages/control-plane/src/server.ts:181:      ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+packages/control-plane/src/server.test.ts:205:    const { breaks } = res.json() as { breaks: Array<{ opportunityId: string; externalBreakId: string | null }> };
+packages/control-plane/src/server.test.ts:209:      externalBreakId: "BRK-a11e5310-0003",
+packages/control-plane/dist/server.test.js:182:            externalBreakId: "BRK-a11e5310-0003",
+packages/control-plane/dist/server.js:127:            ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+packages/data-plane/src/avails.ts:18:  externalBreakId?: string;
+packages/data-plane/src/avails.ts:58:    externalBreakId?: string;
+packages/data-plane/src/avails.ts:81:      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+packages/data-plane/src/avails.ts:92:        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+packages/data-plane/src/avails.ts:101:        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+packages/data-plane/src/decider.ts:39:          ...(avail.externalBreakId === undefined
+packages/data-plane/src/decider.ts:41:            : { external_break_id: avail.externalBreakId }),
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/src/avails.test.ts:88:    expect(avails[0]!.externalBreakId).toBe("BRK-a11e5310-0003");
+packages/data-plane/src/avails.test.ts:100:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+packages/data-plane/src/avails.test.ts:103:  it("leaves externalBreakId undefined when the origin carried no DATERANGE id", () => {
+packages/data-plane/src/avails.test.ts:105:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:125:    expect(avails[0]!.externalBreakId).toBe("BRK-first");
+packages/data-plane/src/avails.test.ts:126:    expect(avails[1]!.externalBreakId).toBeUndefined();
+packages/data-plane/dist/decider.js:27:                    ...(avail.externalBreakId === undefined
+packages/data-plane/dist/decider.js:29:                        : { external_break_id: avail.externalBreakId }),
+packages/data-plane/dist/avails.js:42:            if (open && open.externalBreakId === undefined)
+packages/data-plane/dist/avails.js:43:                open.externalBreakId = marker.id;
+packages/data-plane/dist/avails.js:54:                ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+packages/data-plane/dist/avails.js:63:                ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+packages/data-plane/dist/avails.d.ts:8:    externalBreakId?: string;
+packages/persistence/src/reconciliation.test.ts:75:  it("keys a filled break by its externalBreakId with ad seconds + impressions", async () => {
+packages/persistence/src/reconciliation.test.ts:76:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_202", externalBreakId: "BRK-a11e5310-0
+003" }));
+packages/persistence/src/reconciliation.test.ts:97:      externalBreakId: "BRK-a11e5310-0003",
+packages/persistence/src/reconciliation.test.ts:109:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_9", externalBreakId: "BRK-nofill-0001
+" }));
+packages/persistence/src/reconciliation.test.ts:112:    expect(breaks[0]).toMatchObject({ filled: false, adSeconds: 0, impressions: 0, externalBreakId: "BRK-nof
+ill-0001" });
+packages/persistence/src/reconciliation.test.ts:116:    await upsertOpportunity(db, opp({ opportunityId: "opp_multi", externalBreakId: "BRK-multi" }));
+packages/persistence/src/reconciliation.test.ts:139:    await upsertOpportunity(db, opp({ opportunityId: "opp_yoga", externalBreakId: "BRK-yoga", breakStart: "2
+026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:140:    await upsertOpportunity(db, opp({ opportunityId: "opp_food", channelId: "channel_food", externalBreakId:
+ "BRK-food", breakStart: "2026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:141:    await upsertOpportunity(db, opp({ opportunityId: "opp_old", externalBreakId: "BRK-old", breakStart: "202
+0-01-01T00:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:144:    expect(yoga.map((b) => b.externalBreakId).sort()).toEqual(["BRK-old", "BRK-yoga"]);
+packages/persistence/src/reconciliation.test.ts:147:    expect(recent.map((b) => b.externalBreakId)).toEqual(["BRK-yoga"]);
+packages/persistence/src/reconciliation.ts:18:  externalBreakId: string | null;
+packages/persistence/src/reconciliation.ts:117:        externalBreakId: o.external_break_id ?? null,
+packages/persistence/src/repositories/opportunities.ts:19:      opp.externalBreakId ?? null,
+packages/persistence/dist/reconciliation.js:66:            externalBreakId: o.external_break_id ?? null,
+packages/persistence/dist/repositories/opportunities.js:13:        opp.externalBreakId ?? null,
+packages/persistence/dist/reconciliation.d.ts:5:    externalBreakId: string | null;
+packages/core/src/types.ts:11:  externalBreakId?: string;
+packages/core/dist/types.d.ts:7:    externalBreakId?: string;
+93629a20d375:/app# grep -rin "externalbreak" packages/
+

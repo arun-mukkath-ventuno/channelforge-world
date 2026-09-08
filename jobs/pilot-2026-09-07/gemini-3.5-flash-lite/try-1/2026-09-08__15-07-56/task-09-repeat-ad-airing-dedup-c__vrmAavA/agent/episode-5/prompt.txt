@@ -1,0 +1,211 @@
+New Terminal Output:
+
+db6aface227e:/app# cat /reference/ssaiadserver/control-plane/events-normalize.ts
+// Normalize player telemetry (PRD §26B, §28) into canonical ad event types, and
+// derive a deterministic event id so duplicate beacons — e.g. a quartile fired
+// again after a manifest refresh (PRD §60 task 6) — collapse via the events
+// table's ON CONFLICT (event_id) DO NOTHING.
+
+import { createHash } from "node:crypto";
+
+export type CanonicalAdEvent =
+  | "ad_impression"
+  | "ad_start"
+  | "ad_first_quartile"
+  | "ad_midpoint"
+  | "ad_third_quartile"
+  | "ad_complete"
+  | "ad_error";
+
+const ALIASES: Record<string, CanonicalAdEvent> = {
+  impression: "ad_impression",
+  ad_impression: "ad_impression",
+  start: "ad_start",
+  ad_start: "ad_start",
+  firstquartile: "ad_first_quartile",
+  first_quartile: "ad_first_quartile",
+  ad_first_quartile: "ad_first_quartile",
+  midpoint: "ad_midpoint",
+  ad_midpoint: "ad_midpoint",
+  thirdquartile: "ad_third_quartile",
+  third_quartile: "ad_third_quartile",
+  ad_third_quartile: "ad_third_quartile",
+  complete: "ad_complete",
+  ad_complete: "ad_complete",
+  error: "ad_error",
+  ad_error: "ad_error",
+};
+
+const QUARTILE_TO_EVENT: Record<number, CanonicalAdEvent> = {
+  0: "ad_start",
+  25: "ad_first_quartile",
+  50: "ad_midpoint",
+  75: "ad_third_quartile",
+  100: "ad_complete",
+};
+
+export interface RawEvent {
+  event?: string;
+  event_type?: string;
+  event_id?: string;
+  quartile?: number;
+  session_id?: string;
+  channel_id?: string;
+  opportunity_id?: string;
+  pod_id?: string;
+  ad_id?: string;
+  campaign_id?: string;
+  creative_id?: string;
+  program_id?: string;
+  playhead_position?: number;
+  device_type?: string;
+  country?: string;
+  payload?: unknown;
+  [k: string]: unknown;
+}
+
+export interface NormalizedEvent {
+  eventId: string;
+  eventType: string;
+  sessionId: string | null;
+  channelId: string | null;
+  opportunityId: string | null;
+  podId: string | null;
+  adId: string | null;
+  campaignId: string | null;
+  creativeId: string | null;
+  programId: string | null;
+  playheadPosition: number | null;
+  deviceType: string | null;
+  country: string | null;
+  payload: unknown;
+}
+
+/** Resolve the canonical event type from an explicit type or a quartile marker. */
+export function canonicalType(raw: RawEvent): string {
+  const explicit = (raw.event_type ?? raw.event ?? "").toString();
+  const key = explicit.toLowerCase().replace(/\s+/g, "");
+
+  if ((key === "ad_quartile" || key === "quartile") && typeof raw.quartile === "number") {
+    return QUARTILE_TO_EVENT[raw.quartile] ?? explicit;
+  }
+  return ALIASES[key] ?? explicit;
+}
+
+/** Deterministic id for lifecycle events so duplicates dedup; unique otherwise. */
+export function deriveEventId(raw: RawEvent, eventType: string): string {
+  if (raw.event_id) return raw.event_id;
+
+  const isAdLifecycle = eventType.startsWith("ad_") && eventType !== "ad_error";
+  if (isAdLifecycle && raw.session_id) {
+    const basis = [raw.session_id, raw.pod_id ?? "", raw.ad_id ?? "", eventType].join("|");
+    return `evt_${createHash("sha1").update(basis).digest("hex").slice(0, 24)}`;
+  }
+  // Non-lifecycle (errors, unknown) — let each occurrence be recorded.
+  return `evt_${createHash("sha1").update(`${JSON.stringify(raw)}|${Date.now()}|${Math.random()}`).digest("hex").slice(0, 24)}`;
+}
+
+export function normalizeEvent(raw: RawEvent): NormalizedEvent | { error: string } {
+  const eventType = canonicalType(raw);
+  if (!eventType) return { error: "event_type is required" };
+
+  return {
+    eventId: deriveEventId(raw, eventType),
+    eventType,
+    sessionId: raw.session_id ?? null,
+    channelId: raw.channel_id ?? null,
+    opportunityId: raw.opportunity_id ?? null,
+    podId: raw.pod_id ?? null,
+    adId: raw.ad_id ?? null,
+    campaignId: raw.campaign_id ?? null,
+    creativeId: raw.creative_id ?? null,
+    programId: raw.program_id ?? null,
+    playheadPosition: raw.playhead_position ?? null,
+    deviceType: raw.device_type ?? null,
+    country: raw.country ?? null,
+    payload: raw.payload ?? raw,
+  };
+}
+db6aface227e:/app# cat /reference/ssaiadserver/persistence/repositories/events.ts
+// Append-only event stream (PRD §26, §29, §30). Source for analytics.
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface EventInput {
+  eventId: string;
+  eventType: string;
+  ts?: string;
+  sessionId?: string | null;
+  channelId?: string | null;
+  opportunityId?: string | null;
+  podId?: string | null;
+  adId?: string | null;
+  campaignId?: string | null;
+  creativeId?: string | null;
+  programId?: string | null;
+  playheadPosition?: number | null;
+  deviceType?: string | null;
+  country?: string | null;
+  payload?: unknown;
+}
+
+export async function appendEvent(db: Queryable, e: EventInput): Promise<void> {
+  await db.query(
+    `INSERT INTO events
+       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+        campaign_id, creative_id, program_id, playhead_position, device_type, country, payload)
+     VALUES ($1, $2, COALESCE($3, now()), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+     ON CONFLICT (event_id) DO NOTHING`,
+    [
+      e.eventId,
+      e.eventType,
+      e.ts ?? null,
+      e.sessionId ?? null,
+      e.channelId ?? null,
+      e.opportunityId ?? null,
+      e.podId ?? null,
+      e.adId ?? null,
+      e.campaignId ?? null,
+      e.creativeId ?? null,
+      e.programId ?? null,
+      e.playheadPosition ?? null,
+      e.deviceType ?? null,
+      e.country ?? null,
+      e.payload === undefined ? null : JSON.stringify(e.payload),
+    ],
+  );
+}
+
+export interface StoredEvent extends Omit<EventInput, "payload"> {
+  ts: string;
+  payload: unknown;
+}
+
+export async function getEventsBySession(db: Queryable, sessionId: string): Promise<StoredEvent[]> {
+  const rows = (
+    await db.query<Record<string, unknown>>(
+      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+      [sessionId],
+    )
+  ).rows;
+
+  return rows.map((r) => ({
+    eventId: r.event_id as string,
+    eventType: r.event_type as string,
+    ts: toIso(r.ts),
+    sessionId: (r.session_id as string) ?? null,
+    channelId: (r.channel_id as string) ?? null,
+    opportunityId: (r.opportunity_id as string) ?? null,
+    podId: (r.pod_id as string) ?? null,
+    adId: (r.ad_id as string) ?? null,
+    campaignId: (r.campaign_id as string) ?? null,
+    creativeId: (r.creative_id as string) ?? null,
+    programId: (r.program_id as string) ?? null,
+    playheadPosition: r.playhead_position == null ? null : Number(r.playhead_position),
+    deviceType: (r.device_type as string) ?? null,
+    country: (r.country as string) ?? null,
+    payload: typeof r.payload === "string" ? JSON.parse(r.payload) : r.payload,
+  }));
+}
+db6aface227e:/app#

@@ -1,0 +1,121 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+7302aaa448af:/app# cat packages/persistence/src/repositories.test.ts
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { newDb } from "pg-mem";
+import type { Queryable } from "./db.js";
+import { seedDatabase } from "./seed.js";
+import { campaignsAsMap, listCampaigns } from "./repositories/campaigns.js";
+import { listCreatives } from "./repositories/creatives.js";
+import { ensureSession, getSession } from "./repositories/sessions.js";
+import { upsertOpportunity } from "./repositories/opportunities.js";
+import { saveDecision, getDecisionsBySession } from "./repositories/decisions.js";
+import { appendEvent, getEventsBySession } from "./repositories/events.js";
+import { decide, type AdOpportunity, type SessionContext } from "@ssai/core";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const MIG_DIR = resolve(here, "../../../migrations");
+const SCHEMA = readdirSync(MIG_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+  .join("\n");
+
+function freshDb(): Queryable {
+  const mem = newDb();
+  mem.public.none(SCHEMA); // load full schema (multi-statement)
+  const { Pool } = mem.adapters.createPg();
+  return new Pool() as unknown as Queryable;
+}
+
+let db: Queryable;
+beforeEach(() => {
+  db = freshDb();
+});
+
+describe("seed + inventory repositories", () => {
+  it("seeds 5 channels and assembles campaign target channels", async () => {
+    await seedDatabase(db);
+    const campaigns = await listCampaigns(db);
+    const food = campaigns.find((c) => c.campaignId === "camp_food_a");
+    expect(food?.targetChannels).toEqual(["channel_food"]);
+    const appliance = campaigns.find((c) => c.campaignId === "camp_appliance_b");
+    expect(appliance?.targetChannels).toContain("channel_food");
+    expect(appliance?.targetChannels).toContain("channel_entertainment");
+  });
+
+  it("returns creatives with numeric duration/priority/weight", async () => {
+    await seedDatabase(db);
+    const creatives = await listCreatives(db);
+    const food30 = creatives.find((c) => c.creativeId === "cr_food_a_30");
+    expect(food30).toMatchObject({ duration: 30, priority: 10, weight: 100, status: "ready" });
+    expect(typeof food30!.duration).toBe("number");
+  });
+});
+
+describe("decision persistence round-trip (PRD §46, §47)", () => {
+  it("persists a decided pod and reads the full payload back", async () => {
+    await seedDatabase(db);
+    const creatives = await listCreatives(db);
+    const campaigns = await campaignsAsMap(db);
+
+    const opportunity: AdOpportunity = {
+      opportunityId: "opp_1",
+      channelId: "channel_food",
+      breakStart: "2026-08-29T12:15:00Z",
+      breakDuration: 60,
+      source: "cue_out",
+      signalType: "cue_out",
+    };
+    const session: SessionContext = { sessionId: "sess_1", channelId: "channel_food" };
+
+    const decision = decide({
+      opportunity,
+      session,
+      creatives,
+      campaigns,
+      now: "2026-08-29T12:15:00Z",
+      seed: "demo",
+    });
+
+    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+    await upsertOpportunity(db, opportunity);
+    await saveDecision(db, {
+      decisionId: "dec_1",
+      podId: "pod_1",
+      decision,
+      requestedAt: "2026-08-29T12:15:00Z",
+      completedAt: "2026-08-29T12:15:00Z",
+    });
+
+    const stored = await getDecisionsBySession(db, "sess_1");
+    expect(stored).toHaveLength(1);
+    expect(stored[0]!.selectedCount).toBe(decision.pod.filter((p) => p.type === "ad").length);
+    // Full payload reconstructable (RL evaluation, PRD §56).
+    expect(stored[0]!.decision.pod).toEqual(decision.pod);
+    expect(stored[0]!.decision.breakDuration).toBe(60);
+
+    const sess = await getSession(db, "sess_1");
+    expect(sess).toMatchObject({ channelId: "channel_food", deviceType: "web", country: "IN" });
+  });
+});
+
+describe("event stream (PRD §26, §29, §30)", () => {
+  it("appends and reads events by session, ignoring duplicate event ids", async () => {
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1", adId: "cr_food_a_30" });
+    await appendEvent(db, { eventId: "e2", eventType: "ad_complete", sessionId: "sess_1", adId: "cr_food_a_30" });
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "sess_1" }); // dup
+
+    const events = await getEventsBySession(db, "sess_1");
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.eventType)).toEqual(["ad_impression", "ad_complete"]);
+  });
+});
+7302aaa448af:/app#

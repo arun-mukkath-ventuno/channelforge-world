@@ -1,0 +1,11 @@
+{
+  "analysis": "Tests passed successfully. Let's add a test case in `src/lib/ssai.test.ts` verifying that `parseAdWindows` populates `id` correctly and that beacons can pass `podId` or similar.",
+  "plan": "Add test cases in `src/lib/ssai.test.ts` and run tests.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' >> src/lib/ssai.test.ts\n\ndescribe(\"parseAdWindows with id\", () => {\n  it(\"parses ID attribute into AdWindow\", () => {\n    const manifest = [\n      '#EXT-X-DATERANGE:ID=\"ad_slot_1\",CLASS=\"com.fastworld.ad\",START-DATE=\"2026-09-03T05:00:00.000Z\",DURATION=15,X-AD-ID=\"cr_house\"',\n    ].join(\"\\n\");\n    const windows = parseAdWindows(manifest);\n    expect(windows[0].id).toBe(\"ad_slot_1\");\n    expect(windows[0].adId).toBe(\"cr_house\");\n  });\n});\nEOF\npnpm vitest run src/lib/ssai.test.ts\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

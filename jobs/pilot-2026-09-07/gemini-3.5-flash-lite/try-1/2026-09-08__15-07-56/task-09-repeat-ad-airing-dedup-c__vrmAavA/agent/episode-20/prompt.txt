@@ -1,0 +1,62 @@
+New Terminal Output:
+
+db6aface227e:/app# cat << 'EOF' > update_ssai.py
+> with open('src/lib/ssai.ts', 'r') as f:
+>     content = f.read()
+>
+> old_adwindow = '''export interface AdWindow {
+>   adId: string;
+>   start: number; // epoch ms
+>   end: number; // epoch ms
+> }'''
+>
+> new_adwindow = '''export interface AdWindow {
+>   adId: string;
+>   id?: string;
+>   start: number; // epoch ms
+>   end: number; // epoch ms
+> }'''
+>
+> old_parse = '''    const adId = attr("X-AD-ID") || attr("ID");
+>     if (!startDate || !dur || !adId) continue;
+>     const start = Date.parse(startDate);
+>     const seconds = Number(dur);
+>     if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+>     out.push({ adId, start, end: start + seconds * 1000 });'''
+>
+> new_parse = '''    const adId = attr("X-AD-ID") || attr("ID");
+>     const id = attr("ID");
+>     if (!startDate || !dur || !adId) continue;
+>     const start = Date.parse(startDate);
+>     const seconds = Number(dur);
+>     if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+>     out.push({ adId, id, start, end: start + seconds * 1000 });'''
+>
+> old_send = '''export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+>   const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });'''
+>
+> new_send = '''export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId?: string): void {
+>   const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, pod_id: podId });'''
+>
+> old_watcher = '''          sendAdBeacon(opts.sessionId, beacon, w.adId);'''
+>
+> new_watcher = '''          sendAdBeacon(opts.sessionId, beacon, w.adId, w.id ? `${w.id}:${w.start}` : String(w.start));'''
+>
+> assert old_adwindow in content
+> assert old_parse in content
+> assert old_send in content
+> assert old_watcher in content
+>
+> content = content.replace(old_adwindow, new_adwindow)
+> content = content.replace(old_parse, new_parse)
+> content = content.replace(old_send, new_send)
+> content = content.replace(old_watcher, new_watcher)
+>
+> with open('src/lib/ssai.ts', 'w') as f:
+>     f.write(content)
+> print("Successfully updated src/lib/ssai.ts")
+> EOF
+db6aface227e:/app# python3 update_ssai.py
+Successfully updated src/lib/ssai.ts
+db6aface227e:/app# rm update_ssai.py
+db6aface227e:/app#

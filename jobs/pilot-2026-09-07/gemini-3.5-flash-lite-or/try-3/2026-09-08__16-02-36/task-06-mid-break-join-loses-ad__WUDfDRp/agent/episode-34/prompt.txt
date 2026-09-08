@@ -1,0 +1,76 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+93629a20d375:/app# grep -rn "CUE-OUT-CONT" packages/
+packages/core/src/scte.ts:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/src/scte.ts:41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/src/scte.ts:42:  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/core/src/scte.test.ts:31:  it("ignores CUE-OUT-CONT as a new avail", () => {
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/dist/scte.js:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/dist/scte.js:22:    // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/dist/scte.js:23:    if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+93629a20d375:/app# grep -rin "cue" packages/
+packages/admin-web/src/content/user-guide.md:20:| **Ad opportunity (avail)** | A break in the channel signalled by an SCTE marker (`EXT-X-CUE-OUT` … `CUE-IN`).
+Each avail has a duration to fill. |
+packages/admin-web/node_modules/vite/dist/node/chunks/dep-Dm0c1Wj2.js:10821:var ImportType;!function(A){A[A.Static=1]="Static",A[A.Dynamic=2]="Dynamic",A[A.Impo
+rtMeta=3]="ImportMeta",A[A.StaticSourcePhase=4]="StaticSourcePhase",A[A.DynamicSourcePhase=5]="DynamicSourcePhase";}(ImportType||(ImportType={}));const A=1===ne
+w Uint8Array(new Uint16Array([1]).buffer)[0];function parse$d(E,g="@"){if(!C)return init.then((()=>parse$d(E)));const I=E.length+1,w=(C.__heap_base.value||C.__h
+eap_base)+4*I-C.memory.buffer.byteLength;w>0&&C.memory.grow(Math.ceil(w/65536));const K=C.sa(I-1);if((A?B:Q)(E,new Uint16Array(C.memory.buffer,K,I)),!C.parse())
+throw Object.assign(new Error(`Parse error ${g}:${E.slice(0,C.e()).split("\n").length}:${C.e()-E.lastIndexOf("\n",C.e()-1)}`),{idx:C.e()});const o=[],D=[];for(;
+C.ri();){const A=C.is(),Q=C.ie(),B=C.it(),g=C.ai(),I=C.id(),w=C.ss(),K=C.se();let D;C.ip()&&(D=k(E.slice(-1===I?A-1:A,-1===I?Q+1:Q))),o.push({n:D,t:B,s:A,e:Q,ss
+:w,se:K,d:I,a:g});}for(;C.re();){const A=C.es(),Q=C.ee(),B=C.els(),g=C.ele(),I=E.slice(A,Q),w=I[0],K=B<0?void 0:E.slice(B,g),o=K?K[0]:"";D.push({s:A,e:Q,ls:B,le
+:g,n:'"'===w||"'"===w?k(I):I,ln:'"'===o||"'"===o?k(K):K});}function k(A){try{return (0, eval)(A)}catch(A){}}return [o,D,!!C.f(),!!C.ms()]}function Q(A,Q){const
+B=A.length;let C=0;for(;C<B;){const B=A.charCodeAt(C);Q[C++]=(255&B)<<8|B>>>8;}}function B(A,Q){const B=A.length;let C=0;for(;C<B;)Q[C]=A.charCodeAt(C++);}let C
+;const E=()=>{return A="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
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+xErrorTextDecoderTextEncoderWebAssemblysetIntervalCSSPageRuleCSSRuleListSVGAElementSVGGElementAudioBufferCustomEventDOMRectListEve
+ntSourceGeolocationHTMLElementIDBDatabaseIDBKeyRangeMediaSourceMediaStreamPerformancePluginArrayStaticRangeTextMetricsWebGLBufferWebGLShaderXMLDocumentXPathResu
+ltlocationbaroncuechangeondragenterondragleaveondragstartonloadstartonmousedownonmousemoveonmouseoveronpointerupouterHeightperformancepersonalbarpostMessage.mod
+ule.cssprocess.envdevelopment(pure name)outdir path30517578125bad argSizemethodargs(reflect.SetassistQueuenetpollInitreflectOffsglobalAllocmSpanManualstart trac
+eclobberfreegccheckmarkscheddetailunspecifiedcgocall nil s.nelems=   of size  ) returned runtime: p  ms clock,  nBSSRoots=runtime: P  exp.) for minTrigger=GOMEM
+LIMIT=bad m value, elemsize= freeindex= span.list=, npages = , a123456=[ p->status= in status  idleprocs= gcwaiting= schedtick= timerslen= mallocing=bad timediv
+float64nan1float64nan2float64nan3float32nan2GOTRACEBACK) at entry+ (targetpc= , plugin: runtime: g : frame.sp=created by bad addressfile existsbroken pipebad me
+ssagei/o timeoutDives_AkuruMedefaidrinNag_MundariNandinagariNew_Tai_LueOld_PersianOld_SogdianPau_Cin_HauSignWritingWarang_Citisubmissionsnil contextend of filec
+onstructordeclarationimport_meta__yieldStarglobRequire__privateIn_http_agent_tls_commonasync_hooksfs/promisesquerystring(disabled):.WithCancel.WithValue(final t
+okenInstCaptureInstRuneAny[:^xdigit:]<invalid opmedia-rangeasync-awaitclass-fieldimport-metaalign-itemsborder-leftbreak-aftercaret-colorcolumn-fillcolumn-ruleco
+lumn-spanempty-cellsflex-shrinkflood-colorfont-familyfont-weightgrid-columninline-sizeline-heightmargin-leftmask-originmask-repeatpadding-toppaint-orderperspect
+iveplace-itemstext-anchortext-indenttext-shadowuser-selectwhite-spacewill-changenth-of-type<define:%s>(function()
+packages/admin-web/node_modules/.bin/esbuild:1100931:http-serverhttp2serverhttp2clientENABLE_PUSHEND_HEADERS/index.html ErrCode=%v, settings:retry-afterstream_i
+dleack_mysterybad_connectEarly HintsBad RequestBad Gatewaygocachehashgocachetestarchive/tartls10servercrypto/x509archive/zipClassHESIODauthoritiesadditionalsdar
+kmagentadeepskybluefloralwhiteforestgreengreenyellowlightsalmonlightyellownavajowhitesaddlebrownspringgreenyellowgreencjk-decimallower-romanupper-romanlower-alp
+halower-greeklower-latinupper-alphaupper-latinbottom-leftleft-bottomleft-middlesource-overExpected %sawait usingtls: alert(local errorc e traffictraffic updAppl
+icationPRIVATE KEYIn-Reply-ToReturn-PathHTTPS_PROXYhttps_proxySHA-512/224SHA-512/256BLAKE2s-256BLAKE2b-256BLAKE2b-384BLAKE2b-512invalid oidpsk_id_hashCannot wat
+chCannot serverequire-call%!(BADWIDTH)short buffercan't happeninvalid-calcpackage.json--keep-names--sourcemap=--abs-paths=--supported:--log-limit=--log-level=js
+x-fragmentmangle-cachemangle-propstree-shakingtsconfig-rawlog-overrideisExtensibleasyncDisposeFloat16ArrayFloat32ArrayFloat64ArrayMessageEventclearTimeoutCSSAni
+mationCSSMediaRuleCSSStyleRuleSVGPointListSVGTransformSVGUnitTypesAnalyserNodeCDATASectionDOMExceptionDOMStringMapDOMTokenListDataTransferDocumentTypeGamepadEve
+ntHTMLDocumentNamedNodeMapNodeIteratorNotificationPeriodicWavePointerEventRTCRtpSenderSourceBufferStorageEventTextTrackCueWebGLProgramWebGLSamplerWebGLTexturefr
+ameElementgetSelectiononafterprintonhashchangeonloadeddataonmouseenteronmouseleaveonpointeroutonratechangeontimeupdate.webmanifestmangle propsoutfile pathoutbas
+e pathContent-Typeentry pointsLittleEndian152587890625762939453125reflect.CopysweepWaiterstraceStringsspanSetSpinemspanSpecialtraceTypeTabgcBitsArenasmheapSpeci
+algcpacertraceharddecommitmadvdontneeddumping heapchan receiveLINUX_2.6.39lfstack.push span.limit= span.state=bad flushGen MB stacks, worker mode  nDataRoots= n
+SpanRoots= wbuf1=<nil> wbuf2=<nil> gcscandone runtime: gp= found at *( s.elemsize= B (∆goal , cons/mark  maxTrigger= pages/byte
+packages/admin-web/node_modules/.bin/esbuild:1100959:regexp: Compile(defineProperties__defineGetter____defineSetter____lookupGetter____lookupSetter__CSSKeyframe
+sRuleCSSNamespaceRuleSVGAnimatedAngleSVGCircleElementSVGFETileElementSVGFilterElementSVGMarkerElementSVGScriptElementSVGSwitchElementSVGSymbolElementSVGTransfor
+mListBiquadFilterNodeCompositionEventDOMPointReadOnlyDataTransferItemDocumentFragmentDocumentTimelineHTMLAudioElementHTMLDListElementHTMLEmbedElementHTMLFrameEl
+ementHTMLImageElementHTMLInputElementHTMLLabelElementHTMLMediaElementHTMLMeterElementHTMLOListElementHTMLParamElementHTMLQuoteElementHTMLStyleElementHTMLTableEl
+ementHTMLTitleElementHTMLTrackElementHTMLUListElementHTMLVideoElementIDBOpenDBRequestMediaStreamTrackMutationObserverPerformanceEntrySourceBufferListTextTrackCu
+eListWebGLFramebufferdevicePixelRatiogetComputedStyleonanimationstartoncanplaythroughondurationchangeonlanguagechangeonloadedmetadata + %d override%sRel: can't
+make application/wasm0123456789ABCDEFInvalid platformInvalid packagesOn-end callbacksContent-Encoding<!doctype html>
+

@@ -1,0 +1,16 @@
+New Terminal Output:
+
+db6aface227e:/app# grep -rn "creativeId" src/
+db6aface227e:/app# grep -rn "adId" src/
+src/lib/ssai.ts:43:export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+src/lib/ssai.ts:44:  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
+src/lib/ssai.ts:62:  adId: string;
+src/lib/ssai.ts:75:    const adId = attr("X-AD-ID") || attr("ID");
+src/lib/ssai.ts:76:    if (!startDate || !dur || !adId) continue;
+src/lib/ssai.ts:80:    out.push({ adId, start, end: start + seconds * 1000 });
+src/lib/ssai.ts:118:// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+src/lib/ssai.ts:141:  const fired = new Set<string>(); // `${adId}:${start}:${beacon}`
+src/lib/ssai.ts:162:          const key = `${w.adId}:${w.start}:${beacon}`;
+src/lib/ssai.ts:165:          sendAdBeacon(opts.sessionId, beacon, w.adId);
+src/lib/ssai.test.ts:15:    expect(windows[0].adId).toBe("cr_yoga_end_25");
+db6aface227e:/app#

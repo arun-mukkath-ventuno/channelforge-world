@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Single quotes in bash caused quoting issues. Let's write a python script file using python heredoc or `cat << 'EOF' > update.py`.",
+  "plan": "Create `update.py` script and run it.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' > update.py\npath = \"app/repositories/rights.py\"\nwith open(path, \"r\") as f:\n    text = f.read()\n\ntext = text.replace(\"from sqlalchemy import func, select\", \"from sqlalchemy import func, select, or_\")\n\ntarget = '''def active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )'''\n\nreplacement = '''def active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset directly or via its series, if any.\"\"\"\n    conds = [\n        (RightsTakedown.scope_type == \"asset\") & (RightsTakedown.scope_id == asset.id)\n    ]\n    if asset.series_id is not None:\n        conds.append(\n            (RightsTakedown.scope_type == \"series\") & (RightsTakedown.scope_id == asset.series_id)\n        )\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            or_(*conds),\n        )\n    )'''\n\nassert target in text, \"target not found\"\ntext = text.replace(target, replacement)\nwith open(path, \"w\") as f:\n    f.write(text)\nprint(\"SUCCESS\")\nEOF\npython3 update.py\nrm update.py\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}
+```

@@ -1,0 +1,23 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+89cfbf2f1a44:/app# grep -rn "ensureSession" packages/
+packages/control-plane/src/server.ts:133:    await sessionsRepo.ensureSession(pool, {
+packages/control-plane/src/server.ts:210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+packages/control-plane/dist/server.js:90:        await sessionsRepo.ensureSession(pool, {
+packages/control-plane/dist/server.js:152:            await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id });
+packages/persistence/src/repositories.test.ts:10:import { ensureSession, getSession } from "./repositories/sessions.js";
+packages/persistence/src/repositories.test.ts:81:    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+packages/persistence/src/reconciliation.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/reconciliation.test.ts:70:  await ensureSession(db, { id: "s1", channelId: "channel_yoga" });
+packages/persistence/src/reconciliation.test.ts:71:  await ensureSession(db, { id: "s2", channelId: "channel_yoga" });
+packages/persistence/src/analytics.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/analytics.test.ts:68:  await ensureSession(db, { id: "s1", channelId: "channel_food" });
+packages/persistence/src/repositories/sessions.ts:37:export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+packages/persistence/dist/repositories/sessions.js:4:export async function ensureSession(db, input) {
+packages/persistence/dist/repositories/sessions.d.ts:21:export declare function ensureSession(db: Queryable, input: SessionInput): Promise<void>;
+89cfbf2f1a44:/app# grep -rn "ensureSession" packages/
+

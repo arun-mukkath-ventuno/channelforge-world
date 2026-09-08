@@ -1,0 +1,38 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+me
+root@d9556c177726:/app# head -n 30 app/repositories/rights.py
+"""Data access for rights policies, versions, and assignments (PRD 3.0 §8, ADR-5)."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.models import (
+    Asset,
+    RightsAssignment,
+    RightsPolicy,
+    RightsPolicyVersion,
+    RightsTakedown,
+    ScheduleEvent,
+    ScheduleVersion,
+)
+from app.services.rights_engine import ApplicablePolicy
+
+# Scope specificity for deterministic precedence ordering (higher = more specific).
+_SPECIFICITY = {"asset": 4, "series": 3, "collection": 2, "channel": 1, "agreement": 0}
+
+
+def create_policy(db: Session, **fields) -> RightsPolicy:
+    policy = RightsPolicy(**fields)
+    db.add(policy)
+    db.flush()
+    return policy
+root@d9556c177726:/app#

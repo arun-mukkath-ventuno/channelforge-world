@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Ah, template literal in node `-e` string evaluation tried to interpolate `${channelId}` in the `-e` string. Let's write a small node script or use file I/O safely without template interpolation issues.",
+  "plan": "Write the replacement using string literals or read/write with a simple `.replace()`.",
+  "commands": [
+    {
+      "keystrokes": "node -e '\nconst fs = require(\"fs\");\nconst file = \"packages/data-plane/src/avails.ts\";\nlet content = fs.readFileSync(file, \"utf8\");\n\nconst target = \"      open = null;\\n      continue;\";\nconst replacement = \"      open = null;\\n      blockBreakId = undefined;\\n      continue;\";\n\nif (!content.includes(target)) { console.error(\"target not found\"); process.exit(1); }\ncontent = content.replace(target, replacement);\nfs.writeFileSync(file, content);\nconsole.log(\"Updated successfully\");\n'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

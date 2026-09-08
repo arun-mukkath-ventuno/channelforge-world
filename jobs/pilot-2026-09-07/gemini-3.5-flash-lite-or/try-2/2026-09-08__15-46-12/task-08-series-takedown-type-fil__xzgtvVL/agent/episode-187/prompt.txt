@@ -1,0 +1,45 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+Current Terminal Screen:
+bash: RightsTakedown.organization_id: command not found
+root@d9556c177726:/app#             RightsTakedown.status == \"active\",
+bash: RightsTakedown.status: command not found
+root@d9556c177726:/app#             RightsTakedown.scope_type == \"asset\",
+bash: RightsTakedown.scope_type: command not found
+root@d9556c177726:/app#             RightsTakedown.scope_id.in_(scope_ids),
+bash: syntax error near unexpected token `scope_ids'
+root@d9556c177726:/app#         )
+bash: syntax error near unexpected token `)'
+root@d9556c177726:/app#     )'''
+bash: syntax error near unexpected token `)'
+root@d9556c177726:/app# new = '''def active_takedown_for_asset(
+>     db: Session, *, org_id: uuid.UUID, asset: Asset
+> ) -> RightsTakedown | None:
+>     """An active takedown covering this asset directly or via its series, if any."""
+>     conds = [
+>         (RightsTakedown.scope_type == \"asset\") & (RightsTakedown.scope_id == asset.id)
+>     ]
+>     if asset.series_id is not None:
+>         conds.append(
+>             (RightsTakedown.scope_type == \"series\") & (RightsTakedown.scope_id == asset.series_id)
+>         )
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == \"active\",
+>             or_(*conds),
+>         )
+>     )'''
+bash: new: command not found
+root@d9556c177726:/app# assert old in c
+bash: assert: command not found
+root@d9556c177726:/app# c = c.replace(old, new)
+bash: syntax error near unexpected token `('
+root@d9556c177726:/app# with open("app/repositories/rights.py", "w") as f: f.write(c)
+bash: syntax error near unexpected token `('
+root@d9556c177726:/app# print("UPDATED")
+bash: syntax error near unexpected token `"UPDATED"'
+root@d9556c177726:/app# """).decode())'
+>

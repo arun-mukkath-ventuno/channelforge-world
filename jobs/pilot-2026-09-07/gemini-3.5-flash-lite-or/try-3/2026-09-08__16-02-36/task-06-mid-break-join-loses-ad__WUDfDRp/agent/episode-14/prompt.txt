@@ -1,0 +1,140 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+grep -rn "MIG_DIR" packages/
+packages/creative-worker/src/worker.test.ts:15:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/vast-inventory.test.ts:16:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/beacons.test.ts:16:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/server.test.ts:12:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/server.test.js:11:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/beacons.test.js:9:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/vast-inventory.test.js:9:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/repositories.test.ts:17:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/reconciliation.test.ts:18:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/index.ts:1:// @ssai/persistence — Postgres repositories, migrations, and the Redis pod cache.
+packages/persistence/src/analytics.test.ts:18:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/cli/migrate.ts:1:// CLI: apply pending migrations against DATABASE_URL.
+packages/persistence/src/cli/migrate.ts:11:const migrationsDir = resolve(here, "../../../../migrations");
+packages/persistence/src/cli/migrate.ts:15:  const ran = await runMigrations(pool, migrationsDir);
+packages/persistence/src/cli/migrate.ts:16:  console.log(ran.length ? `Applied migrations: ${ran.join(", ")}` : "No pending migrations.");
+packages/persistence/src/migrate.ts:1:// Minimal forward-only migration runner. Applies migrations/*.sql in filename
+packages/persistence/src/migrate.ts:2:// order, tracking applied files in schema_migrations.
+packages/persistence/src/migrate.ts:8:export async function runMigrations(db: Queryable, migrationsDir: string): Promise<string[]> {
+packages/persistence/src/migrate.ts:10:    `CREATE TABLE IF NOT EXISTS schema_migrations (
+packages/persistence/src/migrate.ts:16:  const files = readdirSync(migrationsDir)
+packages/persistence/src/migrate.ts:20:  const appliedRows = await db.query<{ name: string }>("SELECT name FROM schema_migrations");
+packages/persistence/src/migrate.ts:26:    const sql = readFileSync(join(migrationsDir, file), "utf8");
+packages/persistence/src/migrate.ts:28:    await db.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
+packages/persistence/dist/index.js:1:// @ssai/persistence — Postgres repositories, migrations, and the Redis pod cache.
+packages/persistence/dist/migrate.d.ts:2:export declare function runMigrations(db: Queryable, migrationsDir: string): Promise<string[]>;
+packages/persistence/dist/migrate.js:1:// Minimal forward-only migration runner. Applies migrations/*.sql in filename
+packages/persistence/dist/migrate.js:2:// order, tracking applied files in schema_migrations.
+packages/persistence/dist/migrate.js:5:export async function runMigrations(db, migrationsDir) {
+packages/persistence/dist/migrate.js:6:    await db.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
+packages/persistence/dist/migrate.js:10:    const files = readdirSync(migrationsDir)
+packages/persistence/dist/migrate.js:13:    const appliedRows = await db.query("SELECT name FROM schema_migrations");
+packages/persistence/dist/migrate.js:19:        const sql = readFileSync(join(migrationsDir, file), "utf8");
+packages/persistence/dist/migrate.js:21:        await db.query("INSERT INTO schema_migrations (name) VALUES ($1)", [file]);
+packages/persistence/dist/cli/migrate.js:1:// CLI: apply pending migrations against DATABASE_URL.
+packages/persistence/dist/cli/migrate.js:9:const migrationsDir = resolve(here, "../../../../migrations");
+packages/persistence/dist/cli/migrate.js:12:    const ran = await runMigrations(pool, migrationsDir);
+packages/persistence/dist/cli/migrate.js:13:    console.log(ran.length ? `Applied migrations: ${ran.join(", ")}` : "No pending migrations.");
+93629a20d375:/app# grep -rn "MIG_DIR" packages/
+npm run build
+packages/creative-worker/src/worker.test.ts:15:const MIG_DIR = resolve(here, "../../../migrations");
+packages/creative-worker/src/worker.test.ts:19:  for (const f of readdirSync(MIG_DIR).filter((f) => f.endsWith(".sql")).sort()) {
+packages/creative-worker/src/worker.test.ts:20:    mem.public.none(readFileSync(join(MIG_DIR, f), "utf8"));
+packages/control-plane/src/vast-inventory.test.ts:16:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/vast-inventory.test.ts:17:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/src/vast-inventory.test.ts:20:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/control-plane/src/beacons.test.ts:16:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/beacons.test.ts:17:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/src/beacons.test.ts:19:  .m
+[... output limited to 10000 bytes; 69 interior bytes omitted ...]
+.test.js:12:    .map((f) => readFileSync(join(MIG_DIR, f), "utf8")).join("\n");
+packages/control-plane/dist/vast-inventory.test.js:9:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/vast-inventory.test.js:10:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/dist/vast-inventory.test.js:13:    .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/persistence/src/repositories.test.ts:17:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/repositories.test.ts:18:const SCHEMA = readdirSync(MIG_DIR)
+packages/persistence/src/repositories.test.ts:21:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/persistence/src/reconciliation.test.ts:18:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/reconciliation.test.ts:19:const SCHEMA = readdirSync(MIG_DIR)
+packages/persistence/src/reconciliation.test.ts:22:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/persistence/src/analytics.test.ts:18:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/analytics.test.ts:19:const SCHEMA = readdirSync(MIG_DIR)
+packages/persistence/src/analytics.test.ts:22:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+93629a20d375:/app# grep -rn "MIG_DIR" packages/
+packages/creative-worker/src/worker.test.ts:15:const MIG_DIR = resolve(here, "../../../migrations");
+packages/creative-worker/src/worker.test.ts:19:  for (const f of readdirSync(MIG_DIR).filter((f) => f.endsWith(".sql")).sort()) {
+packages/creative-worker/src/worker.test.ts:20:    mem.public.none(readFileSync(join(MIG_DIR, f), "utf8"));
+packages/control-plane/src/vast-inventory.test.ts:16:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/vast-inventory.test.ts:17:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/src/vast-inventory.test.ts:20:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/control-plane/src/beacons.test.ts:16:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/beacons.test.ts:17:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/src/beacons.test.ts:19:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8")).join("\n");
+packages/control-plane/src/server.test.ts:12:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/src/server.test.ts:13:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/src/server.test.ts:16:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/control-plane/dist/server.test.js:11:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/server.test.js:12:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/dist/server.test.js:15:    .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/control-plane/dist/beacons.test.js:9:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/beacons.test.js:10:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/dist/beacons.test.js:12:    .map((f) => readFileSync(join(MIG_DIR, f), "utf8")).join("\n");
+packages/control-plane/dist/vast-inventory.test.js:9:const MIG_DIR = resolve(here, "../../../migrations");
+packages/control-plane/dist/vast-inventory.test.js:10:const SCHEMA = readdirSync(MIG_DIR)
+packages/control-plane/dist/vast-inventory.test.js:13:    .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/persistence/src/repositories.test.ts:17:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/repositories.test.ts:18:const SCHEMA = readdirSync(MIG_DIR)
+packages/persistence/src/repositories.test.ts:21:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/persistence/src/reconciliation.test.ts:18:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/reconciliation.test.ts:19:const SCHEMA = readdirSync(MIG_DIR)
+packages/persistence/src/reconciliation.test.ts:22:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+packages/persistence/src/analytics.test.ts:18:const MIG_DIR = resolve(here, "../../../migrations");
+packages/persistence/src/analytics.test.ts:19:const SCHEMA = readdirSync(MIG_DIR)
+packages/persistence/src/analytics.test.ts:22:  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+93629a20d375:/app# npm run build
+
+> ssaiadserver@0.1.0 build
+> npm run build --workspaces --if-present
+
+
+> @ssai/admin-web@0.1.0 build
+> vite build
+
+vite v6.4.3 building for production...
+✓ 1600 modules transformed.
+dist/index.html                   0.48 kB │ gzip:  0.31 kB
+dist/assets/index-B6R8QqZS.css   35.10 kB │ gzip:  6.60 kB
+dist/assets/index-GUROw0s8.js   280.07 kB │ gzip: 88.34 kB
+✓ built in 1.33s
+
+> @ssai/control-plane@0.1.0 build
+> tsc --build
+
+
+> @ssai/core@0.1.0 build
+> tsc --build
+
+
+> @ssai/creative-worker@0.1.0 build
+> tsc --build
+
+
+> @ssai/data-plane@0.1.0 build
+> tsc --build
+
+
+> @ssai/persistence@0.1.0 build
+> tsc --build
+
+
+> @ssai/storage@0.1.0 build
+> tsc --build
+
+93629a20d375:/app#

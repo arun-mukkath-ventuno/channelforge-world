@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "`sendAdBeacon` is only called in `src/lib/ssai.ts` itself! \nLet's verify if updating `sendAdBeacon` to take `podId?: string` (or `pod_id`) and passing `String(w.start)` (or `w.start`) solves the bug completely.\nLet's check `src/lib/ssai.ts` lines around 40-55 and 150-170.",
+  "plan": "Review `src/lib/ssai.ts` around `sendAdBeacon` and `startAdBeaconWatcher`.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '40,55p;150,170p' src/lib/ssai.ts\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

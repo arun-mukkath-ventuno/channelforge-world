@@ -1,0 +1,77 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+7302aaa448af:/app# npm test
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/core/src/eligibility.test.ts (9)
+ ✓ packages/core/src/pod.test.ts (8)
+ ✓ packages/core/src/scte.test.ts (11)
+ ✓ packages/core/src/session-token.test.ts (6)
+ ✓ packages/control-plane/src/beacons.test.ts (6)
+ ✓ packages/control-plane/src/events-normalize.test.ts (7)
+ ✓ packages/control-plane/src/server.test.ts (15) 358ms
+ ✓ packages/control-plane/src/vast-fetch.test.ts (5)
+ ✓ packages/control-plane/src/vast-inventory.test.ts (4)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/creative-worker/src/validate.test.ts (6)
+ ✓ packages/creative-worker/src/worker.test.ts (5)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+ ✓ packages/persistence/src/analytics.test.ts (5)
+ ✓ packages/persistence/src/pod-cache.test.ts (3)
+ ✓ packages/persistence/src/reconciliation.test.ts (4)
+ ❯ packages/persistence/src/repositories.test.ts (5)
+   ✓ seed + inventory repositories (2)
+   ✓ decision persistence round-trip (PRD §46, §47) (1)
+   ✓ event stream (PRD §26, §29, §30) (1)
+   ❯ session channel switching (1)
+     × updates session recorded channel when ensureSession is called with a new channel
+ ✓ packages/storage/src/s3.test.ts (4)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/persistence/src/repositories.test.ts > session channel switching > updates session recorded channel when ensureSession is called with a new chan
+nel
+Error: insert or update on table "channels" violates foreign key constraint on table "playback_sessions_channel_id_fk"
+
+🐜 This seems to be an execution error, which means that your request syntax seems okay,
+    but the resulting statement cannot be executed → Probably not a pg-mem error.
+
+*️⃣ Failed SQL statement: INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ('sess_switch', 'channel_food', null, null, null, null, null)
+     ON CONFLICT (id) DO UPDATE SET
+       channel_id = EXCLUDED.channel_id;
+
+👉 You can file an issue at https://github.com/oguimbal/pg-mem along with a way to reproduce this error (if you can), and  the stacktrace:
+
+
+ ❯ node_modules/pg-mem/src/constraints/foreign-key.ts:160:23
+ ❯ Object.before node_modules/pg-mem/src/table.ts:419:25
+ ❯ MemoryTable.doInsert node_modules/pg-mem/src/table.ts:330:20
+ ❯ Insert.performMutation node_modules/pg-mem/src/execution/records-mutations/insert.ts:182:44
+ ❯ Insert._doExecuteOnce node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:60:29
+ ❯ Insert.enumerate node_modules/pg-mem/src/execution/records-mutations/mutation-base.ts:72:29
+ ❯ SelectExec.execute node_modules/pg-mem/src/execution/select.ts:279:41
+ ❯ node_modules/pg-mem/src/execution/statement-exec.ts:210:42
+ ❯ pushExecutionCtx node_modules/pg-mem/src/utils.ts:404:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 21 passed (22)
+      Tests  1 failed | 142 passed (143)
+   Start at  10:15:16
+   Duration  4.31s (transform 256ms, setup 0ms, collect 1.00s, tests 1.24s, environment 3ms, prepare 623ms)
+
+7302aaa448af:/app#

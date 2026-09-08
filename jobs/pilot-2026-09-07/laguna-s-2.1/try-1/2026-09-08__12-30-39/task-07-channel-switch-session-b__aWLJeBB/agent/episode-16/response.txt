@@ -1,0 +1,7 @@
+Now I can see the defect clearly. The `ensureSession` function uses `ON CONFLICT (id) DO NOTHING`, which means if the session already exists (from the first channel), it does nothing - including not updating the `channel_id`. This is exactly the bug: the session's channel never gets updated when the viewer switches channels.
+
+The fix is to change `ON CONFLICT (id) DO NOTHING` to `ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id` (and possibly update `last_activity_at` as well).
+
+Let me also check how `ensureSession` is called in the server to make sure I understand all the call sites.<tool_call>shell<arg_key>cmd</arg_key><arg_value>grep -rn "ensureSession" ./packages --include="*.ts" 2>/dev/null | grep -v node_modules | grep -v dist
+</arg_value><arg_key>duration</arg_key><arg_value>1.0</arg_value></tool_call><tool_call>shell<arg_key>cmd</arg_key><arg_value>grep -rn "ensureSession" ./packages --include="*.js" 2>/dev/null | grep -v node_modules | grep -v dist | head -20
+</arg_value><arg_key>duration</arg_key><arg_value>1.0</arg_value></tool_call>

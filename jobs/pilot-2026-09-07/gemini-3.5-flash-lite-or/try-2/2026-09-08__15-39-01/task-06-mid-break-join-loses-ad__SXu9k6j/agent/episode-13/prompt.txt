@@ -1,0 +1,44 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+7c2ffd298999:/app# grep -rn "ad-decision" packages/
+packages/control-plane/src/server.ts:89:  // Public: health, login, the player endpoints, the ad-decision (internal), and
+packages/control-plane/src/server.ts:97:    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+packages/control-plane/src/server.ts:163:  app.post("/v1/ad-decision", async (req, reply) => {
+packages/control-plane/src/server.test.ts:188:  it("records external_break_id from an ad-decision and lists it per break", async () => {
+packages/control-plane/src/server.test.ts:192:      url: "/v1/ad-decision",
+packages/control-plane/dist/server.test.js:162:    it("records external_break_id from an ad-decision and lists it per break", async () => {
+packages/control-plane/dist/server.test.js:166:            url: "/v1/ad-decision",
+packages/control-plane/dist/server.js:43:    // Public: health, login, the player endpoints, the ad-decision (internal), and
+packages/control-plane/dist/server.js:54:        if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision"))
+packages/control-plane/dist/server.js:117:    app.post("/v1/ad-decision", async (req, reply) => {
+packages/data-plane/src/decider.ts:19:/** Posts to the control plane's /v1/ad-decision. */
+packages/data-plane/src/decider.ts:31:      const res = await this.fetchImpl(`${this.controlPlaneUrl}/v1/ad-decision`, {
+packages/data-plane/dist/decider.js:5:/** Posts to the control plane's /v1/ad-decision. */
+packages/data-plane/dist/decider.js:19:            const res = await this.fetchImpl(`${this.controlPlaneUrl}/v1/ad-decision`, {
+packages/data-plane/dist/decider.d.ts:11:/** Posts to the control plane's /v1/ad-decision. */
+packages/persistence/src/repositories/sessions.ts:36:/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+packages/persistence/dist/repositories/sessions.js:3:/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+packages/persistence/dist/repositories/sessions.d.ts:20:/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+packages/core/src/index.ts:2:// Shared by the control plane (ad-decision) and the data plane (stitching).
+packages/core/dist/index.js:2:// Shared by the control plane (ad-decision) and the data plane (stitching).
+7c2ffd298999:/app# ls -la packages/control-plane/src
+total 100
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 ..
+-rw-r--r--    1 root     root          4797 Sep  5 08:18 beacons.test.ts
+-rw-r--r--    1 root     root          3516 Sep  5 08:18 beacons.ts
+-rw-r--r--    1 root     root          2635 Sep  5 08:18 events-normalize.test.ts
+-rw-r--r--    1 root     root          3959 Sep  5 08:18 events-normalize.ts
+-rw-r--r--    1 root     root          9527 Sep  5 08:18 server.test.ts
+-rw-r--r--    1 root     root         22957 Sep  5 08:18 server.ts
+-rw-r--r--    1 root     root          2879 Sep  5 08:18 vast-fetch.test.ts
+-rw-r--r--    1 root     root          2530 Sep  5 08:18 vast-fetch.ts
+-rw-r--r--    1 root     root          4782 Sep  5 08:18 vast-inventory.test.ts
+-rw-r--r--    1 root     root          3934 Sep  5 08:18 vast-inventory.ts
+-rw-r--r--    1 root     root          5133 Sep  5 08:18 vast.test.ts
+-rw-r--r--    1 root     root          5874 Sep  5 08:18 vast.ts
+7c2ffd298999:/app#

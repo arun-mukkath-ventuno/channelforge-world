@@ -1,0 +1,36 @@
+{
+  "analysis": "Data plane tests passed successfully. Now let's write a test in `avails.test.ts` for back-to-back ad breaks with zero gap between them, reproducing the bug where the second break gets the first break's producer break ID.",
+  "plan": "Let's inspect `packages/data-plane/src/avails.test.ts` or add a test case to it reproducing the bug.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' >> packages/data-plane/src/avails.test.ts
+
+describe(\"back-to-back ad breaks\", () => {
+  it(\"does not leak first break's externalBreakId onto second break when there is zero gap\", () => {
+    const m = manifest([
+      \"#EXT-X-MEDIA-SEQUENCE:0\",
+      \"#EXT-X-CUE-OUT:30\",
+      '#EXT-X-DATERANGE:ID=\"BRK-1\",PLANNED-DURATION=30',
+      \"#EXTINF:6.000,\",
+      \"a.ts\",
+      \"#EXT-X-CUE-IN\",
+      \"#EXT-X-CUE-OUT:15\",
+      '#EXT-X-DATERANGE:ID=\"BRK-2\",PLANNED-DURATION=15',
+      \"#EXTINF:6.000,\",
+      \"b.ts\",
+      \"#EXT-X-CUE-IN\",
+    ]);
+    const avails = detectAvails(m, \"ch\");
+    expect(avails).toHaveLength(2);
+    expect(avails[0]!.externalBreakId).toBe(\"BRK-1\");
+    expect(avails[1]!.externalBreakId).toBe(\"BRK-2\");
+  });
+});
+EOF
+npx vitest run packages/data-plane
+\n",
+      "duration": 3.0
+    }
+  ],
+  "task_complete": false
+}

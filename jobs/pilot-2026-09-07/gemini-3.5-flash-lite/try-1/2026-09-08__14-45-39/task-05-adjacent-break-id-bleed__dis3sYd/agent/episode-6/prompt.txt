@@ -1,0 +1,89 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+272d9b32010c:/app# grep -rn "producer" packages/
+packages/control-plane/src/server.ts:280:  // Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/control-plane/src/server.ts:282:  // producer's external_break_id so ChannelForge can attach delivery to its planned break (§17).
+packages/control-plane/dist/server.js:219:    // Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/control-plane/dist/server.js:221:    // producer's external_break_id so ChannelForge can attach delivery to its planned break (§17).
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:17:   *  by contrast, is a media-sequence-derived id independent of the producer). */
+packages/data-plane/src/avails.ts:47:  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+packages/data-plane/src/avails.ts:91:        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+packages/data-plane/src/avails.test.ts:91:  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+packages/data-plane/dist/avails.js:20:    // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+packages/data-plane/dist/avails.js:53:                // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+packages/data-plane/dist/avails.d.ts:4:    /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/dist/avails.d.ts:7:     *  by contrast, is a media-sequence-derived id independent of the producer). */
+packages/persistence/src/reconciliation.ts:1:// Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/persistence/src/reconciliation.ts:4:// filled. This assembles one row per ad opportunity — keyed by the producer's own break id
+packages/persistence/dist/reconciliation.js:1:// Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/persistence/dist/reconciliation.js:4:// filled. This assembles one row per ad opportunity — keyed by the producer's own break id
+packages/core/src/types.ts:9:  /** The producer's stable break id (ChannelForge's break_id, from the DATERANGE ID), when the
+packages/core/dist/types.d.ts:5:    /** The producer's stable break id (ChannelForge's break_id, from the DATERANGE ID), when the
+272d9b32010c:/app# grep -rn "break" packages/
+packages/admin-web/src/content/user-guide.md:4:ChannelForge produces, finds the ad breaks in them, decides which ads fill each break,
+packages/admin-web/src/content/user-guide.md:11:real ads at each break.
+packages/admin-web/src/content/user-guide.md:20:| **Ad opportunity (avail)** | A break in the channel signalled by an SCTE marker (`EXT-X-CUE-OUT` … `CUE-IN`).
+Each avail has a duration to fill. |
+packages/admin-web/src/content/user-guide.md:23:| **Ad decision** | For a given break, the set of eligible creatives and the ones selected — deterministic given
+ the same seed and inventory. |
+packages/admin-web/src/content/user-guide.md:24:| **Pod** | The ordered list of items that fills a break: ad segments plus slate. A pod always sums to the full
+break duration. |
+packages/admin-web/src/content/user-guide.md:25:| **Slate** | Fallback media ("We'll be right back") that fills any break time not covered by ads, so the break
+is always complete. |
+packages/admin-web/src/content/user-guide.md:26:| **Session** | One viewer's playback. It gets a signed playback URL; the ad decision is made once per break per
+ session and cached. |
+packages/admin-web/src/content/user-guide.md:27:| **Fill rate** | How much of the available break time was filled with advertising vs. slate. |
+packages/admin-web/src/content/user-guide.md:36:`master.m3u8`). SSAI fetches this origin, detects the ad breaks in it, and fills them. You
+packages/admin-web/src/content/user-guide.md:62:Once creatives are `ready`, any viewer session on the channel plays real ads at each break.
+packages/admin-web/src/content/user-guide.md:75:For every break, the decision is made **once per session** and cached, so the manifest hot
+packages/admin-web/src/content/user-guide.md:77:creative, the decision service down — the break falls back to slate. **Playback always
+packages/admin-web/src/content/user-guide.md:86:sequence, so the same break is identified consistently across every viewer.
+packages/admin-web/src/content/user-guide.md:118:- **Fill** — duration fill rate (ad seconds ÷ available break seconds), slate rate, and the
+packages/admin-web/src/content/user-guide.md:119:  ad-vs-slate breakdown. Duration fill rate is the number that matters most for FAST.
+packages/admin-web/src/content/user-guide.md:135:**Why is a break showi
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ntHTMLScrip
+tElementHTMLSelectElementHTMLSourceElementMediaCapabilitiesPerformanceTimingRTCPeerConnectionRTCRtpTransceiverWebGLContextEventWebGLRenderbufferontransitionstar
+tdata:%s;base64,%sInvalid log levelresolve directorytext/event-stream1192092895507812559604644775390625invalid bit size unknown type kindreflect: call of reflec
+t.Value.Lenreflect: New(nil)goroutine profileAllThreadsSyscallGC assist markingselect (no cases)sync.RWMutex.Lockwait for GC cycletrace proc statusSIGINT: inter
+ruptSIGBUS: bus errorSIGCONT: continuesync.(*Cond).Wait: missing method notetsleepg on g0bad TinySizeClassruntime: pointer g already scannedmark - bad statussca
+nobject n == 0swept cached spanmarkBits overflowruntime: summary[runtime: level = , p.searchAddr = futexwakeup addr=, 0, {interval: {ns}}, nil) errno=results: g
+ot {r1=runtime/internal/internal/runtime/thread exhaustionlocked m0 woke upentersyscallblock spinningthreads=gp.waiting != nilunknown caller pcstack: frame={sp:
+runtime: nameOff runtime: typeOff runtime: textOff exec format errorpermission deniedno data availablestale file handlewrong medium type from a write of Old_Nor
+th_ArabianOld_South_ArabianSyntax error "%c" (e.g. "set%s%s")default arguments__runInitializers__decorateElement_stream_transformFailed to find %q  Checking for
+ %q(?:[^/]*(?:/|$))*"--conditions=%s"ignorePatternDatadiscardFromLookupmissing closing )missing closing ]exponent-operatorimport-assertionsimport-attributesobje
+ct-extensionsbackground-originbackground-repeatborder-inline-endborder-left-colorborder-left-styleborder-left-widthcolumn-rule-colorcolumn-rule-stylecolumn-rule
+-widthcounter-incrementdominant-baselinefont-variant-capsgrid-auto-columnsgrid-column-startimage-orientationmargin-inline-endpadding-block-endpage-break-beforep
+age-break-insidestroke-dashoffsetstroke-miterlimitWrite after Close#sourceMappingURL,
+packages/admin-web/node_modules/.bin/esbuild:1100993:pacer: assist ratio=workbuf is not emptybad use of bucket.mpbad use of bucket.bpruntime: totalAlloc=runtime
+: double waitpreempt off reason: forcegc: phase errorgopark: bad g statusgo of nil func valueselectgo: bad wakeupsemaRoot rotateRightreflect.makeFuncStubtrace:
+out of memorywirep: already in goinvalid request codebad font file formatconnection timed outis a named type filekey has been revokedEgyptian_HieroglyphsMeroiti
+c_Hieroglyphsinvalid DNS responseunexpected network:  in a JSX expression%s cannot be used %sMissing source indexConsidering entry %qChecking for file %q"condit
+ions: ['%s']"preserveValueImportsverbatimModuleSyntax  Resolving %q in %qexpression too largeinvalid repeat count[invalid char class]class-private-methodregexp-
+match-indicesanimation-play-statebox-decoration-breakfont-variant-numericpadding-inline-starttext-combine-uprighttext-decoration-linetext-decoration-skipCould n
+ot resolve %sCould not resolve %qCannot read file: %s
+packages/admin-web/node_modules/.bin/esbuild:1101010:runtime: mp.lockedInt = runqsteal: runq overflowdouble traceGCSweepStartbad use of trace.seqlockfunction no
+t implementedlevel 2 not synchronizedlink number out of rangeout of streams resourcesconnection reset by peerstructure needs cleaningRawSockaddrAny too smallThe
+ first "%c" was here:Cannot use "break" here:Invalid JSX fragment: %sMissing generated columnFound exact match for %qThe key %q did not match  Found package %q
+at %qgradient-double-positionnode-colon-prefix-importborder-block-start-colorborder-block-start-styleborder-block-start-width"entryPoint": %s,
+packages/admin-web/node_modules/.bin/esbuild:1592643:slices.breakPatternsCmpFunc[go.shape.interface { Info() (io/fs.FileInfo, error); IsDir() bool; Name() strin
+g; Type() io/fs.FileMode }]
+packages/admin-web/node_modules/.bin/esbuild:1593104:slices.breakPatternsOrdered[go.shape.int]
+packages/admin-web/node_modules/.bin/esbuild:1593225:sort.breakPatterns
+packages/admin-web/node_modules/.bin/esbuild:1593247:slices.breakPatternsOrdered[go.shape.string]
+packages/admin-web/node_modules/.bin/esbuild:1593653:slices.breakPatternsOrdered[go.shape.int32]
+packages/admin-web/node_modules/.bin/esbuild:1594947:slices.breakPatternsCmpFunc[go.shape.[]uint8]
+packages/admin-web/node_modules/.bin/esbuild:1597854:slices.breakPatternsCmpFunc[go.shape.struct { net/http.key string; net/http.values []string }]
+packages/admin-web/node_modules/.bin/esbuild:1599701:github.com/evanw/esbuild/internal/linker.(*linkerContext).breakJoinerIntoPieces
+packages/admin-web/node_modules/.bin/esbuild:1599702:github.com/evanw/esbuild/internal/linker.(*linkerContext).breakOutputIntoPieces
+packages/admin-web/node_modules/.bin/esbuild:1600040:slices.breakPatternsCmpFunc[go.shape.struct { AllocBytes int64; FreeBytes int64; AllocObjects int64; FreeOb
+jects int64; Stack []uintptr }]
+packages/admin-web/node_modules/esbuild/bin/esbuild:651806breakErr
+packages/admin-web/node_modules/esbuild/bin/esbuild:656357:breakJoinerIntoPieces
+packages/admin-web/node_modules/esbuild/bin/esbuild:656358:breakOutputIntoPieces
+

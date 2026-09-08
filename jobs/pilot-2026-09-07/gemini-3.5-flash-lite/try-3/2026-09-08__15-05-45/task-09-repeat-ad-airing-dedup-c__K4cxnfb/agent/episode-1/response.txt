@@ -1,0 +1,20 @@
+```json
+{
+  "analysis": "We need to find the read-only copy of the ingestion service's source code to check its deduplication contract, and also inspect `src/lib/ssai.ts` or other files in `src/lib/` to see how ad events/beacons are sent.",
+  "plan": "Search for files in other directories (e.g., `/` or `/opt` or similar) or search for files containing ingestion code, and inspect `src/lib/ssai.ts` and `src/lib/telemetry-store.ts`.",
+  "commands": [
+    {
+      "ke5ystrokes": "",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find / -name \"*ingest*\" -o -name \"*beacon*\" 2>/dev/null\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -rn \"ingest\" / 2>/dev/null\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

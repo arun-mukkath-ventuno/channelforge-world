@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Look at `active_takedown_for_asset` in `app/repositories/rights.py`:\n```python\ndef active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )\n```\nNotice two things:\n1. It only checks `RightsTakedown.scope_type == \"asset\"` even though `scope_ids` includes `asset.series_id` (which is a series ID, not an asset ID)! So a series takedown has `scope_type == \"series\"` and `scope_id == asset.series_id`. Because `scope_type == \"asset\"` is required in the query, series-scoped takedowns are completely ignored!\n2. Even if `scope_type` condition allowed both asset and series takedowns, checking `scope_type == \"asset\"` with `scope_id.in_([asset.id, asset.series_id])` would query for a `RightsTakedown` where `scope_type == \"asset\"` and `scope_id == asset.series_id`, which won't match a series-scoped takedown (since a series-scoped takedown has `scope_type == \"series\"`).\n\nTo correctly check if an asset is covered by an active takedown (either asset-scoped or series-scoped): \n- Asset-scoped takedown where `scope_type == 'asset'` and `scope_id == asset.id`\n- Series-scoped takedown where `scope_type == 'series'` and `scope_id == asset.series_id` (if `asset.series_id is not None`).\n\nLet's check where else takedowns are checked or queried against assets or events.",
+  "plan": "Search for any other occurrences of `active_takedown` or `scope_type` in repositories or services.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn 'scope_type' app/\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}
+```

@@ -1,0 +1,34 @@
+```json
+{
+  "analysis": "Look at lines 161-175 in `app/repositories/rights.py`:
+```python
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    \"\"\"An active takedown covering this asset, if any.\"\"\"
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+```
+Notice `RightsTakedown.scope_type == "asset"`. But when a takedown is scoped to a series, `scope_type` is `"series"` and `scope_id` is the series ID (which is in `scope_ids` if `asset.series_id is not None`).
+Because `RightsTakedown.scope_type == "asset"` is required in the query, any takedown with `scope_type == "series"` is ignored!
+Wait, how are takedowns scoped? Let's check where `RightsTakedown` model is defined and how other functions handle `scope_type`. Let's inspect `app/models/rights.py` and other functions in `app/repositories/rights.py` and `app/services/rights_takedown.py`."
+  ,
+  "plan": "Inspect `app/repositories/rights.py` and `app/services/rights_takedown.py` to see all references to `scope_type` and `scope_id`.",
+  "commands": [
+    {
+      "keystrokes": "cat app/services/rights_takedown.py\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

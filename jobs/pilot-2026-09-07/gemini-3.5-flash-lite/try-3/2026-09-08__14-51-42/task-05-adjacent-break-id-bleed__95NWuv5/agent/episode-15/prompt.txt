@@ -1,0 +1,47 @@
+New Terminal Output:
+
+4a72389f16f4:/app# cat << 'EOF' > add_test.py
+> with open("packages/data-plane/src/avails.test.ts", "a") as f:
+>     f.write('''
+> describe("back-to-back ad breaks", () => {
+>   it("does not leak first break's externalBreakId onto second break when there is zero gap", () => {
+>     const m = manifest([
+>       "#EXT-X-MEDIA-SEQUENCE:0",
+>       "#EXT-X-CUE-OUT:30",
+>       '#EXT-X-DATERANGE:ID="BRK-1",PLANNED-DURATION=30',
+>       "#EXTINF:6.000,",
+>       "a.ts",
+>       "#EXT-X-CUE-IN",
+>       "#EXT-X-CUE-OUT:15",
+>       '#EXT-X-DATERANGE:ID="BRK-2",PLANNED-DURATION=15',
+>       "#EXTINF:6.000,",
+>       "b.ts",
+>       "#EXT-X-CUE-IN",
+>     ]);
+>     const avails = detectAvails(m, "ch");
+>     expect(avails).toHaveLength(2);
+>     expect(avails[0]!.externalBreakId).toBe("BRK-1");
+>     expect(avails[1]!.externalBreakId).toBe("BRK-2");
+>   });
+> });
+> ''')
+> EOF
+4a72389f16f4:/app# python3 add_test.py
+bash: python3: command not found
+4a72389f16f4:/app# rm add_test.py
+4a72389f16f4:/app# npx vitest run packages/data-plane
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+ Test Files  5 passed (5)
+      Tests  29 passed (29)
+   Start at  09:22:54
+   Duration  600ms (transform 83ms, setup 0ms, collect 116ms, tests 18ms, environment 1ms, prepare 138ms)
+
+4a72389f16f4:/app#

@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Look at `active_takedown_for_asset`: \n```python\ndef active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )\n```\n\nIf an asset belongs to a series (`asset.series_id`), an active takedown could be:\n1. Scope type \"asset\", scope_id = asset.id\n2. Scope type \"series\", scope_id = asset.series_id\n\nWith the current query, `RightsTakedown.scope_type == \"asset\"` filters out any series-scoped takedown! Furthermore, `scope_id.in_(scope_ids)` matches `RightsTakedown.scope_id` against `[asset.id, asset.series_id]`, which assumes a series takedown ID would match an asset table ID (or vice-versa), but more importantly, `scope_type == \"asset\"` restricts matches to asset scope.\n\nWe need `active_takedown_for_asset` to check either:\n- `(RightsTakedown.scope_type == "asset" AND RightsTakedown.scope_id == asset.id)`\nOR\n- `(RightsTakedown.scope_type == "series" AND RightsTakedown.scope_id == asset.series_id)` (if `asset.series_id` is not None).\n\nLet's write SQLAlchemy OR / and conditions for this:\n```python\n    conditions = [\n        and_(\n            RightsTakedown.scope_type == \"asset\",\n            RightsTakedown.scope_id == asset.id,\n        )\n    ]\n    if asset.series_id is not None:\n        conditions.append(\n            and_(\n                RightsTakedown.scope_type == \"series\",\n                RightsTakedown.scope_id == asset.series_id,\n            )\n        )\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            or_(*conditions),\n        )\n    )\n```\n\nLet's check if `or_` and `and_` are imported in `app/repositories/rights.py`.",
+  "plan": "Check imports in `app/repositories/rights.py` and modify `active_takedown_for_asset` to correctly check both asset-scoped and series-scoped active takedowns.",
+  "commands": [
+    {
+      "keystrokes": "head -n 30 app/repositories/rights.py\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

@@ -1,0 +1,101 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+packages/admin-web/src/index.css:41:  /* Status + severity palette (first-class, matches ChannelForge) */
+packages/admin-web/dist/assets/index-RpeE7pin.js:147: */const og=_t("Users",[["path",{d:"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",key:"1yyitq"}],["circle",{cx
+:"9",cy:"7",r:"4",key:"nufk8"}],["path",{d:"M22 21v-2a4 4 0 0 0-3-3.87",key:"kshegd"}],["path",{d:"M16 3.13a4 4 0 0 1 0 7.75",key:"1da9ce"}]]);function uf(l){va
+r i,s,u="";if(typeof l=="string"||typeof l=="number")u+=l;else if(typeof l=="object")if(Array.isArray(l)){var c=l.length;for(i=0;i<c;i++)l[i]&&(s=uf(l[i]))&&(u&
+&(u+=" "),u+=s)}else for(s in l)l[s]&&(u&&(u+=" "),u+=s);return u}function cf(){for(var l,i,s=0,u="",c=arguments.length;s<c;s++)(l=arguments[s])&&(i=uf(l))&&(u&
+&(u+=" "),u+=i);return u}const Ad=l=>typeof l=="boolean"?`${l}`:l===0?"0":l,Od=cf,ag=(l,i)=>s=>{var u;if((i==null?void 0:i.variants)==null)return Od(l,s==null?v
+oid 0:s.class,s==null?void 0:s.className);const{variants:c,defaultVariants:d}=i,m=Object.keys(c).map(x=>{const y=s==null?void 0:s[x],C=d==null?void 0:d[x];if(y=
+==null)return null;const w=Ad(y)||Ad(C);return c[x][w]}),g=s&&Object.entries(s).reduce((x,y)=>{let[C,w]=y;return w===void 0||(x[C]=w),x},{}),h=i==null||(u=i.com
+poundVariants)===null||u===void 0?void 0:u.reduce((x,y)=>{let{class:C,className:w,...$}=y;return Object.entries($).every(P=>{let[A,R]=P;return Array.isArray(R)?
+R.includes({...d,...g}[A]):{...d,...g}[A]===R})?[...x,C,w]:x},[]);return Od(l,m,h,s==null?void 0:s.class,s==null?void 0:s.className)},pa="-",ug=l=>{const i=dg(l
+),{conflictingClassGroups:s,conflictingClassGroupModifiers:u}=l;return{getClassGroupId:m=>{const g=m.split(pa);return g[0]===""&&g.length!==1&&g.shift(),df(g,i)
+||cg(m)},getConflictingClassGroupIds:(m,g)=>{const h=s[m]||[];return g&&u[m]?[...h,...u[m]]:h}}},df=(l,i)=>{var m;if(l.length===0)return i.classGroupId;const s=
+l[0],u=i.nextPart.get(s),c=u?df(l.slice(1),u):void 0;if(c)return c;if(i.validators.length===0)return;const d=l.join(pa);return(m=i.validators.find(({validator:g
+})=>g(d)))==null?void 0:m.classGroupId},$d=/^\[(.+)\]$/,cg=l=>{if($d.test(l)){const i=$d.exec(l)[1],s=i==null?void 0:i.substring(0,i.indexOf(":"));if(s)return"a
+rbitrary.."+s}},dg=l=>{const{theme:i,prefix:s}=l,u={nextPart:new Map,validators:[]};return pg(Object.entries(l.classGroups),s).forEach(([d,m])=>{la(m,u,d,i)}),u
+},la=(l,i,s,u)=>{l.forEach(c=>{if(typeof c=="string"){const d=c===""?i:Md(i,c);d.classGroupId=s;return}if(typeof c=="function"){if(fg(c)){la(c(u),i,s,u);return}
+i.validators.push({validator:c,classGroupId:s});return}Object.entries(c).forEach(([d,m])=>{la(m,Md(i,d),s,u)})})},Md=(l,i)=>{let s=l;return i.split(pa).forEach(
+u=>{s.nextPart.has(u)||s.nextPart.set(u,{nextPart:new Map,validators:[]}),s=s.nextPart.get(u)}),s},fg=l=>l.isThemeGetter,pg=(l,i)=>i?l.map(([s,u])=>{const c=u.m
+ap(d=>typeof d=="string"?i+d:typeof d=="object"?Object.fromEntries(Object.entries(d).map(([m,g])=>[i+m,g])):d);return[s,c]}):l,hg=l=>{if(l<1)return{get:()=>{},s
+et:()=>{}};let i=0,s=new Map,u=new Map;const c=(d,m)=>{s.set(d,m),i++,i>l&&(i=0,u=s,s=new Map)};return{get(d){let m=s.get(d);if(m!==void 0)return m;if((m=u.get(
+d))!==void 0)return c(d,m),m},set(d,m){s.has(d)?s.set(d,m):c(d,m)}}},ff="!",mg=l=>{const{separator:i,experimentalParseClassName:s}=l,u=i.length===1,c=i[0],d=i.l
+ength,m=g=>{const h=[];let x=0,y=0,C;for(let R=0;R<g.length;R++){let G=g[R];if(x===0){if(G===c&&(u||g.slice(R,R+d)===i)){h.push(g.slice(y,R)),y=R+d;continue}if(
+G==="/"){C=R;continue}}G==="["?x++:G==="]"&&x--}const w=h.length===0?g:g.substring(y),$=w.startsWith(ff),P=$?w.substring(1):w,A=C&&C>y?C-y:void 0;return{modifie
+rs:h,hasImportantModifier:$,baseClassName:P,maybePostfixModifierPosition:A}};return s?g=>s({className:g,parseClassName:m}):m},gg=l=>{if(l.length<=1)return l;con
+st i=[];let s=[];return l.forEach(u=>{u[0]==="["?(i.push(...s.sort(),u),s=[]):s.push(u)}),i.push(...s.sort()),i},vg=l=>({cache:hg(l.cacheSize),parseClassName:mg
+(l),...ug(l)}),yg=/\s+/,xg=(l,i)=>{const{parseClassName:s,getClassGroupId:u,getConflictingClassGroupIds:c}=i,d=[],m=l.trim().split(yg);let g="";for(let h=m.leng
+th-1;h>=0;h-=1){const x=m[h],{modifiers:y,hasImportantModifier:C,baseClassName:w,maybePostfixModifierPosition:$}=s(x);let P=!!$,A=u(P?w.substring(0,$):w);if(!A)
+{if(!P){g=x+(g.length>0?" "+g:g);continue}if(A=u(w),!A){g=x+(g.length>0?" "+g:g);continue}P=!1}const R=gg(y).join(":"),G=C?R+ff:R,Q=G+A;if(d.includes(Q))continu
+e;d.push(Q);const Y=c(A,P);for(let Z=0;Z<Y.length;++Z){const ue=Y[Z];d.push(G+ue)}g=x+(g.length>0?" "+g:g)}return g};function kg(){let l=0,i,s,u="";for(;l<argum
+ents.length;)(i=arguments[l++])&&(s=pf(i))&&(u&&(u+=" "),u+=s);return u}const pf=l=>{if(typeof l=="string")return l;let i,s="";for(let u=0;u<l.length;u++)l[u]&&
+(i=pf(l[u]))&&(s&&(s+=" "),s+=i);return s};function wg(l,...i){let s,u,c,d=m;function m(h){const x=i.reduce((y,C)=>C(y),l());return s=vg(x),u=s.cache.get,c=s.ca
+che.set,d=g,g(h)}function g(h){const x=u(h
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/src/origin.ts:1:// ChannelForge origin client (PRD §8, §42, §48). Fetches the origin media
+packages/data-plane/src/origin.ts:20:   * Per-channel media-playlist URL, e.g. a real ChannelForge origin
+packages/data-plane/src/stitch.ts:5:// ChannelForge slate plays) — playback survives ad failure (§42).
+packages/data-plane/src/server.ts:4://   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+packages/data-plane/src/server.ts:74:    // pulls content straight from ChannelForge (ad segments stay absolute SSAI paths).
+packages/data-plane/src/origin-rewrite.ts:3:// When the SSAI wraps a real EXTERNAL ChannelForge origin, the stitched manifest is served from
+packages/data-plane/src/origin-rewrite.ts:7:// straight from ChannelForge, while ad segments the stitcher inserts stay absolute SSAI paths.
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/dist/stitch.js:5:// ChannelForge slate plays) — playback survives ad failure (§42).
+packages/data-plane/dist/origin.d.ts:14:     * Per-channel media-playlist URL, e.g. a real ChannelForge origin
+packages/data-plane/dist/avails.js:19:    // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/dist/avails.d.ts:4:    /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/dist/avails.d.ts:6:     *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+packages/data-plane/dist/origin.js:1:// ChannelForge origin client (PRD §8, §42, §48). Fetches the origin media
+packages/data-plane/dist/server.js:4://   fetch/cache ChannelForge origin → detect avails → resolve each avail's pod
+packages/data-plane/dist/server.js:53:        // pulls content straight from ChannelForge (ad segments stay absolute SSAI paths).
+packages/data-plane/dist/origin-rewrite.js:3:// When the SSAI wraps a real EXTERNAL ChannelForge origin, the stitched manifest is served from
+packages/data-plane/dist/origin-rewrite.js:7:// straight from ChannelForge, while ad segments the stitcher inserts stay absolute SSAI paths.
+packages/persistence/src/reconciliation.ts:1:// Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/persistence/src/reconciliation.ts:3:// The global /v1/analytics aggregate can't tell ChannelForge whether a *specific* planned break was
+packages/persistence/src/reconciliation.ts:6:// impression/quartile/error counts drawn from the event stream. ChannelForge maps external_break_id
+packages/persistence/src/reconciliation.ts:17:  /** ChannelForge's break_id, when the origin carried a DATERANGE ID. Null → not reconcilable. */
+packages/persistence/dist/reconciliation.js:1:// Per-break delivery detail for producer-side reconciliation (ChannelForge telemetry blueprint).
+packages/persistence/dist/reconciliation.js:3:// The global /v1/analytics aggregate can't tell ChannelForge whether a *specific* planned break was
+packages/persistence/dist/reconciliation.js:6:// impression/quartile/error counts drawn from the event stream. ChannelForge maps external_break_id
+packages/persistence/dist/reconciliation.d.ts:4:    /** ChannelForge's break_id, when the origin carried a DATERANGE ID. Null → not reconcilable. */
+packages/core/src/scte.ts:22:  /** DATERANGE ID attribute, when present. ChannelForge threads its stable break_id here
+packages/core/src/scte.test.ts:53:  it("extracts the DATERANGE ID (ChannelForge threads its break_id there)", () => {
+packages/core/src/types.ts:9:  /** The producer's stable break id (ChannelForge's break_id, from the DATERANGE ID), when the
+packages/core/dist/scte.d.ts:9:    /** DATERANGE ID attribute, when present. ChannelForge threads its stable break_id here
+packages/core/dist/types.d.ts:5:    /** The producer's stable break id (ChannelForge's break_id, from the DATERANGE ID), when the
+7c2ffd298999:/app# cat package.json
+{
+  "name": "ssaiadserver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FAST World SSAI Ad Server — server-side ad insertion for ChannelForge linear HLS channels",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --build",
+    "dev:control": "npm run dev --workspace @ssai/control-plane",
+    "dev:data": "npm run dev --workspace @ssai/data-plane",
+    "lint": "tsc --build --pretty false"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
+7c2ffd298999:/app#

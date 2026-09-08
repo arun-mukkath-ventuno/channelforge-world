@@ -1,0 +1,11 @@
+{
+  "analysis": "`src/lib/ssai.test.ts` passed successfully without alias issues because it used relative import (`./ssai`).\nNow let's modify `src/lib/ssai.ts` to include `pod_id` in `sendAdBeacon` and pass unique slot/airing identification (`w.id ? `${w.id}:${w.start}` : String(w.start)` or similar) so different airings of the same creative get unique event IDs in the ingestion server while duplicate beacons for the exact same airing still collapse via `ON CONFLICT`.",
+  "plan": "Review `src/lib/ssai.ts` changes, write them out, and add a test case in `ssai.test.ts` for parsing ad windows and ensuring unique pod IDs/sending behavior.",
+  "commands": [
+    {
+      "keystrokes": "cat src/lib/ssai.ts\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

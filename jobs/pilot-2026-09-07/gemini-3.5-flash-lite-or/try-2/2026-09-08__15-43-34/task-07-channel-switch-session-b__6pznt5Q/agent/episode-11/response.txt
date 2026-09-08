@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Let's re-read the bug report carefully:\n\n'A partner running a multi-channel-per-session integration reports that reporting/audit pulled for one of their playback sessions shows the *wrong* channel for most of that session's life. The viewer changed channels partway through the session — their integration keeps one continuous session id for the whole viewing session and requests a fresh ad decision per channel per avail, rather than creating a brand-new session every time the viewer changes channels — and every ad decision, opportunity, and event recorded after the switch is correctly tagged with the new channel. But the session record itself, the one thing that's supposed to say \"this session is airing on this channel right now,\" never moved off the very first channel it ever saw. Every report keyed off that session's own channel is wrong for the rest of the session's life, even though all the underlying per-event data is correct.\n\nThis isn't about ad decisioning, targeting, or attribution — decisions are correctly scoped to whichever channel each request actually names, and this defect doesn't change what ad plays or which campaign gets credited. It's specifically the session's own recorded channel going stale the first time a session legitimately continues under a different channel than the one it started on.\n\nFind and fix the defect. The fix should make a session's recorded channel reflect whichever channel it was most recently associated with — it does not need to keep a full channel-change history, and it must not change how ad decisions, opportunities, or events are themselves scoped or attributed (those are already correct). When you believe the fix is correct, restart whichever service needs it so the running system reflects your change.'\n\nThat is extremely clear! \nWhen `ensureSession` is called or when an ad decision / session interaction happens, `ON CONFLICT (id) DO NOTHING` currently ignores the incoming `channel_id` if the session already exists. But when a session switches channels, subsequent ad decisions (or other operations like `ensureSession`) request an ad decision for the new channel using the same session ID. \nWait, what does `ensureSession` do? Or how should `ensureSession` handle conflict, or should `channel_id` be updated to the most recently associated channel?\nLet's check where `ensureSession` is called or where session channel is updated or touched.",
+  "plan": "Check all calls to `ensureSession` and session update logic across the codebase.",
+  "commands": [
+    {
+      "keystrokes": "grep -rnI ensureSession packages/\n",
+      "duration": 1.5
+    }
+  ],
+  "task_complete": false
+}
+```

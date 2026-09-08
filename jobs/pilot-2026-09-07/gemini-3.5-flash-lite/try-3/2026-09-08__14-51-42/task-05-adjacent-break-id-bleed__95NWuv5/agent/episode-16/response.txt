@@ -1,0 +1,11 @@
+{
+  "analysis": "Bash history expansion (`!`) caused issues inside single quotes. Let's write the node script to a temporary file `add_test.js` or use base64 encoding.",
+  "plan": "Write add_test.js using cat << 'EOF' (with single-quoted 'EOF' so no expansion happens), run node add_test.js, and run vitest.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' > add_test.js\nconst fs = require(\"fs\");\nconst testCode = `\ndescribe(\"back-to-back ad breaks\", () => {\n  it(\"does not leak first break's externalBreakId onto second break when there is zero gap\", () => {\n    const m = manifest([\n      \"#EXT-X-MEDIA-SEQUENCE:0\",\n      \"#EXT-X-CUE-OUT:30\",\n      '#EXT-X-DATERANGE:ID=\"BRK-1\",PLANNED-DURATION=30',\n      \"#EXTINF:6.000,\",\n      \"a.ts\",\n      \"#EXT-X-CUE-IN\",\n      \"#EXT-X-CUE-OUT:15\",\n      '#EXT-X-DATERANGE:ID=\"BRK-2\",PLANNED-DURATION=15',\n      \"#EXTINF:6.000,\",\n      \"b.ts\",\n      \"#EXT-X-CUE-IN\",\n    ]);\n    const avails = detectAvails(m, \"ch\");\n    expect(avails).toHaveLength(2);\n    expect(avails[0]!.externalBreakId).toBe(\"BRK-1\");\n    expect(avails[1]!.externalBreakId).toBe(\"BRK-2\");\n  });\n});\n`;\nfs.appendFileSync(\"packages/data-plane/src/avails.test.ts\", testCode);\nEOF\nnode add_test.js\nrm add_test.js\nnpx vitest run packages/data-plane\n",
+      "duration": 3.0
+    }
+  ],
+  "task_complete": false
+}

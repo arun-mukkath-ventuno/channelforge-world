@@ -1,0 +1,132 @@
+New Terminal Output:
+
+55fce30fd0f0:/app# cat -n /app/packages/data-plane/src/avails.ts
+     1	// Avail detection over an origin media playlist (PRD §9, §22, §41).
+     2	//
+     3	// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+     4	// *deterministic* opportunity id derived from the channel + the media sequence
+     5	// of the avail's first segment. Determinism matters: every viewer's data-plane
+     6	// request and the decisioning path must agree on the same opportunity id for a
+     7	// given break without coordinating, so the cached pod is found on the hot path.
+     8	
+     9	import { parseMarkerLine } from "@ssai/core";
+    10	
+    11	export interface Avail {
+    12	  opportunityId: string;
+    13	  channelId: string;
+    14	  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+    15	   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+    16	   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+    17	   *  by contrast, is a media-sequence-derived id independent of the producer). */
+    18	  externalBreakId?: string;
+    19	  /** Break duration: the marker's declared duration, or the summed segment time. */
+    20	  duration: number;
+    21	  /** Declared duration from the marker, if it carried a valid one. */
+    22	  declaredDuration?: number;
+    23	  /** Actual duration summed from the segments inside the avail. */
+    24	  measuredDuration: number;
+    25	  /** Media sequence number of the first segment inside the avail. */
+    26	  startSequence: number;
+    27	  programDateTime?: string;
+    28	  /** Line index of the CUE-OUT marker. */
+    29	  startLine: number;
+    30	  /** Line index of the CUE-IN marker. */
+    31	  endLine: number;
+    32	}
+    33	
+    34	const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+    35	const EXTINF = /^#EXTINF:([\d.]+)/;
+    36	const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+    37	
+    38	/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+    39	 *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+    40	export function detectAvails(manifest: string, channelId: string): Avail[] {
+    41	  const lines = manifest.split("\n");
+    42	
+    43	  let mediaSequence = 0;
+    44	  let lastPdt: string | undefined;
+    45	  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+    46	  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+    47	  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+    48	  let blockBreakId: string | undefined;
+    49	  const avails: Avail[] = [];
+    50	
+    51	  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+    52	  let open: {
+    53	    startLine: number;
+    54	    startSequence: number;
+    55	    declaredDuration?: number;
+    56	    measuredDuration: number;
+    57	    pdt?: string;
+    58	    externalBreakId?: string;
+    59	  } | null = null;
+    60	
+    61	  for (let i = 0; i < lines.length; i++) {
+    62	    const line = lines[i]!;
+    63	    const trimmed = line.trim();
+    64	
+    65	    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+    66	    if (seqMatch) {
+    67	      mediaSequence = Number(seqMatch[1]);
+    68	      continue;
+    69	    }
+    70	
+    71	    const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+    72	    if (pdtMatch) {
+    73	      lastPdt = pdtMatch[1]!.trim();
+    74	      // continue — PDT applies to the next segment.
+    75	    }
+    76	
+    77	    const marker = parseMarkerLine(line, i);
+    78	    if (marker?.kind === "daterange" && marker.id) {
+    79	      blockBreakId = marker.id;
+    80	      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+    81	      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+    82	      continue;
+    83	    }
+    84	    if (marker?.kind === "cue_out" && !open) {
+    85	      open = {
+    86	        startLine: i,
+    87	        startSequence: mediaSequence,
+    88	        measuredDuration: 0,
+    89	        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+    90	        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+    91	        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+    92	        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+    93	      };
+    94	      continue;
+    95	    }
+    96	    if (marker?.kind === "cue_in" && open) {
+    97	      const declared = open.declaredDuration;
+    98	      avails.push({
+    99	        opportunityId: `opp_${channelId}_${open.startSequence}`,
+   100	        channelId,
+   101	        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+   102	        duration: declared ?? open.measuredDuration,
+   103	        ...(declared === undefined ? {} : { declaredDuration: declared }),
+   104	        measuredDuration: open.measuredDuration,
+   105	        startSequence: open.startSequence,
+   106	        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+   107	        startLine: open.startLine,
+   108	        endLine: i,
+   109	      });
+   110	      open = null;
+   111	      continue;
+   112	    }
+   113	
+   114	    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+   115	    const infMatch = trimmed.match(EXTINF);
+   116	    if (infMatch) {
+   117	      const segDur = Number(infMatch[1]);
+   118	      if (open) open.measuredDuration += segDur;
+   119	      // The URI line follows; advance the sequence when we consume it below.
+   120	    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+   121	      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+   122	      mediaSequence += 1;
+   123	      blockBreakId = undefined;
+   124	    }
+   125	  }
+   126	
+   127	  return avails;
+   128	}
+55fce30fd0f0:/app#

@@ -1,0 +1,101 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+89cfbf2f1a44:/app# grep -rn "channel" packages/*/src/
+packages/admin-web/src/App.tsx:20:          <Route index element={<Navigate to="/channels" replace />} />
+packages/admin-web/src/App.tsx:21:          <Route path="/channels" element={<ChannelsPage />} />
+packages/admin-web/src/App.tsx:29:        <Route path="*" element={<Navigate to="/channels" replace />} />
+packages/admin-web/src/content/user-guide.md:3:FAST World SSAI is a server-side ad insertion service. It takes the linear HLS channels
+packages/admin-web/src/content/user-guide.md:9:**The shortest path to a served ad:** add a channel → create a campaign → add a creative →
+packages/admin-web/src/content/user-guide.md:10:upload its source → let the worker prepare it. A viewer session on that channel then plays
+packages/admin-web/src/content/user-guide.md:19:| **Channel** | A ChannelForge-produced linear HLS channel this ad server fills. SSAI reads its origin manifest;
+ it does not schedule programming. |
+packages/admin-web/src/content/user-guide.md:20:| **Ad opportunity (avail)** | A break in the channel signalled by an SCTE marker (`EXT-X-CUE-OUT` … `CUE-IN`).
+Each avail has a duration to fill. |
+packages/admin-web/src/content/user-guide.md:21:| **Campaign** | An advertiser's flight: a start/end window, a status, and the channels it targets. Creatives be
+long to a campaign. |
+packages/admin-web/src/content/user-guide.md:31:## From channel to served ad — the walkthrough
+packages/admin-web/src/content/user-guide.md:33:### Step 1 — add the channel
+packages/admin-web/src/content/user-guide.md:35:**Channels → New channel.** Give it a name and the ChannelForge origin URL (the channel's
+packages/admin-web/src/content/user-guide.md:42:channels (leave blank to target all). A creative is only eligible while its campaign is
+packages/admin-web/src/content/user-guide.md:62:Once creatives are `ready`, any viewer session on the channel plays real ads at each break.
+packages/admin-web/src/content/user-guide.md:84:Every ChannelForge channel you fill. The table shows the origin URL SSAI reads and the
+packages/admin-web/src/content/user-guide.md:85:channel's status. SSAI keys each ad opportunity off the channel plus the manifest's media
+packages/admin-web/src/content/user-guide.md:92:stops receiving impressions immediately. **Target channels** restrict where its creatives
+packages/admin-web/src/content/user-guide.md:93:can run; blank means all channels.
+packages/admin-web/src/content/user-guide.md:111:Live playback sessions — one row per viewer. Each has the channel, when it started, and when
+packages/admin-web/src/content/user-guide.md:137:its flight window, the campaign targeting the channel, and the creative duration fitting the
+packages/admin-web/src/content/user-guide.md:139:creative (e.g. `campaign_expired`, `channel_mismatch`, `creative_not_ready`).
+packages/admin-web/src/pages/ChannelsPage.tsx:15:  const { data, error, reload } = useLoad(ssai.channels);
+packages/admin-web/src/pages/ChannelsPage.tsx:22:        description="ChannelForge channels this ad server fills."
+packages/admin-web/src/pages/ChannelsPage.tsx:25:            <Plus /> New channel
+packages/admin-web/src/pages/ChannelsPage.tsx:43:            <div className="p-10 text-center text-sm text-muted-foreground">No channels yet.</div>
+packages/admin-web/src/pages/ChannelsPage.tsx:93:      setError(err instanceof ApiError ? err.message : "Failed to create channel.");
+packages/admin-web/src/pages/ChannelsPage.tsx:103:          <Field label="ID (optional)"><Input value={form.id} onChange={set("id")} placeholder="channel_food"
+/></Field>
+packages/admin-web/src/pages/ChannelsPage.tsx:108:            <Button type="submit" disabled={busy}>{busy ? "Creating…" : "Create channel"}</Button>
+packages/admin-web/src/pages/LoginPage.tsx:19:  if (status === "authenticated") return <Navigate to="/channels" replace />;
+packages/admin-web/src/pages/LoginPage.tsx:27:      navigate("/channels", { replace: true });
+packages/admin-web/src/pages/CampaignsPage.tsx:77:  const [form, setForm] = useState({ id: "", advertiser: "", start_date: "", end_date: "", target_channels: ""
+, status: "active" });
+packages/admin-web/src/pages/CampaignsPage.tsx:92:        target_channels: form.target_channels.split(",").map((s) => s.trim()).filter(Boolean),
+packages/admin-web/src/pages/CampaignsPage.tsx:119:          <Field label="Target channels (comma-sep; blank = all)"><Input value={form.target_channels} onChang
+e={set("target_channels")} placeholder="channel_food, channel_news" /></Field>
+packages/admin-web/src/pages/AnalyticsPage.tsx:47:                <CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Sessions by chann
+el</CardTitle>
+packages/admin-web/src/pages/AnalyticsPage.tsx:51:                  <span key={s.channelId} className="rounded-md border px-3 py-1.5 text-sm">
+packages/admin-web/src/pages/AnalyticsPage.tsx:52:                    <span className="font-mono tex
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+d) ─────────────────────────
+packages/persistence/src/reconciliation.ts:55:  if (opts.channelId) {
+packages/persistence/src/reconciliation.ts:56:    params.push(opts.channelId);
+packages/persistence/src/reconciliation.ts:57:    where.push(`channel_id = $${params.length}`);
+packages/persistence/src/reconciliation.ts:61:      `SELECT id, external_break_id, channel_id, start_time FROM ad_opportunities
+packages/persistence/src/reconciliation.ts:118:        channelId: o.channel_id,
+packages/persistence/src/pod-cache.ts:14:  channelId: string;
+packages/persistence/src/repositories/opportunities.ts:8:    `INSERT INTO ad_opportunities (id, channel_id, external_break_id, program_id, start_time, duration,
+ marker_type, marker_payload, status)
+packages/persistence/src/repositories/opportunities.ts:18:      opp.channelId,
+packages/persistence/src/repositories/channels.ts:34:    `INSERT INTO channels (id, name, origin_url, slate_id, status)
+packages/persistence/src/repositories/channels.ts:57:  const rows = (await db.query<ChannelRow>("SELECT * FROM channels ORDER BY id")).rows;
+packages/persistence/src/repositories/channels.ts:62:  const rows = (await db.query<ChannelRow>("SELECT * FROM channels WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/channels.ts:66:/** Set (or clear) the channel's VAST ad-tag URL — the tag the control plane ingests into creatives. */
+packages/persistence/src/repositories/channels.ts:68:  await db.query("UPDATE channels SET vast_tag_url = $2 WHERE id = $1", [id, tagUrl]);
+packages/persistence/src/repositories/events.ts:11:  channelId?: string | null;
+packages/persistence/src/repositories/events.ts:27:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+packages/persistence/src/repositories/events.ts:36:      e.channelId ?? null,
+packages/persistence/src/repositories/events.ts:69:    channelId: (r.channel_id as string) ?? null,
+packages/persistence/src/repositories/slates.ts:2:// profile as the channel) used to fill unsold avail time. Hierarchy: a
+packages/persistence/src/repositories/slates.ts:3:// channel-specific slate, a network slate, or an emergency default.
+packages/persistence/src/repositories/slates.ts:8:export type SlateScope = "channel" | "network" | "emergency";
+packages/persistence/src/repositories/slates.ts:13:  channelId: string | null;
+packages/persistence/src/repositories/slates.ts:21:  channel_id: string | null;
+packages/persistence/src/repositories/slates.ts:29:  channelId?: string | null;
+packages/persistence/src/repositories/slates.ts:36:    `INSERT INTO slates (id, scope, channel_id, hls_path, duration)
+packages/persistence/src/repositories/slates.ts:40:       channel_id = EXCLUDED.channel_id,
+packages/persistence/src/repositories/slates.ts:43:    [input.id, input.scope ?? "channel", input.channelId ?? null, input.hlsPath, input.duration],
+packages/persistence/src/repositories/slates.ts:51:    channelId: r.channel_id,
+packages/persistence/src/repositories/sessions.ts:8:  channelId: string;
+packages/persistence/src/repositories/sessions.ts:18:  channel_id: string;
+packages/persistence/src/repositories/sessions.ts:28:  channelId: string;
+packages/persistence/src/repositories/sessions.ts:39:    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent
+)
+packages/persistence/src/repositories/sessions.ts:44:      input.channelId,
+packages/persistence/src/repositories/sessions.ts:61:    channelId: r.channel_id,
+packages/persistence/src/repositories/campaigns.ts:2:// campaign_channels join in JS for portability (pg + pg-mem).
+packages/persistence/src/repositories/campaigns.ts:36:  // Replace target channels only when provided, so a partial update (e.g. just
+packages/persistence/src/repositories/campaigns.ts:39:    await db.query("DELETE FROM campaign_channels WHERE campaign_id = $1", [input.id]);
+packages/persistence/src/repositories/campaigns.ts:40:    for (const channelId of input.targetChannels) {
+packages/persistence/src/repositories/campaigns.ts:42:        `INSERT INTO campaign_channels (campaign_id, channel_id) VALUES ($1, $2)
+packages/persistence/src/repositories/campaigns.ts:44:        [input.id, channelId],
+packages/persistence/src/repositories/campaigns.ts:53:    await db.query<{ campaign_id: string; channel_id: string }>("SELECT campaign_id, channel_id FROM campa
+ign_channels")
+packages/persistence/src/repositories/campaigns.ts:56:  const channelsByCampaign = new Map<string, string[]>();
+packages/persistence/src/repositories/campaigns.ts:58:    const list = channelsByCampaign.get(link.campaign_id) ?? [];
+packages/persistence/src/repositories/campaigns.ts:59:    list.push(link.channel_id);
+packages/persistence/src/repositories/campaigns.ts:60:    channelsByCampaign.set(link.campaign_id, list);
+packages/persistence/src/repositories/campaigns.ts:69:    targetChannels: channelsByCampaign.get(r.id) ?? [],
+89cfbf2f1a44:/app#

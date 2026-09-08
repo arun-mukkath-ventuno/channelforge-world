@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "If we update `ensureSession` to:\n```ts\nexport async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {\n  await db.query(\n    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)\n     VALUES ($1, $2, $3, $4, $5, $6, $7)\n     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id`,\n    [\n      input.id,\n      input.channelId,\n      input.deviceType ?? null,\n      input.country ?? null,\n      input.anonymousId ?? null,\n      input.ipHash ?? null,\n      input.userAgent ?? null,\n    ],\n  );\n}\n```\nWait, should it also update `last_activity_at = now()` or anything when `DO UPDATE` occurs? Or is updating `channel_id` sufficient? Wait, when `ensureSession` is called during an ad decision (which is activity), updating `channel_id = EXCLUDED.channel_id` updates the recorded channel to whichever channel the session was most recently associated with. Wait, does `ensureSession` update other fields if they change, or just `channel_id`? The requirement states:\n'The fix should make a session's recorded channel reflect whichever channel it was most recently associated with — it does not need to keep a full channel-change history, and it must not change how ad decisions, opportunities, or events are themselves scoped or attributed (those are already correct).'\n\nLet's check if there are any unit tests for sessions or repository tests where `ensureSession` is called multiple times with different channel IDs, or if we should write a test for session channel switching.",
+  "plan": "Check `packages/persistence/src/repositories.test.ts` for existing session tests, and add a test verifying that when a session switches channels and `ensureSession` is called with the new channel ID, the session's recorded channel updates to the new channel.",
+  "commands": [
+    {
+      "keystrokes": "grep -n -C 10 \"ensureSession\" packages/persistence/src/repositories.test.ts\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

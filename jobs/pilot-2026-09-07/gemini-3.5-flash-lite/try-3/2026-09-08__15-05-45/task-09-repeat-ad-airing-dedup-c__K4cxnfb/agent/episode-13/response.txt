@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Let's check how `sendAdBeacon` is defined and used in `src/lib/ssai.ts`. Currently:\n```ts\nexport function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId?: string): void {\n  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, pod_id: podId });\n... \n```\nAnd in `startAdBeaconWatcher`:\n```ts\nconst key = `${w.adId}:${w.start}:${beacon}`;\nif (fired.has(key)) continue;\nfired.add(key);\nsendAdBeacon(opts.sessionId, beacon, w.adId, String(w.start));\n```\nThis correctly populates `pod_id` with `w.start` (or similar unique window identifier), ensuring different airings of the same creative get different `pod_id` values and therefore distinct event IDs.",
+  "plan": "Modify `src/lib/ssai.ts` to include `pod_id` in `sendAdBeacon` and pass `String(w.start)` (or `w.adId + ':' + w.start`) as `pod_id` from `startAdBeaconWatcher`. Then run vitest to verify tests pass.",
+  "commands": [
+    {
+      "keystrokes": "pnpm test\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}
+```

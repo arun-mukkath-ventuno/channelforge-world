@@ -1,0 +1,136 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+7c2ffd298999:/app# cat << 'EOF' > packages/data-plane/src/avails.ts
+> import { parseMarkerLine } from "@ssai/core";
+>
+> export interface Avail {
+>   opportunityId: string;
+>   channelId: string;
+>   externalBreakId?: string;
+>   duration: number;
+>   declaredDuration?: number;
+>   measuredDuration: number;
+>   startSequence: number;
+>   programDateTime?: string;
+>   startLine: number;
+>   endLine: number;
+> }
+>
+> const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+> const EXTINF = /^#EXTINF:([\d.]+)/;
+> const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+>
+> export function detectAvails(manifest: string, channelId: string): Avail[] {
+>   const lines = manifest.split("\n");
+>
+>   let mediaSequence = 0;
+>   let lastPdt: string | undefined;
+>   let blockBreakId: string | undefined;
+>   const avails: Avail[] = [];
+>
+>   let open: {
+>     startLine: number;
+>     startSequence: number;
+>     declaredDuration?: number;
+>     measuredDuration: number;
+>     pdt?: string;
+>     externalBreakId?: string;
+>   } | null = null;
+>
+>   let firstSeqInWindow: number | null = null;
+>   let firstLineInWindow = 0;
+>   let midBreakMeasured = 0;
+>
+>   for (let i = 0; i < lines.length; i++) {
+>     const line = lines[i]!;
+>     const trimmed = line.trim();
+>
+>     const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+>     if (seqMatch) {
+>       mediaSequence = Number(seqMatch[1]);
+>       continue;
+>     }
+>
+>     const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+>     if (pdtMatch) {
+>       lastPdt = pdtMatch[1]!.trim();
+>       continue;
+>     }
+>
+>     const marker = parseMarkerLine(line, i);
+>     if (marker?.kind === "daterange" && marker.id) {
+>       blockBreakId = marker.id;
+>       if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+>       continue;
+>     }
+>     if (marker?.kind === "cue_out" && !open) {
+>       open = {
+>         startLine: i,
+>         startSequence: mediaSequence,
+>         measuredDuration: 0,
+>         ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+>         ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+>         ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+>       };
+>       firstSeqInWindow = null;
+>       midBreakMeasured = 0;
+>       continue;
+>     }
+>     if (marker?.kind === "cue_in") {
+>       if (!open) {
+>         const startSeq = firstSeqInWindow ?? mediaSequence;
+>         open = {
+>           startLine: firstLineInWindow,
+>           startSequence: startSeq,
+>           measuredDuration: midBreakMeasured,
+>           ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+>           ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+>         };
+>       }
+>       if (open) {
+>         const declared = open.declaredDuration;
+>         avails.push({
+>           opportunityId: `opp_${channelId}_${open.startSequence}`,
+>           channelId,
+>           ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>           duration: declared ?? open.measuredDuration,
+>           ...(declared === undefined ? {} : { declaredDuration: declared }),
+>           measuredDuration: open.measuredDuration,
+>           startSequence: open.startSequence,
+>           ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>           startLine: open.startLine,
+>           endLine: i,
+>         });
+>         open = null;
+>         firstSeqInWindow = null;
+>         midBreakMeasured = 0;
+>       }
+>       continue;
+>     }
+>
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) {
+>         open.measuredDuration += segDur;
+>       } else {
+>         midBreakMeasured += segDur;
+>       }
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       if (!open && firstSeqInWindow === null) {
+>         firstSeqInWindow = mediaSequence;
+>         firstLineInWindow = i - 1;
+>       }
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>     }
+>   }
+>
+>   return avails;
+> }
+> EOF
+7c2ffd298999:/app#

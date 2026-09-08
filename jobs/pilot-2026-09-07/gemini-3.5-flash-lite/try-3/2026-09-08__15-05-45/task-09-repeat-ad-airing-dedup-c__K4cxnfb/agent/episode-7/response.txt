@@ -1,0 +1,17 @@
+```json
+{
+  "analysis": "Look at `deriveEventId`: `const basis = [raw.session_id, raw.pod_id ?? '', raw.ad_id ?? '', eventType].join('|');` -> Notice that `pod_id` and `ad_id` might be the same when a creative is reused in a different break/pod or same pod within the same session, or perhaps `pod_id` doesn't change or is reused, or `opportunity_id` or `pod_id` isn't unique for the second airing. Let's check how our app sends telemetry and constructs these raw events in `src/lib/telemetry-store.ts`, `src/lib/ssai.ts`, or wherever beacons are sent.",
+  "plan": "Search for where telemetry events or beacons are sent in `src/` to see what fields are passed (`session_id`, `pod_id`, `ad_id`, `opportunity_id`, etc.).",
+  "commands": [
+    {
+      "keystrokes": "grep -rn \"pod_id\" src/\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "grep -rn \"opportunity_id\" src/\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

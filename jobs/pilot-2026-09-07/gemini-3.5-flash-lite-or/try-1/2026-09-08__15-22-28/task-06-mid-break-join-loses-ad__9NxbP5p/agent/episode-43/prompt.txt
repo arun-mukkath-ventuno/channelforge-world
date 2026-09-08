@@ -1,0 +1,89 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+Each avail has a duration to fill. |
+packages/admin-web/dist/assets/index-RpeE7pin.js:230:| **Ad opportunity (avail)** | A break in the channel signalled by an SCTE marker (\`EXT-X-CUE-OUT\` … \`CU
+E-IN\`). Each avail has a duration to fill. |
+packages/control-plane/public/landing.html:217:        <div class="card"><h3>1 · Detect the avail</h3><p>SSAI fetches the origin, finds the CUE-OUT…CUE-IN break
+, and reads its duration.</p></div>
+packages/data-plane/src/avails.ts:3:// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+packages/data-plane/src/avails.ts:14:  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/src/avails.ts:28:  /** Line index of the CUE-OUT marker. */
+packages/data-plane/src/avails.ts:39: *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+packages/data-plane/src/avails.ts:46:  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/src/avails.ts:47:  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+packages/data-plane/src/avails.ts:51:  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+packages/data-plane/src/avails.ts:80:      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+packages/data-plane/src/avails.ts:91:        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+packages/data-plane/src/stitch.ts:3:// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+packages/data-plane/src/stitch.ts:47:      i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+packages/data-plane/src/stitch.test.ts:15:  "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/stitch.test.ts:50:    expect(manifest).not.toContain("#EXT-X-CUE-OUT");
+packages/data-plane/src/avails.test.ts:16:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:34:    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6
+.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+packages/data-plane/src/avails.test.ts:35:    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CU
+E-IN"]);
+packages/data-plane/src/avails.test.ts:44:      "#EXT-X-CUE-OUT:oops",
+packages/data-plane/src/avails.test.ts:61:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:69:  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+packages/data-plane/src/avails.test.ts:70:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+packages/data-plane/src/avails.test.ts:74:  it("captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)", () => {
+packages/data-plane/src/avails.test.ts:79:      "#EXT-X-CUE-OUT:90",
+packages/data-plane/src/avails.test.ts:91:  it("captures the id when the producer emits DATERANGE before CUE-OUT in the same block", () => {
+packages/data-plane/src/avails.test.ts:95:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:104:    const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"
+]);
+packages/data-plane/src/avails.test.ts:111:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:118:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/src/avails.test.ts:132:      "#EXT-X-CUE-OUT:30",
+packages/data-plane/src/avails.test.ts:138:      "#EXT-X-CUE-OUT:15",
+packages/data-plane/dist/stitch.js:3:// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+packages/data-plane/dist/stitch.js:24:            i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+packages/data-plane/dist/avails.js:3:// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+packages/data-plane/dist/avails.js:13: *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+packages/data-plane/dist/avails.js:19:    // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+packages/data-plane/dist/avails.js:20:    // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+packages/data-plane/dist/avails.js:23:    // Pending avail state while we walk from CUE-OUT to CUE-IN.
+packages/data-plane/dist/avails.js:41:            // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+packages/data-plane/dist/avails.js:53:                // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+packages/data-plane/dist/avails.d.ts:4:    /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+packages/data-plane/dist/avails.d.ts:18:    /** Line index of the CUE-OU
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ left outstanding across sweep generationsfully empty unfreed span
+ set block found in resetcasgstatus: waiting for Gwaiting but is Grunnableinvalid or incomplete multibyte or wide characterA rest argument cannot have a default
+ initializerThe JSX syntax extension is not currently enabledThe regular expression flag "%c" is not availableConsider changing %q to a default import instead:T
+he injected path %q cannot be marked as externalAmbiguous import %q has multiple matching exportshttp2: request body closed due to handler exitinghttp: wrote mo
+re than the declared Content-Lengththe :: must expand to at least one field of zerosinternal error: fillWindow called with stale datacrypto/tls: ExportKeyingMat
+erial context too longtls: server advertised unrequested ALPN extensiontls: server sent a cookie in a normal ServerHellotls: client offered only unsupported ver
+sions: %xtls: client using inappropriate protocol fallbacktls: client illegally modified second ClientHelloecdsa: internal error: truncated hash is too longcryp
+to/elliptic: internal error: invalid encoding/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pemx509: invalid RDNSequence: invalid attribute typex509: Ed25519 key
+ encoded with illegal parametersx509: private key contains zero or negative valuex509: private key contains zero or negative primechacha20poly1305: bad nonce le
+ngth passed to Sealchacha20poly1305: bad nonce length passed to Openmallocgc called with gcphase == _GCmarkterminationruntime.Pinner: object was allocated into
+an arenaruntime.Pinner: decreased non-existing pin counterrecursive call during initialization - linker skewattempt to execute system stack code on user stack"d
+eclare" cannot be used with a private identifierFor loop initializers cannot start with "async of"Parameter decorators are not allowed in JavaScriptComparison u
+sing the %q operator here is always %vThis assignment will throw because %q is an importThe import %q is being treated as an absolute pathgot CONTINUATION for s
+tream %d; expected stream %dhttp: suspiciously long trailer after chunked body
+packages/admin-web/node_modules/.bin/esbuild:1101118:Top-level await is currently not supported with the %q output formatpadding bytes must all be zeros unless
+AllowIllegalWrites is enabledhttp: message cannot contain multiple Content-Length headers; got %qembedded IPv4 address must replace the final 2 fields of the ad
+dresstls: internal error: sending non-handshake message to QUIC transport269599466671506397946670150870196306735579162600263081435100662988812695994666715063979
+4667015087019625940457807714424391721682722368061crypto/hmac: hash generation function does not produce unique valuesUse "--sourcemap" instead of "--sourcemap=%
+s" when transforming stdinruntime.Pinner: found leaking pinned pointer; forgot to call Unpin()?Expected the %q option to be nested inside a "compilerOptions" ob
+jectUse %q instead of %q to avoid issues with case-sensitive file systemsImport %q will always be undefined because the file %q has no exportstoo many hex field
+s to fit an embedded IPv4 at the end of the addressinternal/concurrent.HashMapTrie: ran out of hash bits while iteratinginternal/concurrent.HashMapTrie: ran out
+ of hash bits while insertingtls: peer doesn't support the certificate custom signature algorithmstls: handshake message of length %d bytes exceeds maximum of %
+d bytestls: client certificate contains an unsupported public key of type %Tedwards25519: internal error: setShortBytes called with a long stringCannot start se
+rvice: Host version %q does not match binary version %qJavaScript decorator syntax does not allow "." after a call expression"let" must be wrapped in parenthese
+s to be used as an expression here:Attempting to delete a property of "super" will throw a ReferenceErrorThis call to "require" will not be bundled because it h
+as %d argumentsLegacy HTML single-line comments are not allowed in ECMAScript modulesBig integer literals are not available in %s and may crash at run-timebytes
+.Buffer: UnreadByte: previous operation was not a successful readIgnoring this import because %q was marked as having no side effects%sgot %s for stream %d; exp
+ected CONTINUATION following %s for stream %dx509: PKCS#8 wrapping contained private key with unknown algorithm: %vx509: certificate relies on legacy Common Nam
+e field, use SANs insteadrange function recovered a loop body panic and did not resume panickingtoo many concurrent operations on a single file or socket (max 1
+048575)Duplicate function declarations are not allowed in nested blocks %s. %sThis syntax is not allowed in files with the ".mts" or ".cts" extensionParameter d
+ecorators only work when experimental decorators are enabledinternal error: attempt to send frame on a half-closed-local stream: %vtls: peer doesn't support any
+ of the certificate's signature algorithmsdynamic table size update MUST occur at the beginning of a header blockx509: issuer has name constraints but leaf does
+n't have a SAN extension
+

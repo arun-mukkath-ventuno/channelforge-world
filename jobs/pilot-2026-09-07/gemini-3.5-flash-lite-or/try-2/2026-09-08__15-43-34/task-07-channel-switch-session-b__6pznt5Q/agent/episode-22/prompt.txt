@@ -1,0 +1,37 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+7302aaa448af:/app# grep -rnI channels packages/persistence/src/
+packages/persistence/src/repositories.test.ts:37:  it("seeds 5 channels and assembles campaign target channels", async () => {
+packages/persistence/src/reconciliation.test.ts:8:import { insertChannel } from "./repositories/channels.js";
+packages/persistence/src/index.ts:10:export * as channels from "./repositories/channels.js";
+packages/persistence/src/analytics.test.ts:8:import { insertChannel } from "./repositories/channels.js";
+packages/persistence/src/cli/seed.ts:10:  console.log("Seed inventory loaded (5 channels, campaigns, creatives).");
+packages/persistence/src/seed.ts:5:import { insertChannel } from "./repositories/channels.js";
+packages/persistence/src/seed.ts:22:  channels: string[];
+packages/persistence/src/seed.ts:30:    channels: ["channel_food"],
+packages/persistence/src/seed.ts:36:    channels: ["channel_food", "channel_entertainment"],
+packages/persistence/src/seed.ts:42:    channels: ["channel_food", "channel_news"],
+packages/persistence/src/seed.ts:51:    channels: ["channel_travel"],
+packages/persistence/src/seed.ts:57:    channels: ["channel_fitness"],
+packages/persistence/src/seed.ts:66:    channels: ["channel_news"],
+packages/persistence/src/seed.ts:88:      targetChannels: camp.channels,
+packages/persistence/src/reconciliation.ts:33:  /** Restrict to one channel. Omit for all channels. */
+packages/persistence/src/repositories/channels.ts:34:    `INSERT INTO channels (id, name, origin_url, slate_id, status)
+packages/persistence/src/repositories/channels.ts:57:  const rows = (await db.query<ChannelRow>("SELECT * FROM channels ORDER BY id")).rows;
+packages/persistence/src/repositories/channels.ts:62:  const rows = (await db.query<ChannelRow>("SELECT * FROM channels WHERE id = $1", [id])).rows;
+packages/persistence/src/repositories/channels.ts:68:  await db.query("UPDATE channels SET vast_tag_url = $2 WHERE id = $1", [id, tagUrl]);
+packages/persistence/src/repositories/campaigns.ts:2:// campaign_channels join in JS for portability (pg + pg-mem).
+packages/persistence/src/repositories/campaigns.ts:36:  // Replace target channels only when provided, so a partial update (e.g. just
+packages/persistence/src/repositories/campaigns.ts:39:    await db.query("DELETE FROM campaign_channels WHERE campaign_id = $1", [input.id]);
+packages/persistence/src/repositories/campaigns.ts:42:        `INSERT INTO campaign_channels (campaign_id, channel_id) VALUES ($1, $2)
+packages/persistence/src/repositories/campaigns.ts:53:    await db.query<{ campaign_id: string; channel_id: string }>("SELECT campaign_id, channel_id FROM campa
+ign_channels")
+packages/persistence/src/repositories/campaigns.ts:56:  const channelsByCampaign = new Map<string, string[]>();
+packages/persistence/src/repositories/campaigns.ts:58:    const list = channelsByCampaign.get(link.campaign_id) ?? [];
+packages/persistence/src/repositories/campaigns.ts:60:    channelsByCampaign.set(link.campaign_id, list);
+packages/persistence/src/repositories/campaigns.ts:69:    targetChannels: channelsByCampaign.get(r.id) ?? [],
+7302aaa448af:/app#

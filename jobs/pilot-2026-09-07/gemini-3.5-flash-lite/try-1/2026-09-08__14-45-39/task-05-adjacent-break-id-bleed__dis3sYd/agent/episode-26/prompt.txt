@@ -1,0 +1,14 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+272d9b32010c:/app# node -e 'fs = require("fs"); file = "packages/data-plane/src/avails.test.ts"; c = fs.readFileSync(file, "utf8"); add = `  it("correctly attri
+butes externalBreakId for back-to-back ad breaks with zero gap", () => {\n    const m = manifest([\n      "#EXT-X-MEDIA-SEQUENCE:0",\n      "#EXT-X-CUE-OUT:30",
+\n      \'#EXT-X-DATERANGE:ID="BRK-1",SCTE35-OUT=0xFC\',\n      "#EXTINF:6.000,",\n      "a.ts",\n      "#EXT-X-CUE-IN",\n      "#EXT-X-CUE-OUT:30",\n      \'#E
+XT-X-DATERANGE:ID="BRK-2",SCTE35-OUT=0xFC\',\n      "#EXTINF:6.000,",\n      "b.ts",\n      "#EXT-X-CUE-IN",\n    ]);\n    const avails = detectAvails(m, "ch");
+\n    expect(avails).toHaveLength(2);\n    expect(avails[0]!.externalBreakId).toBe("BRK-1");\n    expect(avails[1]!.externalBreakId).toBe("BRK-2");\n  });\n});`
+; idx = c.lastIndexOf("});"); newC = c.substring(0, idx) + add; fs.writeFileSync(file, newC);'
+bash: !.externalBreakId: event not found
+272d9b32010c:/app#

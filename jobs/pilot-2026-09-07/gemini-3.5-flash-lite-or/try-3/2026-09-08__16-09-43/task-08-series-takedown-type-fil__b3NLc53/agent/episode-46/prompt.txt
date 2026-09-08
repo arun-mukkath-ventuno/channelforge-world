@@ -1,0 +1,243 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@e61efb547692:/app# cat app/services/asset_eligibility.py
+"""Composite asset eligibility (PRD 3.0 §9.4): metadata + rights, per distribution agreement.
+
+Composes the pure metadata engine (``eligibility.evaluate_metadata``) with the pure rights engine
+(``rights_engine.evaluate``) over the policies that apply to the asset for a given agreement. This
+is what makes the same asset eligible for one agreement and ineligible for another (§8.4, §9.5).
+Later slices fold caption/QC/rendition dimensions into the same result shape.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timedelta
+
+from sqlalchemy.orm import Session
+
+from app.clock import now_utc
+from app.models import Asset, DistributionAgreement, EligibilityVerdict
+from app.repositories import rights as rights_repo
+from app.services import captions as caption_svc
+from app.services import qc as qc_svc
+from app.services import rights_engine
+from app.services.eligibility import (
+    DEFAULT_PROFILE,
+    EligibilityResult,
+    Reason,
+    ValidationProfile,
+    evaluate_metadata,
+)
+
+# Reference air window for a general (not event-specific) eligibility check. Territory/partner
+# rights decisions are time-independent, so a nominal window keyed on the asset's duration is
+# sufficient; event-specific evaluation passes its own window (§8.2).
+_DEFAULT_AIR_SECONDS = 3600.0
+
+
+def evaluate_asset(
+    db: Session,
+    *,
+    org_id: uuid.UUID,
+    asset: Asset,
+    agreement: DistributionAgreement | None = None,
+    now: datetime | None = None,
+    profile: ValidationProfile = DEFAULT_PROFILE,
+) -> EligibilityResult:
+    now = now or now_utc()
+    reasons: list[Reason] = list(evaluate_metadata(asset, profile).reasons)
+
+    # An active emergency takedown blocks the asset absolutely, before any policy check (§8.3).
+    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+    if takedown is not None:
+        reasons.append(Reason(
+            code="rights_takedown", field="rights", severity="error",
+            message="Asset is under an active emergency takedown.",
+        ))
+
+    # Caption dimension (§9.4): only enforced when the profile requires it.
+    if profile.require_captions and not caption_svc.has_usable_caption(
+        db, org_id=org_id, asset_id=asset.id
+    ):
+        reasons.append(Reason(
+            code="missing_captions", field="captions", severity="error",
+            message="No QC-passing caption track is available.",
+        ))
+
+    # Technical QC dimension (§9.1/§9.4): media that failed compatibility blocks; an operator
+    # override (§9.5) clears it. Editorial is already covered by the metadata check above; rights
+    # by the engine below; caption by the requirement above.
+    tech_state, _ = qc_svc.technical_effective(db, org_id=org_id, asset=asset, now=now)
+    if tech_state == "failed":
+        reasons.append(Reason(
+            code="technical_qc_failed", field="technical", severity="error",
+            message="Source media failed technical QC.",
+        ))
+    elif tech_state == "warning":
+        reasons.append(Reason(
+            code="technical_qc_warning", field="technical", severity="warning",
+            message="Source media passed technical QC with warnings.",
+        ))
+
+    air_start = now
+    air_end = now + timedelta(seconds=asset.duration_seconds or _DEFAULT_AIR_SECONDS)
+    ctx = rights_engine.RightsContext(
+        air_start=air_start,
+        air_end=air_end,
+        territory=agreement.territory if agreement else None,
+        partner=agreement.partner if agreement else None,
+        language=asset.language,
+    )
+    policies = rights_repo.resolve_applicable(
+        db,
+        org_id=org_id,
+        asset=asset,
+        channel_id=agreement.channel_id if agreement else None,
+        agreement_id=agreement.id if agreement else None,
+    )
+    decision = rights_engine.evaluate(policies, ctx, asset=asset)
+    for rr in decision.reasons:
+        reasons.append(Reason(code=rr.code, field="rights", severity="error", message=rr.message))
+
+    if any(r.severity == "error" for r in reasons):
+        verdict = EligibilityVerdict.INELIGIBLE
+    elif reasons:
+        verdict = EligibilityVerdict.ELIGIBLE_WITH_WARNINGS
+    else:
+        verdict = EligibilityVerdict.ELIGIBLE
+    return EligibilityResult(verdict, reasons)
+root@e61efb547692:/app# cat app/services/rights_takedown.py
+"""Emergency rights takedown (PRD 3.0 §8.3, ADR-5).
+
+Placing a takedown is a non-destructive override: it blocks the target (asset or series) at every
+eligibility decision point, identifies the future published events and agreements it affects, and
+raises an incident — without rewriting any immutable published schedule version. Deterministic
+schedule replacement, the airing-now choice, and EPG deltas are follow-ups (the last needs ADR-6);
+this increment delivers the block, the impact report, and the incident/audit trail.
+"""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.auth.deps import RequestMeta
+from app.clock import now_utc
+from app.models import DistributionAgreement, RightsTakedown
+from app.repositories import audit as audit_repo
+from app.repositories import rights as rights_repo
+from app.services import alerts as alerts_service
+from app.services.errors import NotFound, ServiceError
+
+_VALID_SCOPES = {"asset", "series"}
+
+
+@dataclass
+class AffectedSummary:
+    event_count: int = 0
+    channel_ids: list[str] = field(default_factory=list)
+    agreement_ids: list[str] = field(default_factory=list)
+
+
+def _affected(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+) -> AffectedSummary:
+    events = rights_repo.affected_future_events(
+        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now
+    )
+    channel_ids = sorted({str(e.channel_id) for e in events})
+    agreement_ids: list[str] = []
+    if channel_ids:
+        rows = db.scalars(
+            select(DistributionAgreement.id).where(
+                DistributionAgreement.organization_id == org_id,
+                DistributionAgreement.channel_id.in_([uuid.UUID(c) for c in channel_ids]),
+            )
+        )
+        agreement_ids = sorted(str(a) for a in rows)
+    return AffectedSummary(
+        event_count=len(events), channel_ids=channel_ids, agreement_ids=agreement_ids
+    )
+
+
+def preview(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> AffectedSummary:
+    if scope_type not in _VALID_SCOPES:
+        raise ServiceError(f"Takedown scope_type must be one of {sorted(_VALID_SCOPES)}.")
+    return _affected(
+        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now_utc()
+    )
+
+
+def place_takedown(
+    db: Session,
+    *,
+    org_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
+    scope_type: str,
+    scope_id: uuid.UUID,
+    reason: str,
+    meta: RequestMeta,
+) -> tuple[RightsTakedown, AffectedSummary]:
+    if scope_type not in _VALID_SCOPES:
+        raise ServiceError(f"Takedown scope_type must be one of {sorted(_VALID_SCOPES)}.")
+    if not reason.strip():
+        raise ServiceError("A takedown requires a reason.")
+
+    now = now_utc()
+    takedown = rights_repo.create_takedown(
+        db, organization_id=org_id, scope_type=scope_type, scope_id=scope_id,
+        reason=reason, status="active", actor_user_id=actor_id,
+    )
+    affected = _affected(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now)
+
+    alerts_service.raise_alert(
+        db, org_id=org_id, alert_type="rights_takedown", severity="critical",
+        message=f"Emergency takedown on {scope_type} {scope_id}: {reason}",
+        action="Review affected future events and agreements; replace or reschedule as needed.",
+        dedup_key=f"rights_takedown:{takedown.id}",
+    )
+    audit_repo.record(
+        db, action="rights_takedown.place", actor_user_id=actor_id, organization_id=org_id,
+        object_type="rights_takedown", object_id=str(takedown.id),
+        after={"scope_type": scope_type, "scope_id": str(scope_id),
+               "affected_events": affected.event_count,
+               "affected_agreements": affected.agreement_ids},
+        ip=meta.ip, user_agent=meta.user_agent,
+    )
+    db.commit()
+    return takedown, affected
+
+
+def lift_takedown(
+    db: Session, *, org_id: uuid.UUID, actor_id: uuid.UUID | None,
+    takedown_id: uuid.UUID, meta: RequestMeta,
+) -> RightsTakedown:
+    takedown = rights_repo.get_takedown(db, org_id=org_id, takedown_id=takedown_id)
+    if takedown is None:
+        raise NotFound("Takedown not found.")
+    if takedown.status == "active":
+        takedown.status = "lifted"
+        takedown.lifted_at = now_utc()
+        takedown.lifted_by = actor_id
+        alerts_service.auto_resolve_by_dedup(
+            db, org_id=org_id, dedup_key=f"rights_takedown:{takedown.id}"
+        )
+        audit_repo.record(
+            db, action="rights_takedown.lift", actor_user_id=actor_id, organization_id=org_id,
+            object_type="rights_takedown", object_id=str(takedown.id),
+            ip=meta.ip, user_agent=meta.user_agent,
+        )
+        db.commit()
+    return takedown
+root@e61efb547692:/app#

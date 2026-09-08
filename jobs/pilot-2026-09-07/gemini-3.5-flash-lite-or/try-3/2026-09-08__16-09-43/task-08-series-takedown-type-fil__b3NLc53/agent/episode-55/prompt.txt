@@ -1,0 +1,40 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@e61efb547692:/app# sed -n '1,15p;160,176p' app/repositories/rights.py
+"""Data access for rights policies, versions, and assignments (PRD 3.0 §8, ADR-5)."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.models import (
+    Asset,
+    RightsAssignment,
+    RightsPolicy,
+    RightsPolicyVersion,
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_type == "asset",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+root@e61efb547692:/app#

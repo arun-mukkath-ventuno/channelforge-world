@@ -1,0 +1,122 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+672cf0f88e4a:/app# grep -rn "ad" src/lib/
+src/lib/channel-config-store.test.ts:31:  it("seeds from SEED_CHANNELS on first read", async () => {
+src/lib/channel-config-store.test.ts:36:  it("upserts — adds then replaces the same id", async () => {
+src/lib/channels.test.ts:72:    expect(toChannel({ ...base, status: "degraded" }).status).toBe("degraded");
+src/lib/fast-view.test.ts:28:  it("estimate fallback when no ad state: 3 segments, one ad segment", () => {
+src/lib/fast-view.test.ts:40:  it("real SCTE avail inside the program marks inBreak and places the ad segment", () => {
+src/lib/fast-view.test.ts:41:    const ad: AdState = {
+src/lib/fast-view.test.ts:52:    const v = buildView(rows(), 0, NOW, 0, null, ad);
+src/lib/fast-view.test.ts:61:    const ad: AdState = {
+src/lib/fast-view.test.ts:72:    const v = buildView(rows(), 0, NOW, 0, null, ad);
+src/lib/fast-view.test.ts:90:    const ad: AdState = {
+src/lib/fast-view.test.ts:95:    const v = buildView(rows(), 0, NOW, 0, null, ad);
+src/lib/ssai.ts:1:// SSAI (server-side ad insertion) client — the AD leg of the Stream Telemetry Blueprint.
+src/lib/ssai.ts:3:// For channels with an `ssaiChannel`, the player requests a session from the ad server, plays the
+src/lib/ssai.ts:4:// returned stitched `playback_url` (ChannelForge content + spliced ads), and fires per-ad quartile
+src/lib/ssai.ts:6:// (concurrents, QoE) — that stays untouched; ad events go to the SSAI's `/v1/events`.
+src/lib/ssai.ts:22:      headers: { "Content-Type": "application/json" },
+src/lib/ssai.ts:35:  | "ad_impression"
+src/lib/ssai.ts:36:  | "ad_start"
+src/lib/ssai.ts:37:  | "ad_first_quartile"
+src/lib/ssai.ts:38:  | "ad_midpoint"
+src/lib/ssai.ts:39:  | "ad_third_quartile"
+src/lib/ssai.ts:40:  | "ad_complete";
+src/lib/ssai.ts:42:/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+src/lib/ssai.ts:43:export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+src/lib/ssai.ts:44:  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
+src/lib/ssai.ts:51:        headers: { "Content-Type": "application/json" },
+src/lib/ssai.ts:62:  adId: string;
+src/lib/ssai.ts:67:/** Parse ad avails from a stitched media playlist's EXT-X-DATERANGE lines (CLASS com.fastworld.ad). */
+src/lib/ssai.ts:71:    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+src/lib/ssai.ts:75:    const adId = attr("X-AD-ID") || attr("ID");
+src/lib/ssai.ts:76:    if (!startDate || !dur || !adId) continue;
+src/lib/ssai.ts:80:    out.push({ adId, start, end: start + seconds * 1000 });
+src/lib/ssai.ts:93: * Parse SCTE-35 ad avails from a ChannelForge media playlist. These are the ad
+src/lib/ssai.ts:95: * `parseAdWindows` which reads the ads actually stitched in. Reads
+src/lib/ssai.ts:118:// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+src/lib/ssai.ts:120:  [0, "ad_impression"],
+src/lib/ssai.ts:121:  [0, "ad_start"],
+src/lib/ssai.ts:122:  [0.25, "ad_first_quartile"],
+src/lib/ssai.ts:123:  [0.5, "ad_midpoint"],
+src/lib/ssai.ts:124:  [0.75, "ad_third_quartile"],
+src/lib/ssai.ts:125:  [1, "ad_complete"],
+src/lib/ssai.ts:129: * Watch the wall-clock playhead against the stitched manifest's ad windows and fire quartile
+src/lib/ssai.ts:130: * beacons as each ad plays. `playheadDate()` returns the current playhead as epoch ms (from
+src/lib/ssai.ts:131: * Shaka's getPlayheadTimeAsDate). Returns a stop() cleanup.
+src/lib/ssai.ts:136:  playheadDate: () => number | null;
+src/lib/ssai.ts:141:  const fired = new Set<string>(); // `${adId}:${start}:${beacon}`
+src/lib/ssai.ts:155:    const now = opts.playheadDate();
+src/lib/ssai.ts:162:          const key = `${w.adId}:${w.start}:${beacon}`;
+src/lib/ssai.ts:164:          fired.add(key);
+src/lib/ssai.ts:165:          sendAdBeacon(opts.sessionId, beacon, w.adId);
+src/lib/channels.ts:7:// `hlsUrl` values (env overrides below) with live ChannelForge reads/proxies.
+src/lib/channels.ts:9:// Channels 101-104 are real: live ChannelForge FAST origins (SSAI ad-stitched) with
+src/lib/channels.ts:12:import { loadForgeEpg, windowFilter } from "./channelforge-epg";
+src/lib/channels.ts:30:  ssaiChannel?: string; // SSAI channel id — when set, play the ad-stitched session instead of hlsUrl
+src/lib/channels.ts:35:  status?: "live" | "degraded" | "off"; // admin override; defaults to live
+src/lib/channels.ts:64:  status: "live" | "degraded" | "off";
+src/lib/channels.ts:71:// afterwards the store (edited via the admin UI) is authoritative. hlsUrl values
+src/lib/channels.ts:84:    ssaiChannel: "channel_homecooking", // play the SSAI ad-stitched session
+src/lib/channels.ts:96:      "/art/food/hc-chettinad-yt.jpg", // Chettinad Chicken Curry
+src/lib/channels.ts:98:      "/art/food/hc-biryani-yt.jpg", // Hyderabadi Mutton Dum Biryani
+src/lib/channels.ts:104:      ["Chicken Chettinad", 24, "Slow-roasted Chettinad masala, ground fresh, 
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+s:170:    if (e.channelId && ["player_load", "playback_start", "heartbeat", "channel_change"].includes(e.event)) {
+src/lib/admin-auth.ts:1:// Shared-password gate for the admin. The password lives in FAST_ADMIN_PASSWORD
+src/lib/admin-auth.ts:3:// cookie; each admin API route verifies it. No accounts, no user table.
+src/lib/admin-auth.ts:7:export const COOKIE_NAME = "fast_admin";
+src/lib/admin-auth.ts:49:  const cookie = req.headers.get("cookie") || "";
+src/lib/admin-auth.ts:54:export function cookieHeader(value: string, maxAge: number): string {
+src/lib/channel-config-store.ts:1:// Durable channel/EPG configuration — the source the app reads and the admin
+src/lib/channel-config-store.ts:23:      headers: { Authorization: `Bearer ${env.token}`, "content-type": "application/json" },
+src/lib/channel-config-store.ts:108:// Reset to the built-in defaults (admin "restore defaults").
+src/lib/channelforge-epg.test.ts:5:import { existsSync, readFileSync } from "fs";
+src/lib/channelforge-epg.test.ts:7:import { loadForgeEpg, windowFilter } from "@/lib/channelforge-epg";
+src/lib/channelforge-epg.test.ts:16:    <title>Padmasana_for_Beginners___Learn_Lotus_Pose_720p</title>
+src/lib/channelforge-epg.test.ts:51:  const xml = usingGolden ? readFileSync(GOLDEN, "utf8") : SAMPLE;
+src/lib/channelforge-epg.test.ts:55:    const progs = await loadForgeEpg("https://forge/a/epg.xml", 102, "/poster.jpg");
+src/lib/channelforge-epg.test.ts:73:      const progs = await loadForgeEpg("https://forge/b/epg.xml", 102);
+src/lib/channelforge-epg.test.ts:81:    const progs = await loadForgeEpg("https://forge/c/epg.xml", 102);
+src/lib/channelforge-epg.test.ts:85:  it("cleans titles and reads <desc>/<category>/<icon>, else falls back to the poster", async () => {
+src/lib/channelforge-epg.test.ts:87:    const progs = await loadForgeEpg("https://forge/d/epg.xml", 102, "/poster.jpg");
+src/lib/channelforge-epg.test.ts:88:    expect(progs[0].title).toBe("Padmasana for Beginners"); // underscores + _720p stripped, ___ split
+src/lib/channelforge-epg.test.ts:102:    await loadForgeEpg("https://forge/e/epg.xml", 102);
+src/lib/channelforge-epg.test.ts:103:    await loadForgeEpg("https://forge/e/epg.xml", 102);
+src/lib/channelforge-epg.test.ts:109:    const good = await loadForgeEpg("https://forge/f/epg.xml", 102);
+src/lib/channelforge-epg.test.ts:110:    // advance past the TTL so the next call re-fetches…
+src/lib/channelforge-epg.test.ts:113:    const stale = await loadForgeEpg("https://forge/f/epg.xml", 102);
+src/lib/channelforge-epg.test.ts:119:    expect(await loadForgeEpg("https://forge/g/epg.xml", 102)).toEqual([]);
+src/lib/telemetry-store.test.ts:23:    await t.record(ev({ event: "player_load", channelId: 101, sessionId: "a" }));
+src/lib/manifest-probe.ts:35:      headers: { range: "bytes=0-2047" }, // enough to confirm the manifest serves
+src/lib/fast-client.ts:30:  status: "live" | "degraded" | "off";
+src/lib/fast-client.ts:35:// Real SCTE-35 ad-break state for a channel (from /api/fast/ads/current).
+src/lib/fast-client.ts:67:    status: "live" | "degraded" | "off";
+src/lib/fast-client.ts:88:  const sec = withSeconds ? ":" + String(d.getSeconds()).padStart(2, "0") : "";
+src/lib/fast-client.ts:89:  return `${h}:${String(m).padStart(2, "0")}${sec} ${ap}`;
+src/lib/fast-client.ts:95:    .map((n) => String(n).padStart(2, "0"))
+src/lib/fast-client.ts:135:  const payload = { ...e, ts: Date.now(), sessionId: sessionId() };
+src/lib/fast-client.ts:137:    const body = JSON.stringify(payload);
+src/lib/fast-client.ts:146:        headers: { "content-type": "application/json" },
+src/lib/fast-client.test.ts:17:describe("hms (24-hour, zero-padded)", () => {
+src/lib/fast-client.test.ts:18:  it("pads each field", () => {
+src/lib/fast-challenges.ts:31:      ["investigation started", "Read /api/channels/104/schedule"],
+src/lib/fast-challenges.ts:38:      ["+00:37", "PATCH schedule 15:30 → vt_yy_0311, padded 20s to slot"],
+src/lib/fast-challenges.ts:40:      ["+00:41", "Playout confirmed asset preloaded · stream healthy"],
+src/lib/fast-challenges.ts:57:      ["+00:24", "Applied option A, cascaded 3 downstream slots"],
+src/lib/fast-challenges.ts:81:    id: "degrade",
+src/lib/fast-challenges.ts:82:    title: "Stream degradation",
+src/lib/fast-challenges.ts:89:      ["investigation started", "Read packager metrics for 102"],
+src/lib/ssai.test.ts:6:  it("extracts ad windows from EXT-X-DATERANGE ad markers", () => {
+src/lib/ssai.test.ts:11:      '#EXT-X-DATERANGE:ID="cr_yoga_end_25",CLASS="com.fastworld.ad",START-DATE="2026-09-03T05:00:00.000Z",DURATION=25,X-AD-ID="cr_yoga_
+end_25",X-CAMPAIGN-ID="camp_yoga_house"',
+src/lib/ssai.test.ts:15:    expect(windows[0].adId).toBe("cr_yoga_end_25");
+src/lib/ssai.test.ts:20:  it("ignores non-ad DATERANGE and content lines", () => {
+src/lib/channelforge-epg.ts:44:// "Padmasana_for_Beginners___Learn_Lotus_Pose_..._720p". Clean into a readable
+src/lib/channelforge-epg.ts:89:export async function loadForgeEpg(
+672cf0f88e4a:/app#

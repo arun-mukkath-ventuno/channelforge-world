@@ -1,0 +1,62 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+93629a20d375:/app# grep -rn "CREATE TABLE" packages/
+packages/persistence/src/migrate.ts:10:    `CREATE TABLE IF NOT EXISTS schema_migrations (
+packages/persistence/dist/migrate.js:6:    await db.query(`CREATE TABLE IF NOT EXISTS schema_migrations (
+93629a20d375:/app# ls -la packages/data-plane/src packages/core/src packages/control-plane/src
+packages/control-plane/src:
+total 100
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 ..
+-rw-r--r--    1 root     root          4797 Sep  5 08:18 beacons.test.ts
+-rw-r--r--    1 root     root          3516 Sep  5 08:18 beacons.ts
+-rw-r--r--    1 root     root          2635 Sep  5 08:18 events-normalize.test.ts
+-rw-r--r--    1 root     root          3959 Sep  5 08:18 events-normalize.ts
+-rw-r--r--    1 root     root          9527 Sep  5 08:18 server.test.ts
+-rw-r--r--    1 root     root         22957 Sep  5 08:18 server.ts
+-rw-r--r--    1 root     root          2879 Sep  5 08:18 vast-fetch.test.ts
+-rw-r--r--    1 root     root          2530 Sep  5 08:18 vast-fetch.ts
+-rw-r--r--    1 root     root          4782 Sep  5 08:18 vast-inventory.test.ts
+-rw-r--r--    1 root     root          3934 Sep  5 08:18 vast-inventory.ts
+-rw-r--r--    1 root     root          5133 Sep  5 08:18 vast.test.ts
+-rw-r--r--    1 root     root          5874 Sep  5 08:18 vast.ts
+
+packages/core/src:
+total 56
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 ..
+-rw-r--r--    1 root     root          1408 Sep  5 08:18 decide.ts
+-rw-r--r--    1 root     root          3094 Sep  5 08:18 eligibility.test.ts
+-rw-r--r--    1 root     root          2511 Sep  5 08:18 eligibility.ts
+-rw-r--r--    1 root     root           337 Sep  5 08:18 index.ts
+-rw-r--r--    1 root     root          3684 Sep  5 08:18 pod.test.ts
+-rw-r--r--    1 root     root          2903 Sep  5 08:18 pod.ts
+-rw-r--r--    1 root     root          1809 Sep  5 08:18 rng.ts
+-rw-r--r--    1 root     root          2494 Sep  5 08:18 scte.test.ts
+-rw-r--r--    1 root     root          3735 Sep  5 08:18 scte.ts
+-rw-r--r--    1 root     root          1910 Sep  5 08:18 session-token.test.ts
+-rw-r--r--    1 root     root          2343 Sep  5 08:18 session-token.ts
+-rw-r--r--    1 root     root          3184 Sep  5 08:18 types.ts
+
+packages/data-plane/src:
+total 76
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 ..
+-rw-r--r--    1 root     root          4988 Sep  5 08:18 avails.test.ts
+-rw-r--r--    1 root     root          5162 Sep  5 08:18 avails.ts
+-rw-r--r--    1 root     root          1897 Sep  5 08:18 decider.ts
+-rw-r--r--    1 root     root          3588 Sep  5 08:18 media.test.ts
+-rw-r--r--    1 root     root          5831 Sep  5 08:18 media.ts
+-rw-r--r--    1 root     root          1625 Sep  5 08:18 origin-rewrite.ts
+-rw-r--r--    1 root     root          2730 Sep  5 08:18 origin-slice4.test.ts
+-rw-r--r--    1 root     root          2085 Sep  5 08:18 origin.test.ts
+-rw-r--r--    1 root     root          3782 Sep  5 08:18 origin.ts
+-rw-r--r--    1 root     root           335 Sep  5 08:18 segment.ts
+-rw-r--r--    1 root     root          6488 Sep  5 08:18 server.ts
+-rw-r--r--    1 root     root          2476 Sep  5 08:18 stitch.test.ts
+-rw-r--r--    1 root     root          2898 Sep  5 08:18 stitch.ts
+93629a20d375:/app#

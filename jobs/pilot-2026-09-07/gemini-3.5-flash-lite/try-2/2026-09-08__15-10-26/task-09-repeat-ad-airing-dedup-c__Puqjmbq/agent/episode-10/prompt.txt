@@ -1,0 +1,13 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+22e5e1af14cd:/app# grep -rn "pod_id" /reference/
+/reference/ssaiadserver/control-plane/events-normalize.ts:52:  pod_id?: string;
+/reference/ssaiadserver/control-plane/events-normalize.ts:98:    const basis = [raw.session_id, raw.pod_id ?? "", raw.ad_id ?? "", eventType].join("|");
+/reference/ssaiadserver/control-plane/events-normalize.ts:115:    podId: raw.pod_id ?? null,
+/reference/ssaiadserver/persistence/repositories/events.ts:27:       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+/reference/ssaiadserver/persistence/repositories/events.ts:71:    podId: (r.pod_id as string) ?? null,
+22e5e1af14cd:/app#

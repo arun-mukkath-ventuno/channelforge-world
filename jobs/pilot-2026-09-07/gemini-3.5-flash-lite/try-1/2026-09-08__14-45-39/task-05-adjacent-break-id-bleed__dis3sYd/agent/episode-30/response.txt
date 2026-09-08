@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "git is not found, so let's use node to restore `packages/data-plane/src/avails.test.ts` to remove the test we added.",
+  "plan": "Restore avails.test.ts to its original state using a node script.",
+  "commands": [
+    {
+      "keystrokes": "node -e 'fs = require(\"fs\"); file = \"packages/data-plane/src/avails.test.ts\"; c = fs.readFileSync(file, \"utf8\"); idx = c.indexOf(\"  it(\\\"correctly attributes externalBreakId\"); if (idx !== -1) { c = c.substring(0, idx) + \"});\\n\"; fs.writeFileSync(file, c); }'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

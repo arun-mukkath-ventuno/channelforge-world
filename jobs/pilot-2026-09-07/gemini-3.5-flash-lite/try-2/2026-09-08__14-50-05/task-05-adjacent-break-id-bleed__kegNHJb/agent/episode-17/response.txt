@@ -1,0 +1,17 @@
+```json
+{
+  "analysis": "Fix JSON escaping for `\\x27` in the JSON keystrokes string.",
+  "plan": "Run node command to add the test without invalid JSON escapes, then run vitest.",
+  "commands": [
+    {
+      "keystrokes": "node -e '\nconst fs = require(\"fs\");\nconst file = \"packages/data-plane/src/avails.test.ts\";\nlet content = fs.readFileSync(file, \"utf8\");\n\nconst testToAdd = `\n  it(\"handles back-to-back ad breaks with zero gap correctly\", () => {\n    const m = manifest([\n      \"#EXT-X-MEDIA-SEQUENCE:0\",\n      \"#EXT-X-CUE-OUT:30\",\n      '\\x23EXT-X-DATERANGE:ID=\"BRK-first\",PLANNED-DURATION=30,SCTE35-OUT=0xFC',\n      \"#EXTINF:6.000,\",\n      \"a.ts\",\n      \"#EXT-X-CUE-IN\",\n      \"#EXT-X-CUE-OUT:15\",\n      '\\x23EXT-X-DATERANGE:ID=\"BRK-second\",PLANNED-DURATION=15,SCTE35-OUT=0xFD',\n      \"#EXTINF:6.000,\",\n      \"b.ts\",\n      \"#EXT-X-CUE-IN\",\n    ]);\n    const avails = detectAvails(m, \"ch\");\n    expect(avails).toHaveLength(2);\n    expect(avails[0]!.externalBreakId).toBe(\"BRK-first\");\n    expect(avails[1]!.externalBreakId).toBe(\"BRK-second\");\n  });\n});\n`;\n\nconst lastIdx = content.lastIndexOf(\"}\");\nif (lastIdx === -1) { console.error(\"closing brace not found\"); process.exit(1); }\ncontent = content.substring(0, lastIdx) + testToAdd;\nfs.writeFileSync(file, content);\nconsole.log(\"Test added successfully\");\n'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "npx vitest run packages/data-plane\n",
+      "duration": 3.0
+    }
+  ],
+  "task_complete": true
+}
+```

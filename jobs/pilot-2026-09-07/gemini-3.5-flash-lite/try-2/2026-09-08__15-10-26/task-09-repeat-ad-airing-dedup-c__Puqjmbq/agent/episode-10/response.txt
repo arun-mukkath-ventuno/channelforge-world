@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "The reference server derives event IDs using `[raw.session_id, raw.pod_id ?? \"\", raw.ad_id ?? \"\", eventType].join(\"|\")`. Since `pod_id` is missing when sending beacons, multiple airings of the same ad in the same session produce identical event IDs and get deduplicated away. We need to pass `pod_id` (or use `w.start` / unique pod identifier) when sending ad beacons.",
+  "plan": "Check existing unit tests for ssai and telemetry, update `sendAdBeacon` and `startAdBeaconWatcher` to include `podId` (or pass `w.start` as `pod_id` or similar), and run the test suite to verify.",
+  "commands": [
+    {
+      "keystrokes": "npm test\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}
+```

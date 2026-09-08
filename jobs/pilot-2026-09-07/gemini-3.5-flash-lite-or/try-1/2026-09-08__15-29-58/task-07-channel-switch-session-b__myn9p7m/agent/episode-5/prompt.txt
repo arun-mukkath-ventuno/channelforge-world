@@ -1,0 +1,88 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+77729b58f5eb:/app# cat packages/persistence/src/repositories/sessions.ts
+// Playback session repository (PRD §11, §12, §44).
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface PlaybackSession {
+  id: string;
+  channelId: string;
+  createdAt: string;
+  lastActivityAt: string;
+  deviceType: string | null;
+  country: string | null;
+  anonymousId: string | null;
+}
+
+interface SessionRow {
+  id: string;
+  channel_id: string;
+  created_at: unknown;
+  last_activity_at: unknown;
+  device_type: string | null;
+  country: string | null;
+  anonymous_id: string | null;
+}
+
+export interface SessionInput {
+  id: string;
+  channelId: string;
+  deviceType?: string | null;
+  country?: string | null;
+  anonymousId?: string | null;
+  ipHash?: string | null;
+  userAgent?: string | null;
+}
+
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+  await db.query(
+    `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      input.id,
+      input.channelId,
+      input.deviceType ?? null,
+      input.country ?? null,
+      input.anonymousId ?? null,
+      input.ipHash ?? null,
+      input.userAgent ?? null,
+    ],
+  );
+}
+
+export async function touchSession(db: Queryable, id: string): Promise<void> {
+  await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+}
+
+function toSession(r: SessionRow): PlaybackSession {
+  return {
+    id: r.id,
+    channelId: r.channel_id,
+    createdAt: toIso(r.created_at),
+    lastActivityAt: toIso(r.last_activity_at),
+    deviceType: r.device_type,
+    country: r.country,
+    anonymousId: r.anonymous_id,
+  };
+}
+
+export async function getSession(db: Queryable, id: string): Promise<PlaybackSession | null> {
+  const rows = (await db.query<SessionRow>("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+  return rows[0] ? toSession(rows[0]) : null;
+}
+
+export async function listSessions(db: Queryable, limit = 100): Promise<PlaybackSession[]> {
+  const rows = (
+    await db.query<SessionRow>("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [limit])
+  ).rows;
+  return rows.map(toSession);
+}
+77729b58f5eb:/app#

@@ -1,0 +1,45 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+Current Terminal Screen:
+app/services/rights_takedown.py:59:    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+app/services/rights_takedown.py:61:    if scope_type not in _VALID_SCOPES:
+app/services/rights_takedown.py:62:        raise ServiceError(f"Takedown scope_type must be one of {sorted(_VALID_SCOPES)}.")
+app/services/rights_takedown.py:64:        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now_utc()
+app/services/rights_takedown.py:73:    scope_type: str,
+app/services/rights_takedown.py:78:    if scope_type not in _VALID_SCOPES:
+app/services/rights_takedown.py:79:        raise ServiceError(f"Takedown scope_type must be one of {sorted(_VALID_SCOPES)}.")
+app/services/rights_takedown.py:85:        db, organization_id=org_id, scope_type=scope_type, scope_id=scope_id,
+app/services/rights_takedown.py:88:    affected = _affected(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now)
+app/services/rights_takedown.py:92:        message=f"Emergency takedown on {scope_type} {scope_id}: {reason}",
+app/services/rights_takedown.py:99:        after={"scope_type": scope_type, "scope_id": str(scope_id),
+root@e61efb547692:/app# grep -n active_takedown app/**/*.py app/*.py
+app/api/rights.py:80:        TakedownOut.model_validate(t) for t in rights_repo.list_active_takedowns(db, org_id)
+app/repositories/rights.py:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py:161:def active_takedown_for_asset(
+app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+root@e61efb547692:/app# sed -n '695,715p' app/services/schedules.py
+    db: Session, *, event, asset: Asset, start: datetime, end: datetime
+) -> list[str]:
+    """Rights + takedown gate at publish (§8.2 validation/publication point, ADR-5).
+
+    Channel-level publish has no single agreement/territory, so this catches the
+    agreement-independent denials — validity window, blackout, linear/AVOD permission, and active
+    takedowns. Territory/partner-specific rights are enforced per agreement at distributor
+    eligibility. Falls back to the asset's legacy rights window when no policy is assigned.
+    """
+    org_id = asset.organization_id
+    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+        return [f"'{event.title}': asset is under an active emergency takedown"]
+    policies = rights_repo.resolve_applicable(
+        db, org_id=org_id, asset=asset, channel_id=event.channel_id
+    )
+    ctx = rights_engine.RightsContext(air_start=start, air_end=end, language=asset.language)
+    decision = rights_engine.evaluate(policies, ctx, asset=asset)
+    if not decision.allowed:
+        codes = ", ".join(sorted({r.code for r in decision.reasons}))
+        return [f"'{event.title}': rights not valid for its air time ({codes})"]
+    return []
+root@e61efb547692:/app#

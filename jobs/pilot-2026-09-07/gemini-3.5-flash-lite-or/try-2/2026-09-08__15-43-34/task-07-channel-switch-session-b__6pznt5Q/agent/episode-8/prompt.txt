@@ -1,0 +1,94 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+7302aaa448af:/app# grep -rnI createSession packages/
+7302aaa448af:/app# grep -rnI session packages/data-plane/ packages/control-plane/
+packages/data-plane/src/server.ts:29:  sessionSecret?: string;
+packages/data-plane/src/server.ts:33:export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+packages/data-plane/src/server.ts:51:  const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+packages/data-plane/src/server.ts:60:    const claims = verifySession(token, sessionSecret);
+packages/data-plane/src/server.ts:61:    if (!claims) return reply.code(403).send({ error: "invalid_session_token" });
+packages/data-plane/src/server.ts:63:    const session = claims.sid;
+packages/data-plane/src/server.ts:83:      const cached = await podCache.get(session, avail.opportunityId);
+packages/data-plane/src/server.ts:86:        const decided = await decider.decide({ sessionId: session, channelId: channel, avail });
+packages/data-plane/src/decider.ts:4:// refreshes for this (session, opportunity) are pure cache reads on the hot path.
+packages/data-plane/src/decider.ts:10:  sessionId: string;
+packages/data-plane/src/decider.ts:27:  async decide({ sessionId, channelId, avail }: DecideRequest): Promise<PodItem[] | null> {
+packages/data-plane/src/decider.ts:35:          session_id: sessionId,
+packages/data-plane/tsconfig.tsbuildinfo:1:{"fileNames":["../../node_modules/typescript/lib/lib.es5.d.ts","../../node_modules/typescript/lib/lib.es2015.d.ts",".
+./../node_modules/typescript/lib/lib.es2016.d.ts","../../node_modules/typescript/lib/lib.es2017.d.ts","../../node_modules/typescript/lib/lib.es2018.d.ts","../..
+/node_modules/typescript/lib/lib.es2019.d.ts","../../node_modules/typescript/lib/lib.es2020.d.ts","../../node_modules/typescript/lib/lib.es2021.d.ts","../../nod
+e_modules/typescript/lib/lib.es2022.d.ts","../../node_modules/typescript/lib/lib.es2015.core.d.ts","../../node_modules/typescript/lib/lib.es2015.collection.d.ts
+","../../node_modules/typescript/lib/lib.es2015.generator.d.ts","../../node_modules/typescript/lib/lib.es2015.iterable.d.ts","../../node_modules/typescript/lib/
+lib.es2015.promise.d.ts","../../node_modules/typescript/lib/lib.es2015.proxy.d.ts","../../node_modules/typescript/lib/lib.es2015.reflect.d.ts","../../node_modul
+es/typescript/lib/lib.es2015.symbol.d.ts","../../node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts","../../node_modules/typescript/lib/lib.es2016.arr
+ay.include.d.ts","../../node_modules/typescript/lib/lib.es2016.intl.d.ts","../../node_modules/typescript/lib/lib.es2017.arraybuffer.d.ts","../../node_modules/ty
+pescript/lib/lib.es2017.date.d.ts","../../node_modules/typescript/lib/lib.es2017.object.d.ts","../../node_modules/typescript/lib/lib.es2017.sharedmemory.d.ts","
+../../node_modules/typescript/lib/lib.es2017.string.d.ts","../../node_modules/typescript/lib/lib.es2017.intl.d.ts","../../node_modules/typescript/lib/lib.es2017
+.typedarrays.d.ts","../../node_modules/typescript/lib/lib.es2018.asyncgenerator.d.ts","../../node_modules/typescript/lib/lib.es2018.asynciterable.d.ts","../../n
+ode_modules/typescript/lib/lib.es2018.intl.d.ts","../../node_modules/typescript/lib/lib.es2018.promise.d.ts","../../node_modules/typescript/lib/lib.es2018.regex
+p.d.ts","../../node_modules/typescript/lib/lib.es2019.array.d.ts","../../node_modules/typescript/lib/lib.es2019.object.d.ts","../../node_modules/typescript/lib/
+lib.es2019.string.d.ts","../../node_modules/typescript/lib/lib.es2019.symbol.d.ts","../../node_modules/typescript/lib/lib.es2019.intl.d.ts","../../node_modules/
+typescript/lib/lib.es2020.bigint.d.ts","../../node_modules/typescript/lib/lib.es2020.date.d.ts","../../node_modules/typescript/lib/lib.es2020.promise.d.ts","../
+../node_modules/typescript/lib/lib.es2020.sharedmemory.d.ts","../../node_modules/typescript/lib/lib.es2020.string.d.ts","../../node_modules/typescript/lib/lib.e
+s2020.symbol.wellknown.d.ts","../../node_modules/typescript/lib/lib.es2020.intl.d.ts","../../node_modules/typescript/lib/lib.es2020.number.d.ts","../../node_mod
+ules/typescript/lib/lib.es2021.promise.d.ts","../../node_modules/typescript/lib/lib.es2021.string.d.ts","../../node_modules/typescript/lib/lib.es2021.weakref.d.
+ts","../../node_modules/typescript/lib/lib.es2021.intl.d.ts","../../node_modules/typescript/lib/lib.es2022.array.d.ts","../../node_modules/typescript/lib/lib.es
+2022.error.d.ts","../../node_modules/typescript/lib/lib.es2022.intl.d.ts","../../node_modules/typescript/lib/lib.es2022.object.d.ts","../../node_modules/typescr
+ipt/lib/lib.es2022.string.d.ts","../../node_modules/typescript/lib/lib.es2022.regexp.d.ts","../../node_modules/typescript/lib/lib.decorators.d.ts","../../node_m
+odules/typescript/lib/lib.decorators.legacy.d.ts","../core/dist/types.d.ts","../core/dist/scte.d.ts","../core/dist/eligibility.d.ts","../core/dist/rng.d.ts","..
+/core/dist/pod.d.ts","../core/dist/decide.d.ts","../core/dist/session-token.d.ts","../core/d
+[... output limited to 10000 bytes; 72 interior bytes omitted ...]
+Id: "opp1", creativeId: "cr_vast_1"
+};
+packages/control-plane/dist/beacons.test.js:57:        expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "o", c
+reativeId: "cr_house" })).toBe(0);
+packages/control-plane/dist/beacons.test.js:58:        expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: null, opportunityId: "o", c
+reativeId: "cr_vast_1" })).toBe(0);
+packages/control-plane/dist/beacons.test.js:70:        await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creat
+iveId: "cr_vast_1" });
+packages/control-plane/dist/server.js:3:// Owns campaigns, creatives, channels, sessions, ad decisioning, event
+packages/control-plane/dist/server.js:16:import { withTransaction, getAnalytics, getBreakDeliveries, campaigns as campaignsRepo, creatives as creativesRepo, cha
+nnels as channelsRepo, sessions as sessionsRepo, opportunities as oppsRepo, decisions as decisionsRepo, events as eventsRepo, } from "@ssai/persistence";
+packages/control-plane/dist/server.js:21:export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+packages/control-plane/dist/server.js:31:    const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+packages/control-plane/dist/server.js:32:    const sessionTtlSeconds = deps.sessionTtlSeconds ?? Number(process.env.SESSION_TTL_SECONDS ?? 86400);
+packages/control-plane/dist/server.js:54:        if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision"))
+packages/control-plane/dist/server.js:59:        const claims = token ? verifySession(token, sessionSecret) : null;
+packages/control-plane/dist/server.js:68:        const token = signSession(adminUser, "admin", sessionSecret, { ttlSeconds: sessionTtlSeconds });
+packages/control-plane/dist/server.js:74:            maxAge: sessionTtlSeconds,
+packages/control-plane/dist/server.js:85:    app.post("/v1/sessions", async (req, reply) => {
+packages/control-plane/dist/server.js:89:        const sessionId = `sess_${randomUUID()}`;
+packages/control-plane/dist/server.js:90:        await sessionsRepo.ensureSession(pool, {
+packages/control-plane/dist/server.js:91:            id: sessionId,
+packages/control-plane/dist/server.js:98:            eventType: "session_created",
+packages/control-plane/dist/server.js:99:            sessionId,
+packages/control-plane/dist/server.js:103:        const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+packages/control-plane/dist/server.js:105:            session_id: sessionId,
+packages/control-plane/dist/server.js:111:    app.get("/v1/sessions/:id", async (req, reply) => {
+packages/control-plane/dist/server.js:113:        const session = await sessionsRepo.getSession(pool, id);
+packages/control-plane/dist/server.js:114:        return session ?? reply.code(404).send({ error: "not_found" });
+packages/control-plane/dist/server.js:122:        const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+packages/control-plane/dist/server.js:133:        const session = { sessionId, channelId: body.channel_id };
+packages/control-plane/dist/server.js:142:            session,
+packages/control-plane/dist/server.js:150:        // Persist opportunity + session + decision atomically (PRD §46, §47).
+packages/control-plane/dist/server.js:152:            await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id });
+packages/control-plane/dist/server.js:169:                    sessionId,
+packages/control-plane/dist/server.js:179:            sessionId,
+packages/control-plane/dist/server.js:200:            if (normalized.sessionId)
+packages/control-plane/dist/server.js:201:                touched.add(normalized.sessionId);
+packages/control-plane/dist/server.js:205:        // Telemetry keeps a session "active" for streaming analytics.
+packages/control-plane/dist/server.js:207:            await sessionsRepo.touchSession(pool, sid);
+packages/control-plane/dist/server.js:242:    app.get("/v1/sessions", async (req) => {
+packages/control-plane/dist/server.js:244:        return sessionsRepo.listSessions(pool, q.limit ? Number(q.limit) : undefined);
+packages/control-plane/dist/server.js:247:    app.get("/v1/debug/session/:id", async (req) => {
+packages/control-plane/dist/server.js:249:        const [session, decisions, events] = await Promise.all([
+packages/control-plane/dist/server.js:250:            sessionsRepo.getSession(pool, id),
+packages/control-plane/dist/server.js:254:        return { session, decisions, events };
+packages/control-plane/dist/events-normalize.js:45:    if (isAdLifecycle && raw.session_id) {
+packages/control-plane/dist/events-normalize.js:46:        const basis = [raw.session_id, raw.pod_id ?? "", raw.ad_id ?? "", eventType].join("|");
+packages/control-plane/dist/events-normalize.js:59:        sessionId: raw.session_id ?? null,
+7302aaa448af:/app#

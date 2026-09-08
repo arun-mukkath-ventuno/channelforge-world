@@ -1,0 +1,11 @@
+{
+  "analysis": "Ah, multiline python command sent via keystrokes got interpreted line by line by bash because of newlines in keystrokes. Let's write a python script file or use a single-line command or base64 decoding to create the test file.",
+  "plan": "Use a single python one-liner or node script to append the test to packages/data-plane/src/avails.test.ts.",
+  "commands": [
+    {
+      "keystrokes": "python3 -c 'with open(\"packages/data-plane/src/avails.test.ts\", \"a\") as f: f.write(\"\\ndescribe(\\\"back-to-back ad breaks\\\", () => {\\n  it(\\\"does not leak first break externalBreakId onto second break when there is zero gap\\\", () => {\\n    const m = manifest([\\\"#EXT-X-MEDIA-SEQUENCE:0\\\", \\\"#EXT-X-CUE-OUT:30\\\", \\\"#EXT-X-DATERANGE:ID=\\\\\\\"BRK-1\\\\\\\",PLANNED-DURATION=30\\\", \\\"#EXTINF:6.000,\\\", \\\"a.ts\\\", \\\"#EXT-X-CUE-IN\\\", \\\"#EXT-X-CUE-OUT:15\\\", \\\"#EXT-X-DATERANGE:ID=\\\\\\\"BRK-2\\\\\\\",PLANNED-DURATION=15\\\", \\\"#EXTINF:6.000,\\\", \\\"b.ts\\\", \\\"#EXT-X-CUE-IN\\\"]);\\n    const avails = detectAvails(m, \\\"ch\\\");\\n    expect(avails).toHaveLength(2);\\n    expect(avails[0]!.externalBreakId).toBe(\\\"BRK-1\\\");\\n    expect(avails[1]!.externalBreakId).toBe(\\\"BRK-2\\\");\\n  });\\n});\\n\")'\nnpx vitest run packages/data-plane\n",
+      "duration": 3.0
+    }
+  ],
+  "task_complete": false
+}

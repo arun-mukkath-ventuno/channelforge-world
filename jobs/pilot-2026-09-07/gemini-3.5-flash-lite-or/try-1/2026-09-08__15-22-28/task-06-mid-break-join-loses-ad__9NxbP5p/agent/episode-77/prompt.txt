@@ -1,0 +1,114 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# grep -rn -C 15 "ad-decision" packages/control-plane/
+packages/control-plane/src/server.ts-74-  const dataPlaneUrl = deps.dataPlaneUrl ?? process.env.DATA_PLANE_PUBLIC_URL ?? "http://localhost:4010";
+packages/control-plane/src/server.ts-75-  const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+packages/control-plane/src/server.ts-76-  const sessionTtlSeconds = deps.sessionTtlSeconds ?? Number(process.env.SESSION_TTL_SECONDS ?? 86400);
+packages/control-plane/src/server.ts-77-  const adminUser = deps.adminUser ?? process.env.ADMIN_USER ?? "ops";
+packages/control-plane/src/server.ts-78-  const adminPassword = deps.adminPassword ?? process.env.ADMIN_PASSWORD ?? "";
+packages/control-plane/src/server.ts-79-  const cookieSecure = deps.cookieSecure ?? (process.env.COOKIE_SECURE ?? "true") !== "false";
+packages/control-plane/src/server.ts-80-  const adminDist = deps.adminDist ?? fileURLToPath(new URL("../../admin-web/dist", import.meta.url));
+packages/control-plane/src/server.ts-81-
+packages/control-plane/src/server.ts-82-  app.register(multipart, { limits: { fileSize: deps.maxUploadBytes ?? 500 * 1024 * 1024, files: 1 } });
+packages/control-plane/src/server.ts-83-  app.register(cookie);
+packages/control-plane/src/server.ts-84-  if (existsSync(adminDist)) {
+packages/control-plane/src/server.ts-85-    app.register(fastifyStatic, { root: adminDist, prefix: "/admin/", wildcard: false });
+packages/control-plane/src/server.ts-86-  }
+packages/control-plane/src/server.ts-87-
+packages/control-plane/src/server.ts-88-  // ── Admin auth gate (PRD §57) ────────────────────────────────────────────
+packages/control-plane/src/server.ts:89:  // Public: health, login, the player endpoints, the ad-decision (internal), and
+packages/control-plane/src/server.ts-90-  // the SPA itself + its assets. Everything else requires the admin cookie.
+packages/control-plane/src/server.ts-91-  app.addHook("onRequest", async (req, reply) => {
+packages/control-plane/src/server.ts-92-    if (deps.authDisabled) return;
+packages/control-plane/src/server.ts-93-    const path = req.url.split("?")[0]!;
+packages/control-plane/src/server.ts-94-    const method = req.method;
+packages/control-plane/src/server.ts-95-    if (path === "/health" || path === "/admin/api/login" || path === "/") return;
+packages/control-plane/src/server.ts-96-    if (path === "/favicon.svg" || path === "/favicon.ico") return;
+packages/control-plane/src/server.ts:97:    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+packages/control-plane/src/server.ts-98-    if (path.startsWith("/admin") && !path.startsWith("/admin/api")) return; // SPA html + assets
+packages/control-plane/src/server.ts-99-    const token = (req.cookies as Record<string, string> | undefined)?.ssai_admin;
+packages/control-plane/src/server.ts-100-    const claims = token ? verifySession(token, sessionSecret) : null;
+packages/control-plane/src/server.ts-101-    if (!claims || claims.ch !== "admin") return reply.code(401).send({ error: "unauthorized" });
+packages/control-plane/src/server.ts-102-  });
+packages/control-plane/src/server.ts-103-
+packages/control-plane/src/server.ts-104-  app.post("/admin/api/login", async (req, reply) => {
+packages/control-plane/src/server.ts-105-    const { user, password } = (req.body ?? {}) as { user?: string; password?: string };
+packages/control-plane/src/server.ts-106-    if (!user || !password || user !== adminUser || !adminPassword || !safeEqual(password, adminPassword)) {
+packages/control-plane/src/server.ts-107-      return reply.code(401).send({ error: "Invalid username or password." });
+packages/control-plane/src/server.ts-108-    }
+packages/control-plane/src/server.ts-109-    const token = signSession(adminUser, "admin", sessionSecret, { ttlSeconds: sessionTtlSeconds });
+packages/control-plane/src/server.ts-110-    reply.setCookie("ssai_admin", token, {
+packages/control-plane/src/server.ts-111-      httpOnly: true,
+packages/control-plane/src/server.ts-112-      secure: cookieSecure,
+--
+packages/control-plane/src/server.ts-148-    return {
+packages/control-plane/src/server.ts-149-      session_id: sessionId,
+packages/control-plane/src/server.ts-150-      channel_id: body.channel_id,
+packages/control-plane/src/server.ts-151-      playback_token: token,
+packages/control-plane/src/server.ts-152-      playback_url: `${dataPlaneUrl}/v1/hls/${token}/${body.channel_id}/master.m3u8`,
+packages/control-plane/src/server.ts-153-    };
+packages/control-plane/src/server.ts-154-  });
+packages/control-plane/src/server.ts-155-
+packages/control-plane/src/server.ts-156-  app.get("/v1/sessions/:id", async (req, reply) => {
+packages/control-plane/src/server.ts-157-    const { id } = req.params as { id: string };
+packages/control-plane/src/server.ts-158-   
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+split("?")[0];
+packages/control-plane/dist/server.js-49-        const method = req.method;
+packages/control-plane/dist/server.js-50-        if (path === "/health" || path === "/admin/api/login" || path === "/")
+packages/control-plane/dist/server.js-51-            return;
+packages/control-plane/dist/server.js-52-        if (path === "/favicon.svg" || path === "/favicon.ico")
+packages/control-plane/dist/server.js-53-            return;
+packages/control-plane/dist/server.js:54:        if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision"))
+packages/control-plane/dist/server.js-55-            return;
+packages/control-plane/dist/server.js-56-        if (path.startsWith("/admin") && !path.startsWith("/admin/api"))
+packages/control-plane/dist/server.js-57-            return; // SPA html + assets
+packages/control-plane/dist/server.js-58-        const token = req.cookies?.ssai_admin;
+packages/control-plane/dist/server.js-59-        const claims = token ? verifySession(token, sessionSecret) : null;
+packages/control-plane/dist/server.js-60-        if (!claims || claims.ch !== "admin")
+packages/control-plane/dist/server.js-61-            return reply.code(401).send({ error: "unauthorized" });
+packages/control-plane/dist/server.js-62-    });
+packages/control-plane/dist/server.js-63-    app.post("/admin/api/login", async (req, reply) => {
+packages/control-plane/dist/server.js-64-        const { user, password } = (req.body ?? {});
+packages/control-plane/dist/server.js-65-        if (!user || !password || user !== adminUser || !adminPassword || !safeEqual(password, adminPassword)) {
+packages/control-plane/dist/server.js-66-            return reply.code(401).send({ error: "Invalid username or password." });
+packages/control-plane/dist/server.js-67-        }
+packages/control-plane/dist/server.js-68-        const token = signSession(adminUser, "admin", sessionSecret, { ttlSeconds: sessionTtlSeconds });
+packages/control-plane/dist/server.js-69-        reply.setCookie("ssai_admin", token, {
+--
+packages/control-plane/dist/server.js-102-        // Signed playback token (PRD §57): the data plane verifies it before serving.
+packages/control-plane/dist/server.js-103-        const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+packages/control-plane/dist/server.js-104-        return {
+packages/control-plane/dist/server.js-105-            session_id: sessionId,
+packages/control-plane/dist/server.js-106-            channel_id: body.channel_id,
+packages/control-plane/dist/server.js-107-            playback_token: token,
+packages/control-plane/dist/server.js-108-            playback_url: `${dataPlaneUrl}/v1/hls/${token}/${body.channel_id}/master.m3u8`,
+packages/control-plane/dist/server.js-109-        };
+packages/control-plane/dist/server.js-110-    });
+packages/control-plane/dist/server.js-111-    app.get("/v1/sessions/:id", async (req, reply) => {
+packages/control-plane/dist/server.js-112-        const { id } = req.params;
+packages/control-plane/dist/server.js-113-        const session = await sessionsRepo.getSession(pool, id);
+packages/control-plane/dist/server.js-114-        return session ?? reply.code(404).send({ error: "not_found" });
+packages/control-plane/dist/server.js-115-    });
+packages/control-plane/dist/server.js-116-    // ── Ad Decision (PRD §15, §16, §35) ──────────────────────────────────────
+packages/control-plane/dist/server.js:117:    app.post("/v1/ad-decision", async (req, reply) => {
+packages/control-plane/dist/server.js-118-        const body = (req.body ?? {});
+packages/control-plane/dist/server.js-119-        if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+packages/control-plane/dist/server.js-120-            return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+packages/control-plane/dist/server.js-121-        }
+packages/control-plane/dist/server.js-122-        const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+packages/control-plane/dist/server.js-123-        const now = new Date().toISOString();
+packages/control-plane/dist/server.js-124-        const opportunity = {
+packages/control-plane/dist/server.js-125-            opportunityId: body.opportunity_id,
+packages/control-plane/dist/server.js-126-            channelId: body.channel_id,
+packages/control-plane/dist/server.js-127-            ...(body.external_break_id ? { externalBreakId: body.external_break_id } : {}),
+packages/control-plane/dist/server.js-128-            breakStart: now,
+packages/control-plane/dist/server.js-129-            breakDuration: body.duration,
+packages/control-plane/dist/server.js-130-            source: "cue_out",
+packages/control-plane/dist/server.js-131-            signalType: "cue_out",
+packages/control-plane/dist/server.js-132-        };
+c37cf208f09f:/app#

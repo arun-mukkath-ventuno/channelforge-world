@@ -1,0 +1,81 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+6ffc6e27cc99:/app# node -e '
+> const fs = require("fs");
+> const file = "packages/data-plane/src/avails.test.ts";
+> let content = fs.readFileSync(file, "utf8");
+>
+> const testToAdd = `
+>   it("handles back-to-back ad breaks with zero gap correctly", () => {
+>     const m = manifest([
+>       "#EXT-X-MEDIA-SEQUENCE:0",
+>       "#EXT-X-CUE-OUT:30",
+>       "#EXT-X-DATERANGE:ID=\"BRK-first\",PLANNED-DURATION=30,SCTE35-OUT=0xFC",
+>       "#EXTINF:6.000,",
+>       "a.ts",
+>       "#EXT-X-CUE-IN",
+>       "#EXT-X-CUE-OUT:15",
+>       "#EXT-X-DATERANGE:ID=\"BRK-second\",PLANNED-DURATION=15,SCTE35-OUT=0xFD",
+>       "#EXTINF:6.000,",
+>       "b.ts",
+>       "#EXT-X-CUE-IN",
+>     ]);
+>     const avails = detectAvails(m, "ch");
+>     expect(avails).toHaveLength(2);
+>     expect(avails[0]!.externalBreakId).toBe("BRK-first");
+>     expect(avails[1]!.externalBreakId).toBe("BRK-second");
+>   });
+> });
+> `;
+>
+> const lastIdx = content.lastIndexOf("}");
+> if (lastIdx === -1) { console.error("closing brace not found"); process.exit(1); }
+> content = content.substring(0, lastIdx) + testToAdd;
+> fs.writeFileSync(file, content);
+> console.log("Test added successfully");
+> '
+Test added successfully
+6ffc6e27cc99:/app# npx vitest run packages/data-plane
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/data-plane/src/avails.test.ts (0)
+ ✓ packages/data-plane/src/media.test.ts (5)
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7)
+ ✓ packages/data-plane/src/origin.test.ts (4)
+ ✓ packages/data-plane/src/stitch.test.ts (3)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts [ packages/data-plane/src/avails.test.ts ]
+Error: Transform failed with 1 error:
+/app/packages/data-plane/src/avails.test.ts:151:28: ERROR: Expected "]" but found "BRK"
+  Plugin: vite:esbuild
+  File: /app/packages/data-plane/src/avails.test.ts:151:28
+
+  Expected "]" but found "BRK"
+  149|        "#EXT-X-MEDIA-SEQUENCE:0",
+  150|        "#EXT-X-CUE-OUT:30",
+  151|        "#EXT-X-DATERANGE:ID="BRK-first",PLANNED-DURATION=30,SCTE35-OUT=0xFC",
+     |                              ^
+  152|        "#EXTINF:6.000,",
+  153|        "a.ts",
+
+ ❯ failureErrorWithLog node_modules/vite/node_modules/esbuild/lib/main.js:1472:15
+ ❯ node_modules/vite/node_modules/esbuild/lib/main.js:755:50
+ ❯ responseCallbacks.<computed> node_modules/vite/node_modules/esbuild/lib/main.js:622:9
+ ❯ handleIncomingPacket node_modules/vite/node_modules/esbuild/lib/main.js:677:12
+ ❯ Socket.readFromStdout node_modules/vite/node_modules/esbuild/lib/main.js:600:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  19 passed (19)
+   Start at  09:21:14
+   Duration  597ms (transform 70ms, setup 0ms, collect 91ms, tests 13ms, environment 1ms, prepare 143ms)
+
+6ffc6e27cc99:/app#

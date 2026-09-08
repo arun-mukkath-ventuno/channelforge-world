@@ -1,0 +1,45 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+Current Terminal Screen:
+>         scope_ids.append(asset.series_id)
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == "active",
+>             RightsTakedown.scope_type == "asset",
+>             RightsTakedown.scope_id.in_(scope_ids),
+>         )
+>     )'''
+>
+> replacement = '''def active_takedown_for_asset(
+>     db: Session, *, org_id: uuid.UUID, asset: Asset
+> ) -> RightsTakedown | None:
+>     """An active takedown covering this asset, if any."""
+>     clauses = [
+>         (RightsTakedown.scope_type == "asset") & (RightsTakedown.scope_id == asset.id)
+>     ]
+>     if asset.series_id is not None:
+>         clauses.append(
+>             (RightsTakedown.scope_type == "series") & (RightsTakedown.scope_id == asset.series_id)
+>         )
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == "active",
+>             or_(*clauses),
+>         )
+>     )'''
+>
+> assert target in text
+> text = text.replace(target, replacement, 1)
+>
+> with open(path, "w") as f:
+>     f.write(text)
+> print("Successfully updated rights.py")
+> EOF
+root@e61efb547692:/app# python3 update_rights.py
+Successfully updated rights.py
+root@e61efb547692:/app# rm update_rights.py
+root@e61efb547692:/app#

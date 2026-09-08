@@ -1,0 +1,83 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+packages/storage/dist/s3.js:2:// interface as the filesystem store (PRD §48). The AWS SDK is imported
+packages/creative-worker/package.json:6:  "description": "Offline creative preparation: validate → transcode → segment → store HLS → READY. Never runs on the ma
+nifest hot path (PRD §14, §48).",
+packages/creative-worker/src/validate.ts:1:// Source validation (PRD §14, §40). Runs before transcode. A creative whose
+packages/creative-worker/src/worker.ts:1:// Creative preparation state machine (PRD §14).
+packages/creative-worker/src/worker.ts:8:// only ever reads already-`ready` creatives (PRD §48).
+packages/creative-worker/src/worker.ts:145: * slates/{slateId}/ (PRD §20). Unlike a creative, a slate has no declared
+packages/creative-worker/src/index.ts:1:// @ssai/creative-worker — offline creative preparation (PRD §14).
+packages/creative-worker/src/cli/prepare.ts:1:// CLI: prepare a creative from a local source file (PRD §14).
+packages/creative-worker/src/cli/process-pending.ts:1:// CLI: prepare every creative currently in `uploaded` status (PRD §14).
+packages/creative-worker/src/cli/prepare-slate.ts:1:// CLI: prepare a slate from a local source file (PRD §20).
+packages/creative-worker/src/probe.ts:1:// ffprobe wrapper (PRD §14). Injectable so the worker orchestration is testable
+packages/creative-worker/src/validate.test.ts:9:describe("validateSource (PRD §14, §40)", () => {
+packages/creative-worker/src/transcode.ts:1:// ffmpeg transcode + HLS segmentation (PRD §14). Produces a VOD HLS playlist and
+packages/creative-worker/src/worker.test.ts:74:describe("prepareCreative — state machine (PRD §14)", () => {
+packages/creative-worker/src/profile.ts:1:// Channel media profile (PRD §14). Ad creatives must be prepared to match the
+packages/creative-worker/dist/worker.js:1:// Creative preparation state machine (PRD §14).
+packages/creative-worker/dist/worker.js:8:// only ever reads already-`ready` creatives (PRD §48).
+packages/creative-worker/dist/worker.js:96: * slates/{slateId}/ (PRD §20). Unlike a creative, a slate has no declared
+packages/creative-worker/dist/index.js:1:// @ssai/creative-worker — offline creative preparation (PRD §14).
+packages/creative-worker/dist/validate.js:1:// Source validation (PRD §14, §40). Runs before transcode. A creative whose
+packages/creative-worker/dist/profile.js:1:// Channel media profile (PRD §14). Ad creatives must be prepared to match the
+packages/creative-worker/dist/worker.d.ts:47: * slates/{slateId}/ (PRD §20). Unlike a creative, a slate has no declared
+packages/creative-worker/dist/cli/prepare-slate.js:1:// CLI: prepare a slate from a local source file (PRD §20).
+packages/creative-worker/dist/cli/prepare.js:1:// CLI: prepare a creative from a local source file (PRD §14).
+packages/creative-worker/dist/cli/process-pending.js:1:// CLI: prepare every creative currently in `uploaded` status (PRD §14).
+packages/creative-worker/dist/transcode.js:1:// ffmpeg transcode + HLS segmentation (PRD §14). Produces a VOD HLS playlist and
+packages/creative-worker/dist/probe.js:1:// ffprobe wrapper (PRD §14). Injectable so the worker orchestration is testable
+packages/control-plane/src/events-normalize.test.ts:4:describe("canonicalType (PRD §28)", () => {
+packages/control-plane/src/events-normalize.test.ts:21:describe("deriveEventId — dedup (PRD §60 task 6)", () => {
+packages/control-plane/src/server.ts:1:// SSAI Control Plane (PRD §7, §43, §48).
+packages/control-plane/src/server.ts:45:  /** HMAC secret for signing playback tokens (PRD §57). Shared with the data plane. */
+packages/control-plane/src/server.ts:49:  /** Admin console credentials (in-app login, PRD §57). */
+packages/control-plane/src/server.ts:88:  // ── Admin auth gate (PRD §57) ────────────────────────────────────────────
+packages/control-plane/src/server.ts:127:  // ── Sessions (PRD §11, §12) ──────────────────────────────────────────────
+packages/control-plane/src/server.ts:146:    // Signed playback token (PRD §57): the data plane verifies it before serving.
+packages/control-plane/src/server.ts:162:  // ── Ad Decision (PRD §15, §16, §35) ──────────────────────────────────────
+packages/control-plane/src/server.ts:208:    // Persist opportunity + session + decision atomically (PRD §46, §47).
+packages/control-plane/src/server.ts:236:    // Cache the pod for the data plane (PRD §48).
+packages/control-plane/src/server.ts:248:  // ── Player telemetry ingestion (PRD §26B, §28) ───────────────────────────
+packages/control-plane/src/server.ts:250:  // event types and dedups duplicate beacons (PRD §60 task 6).
+packages/control-p
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+ left outstanding across sweep generationsfully empty unfreed span
+ set block found in resetcasgstatus: waiting for Gwaiting but is Grunnableinvalid or incomplete multibyte or wide characterA rest argument cannot have a default
+ initializerThe JSX syntax extension is not currently enabledThe regular expression flag "%c" is not availableConsider changing %q to a default import instead:T
+he injected path %q cannot be marked as externalAmbiguous import %q has multiple matching exportshttp2: request body closed due to handler exitinghttp: wrote mo
+re than the declared Content-Lengththe :: must expand to at least one field of zerosinternal error: fillWindow called with stale datacrypto/tls: ExportKeyingMat
+erial context too longtls: server advertised unrequested ALPN extensiontls: server sent a cookie in a normal ServerHellotls: client offered only unsupported ver
+sions: %xtls: client using inappropriate protocol fallbacktls: client illegally modified second ClientHelloecdsa: internal error: truncated hash is too longcryp
+to/elliptic: internal error: invalid encoding/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pemx509: invalid RDNSequence: invalid attribute typex509: Ed25519 key
+ encoded with illegal parametersx509: private key contains zero or negative valuex509: private key contains zero or negative primechacha20poly1305: bad nonce le
+ngth passed to Sealchacha20poly1305: bad nonce length passed to Openmallocgc called with gcphase == _GCmarkterminationruntime.Pinner: object was allocated into
+an arenaruntime.Pinner: decreased non-existing pin counterrecursive call during initialization - linker skewattempt to execute system stack code on user stack"d
+eclare" cannot be used with a private identifierFor loop initializers cannot start with "async of"Parameter decorators are not allowed in JavaScriptComparison u
+sing the %q operator here is always %vThis assignment will throw because %q is an importThe import %q is being treated as an absolute pathgot CONTINUATION for s
+tream %d; expected stream %dhttp: suspiciously long trailer after chunked body
+packages/admin-web/node_modules/.bin/esbuild:1101118:Top-level await is currently not supported with the %q output formatpadding bytes must all be zeros unless
+AllowIllegalWrites is enabledhttp: message cannot contain multiple Content-Length headers; got %qembedded IPv4 address must replace the final 2 fields of the ad
+dresstls: internal error: sending non-handshake message to QUIC transport269599466671506397946670150870196306735579162600263081435100662988812695994666715063979
+4667015087019625940457807714424391721682722368061crypto/hmac: hash generation function does not produce unique valuesUse "--sourcemap" instead of "--sourcemap=%
+s" when transforming stdinruntime.Pinner: found leaking pinned pointer; forgot to call Unpin()?Expected the %q option to be nested inside a "compilerOptions" ob
+jectUse %q instead of %q to avoid issues with case-sensitive file systemsImport %q will always be undefined because the file %q has no exportstoo many hex field
+s to fit an embedded IPv4 at the end of the addressinternal/concurrent.HashMapTrie: ran out of hash bits while iteratinginternal/concurrent.HashMapTrie: ran out
+ of hash bits while insertingtls: peer doesn't support the certificate custom signature algorithmstls: handshake message of length %d bytes exceeds maximum of %
+d bytestls: client certificate contains an unsupported public key of type %Tedwards25519: internal error: setShortBytes called with a long stringCannot start se
+rvice: Host version %q does not match binary version %qJavaScript decorator syntax does not allow "." after a call expression"let" must be wrapped in parenthese
+s to be used as an expression here:Attempting to delete a property of "super" will throw a ReferenceErrorThis call to "require" will not be bundled because it h
+as %d argumentsLegacy HTML single-line comments are not allowed in ECMAScript modulesBig integer literals are not available in %s and may crash at run-timebytes
+.Buffer: UnreadByte: previous operation was not a successful readIgnoring this import because %q was marked as having no side effects%sgot %s for stream %d; exp
+ected CONTINUATION following %s for stream %dx509: PKCS#8 wrapping contained private key with unknown algorithm: %vx509: certificate relies on legacy Common Nam
+e field, use SANs insteadrange function recovered a loop body panic and did not resume panickingtoo many concurrent operations on a single file or socket (max 1
+048575)Duplicate function declarations are not allowed in nested blocks %s. %sThis syntax is not allowed in files with the ".mts" or ".cts" extensionParameter d
+ecorators only work when experimental decorators are enabledinternal error: attempt to send frame on a half-closed-local stream: %vtls: peer doesn't support any
+ of the certificate's signature algorithmsdynamic table size update MUST occur at the beginning of a header blockx509: issuer has name constraints but leaf does
+n't have a SAN extension
+

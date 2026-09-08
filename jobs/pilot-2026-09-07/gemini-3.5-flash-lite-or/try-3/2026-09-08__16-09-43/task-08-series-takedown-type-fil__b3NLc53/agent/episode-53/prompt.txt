@@ -1,0 +1,13 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@e61efb547692:/app# grep -n active_takedown app/**/*.py app/*.py
+app/api/rights.py:80:        TakedownOut.model_validate(t) for t in rights_repo.list_active_takedowns(db, org_id)
+app/repositories/rights.py:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py:161:def active_takedown_for_asset(
+app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+root@e61efb547692:/app#

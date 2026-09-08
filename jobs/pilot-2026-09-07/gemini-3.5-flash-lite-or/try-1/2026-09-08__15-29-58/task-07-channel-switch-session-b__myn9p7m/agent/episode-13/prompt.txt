@@ -1,0 +1,20 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+77729b58f5eb:/app# grep -rn "sessions" packages/
+packages/admin-web/src/App.tsx:24:          <Route path="/sessions" element={<SessionsPage />} />
+packages/admin-web/src/content/user-guide.md:111:Live playback sessions — one row per viewer. Each has the channel, when it started, and when
+packages/admin-web/src/pages/AnalyticsPage.tsx:21:            <Stat label="Active sessions" value={data.streaming.activeSessions} />
+packages/admin-web/src/pages/AnalyticsPage.tsx:44:          {data.streaming.sessionsByChannel.length > 0 && (
+packages/admin-web/src/pages/AnalyticsPage.tsx:50:                {data.streaming.sessionsByChannel.map((s) => (
+packages/admin-web/src/pages/AnalyticsPage.tsx:53:                    <span className="ml-2 font-semibold tabular-nums">{s.sessions}</span>
+packages/admin-web/src/pages/SessionsPage.tsx:11:  const { data, error } = useLoad(ssai.sessions);
+packages/admin-web/src/pages/SessionsPage.tsx:16:      <PageHeader title="Sessions" description="Active playback sessions — click a row to trace it." />
+packages/admin-web/src/pages/SessionsPage.tsx:23:            <div className="p-10 text-center text-sm text-muted-foreground">No sessions yet.</div>
+packages/admin-web/src/api/ssai.ts:39:    sessionsByChannel: { channelId: string; sessions: number }[];
+packages/admin-web/src/api/ssai.ts:104:  sessions: () => api.get<Session[]>("/v1/sessions"),
+packages/admin-web/src/components/layout/AppShell.tsx:22:  { to: "/sessions", label: "Sessions", icon: Users },
+

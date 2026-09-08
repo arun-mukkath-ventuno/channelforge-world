@@ -1,0 +1,71 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+89cfbf2f1a44:/app# grep -n -C 15 "ensureSession" packages/control-plane/src/server.ts
+118-  });
+119-  app.get("/admin/api/me", async () => ({ user: adminUser }));
+120-  app.post("/admin/api/logout", async (_req, reply) => {
+121-    reply.clearCookie("ssai_admin", { path: "/" });
+122-    return { ok: true };
+123-  });
+124-
+125-  app.get("/health", async () => ({ status: "ok", plane: "control" }));
+126-
+127-  // ── Sessions (PRD §11, §12) ──────────────────────────────────────────────
+128-  app.post("/v1/sessions", async (req, reply) => {
+129-    const body = (req.body ?? {}) as { channel_id?: string; device_type?: string; country?: string };
+130-    if (!body.channel_id) return reply.code(400).send({ error: "channel_id is required" });
+131-
+132-    const sessionId = `sess_${randomUUID()}`;
+133:    await sessionsRepo.ensureSession(pool, {
+134-      id: sessionId,
+135-      channelId: body.channel_id,
+136-      deviceType: body.device_type ?? "web",
+137-      country: body.country ?? null,
+138-    });
+139-    await eventsRepo.appendEvent(pool, {
+140-      eventId: randomUUID(),
+141-      eventType: "session_created",
+142-      sessionId,
+143-      channelId: body.channel_id,
+144-    });
+145-
+146-    // Signed playback token (PRD §57): the data plane verifies it before serving.
+147-    const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+148-    return {
+--
+195-    const seed = body.seed ?? process.env.AD_DECISION_SEED;
+196-    const decision = decide({
+197-      opportunity,
+198-      session,
+199-      creatives,
+200-      campaigns: campaignMap,
+201-      now,
+202-      ...(seed ? { seed } : {}),
+203-    });
+204-
+205-    const decisionId = `dec_${randomUUID()}`;
+206-    const podId = `pod_${randomUUID()}`;
+207-
+208-    // Persist opportunity + session + decision atomically (PRD §46, §47).
+209-    await withTransaction(pool, async (tx) => {
+210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+211-      await oppsRepo.upsertOpportunity(tx, opportunity);
+212-      await decisionsRepo.saveDecision(tx, {
+213-        decisionId,
+214-        podId,
+215-        decision,
+216-        requestedAt: now,
+217-        completedAt: new Date().toISOString(),
+218-      });
+219-      for (const [type, extra] of [
+220-        ["ad_opportunity_detected", {}],
+221-        ["ad_selected", { selected: decision.pod.filter((p) => p.type === "ad").length }],
+222-        ["pod_created", { adSeconds: decision.adSeconds, slateSeconds: decision.slateSeconds }],
+223-      ] as const) {
+224-        await eventsRepo.appendEvent(tx, {
+225-          eventId: randomUUID(),
+89cfbf2f1a44:/app#

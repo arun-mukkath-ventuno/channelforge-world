@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "Triple quotes inside triple quotes syntax error again. Let's use single quotes for docstrings or escape them. Or even better, let's write `update.py` using python file writing where strings are single-line or use escaped quotes.",
+  "plan": "Write a python update script using base64 or simple python file open.",
+  "commands": [
+    {
+      "keystrokes": "python3 -c 'import base64; print(base64.b64encode(b\"\"\"path = 'app/repositories/rights.py'\nlines = open(path).readlines()\nout = []\nskip = False\nfor line in lines:\n    if 'def active_takedown_for_asset(' in line:\n        skip = True\n        out.append('from sqlalchemy import or_\\n')\n        out.append('def active_takedown_for_asset(db: Session, *, org_id: uuid.UUID, asset: Asset) -> RightsTakedown | None:\\n')\n        out.append('    \\\"\\\"\\\"An active takedown covering this asset directly or via its series, if any.\\\"\\\"\\\"\\n')\n        out.append('    conds = [(RightsTakedown.scope_type == \\\\\"asset\\\\\") & (RightsTakedown.scope_id == asset.id)]\\n')\n        out.append('    if asset.series_id is not None:\\n')\n        out.append('        conds.append((RightsTakedown.scope_type == \\\\\"series\\\\\") & (RightsTakedown.scope_id == asset.series_id))\\n')\n        out.append('    return db.scalar(select(RightsTakedown).where(RightsTakedown.organization_id == org_id, RightsTakedown.status == \\\\\"active\\\\\", or_(*conds)))\\n')\n    elif skip and line.startswith('    )'):\n        skip = False\n    elif not skip:\n        if 'from sqlalchemy import func, select' in line:\n            line = 'from sqlalchemy import func, select, or_\\n'\n        out.append(line)\nopen(path, 'w').writelines(out)\nprint('UPDATED VIA BASE64')\n\"\"\").decode())'\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}
+```

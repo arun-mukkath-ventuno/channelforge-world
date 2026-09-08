@@ -1,0 +1,13 @@
+```json
+{
+  "analysis": "We can import `or_` from `sqlalchemy` (or use `tuple_` or `or_`).\nLet's check how `active_takedown_for_asset` can be written correctly:\n```python\ndef active_takedown_for_asset(\n    db: Session, *, org_id: uuid.UUID, asset: Asset\n) -> RightsTakedown | None:\n    \"\"\"An active takedown covering this asset, if any.\"\"\"\n    conditions = [\n        (RightsTakedown.scope_type == \"asset\") & (RightsTakedown.scope_id == asset.id)\n    ]\n    if asset.series_id is not None:\n        conditions.append(\n            (RightsTakedown.scope_type == \"series\") & (RightsTakedown.scope_id == asset.series_id)\n        )\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \"active\",\n            or_(*conditions),\n        )\n    )\n```\nWait, does `_covered_asset_ids` or any other function also need checking? Let's check where else `active_takedown` or `scope_type` is used across the codebase.",
+  "plan": "Grep for `scope_type` across `app/` to see if there are other places assuming `scope_type == 'asset'` or missing series takedowns.",
+  "commands": [
+    {
+      "keystrokes": "grep -n scope_type app/**/*.py app/*.py\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+```

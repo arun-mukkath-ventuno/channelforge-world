@@ -119,3 +119,41 @@ and "actually good at this."
   run (vs. tens of thousands for `gpt-5.6-luna`'s runs) — free open models can be significantly
   slower and costlier in tokens per turn even when ultimately correct, worth factoring into
   agent-timeout sizing if this becomes a regular comparison target.
+
+  **`openrouter/minimax/minimax-m3:free` was pulled from OpenRouter's free catalog mid-pilot-run
+  (2026-09-07)** — confirmed dead, not a transient rate limit: every call started returning
+  `litellm.NotFoundError: "This model is unavailable for free. The paid version is available now -
+  use this slug instead: minimax/minimax-m3"`, and the slug no longer appears at all in
+  `GET /api/v1/models`. Of the pilot's 15 planned trials for this model, only 3 produced a real
+  result (try-1: task-05 `task_success: 0.0`, task-07 `task_success: 1.0`, task-08
+  `task_success: 1.0`); everything else hit the dead-slug `NotFoundError` at 0 turns. Retired this
+  model from the roster — nothing left to complete since the slug is gone, not throttled.
+
+- **`openrouter/deepseek/deepseek-v4-flash-0731` — not viable for this workload, two independent
+  runs both got stuck in a non-convergent exploration loop.** Tried as a `minimax-m3:free`
+  replacement (1.31M context, $0.065/$0.18 per M — cheap and technically capable per its
+  benchmarks). Two full smoke-test attempts on task-05, 37 and 38 turns respectively: both
+  correctly located the relevant file/bug area early on, then got stuck re-reading the same
+  source repeatedly ("the previous output was truncated, I need to inspect the source again"),
+  spanning 6+ consecutive turns with zero forward progress each time. **Zero edit/write tool
+  calls in either run** — confirmed by grepping every `bash_command` keystroke across both
+  trajectories for `sed -i`, `cat >`, `patch`, etc. This is a genuine reasoning/tool-use quality
+  issue, not an infrastructure problem — it happened on both a credit-constrained run and a
+  cleanly-funded run (see below), so it isn't explained by the OpenRouter billing issue either.
+
+  Along the way this also surfaced two real OpenRouter infrastructure quirks worth keeping in
+  mind for any paid OpenRouter model on long trajectories:
+  - **Worst-case affordability precheck**: `terminus-2` defaults to requesting up to 131,072
+    max_tokens per call; OpenRouter's precheck rejects the request outright if the account's
+    balance can't cover that *ceiling*, even though actual usage per turn is far lower. Fix:
+    `--ak 'llm_kwargs={"max_tokens": 8000}'` (not `--ak max_tokens=...` — that silently no-ops,
+    since `max_tokens` isn't a direct `Terminus2.__init__` kwarg, only `llm_kwargs` is).
+  - **In-flight-budget exhaustion**: even with `max_tokens` capped, OpenRouter reserves budget per
+    in-flight request and can reject new calls mid-trajectory with `in_flight_budget_exhausted`
+    (`Retry-After: 120`) once enough is reserved against concurrent/sequential in-flight requests.
+    This is tied to account standing (`is_free_tier` on `GET /api/v1/key`) — a $10 topup that
+    hadn't yet propagated (`total_credits: 0`, `is_free_tier: true` despite real usage already
+    accruing via pay-as-you-go billing) made this worse, not better, the second time it was hit.
+    Once the topup actually landed (`total_credits: 10`, `is_free_tier: false`), a third run got
+    further (38 turns) before still landing in the same reasoning loop — confirming the loop is a
+    model-quality issue independent of the billing state.

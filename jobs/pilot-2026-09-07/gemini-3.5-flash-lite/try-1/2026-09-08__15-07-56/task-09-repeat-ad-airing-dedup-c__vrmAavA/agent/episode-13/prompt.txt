@@ -1,0 +1,13 @@
+New Terminal Output:
+
+db6aface227e:/app# grep -rn "DATERANGE" src/
+src/lib/ssai.ts:67:/** Parse ad avails from a stitched media playlist's EXT-X-DATERANGE lines (CLASS com.fastworld.ad). */
+src/lib/ssai.ts:71:    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+src/lib/ssai.ts:96: * `#EXT-X-DATERANGE` lines carrying `SCTE35-OUT` with an absolute `START-DATE`
+src/lib/ssai.ts:102:    if (!line.startsWith("#EXT-X-DATERANGE:")) continue;
+src/lib/ssai.test.ts:6:  it("extracts ad windows from EXT-X-DATERANGE ad markers", () => {
+src/lib/ssai.test.ts:11:      '#EXT-X-DATERANGE:ID="cr_yoga_end_25",CLASS="com.fastworld.ad",START-DATE="2026-09-03T05:00:00.000Z",DURATION=25,X-AD-ID="cr_yoga_
+end_25",X-CAMPAIGN-ID="camp_yoga_house"',
+src/lib/ssai.test.ts:20:  it("ignores non-ad DATERANGE and content lines", () => {
+src/lib/ssai.test.ts:24:      '#EXT-X-DATERANGE:ID="x",CLASS="com.other.thing",START-DATE="2026-09-03T05:00:00.000Z",DURATION=10',
+db6aface227e:/app#

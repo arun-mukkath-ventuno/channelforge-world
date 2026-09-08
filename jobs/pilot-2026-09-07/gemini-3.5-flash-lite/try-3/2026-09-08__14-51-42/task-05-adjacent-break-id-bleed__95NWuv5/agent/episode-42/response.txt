@@ -1,0 +1,11 @@
+{
+  "analysis": "Ah, let's look at `packages/data-plane/src/avails.ts` and how `blockBreakId` is handled.\nWhen `CUE-IN` occurs, `blockBreakId` is currently NOT reset/cleared. So when back-to-back breaks happen (break 1 ends with `CUE-IN`, break 2 starts immediately with `CUE-OUT` without a media segment URI in between), `blockBreakId` still holds break 1's ID! Therefore, break 2 picks up break 1's `externalBreakId`!\nTo fix this, when `CUE-IN` occurs, we must reset `blockBreakId = undefined;` (just like when a media segment URI is encountered).\nLet's check `packages/data-plane/src/avails.ts` lines where `cue_in` is handled:\n```ts\n    if (marker?.kind === \"cue_in\" && open) {\n      const declared = open.declaredDuration;\n      avails.push({\n        opportunityId: `opp_${channelId}_${open.startSequence}`,\n        channelId,\n        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),\n        duration: declared ?? open.measuredDuration,\n        ...(declared === undefined ? {} : { declaredDuration: declared }),\n        measuredDuration: open.measuredDuration,\n        startSequence: open.startSequence,\n        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),\n        startLine: open.startLine,\n        endLine: i,\n      });\n      open = null;\n      blockBreakId = undefined;\n      continue;\n    }\n```\nAdding `blockBreakId = undefined;` when `cue_in` closes an open avail completely solves the bug where back-to-back ad breaks leak the first break's producer break ID onto the second break!\nLet's write this fix to `packages/data-plane/src/avails.ts`.",
+  "plan": "Update packages/data-plane/src/avails.ts to set blockBreakId = undefined when cue_in is encountered.",
+  "commands": [
+    {
+      "keystrokes": "node -e 'const fs = require(\"fs\"); let code = fs.readFileSync(\"packages/data-plane/src/avails.ts\", \"utf8\"); code = code.replace(\"open = null;\\n      continue;\", \"open = null;\\n      blockBreakId = undefined;\\n      continue;\"); fs.writeFileSync(\"packages/data-plane/src/avails.ts\", code);'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

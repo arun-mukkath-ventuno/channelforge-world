@@ -1,0 +1,142 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+root@7da54ed4678f:/app# cat tests/test_rights_takedown.py
+"""Emergency rights takedown (PRD 3.0 §8.3)."""
+
+from __future__ import annotations
+
+import uuid
+from datetime import UTC, datetime, timedelta
+
+from app.models import Alert, ScheduleEvent, ScheduleVersion
+
+from tests.helpers import first_org_id, signup
+from tests.test_schedules import make_channel
+
+_IMPORT = {
+    "source_system": "cms",
+    "series": {"external_reference": "SER-1", "title": "Yoga & You"},
+    "episodes": [
+        {"external_reference": "EP-1", "title": "Flow", "season_number": 1, "episode_number": 1,
+         "genre": "Wellness", "rating": "TV-G", "short_description": "x",
+         "original_air_date": "2026-01-05"},
+    ],
+}
+
+
+def _import_asset(client, org) -> str:
+    return client.post(
+        f"/api/organizations/{org}/library/import", json=_IMPORT
+    ).json()["rows"][0]["asset_id"]
+
+
+def _agreement(client, org, *, territory="IN", channel_id=None):
+    body = {"name": "deal", "partner": "samsung", "territory": territory}
+    if channel_id:
+        body["channel_id"] = channel_id
+    return client.post(f"/api/organizations/{org}/agreements", json=body).json()["id"]
+
+
+def _verdict(client, org, asset_id, agreement_id=None):
+    url = f"/api/organizations/{org}/assets/{asset_id}/eligibility"
+    if agreement_id:
+        url += f"?agreement_id={agreement_id}"
+    return client.get(url).json()
+
+
+def test_takedown_blocks_and_lift_restores(client):
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    agreement = _agreement(client, org)
+    assert _verdict(client, org, asset_id, agreement)["verdict"] == "eligible"
+
+    placed = client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "asset", "scope_id": asset_id, "reason": "legal hold"},
+    )
+    assert placed.status_code == 201, placed.text
+    takedown_id = placed.json()["takedown"]["id"]
+
+    # Blocked with an agreement AND without one (takedown is absolute).
+    for aid in (agreement, None):
+        result = _verdict(client, org, asset_id, aid)
+        assert result["verdict"] == "ineligible"
+        assert any(r["code"] == "rights_takedown" for r in result["reasons"])
+
+    lifted = client.post(f"/api/organizations/{org}/rights/takedowns/{takedown_id}/lift")
+    assert lifted.status_code == 200
+    assert _verdict(client, org, asset_id, agreement)["verdict"] == "eligible"
+
+
+def test_takedown_reports_affected_events_and_agreements(client, db):
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    channel_id = make_channel(client, org, tz="UTC")
+    agreement = _agreement(client, org, channel_id=channel_id)
+
+    # A future event in a published version that airs this asset.
+    sv = ScheduleVersion(
+        organization_id=uuid.UUID(org), channel_id=uuid.UUID(channel_id),
+        version_number=1, status="published", published_at=datetime.now(UTC),
+    )
+    db.add(sv)
+    db.flush()
+    start = datetime.now(UTC) + timedelta(days=1)
+    db.add(ScheduleEvent(
+        organization_id=uuid.UUID(org), channel_id=uuid.UUID(channel_id),
+        schedule_version_id=sv.id, event_type="programme", asset_id=uuid.UUID(asset_id),
+        title="Flow", planned_start=start, planned_end=start + timedelta(minutes=30),
+        planned_duration_seconds=1800.0,
+    ))
+    db.commit()
+
+    placed = client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "asset", "scope_id": asset_id, "reason": "rights pulled"},
+    ).json()
+    assert placed["affected"]["event_count"] == 1
+    assert channel_id in placed["affected"]["channel_ids"]
+    assert agreement in placed["affected"]["agreement_ids"]
+
+
+def test_takedown_raises_incident(client, db):
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "asset", "scope_id": asset_id, "reason": "x"},
+    )
+    alert = db.query(Alert).filter(Alert.alert_type == "rights_takedown").one()
+    assert alert.severity == "critical" and alert.status == "open"
+
+
+def test_series_takedown_blocks_member_asset(client, db):
+    from app.models import Asset
+
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    series_id = db.get(Asset, uuid.UUID(asset_id)).series_id
+    assert series_id is not None
+
+    client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "series", "scope_id": str(series_id), "reason": "series pulled"},
+    )
+    result = _verdict(client, org, asset_id)
+    assert result["verdict"] == "ineligible"
+    assert any(r["code"] == "rights_takedown" for r in result["reasons"])
+
+
+def test_invalid_scope_type_rejected(client):
+    org = first_org_id(signup(client))
+    asset_id = _import_asset(client, org)
+    resp = client.post(
+        f"/api/organizations/{org}/rights/takedowns",
+        json={"scope_type": "channel", "scope_id": asset_id, "reason": "x"},
+    )
+    assert resp.status_code == 400
+root@7da54ed4678f:/app#

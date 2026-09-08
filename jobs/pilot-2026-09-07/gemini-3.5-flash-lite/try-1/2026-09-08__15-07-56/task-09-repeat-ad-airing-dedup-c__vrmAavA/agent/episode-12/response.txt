@@ -1,0 +1,11 @@
+{
+  "analysis": "Let's check what other properties `AdWindow` has or what attributes are in the EXT-X-DATERANGE line. In `parseAdWindows` (in `src/lib/ssai.ts`):\n```ts\nexport interface AdWindow {\n  adId: string;\n  start: number; // epoch ms\n  end: number; // epoch ms\n}\n```\nWait, what fields does `deriveEventId` look at?\n```ts\n  const isAdLifecycle = eventType.startsWith(\"ad_\") && eventType !== \"ad_error\";\n  if (isAdLifecycle && raw.session_id) {\n    const basis = [raw.session_id, raw.pod_id ?? \"\", raw.ad_id ?? \"\", eventType].join(\"|\");\n    return `evt_${createHash(\"sha1\").update(basis).digest(\"hex\").slice(0, 24)}`;\n  }\n```\nIt uses `raw.session_id`, `raw.pod_id`, `raw.ad_id`, and `eventType`!\nIf we send `pod_id` (or `opportunity_id`? Wait, what does the ingestion service expect? Let's check `events-normalize.ts` in `/reference/ssaiadserver/control-plane/events-normalize.ts` - it checks `raw.pod_id`).\nLet's check what attributes are in `EXT-X-DATERANGE` for ads or if there is an ID/pod_id/opportunity_id/etc. in `parseAdWindows` or manifests. Let's check other files in `src/` to see how manifests are generated or parsed or if `pod_id` is present anywhere in manifests or channel config.",
+  "plan": "Search for EXT-X-DATERANGE or manifest parsing in `src/`.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn \"DATERANGE\" src/\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

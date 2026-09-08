@@ -1,0 +1,123 @@
+{
+    "id": "99f4217b-af04-493d-99e1-7e7c1d18e9ed",
+    "task_name": "channelforge-world/ssai-channel-switch-session-bleed",
+    "trial_name": "task-07-channel-switch-session-b__aWLJeBB",
+    "trial_uri": "file:///Users/arunmukkath/Work/ventuno-labs/channelforge-world/jobs/pilot-2026-09-07/laguna-s-2.1/try-1/2026-09-08__12-30-39/task-07-channel-switch-session-b__aWLJeBB",
+    "task_id": {
+        "path": "tasks/task-07-channel-switch-session-bleed"
+    },
+    "source": "tasks",
+    "task_checksum": "1408275d5dbfbbc895cc15d3f14e567297744c70e06c144b895c6979aa8a9c3d",
+    "config": {
+        "task": {
+            "path": "tasks/task-07-channel-switch-session-bleed",
+            "git_url": null,
+            "git_commit_id": null,
+            "name": null,
+            "ref": null,
+            "overwrite": false,
+            "download_dir": null,
+            "source": "tasks"
+        },
+        "trial_name": "task-07-channel-switch-session-b__aWLJeBB",
+        "trials_dir": "jobs/pilot-2026-09-07/laguna-s-2.1/try-1/2026-09-08__12-30-39",
+        "timeout_multiplier": 1.0,
+        "agent_timeout_multiplier": null,
+        "verifier_timeout_multiplier": null,
+        "agent_setup_timeout_multiplier": null,
+        "environment_build_timeout_multiplier": null,
+        "agent": {
+            "name": "terminus-2",
+            "import_path": null,
+            "model_name": "openrouter/poolside/laguna-s-2.1:free",
+            "override_timeout_sec": null,
+            "override_setup_timeout_sec": null,
+            "max_timeout_sec": null,
+            "kwargs": {},
+            "env": {}
+        },
+        "environment": {
+            "type": "docker",
+            "import_path": null,
+            "force_build": false,
+            "delete": true,
+            "override_cpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_gpus": null,
+            "suppress_override_warnings": false,
+            "mounts_json": null,
+            "env": {},
+            "kwargs": {}
+        },
+        "verifier": {
+            "override_timeout_sec": null,
+            "max_timeout_sec": null,
+            "env": {},
+            "disable": false
+        },
+        "artifacts": [],
+        "job_id": "22a16dbb-950d-4ed9-a6d0-fa038ea955b9"
+    },
+    "agent_info": {
+        "name": "terminus-2",
+        "version": "2.0.0",
+        "model_info": {
+            "name": "poolside/laguna-s-2.1:free",
+            "provider": "openrouter"
+        }
+    },
+    "agent_result": {
+        "n_input_tokens": 76191,
+        "n_cache_tokens": 18368,
+        "n_output_tokens": 2899,
+        "cost_usd": null,
+        "rollout_details": [],
+        "metadata": {
+            "n_episodes": 18,
+            "api_request_times_msec": [
+                5943.634033203125,
+                6366.079807281494,
+                12037.104845046997,
+                11871.104001998901,
+                15002.224922180176,
+                8999.01795387268,
+                15173.656940460205,
+                17323.251008987427,
+                7917.799949645996,
+                13076.75313949585,
+                16540.925979614258,
+                11240.087985992432,
+                10889.97483253479,
+                6604.667901992798,
+                2747.769832611084,
+                6788.735866546631,
+                11228.85799407959
+            ],
+            "summarization_count": 0
+        }
+    },
+    "verifier_result": null,
+    "exception_info": {
+        "exception_type": "RateLimitError",
+        "exception_message": "litellm.RateLimitError: RateLimitError: OpenrouterException - {\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-s-2.1:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: https://openrouter.ai/settings/integrations\",\"provider_name\":\"Poolside\",\"is_byok\":false,\"limit_source\":\"upstream_provider_shared_pool\",\"remedy_hint\":\"Retry shortly, add your own provider key (https://openrouter.ai/settings/integrations), or route to another provider with provider routing: https://openrouter.ai/docs/features/provider-routing\"}},\"user_id\":\"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm\"}",
+        "exception_traceback": "Traceback (most recent call last):\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 164, in _make_common_async_call\n    response = await async_httpx_client.post(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/logging_utils.py\", line 190, in async_wrapper\n    result = await func(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/http_handler.py\", line 510, in post\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/http_handler.py\", line 466, in post\n    response.raise_for_status()\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/httpx/_models.py\", line 829, in raise_for_status\n    raise HTTPStatusError(message, request=request, response=self)\nhttpx.HTTPStatusError: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/main.py\", line 611, in acompletion\n    response = await init_response\n               ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 296, in async_completion\n    response = await self._make_common_async_call(\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 189, in _make_common_async_call\n    raise self._handle_error(e=e, provider_config=provider_config)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/llms/custom_httpx/llm_http_handler.py\", line 4630, in _handle_error\n    raise provider_config.get_error_class(\nlitellm.llms.openrouter.common_utils.OpenRouterException: {\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-s-2.1:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: https://openrouter.ai/settings/integrations\",\"provider_name\":\"Poolside\",\"is_byok\":false,\"limit_source\":\"upstream_provider_shared_pool\",\"remedy_hint\":\"Retry shortly, add your own provider key (https://openrouter.ai/settings/integrations), or route to another provider with provider routing: https://openrouter.ai/docs/features/provider-routing\"}},\"user_id\":\"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm\"}\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/trial/trial.py\", line 961, in run\n    await self._execute_agent()\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/trial/trial.py\", line 370, in _execute_agent\n    await asyncio.wait_for(\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/tasks.py\", line 520, in wait_for\n    return await fut\n           ^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1605, in run\n    await self._run_agent_loop(\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1306, in _run_agent_loop\n    ) = await self._handle_llm_interaction(\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1181, in _handle_llm_interaction\n    llm_response = await self._query_llm(\n                   ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 193, in async_wrapped\n    return await copy(fn, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1171, in _query_llm\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/agents/terminus_2/terminus_2.py\", line 1004, in _query_llm\n    llm_response = await chat.chat(\n                   ^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/chat.py\", line 89, in chat\n    llm_response: LLMResponse = await self._model.call(\n                                ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 193, in async_wrapped\n    return await copy(fn, *args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 112, in __call__\n    do = await self.iter(retry_state=retry_state)\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 157, in iter\n    result = await action(retry_state)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/_utils.py\", line 111, in inner\n    return call(*args, **kwargs)\n           ^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 413, in exc_check\n    raise retry_exc.reraise()\n          ^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/__init__.py\", line 184, in reraise\n    raise self.last_attempt.result()\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 449, in result\n    return self.__get_result()\n           ^^^^^^^^^^^^^^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.12/3.12.13_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/concurrent/futures/_base.py\", line 401, in __get_result\n    raise self._exception\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/tenacity/asyncio/__init__.py\", line 116, in __call__\n    result = await fn(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py\", line 396, in call\n    self._handle_litellm_error(e)\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py\", line 631, in _handle_litellm_error\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/harbor/llms/lite_llm.py\", line 360, in call\n    response = await litellm.acompletion(**completion_kwargs)\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/utils.py\", line 2040, in wrapper_async\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/utils.py\", line 1861, in wrapper_async\n    result = await original_function(*args, **kwargs)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/main.py\", line 630, in acompletion\n    raise exception_type(\n          ^^^^^^^^^^^^^^^\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py\", line 2398, in exception_type\n    raise e\n  File \"/Users/arunmukkath/horizon_env/lib/python3.12/site-packages/litellm/litellm_core_utils/exception_mapping_utils.py\", line 2304, in exception_type\n    raise RateLimitError(\nlitellm.exceptions.RateLimitError: litellm.RateLimitError: RateLimitError: OpenrouterException - {\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-s-2.1:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: https://openrouter.ai/settings/integrations\",\"provider_name\":\"Poolside\",\"is_byok\":false,\"limit_source\":\"upstream_provider_shared_pool\",\"remedy_hint\":\"Retry shortly, add your own provider key (https://openrouter.ai/settings/integrations), or route to another provider with provider routing: https://openrouter.ai/docs/features/provider-routing\"}},\"user_id\":\"user_3IzOfsj1MsOmWoeD4N3nbmuXMnm\"}\n",
+        "occurred_at": "2026-09-08T12:36:05.891472"
+    },
+    "started_at": "2026-09-08T07:00:41.022712Z",
+    "finished_at": "2026-09-08T07:06:07.809738Z",
+    "environment_setup": {
+        "started_at": "2026-09-08T07:00:41.100395Z",
+        "finished_at": "2026-09-08T07:00:50.797712Z"
+    },
+    "agent_setup": {
+        "started_at": "2026-09-08T07:00:50.797810Z",
+        "finished_at": "2026-09-08T07:00:56.838677Z"
+    },
+    "agent_execution": {
+        "started_at": "2026-09-08T07:00:56.838823Z",
+        "finished_at": "2026-09-08T07:06:05.707456Z"
+    },
+    "verifier": null,
+    "step_results": null
+}

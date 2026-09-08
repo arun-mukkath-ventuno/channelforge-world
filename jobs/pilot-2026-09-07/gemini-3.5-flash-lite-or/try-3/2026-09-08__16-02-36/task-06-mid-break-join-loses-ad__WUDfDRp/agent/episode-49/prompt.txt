@@ -1,0 +1,110 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+93629a20d375:/app# grep -rn "opportunityId" packages/persistence/ packages/control-plane/
+packages/persistence/src/repositories.test.ts:63:      opportunityId: "opp_1",
+packages/persistence/src/reconciliation.test.ts:32:function opp(over: Partial<AdOpportunity> & Pick<AdOpportunity, "opportunityId">): AdOpportunity {
+packages/persistence/src/reconciliation.test.ts:43:function decision(over: Partial<AdDecision> & Pick<AdDecision, "opportunityId" | "sessionId">): AdDecision {
+packages/persistence/src/reconciliation.test.ts:76:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_202", externalBreakId: "BRK-a11e5310-0
+003" }));
+packages/persistence/src/reconciliation.test.ts:83:        opportunityId: "opp_channel_yoga_202",
+packages/persistence/src/reconciliation.test.ts:90:    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "s1", opportunityId: "opp_c
+hannel_yoga_202", podId: "pod1" });
+packages/persistence/src/reconciliation.test.ts:91:    await appendEvent(db, { eventId: "e2", eventType: "ad_complete", sessionId: "s1", opportunityId: "opp_cha
+nnel_yoga_202", podId: "pod1" });
+packages/persistence/src/reconciliation.test.ts:96:      opportunityId: "opp_channel_yoga_202",
+packages/persistence/src/reconciliation.test.ts:109:    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_9", externalBreakId: "BRK-nofill-0001
+" }));
+packages/persistence/src/reconciliation.test.ts:116:    await upsertOpportunity(db, opp({ opportunityId: "opp_multi", externalBreakId: "BRK-multi" }));
+packages/persistence/src/reconciliation.test.ts:124:          opportunityId: "opp_multi",
+packages/persistence/src/reconciliation.test.ts:131:      await appendEvent(db, { eventId: `imp_${sid}`, eventType: "ad_impression", sessionId: sid, opportunity
+Id: "opp_multi", podId: pod });
+packages/persistence/src/reconciliation.test.ts:139:    await upsertOpportunity(db, opp({ opportunityId: "opp_yoga", externalBreakId: "BRK-yoga", breakStart: "2
+026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:140:    await upsertOpportunity(db, opp({ opportunityId: "opp_food", channelId: "channel_food", externalBreakId:
+ "BRK-food", breakStart: "2026-08-29T12:00:00Z" }));
+packages/persistence/src/reconciliation.test.ts:141:    await upsertOpportunity(db, opp({ opportunityId: "opp_old", externalBreakId: "BRK-old", breakStart: "202
+0-01-01T00:00:00Z" }));
+packages/persistence/src/analytics.test.ts:33:  opportunityId: "opp_1",
+packages/persistence/src/analytics.test.ts:43:  opportunityId: "opp_1",
+packages/persistence/src/pod-cache.test.ts:6:  opportunityId: "opp_1",
+packages/persistence/src/reconciliation.ts:16:  opportunityId: string;
+packages/persistence/src/reconciliation.ts:116:        opportunityId: o.id,
+packages/persistence/src/pod-cache.ts:13:  opportunityId: string;
+packages/persistence/src/pod-cache.ts:20:  get(sessionId: string, opportunityId: string): Promise<CachedPod | null>;
+packages/persistence/src/pod-cache.ts:22:  del(sessionId: string, opportunityId: string): Promise<void>;
+packages/persistence/src/pod-cache.ts:25:function key(sessionId: string, opportunityId: string): string {
+packages/persistence/src/pod-cache.ts:26:  return `pod:${sessionId}:${opportunityId}`;
+packages/persistence/src/pod-cache.ts:35:  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+packages/persistence/src/pod-cache.ts:36:    const raw = await this.redis.get(key(sessionId, opportunityId));
+packages/persistence/src/pod-cache.ts:41:    await this.redis.set(key(entry.sessionId, entry.opportunityId), JSON.stringify(entry), "EX", ttlSeconds);
+packages/persistence/src/pod-cache.ts:44:  async del(sessionId: string, opportunityId: string): Promise<void> {
+packages/persistence/src/pod-cache.ts:45:    await this.redis.del(key(sessionId, opportunityId));
+packages/persistence/src/pod-cache.ts:52:  async get(sessionId: string, opportunityId: string): Promise<CachedPod | null> {
+packages/persistence/src/pod-cache.ts:53:    return this.store.get(key(sessionId, opportunityId)) ?? null;
+packages/persistence/src/pod-cache.ts:57:    this.store.set(key(entry.sessionId, entry.opportunityId), entry);
+packages/persistence/src/pod-cache.ts:60:  async del(sessionId: string, opportunityId: string): Promise<void> {
+packages/persistence/src/pod-cache.ts:61:    this.store.delete(key(sessionId, opportunityId));
+packages/persistence/src/repositories/opportunities.ts:17:      opp.opportunityId,
+packages/persistence/src/repositories/events.ts:12:  opportunityId?: string | null;
+packages/persistence/src/repositories/events.ts:37:      e.opportunityId ?? null,
+packages/persistence/src/repositories/events.ts:70:    opportunityId: (r.opportunity_id as string) ?? null,
+packages/persistence/src/repositories/decisions.ts:25:      decision.opportunityId,
+packages/persistence/src/repositories/decisions.ts:61:  opportunityId: string;
+packages/persistence/src/repositories/decision
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+acons.d.ts:4:    opportunityId: string;
+packages/persistence/dist/repositories/beacons.d.ts:12:    opportunityId: string;
+packages/persistence/dist/repositories/decisions.js:10:        decision.opportunityId,
+packages/persistence/dist/repositories/decisions.js:37:        opportunityId: r.opportunity_id,
+packages/persistence/dist/repositories/decisions.js:51:export async function getDecisionsByOpportunity(db, opportunityId) {
+packages/persistence/dist/repositories/decisions.js:52:    const rows = (await db.query(`SELECT ${DECISION_COLS} FROM ad_decisions WHERE opportunity_id = $1 ORD
+ER BY requested_at`, [opportunityId])).rows;
+packages/persistence/dist/repositories/opportunities.js:11:        opp.opportunityId,
+packages/persistence/dist/repositories/beacons.js:7:    opportunityId: r.opportunity_id,
+packages/persistence/dist/repositories/beacons.js:18:     ON CONFLICT (session_id, opportunity_id, event_type, url) DO NOTHING`, [b.sessionId, b.opportunityId,
+b.creativeId ?? null, b.eventType, b.url]);
+packages/persistence/dist/repositories/events.js:14:        e.opportunityId ?? null,
+packages/persistence/dist/repositories/events.js:34:        opportunityId: r.opportunity_id ?? null,
+packages/persistence/dist/repositories/events.d.ts:8:    opportunityId?: string | null;
+packages/persistence/dist/reconciliation.d.ts:3:    opportunityId: string;
+packages/control-plane/src/server.ts:179:      opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:229:          opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:239:      opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:321:    return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+packages/control-plane/src/events-normalize.ts:69:  opportunityId: string | null;
+packages/control-plane/src/events-normalize.ts:114:    opportunityId: raw.opportunity_id ?? null,
+packages/control-plane/src/beacons.test.ts:64:    const ev = { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId: "cr_vast_1" };
+packages/control-plane/src/beacons.test.ts:71:    expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "o", creati
+veId: "cr_house" })).toBe(0);
+packages/control-plane/src/beacons.test.ts:72:    expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: null, opportunityId: "o", creati
+veId: "cr_vast_1" })).toBe(0);
+packages/control-plane/src/beacons.test.ts:85:    await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId
+: "cr_vast_1" });
+packages/control-plane/src/beacons.ts:32:  ev: { eventType: string; sessionId?: string | null; opportunityId?: string | null; creativeId?: string | null },
+packages/control-plane/src/beacons.ts:34:  if (!ev.creativeId || !ev.sessionId || !ev.opportunityId) return 0;
+packages/control-plane/src/beacons.ts:41:      opportunityId: ev.opportunityId,
+packages/control-plane/src/server.test.ts:205:    const { breaks } = res.json() as { breaks: Array<{ opportunityId: string; externalBreakId: string | null }> };
+packages/control-plane/src/server.test.ts:208:      opportunityId: "opp_channel_yoga_202",
+packages/control-plane/dist/beacons.d.ts:10:    opportunityId?: string | null;
+packages/control-plane/dist/events-normalize.d.ts:26:    opportunityId: string | null;
+packages/control-plane/dist/beacons.js:26:    if (!ev.creativeId || !ev.sessionId || !ev.opportunityId)
+packages/control-plane/dist/beacons.js:35:            opportunityId: ev.opportunityId,
+packages/control-plane/dist/server.test.js:181:            opportunityId: "opp_channel_yoga_202",
+packages/control-plane/dist/beacons.test.js:51:        const ev = { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId: "cr_vast_1"
+};
+packages/control-plane/dist/beacons.test.js:57:        expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "o", c
+reativeId: "cr_house" })).toBe(0);
+packages/control-plane/dist/beacons.test.js:58:        expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: null, opportunityId: "o", c
+reativeId: "cr_vast_1" })).toBe(0);
+packages/control-plane/dist/beacons.test.js:70:        await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creat
+iveId: "cr_vast_1" });
+packages/control-plane/dist/server.js:125:            opportunityId: body.opportunity_id,
+packages/control-plane/dist/server.js:171:                    opportunityId: body.opportunity_id,
+packages/control-plane/dist/server.js:180:            opportunityId: body.opportunity_id,
+packages/control-plane/dist/server.js:258:        return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+packages/control-plane/dist/events-normalize.js:61:        opportunityId: raw.opportunity_id ?? null,
+93629a20d375:/app#

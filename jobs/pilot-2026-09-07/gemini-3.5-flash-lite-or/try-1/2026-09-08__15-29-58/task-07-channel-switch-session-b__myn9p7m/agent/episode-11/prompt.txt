@@ -1,0 +1,35 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+1", [limit])).rows;
+npm test
+./migrations/001_init.sql:59:CREATE TABLE playback_sessions (
+./migrations/001_init.sql:89:  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+./migrations/001_init.sql:120:  session_id        TEXT NOT NULL REFERENCES playback_sessions(id),
+./migrations/001_init.sql:151:CREATE INDEX idx_sessions_channel ON playback_sessions (channel_id, created_at);
+77729b58f5eb:/app# npm test
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/control-plane/src/server.test.ts (15) 374ms
+ ✓ packages/creative-worker/src/worker.test.ts (5)
+ ✓ packages/persistence/src/reconciliation.test.ts (4)
+ ✓ packages/control-plane/src/vast.test.ts (11)
+ ✓ packages/data-plane/src/avails.test.ts (10)
+ ✓ packages/persistence/src/analytics.test.ts (5)
+ ✓ packages/control-plane/src/beacons.test.ts (6)
+ ✓ packages/control-plane/src/vast-inventory.test.ts (4)
+ ❯ packages/persistence/src/repositories.test.ts (4)
+   ❯ seed + inventory repositories (2)
+     ✓ seeds 5 channels and assembles campaign target channels
+     ⠙ returns creatives with numeric duration/priority/weight
+   · decision persistence round-trip (PRD §46, §47) (1)
+   · event stream (PRD §26, §29, §30) (1)
+

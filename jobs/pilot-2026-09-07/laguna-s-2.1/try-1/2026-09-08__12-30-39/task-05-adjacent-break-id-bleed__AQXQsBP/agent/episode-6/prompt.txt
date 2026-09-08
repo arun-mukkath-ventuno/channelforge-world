@@ -1,0 +1,127 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+
+New Terminal Output:
+
+55fce30fd0f0:/app# cat /app/package.json
+{
+  "name": "ssaiadserver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FAST World SSAI Ad Server — server-side ad insertion for ChannelForge linear HLS channels",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --build",
+    "dev:control": "npm run dev --workspace @ssai/control-plane",
+    "dev:data": "npm run dev --workspace @ssai/data-plane",
+    "lint": "tsc --build --pretty false"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
+55fce30fd0f0:/app# ls -la /app/packages
+total 36
+drwxr-xr-x    1 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 ..
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 admin-web
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 control-plane
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 core
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 creative-worker
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 data-plane
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 persistence
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 storage
+55fce30fd0f0:/app# find /app/packages -type f -name "*.ts" | head -80
+/app/packages/storage/src/s3.ts
+/app/packages/storage/src/storage.ts
+/app/packages/storage/src/index.ts
+/app/packages/storage/src/s3.test.ts
+/app/packages/storage/src/factory.ts
+/app/packages/storage/dist/index.d.ts
+/app/packages/storage/dist/factory.d.ts
+/app/packages/storage/dist/s3.d.ts
+/app/packages/storage/dist/storage.d.ts
+/app/packages/admin-web/vite.config.ts
+/app/packages/admin-web/src/api/ssai.ts
+/app/packages/admin-web/src/api/client.ts
+/app/packages/admin-web/src/vite-env.d.ts
+/app/packages/admin-web/src/lib/format.ts
+/app/packages/admin-web/src/lib/useLoad.ts
+/app/packages/admin-web/src/lib/utils.ts
+/app/packages/admin-web/node_modules/vite/types/importMeta.d.ts
+/app/packages/admin-web/node_modules/vite/types/customEvent.d.ts
+/app/packages/admin-web/node_modules/vite/types/metadata.d.ts
+/app/packages/admin-web/node_modules/vite/types/import-meta.d.ts
+/app/packages/admin-web/node_modules/vite/types/importGlob.d.ts
+/app/packages/admin-web/node_modules/vite/types/internal/lightningcssOptions.d.ts
+/app/packages/admin-web/node_modules/vite/types/internal/cssPreprocessorOptions.d.ts
+/app/packages/admin-web/node_modules/vite/types/hot.d.ts
+/app/packages/admin-web/node_modules/vite/types/hmrPayload.d.ts
+/app/packages/admin-web/node_modules/vite/client.d.ts
+/app/packages/admin-web/node_modules/vite/dist/node/index.d.ts
+/app/packages/admin-web/node_modules/vite/dist/node/module-runner.d.ts
+/app/packages/admin-web/node_modules/vite/dist/node/moduleRunnerTransport.d-DJ_mE5sf.d.ts
+/app/packages/admin-web/node_modules/esbuild/lib/main.d.ts
+/app/packages/creative-worker/src/validate.ts
+/app/packages/creative-worker/src/worker.ts
+/app/packages/creative-worker/src/index.ts
+/app/packages/creative-worker/src/cli/prepare.ts
+/app/packages/creative-worker/src/cli/process-pending.ts
+/app/packages/creative-worker/src/cli/prepare-slate.ts
+/app/packages/creative-worker/src/probe.ts
+/app/packages/creative-worker/src/validate.test.ts
+/app/packages/creative-worker/src/transcode.ts
+/app/packages/creative-worker/src/worker.test.ts
+/app/packages/creative-worker/src/profile.ts
+/app/packages/creative-worker/dist/index.d.ts
+/app/packages/creative-worker/dist/profile.d.ts
+/app/packages/creative-worker/dist/validate.d.ts
+/app/packages/creative-worker/dist/worker.d.ts
+/app/packages/creative-worker/dist/probe.d.ts
+/app/packages/creative-worker/dist/cli/prepare.d.ts
+/app/packages/creative-worker/dist/cli/prepare-slate.d.ts
+/app/packages/creative-worker/dist/cli/process-pending.d.ts
+/app/packages/creative-worker/dist/transcode.d.ts
+/app/packages/control-plane/src/vast.ts
+/app/packages/control-plane/src/events-normalize.test.ts
+/app/packages/control-plane/src/vast-inventory.test.ts
+/app/packages/control-plane/src/vast-fetch.test.ts
+/app/packages/control-plane/src/vast.test.ts
+/app/packages/control-plane/src/vast-fetch.ts
+/app/packages/control-plane/src/server.ts
+/app/packages/control-plane/src/vast-inventory.ts
+/app/packages/control-plane/src/events-normalize.ts
+/app/packages/control-plane/src/beacons.test.ts
+/app/packages/control-plane/src/beacons.ts
+/app/packages/control-plane/src/server.test.ts
+/app/packages/control-plane/dist/server.d.ts
+/app/packages/control-plane/dist/vast.test.d.ts
+/app/packages/control-plane/dist/vast.d.ts
+/app/packages/control-plane/dist/beacons.d.ts
+/app/packages/control-plane/dist/vast-inventory.test.d.ts
+/app/packages/control-plane/dist/events-normalize.d.ts
+/app/packages/control-plane/dist/server.test.d.ts
+/app/packages/control-plane/dist/events-normalize.test.d.ts
+/app/packages/control-plane/dist/vast-fetch.d.ts
+/app/packages/control-plane/dist/beacons.test.d.ts
+/app/packages/control-plane/dist/vast-inventory.d.ts
+/app/packages/control-plane/dist/vast-fetch.test.d.ts
+/app/packages/data-plane/src/avails.ts
+/app/packages/data-plane/src/origin.ts
+/app/packages/data-plane/src/media.test.ts
+/app/packages/data-plane/src/stitch.ts
+/app/packages/data-plane/src/stitch.test.ts
+/app/packages/data-plane/src/server.ts
+55fce30fd0f0:/app#

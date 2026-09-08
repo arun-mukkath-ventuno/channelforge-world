@@ -1,0 +1,11 @@
+{
+  "analysis": "Ah, package.json has type: module. Let's name the fix script `fix.cjs`.",
+  "plan": "Create fix.cjs, run it, and clean up.",
+  "commands": [
+    {
+      "keystrokes": "cat << 'EOF' > fix.cjs\nconst fs = require(\"fs\");\nlet code = fs.readFileSync(\"packages/data-plane/src/avails.ts\", \"utf8\");\ncode = code.replace(\"open = null;\\n      continue;\", \"open = null;\\n      blockBreakId = undefined;\\n      continue;\");\nfs.writeFileSync(\"packages/data-plane/src/avails.ts\", code);\nconsole.log(\"FIXED\");\nEOF\nnode fix.cjs\nrm fix.cjs\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,27 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# grep -rn "CONT" packages/core/ packages/data-plane/
+packages/core/src/scte.ts:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/src/scte.ts:41:  // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/src/scte.ts:42:  if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/core/src/scte.test.ts:31:  it("ignores CUE-OUT-CONT as a new avail", () => {
+packages/core/src/scte.test.ts:32:    const m = parseMarkerLine("#EXT-X-CUE-OUT-CONT:ElapsedTime=30,Duration=60", 0);
+packages/core/dist/scte.js:6://   #EXT-X-CUE-OUT-CONT:...        (continuation, ignored as a new avail)
+packages/core/dist/scte.js:22:    // Note: CUE-OUT-CONT is a continuation of an in-progress avail, not a new one.
+packages/core/dist/scte.js:23:    if (trimmed.startsWith("#EXT-X-CUE-OUT") && !trimmed.startsWith("#EXT-X-CUE-OUT-CONT")) {
+packages/data-plane/src/stitch.ts:59:    out.push("#EXT-X-DISCONTINUITY"); // timing/encoding boundary (PRD §24)
+packages/data-plane/src/stitch.ts:78:  out.push("#EXT-X-DISCONTINUITY"); // rejoin origin content (PRD §24)
+packages/data-plane/src/stitch.test.ts:61:    expect(manifest).toContain("#EXT-X-DISCONTINUITY");
+packages/data-plane/src/server.ts:39:const CONTENT_TYPES: Record<string, string> = {
+packages/data-plane/src/server.ts:126:    reply.header("content-type", CONTENT_TYPES[ext] ?? "application/octet-stream");
+packages/data-plane/src/server.ts:140:  const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? "http://localhost:4000";
+packages/data-plane/dist/stitch.js:34:        out.push("#EXT-X-DISCONTINUITY"); // timing/encoding boundary (PRD §24)
+packages/data-plane/dist/stitch.js:49:    out.push("#EXT-X-DISCONTINUITY"); // rejoin origin content (PRD §24)
+packages/data-plane/dist/server.js:21:const CONTENT_TYPES = {
+packages/data-plane/dist/server.js:102:        reply.header("content-type", CONTENT_TYPES[ext] ?? "application/octet-stream");
+packages/data-plane/dist/server.js:116:    const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? "http://localhost:4000";
+c37cf208f09f:/app#

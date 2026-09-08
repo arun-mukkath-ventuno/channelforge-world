@@ -1,0 +1,62 @@
+```json
+{
+  "analysis": "Look at `rights.py.orig` line 161-175:
+```python
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    \"\"\"An active takedown covering this asset directly or via its series, if any.\"\"\"
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+```
+Wait, if `scope_type` is not checked, or if `scope_id.in_(scope_ids)` is used without restricting `scope_type == \"asset\"`, could a series takedown match an asset whose ID happens to equal a series ID (unlikely UUID collision, but what about scope_type matching)?
+Wait! In `RightsTakedown`, `scope_type` can be `"asset"` or `"series"`.
+If `scope_type` is `"asset"`, `scope_id` is the asset ID.
+If `scope_type` is `"series"`, `scope_id` is the series ID.
+In `rights.py.orig`, `RightsTakedown.scope_id.in_(scope_ids)` where `scope_ids` contains both `[asset.id, asset.series_id]` would match a takedown where `scope_id` is `asset.id` (with `scope_type == \"asset\"`) OR `scope_id` is `asset.series_id` (with `scope_type == \"series\"`).
+Wait, what if a series ID and an asset ID were the same? (Extremely improbable for UUIDs). But more correctly, we can specify:
+```python
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    \"\"\"An active takedown covering this asset directly or via its series, if any.\"\"\"
+    conditions = [
+        (RightsTakedown.scope_type == "asset") & (RightsTakedown.scope_id == asset.id)
+    ]
+    if asset.series_id is not None:
+        conditions.append(
+            (RightsTakedown.scope_type == "series") & (RightsTakedown.scope_id == asset.series_id)
+        )
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            or_(*conditions),
+        )
+    )
+```
+Or simply check `scope_type` correctly:
+- If `scope_type == "asset"`, `scope_id == asset.id`.
+- If `scope_type == "series"`, `scope_id == asset.series_id`.
+
+Let's check if `or_` needs to be imported from `sqlalchemy`.
+In `app/repositories/rights.py`, currently we import `func, select` from `sqlalchemy`. We can add `or_` from `sqlalchemy`."
+  ,
+  "plan": "Update `app/repositories/rights.py` to correctly check active takedowns for asset (both asset-scoped and series-scoped takedowns).",
+  "commands": [
+    {
+      "keystrokes": "python3 -c \"import sqlalchemy\"\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}
+```

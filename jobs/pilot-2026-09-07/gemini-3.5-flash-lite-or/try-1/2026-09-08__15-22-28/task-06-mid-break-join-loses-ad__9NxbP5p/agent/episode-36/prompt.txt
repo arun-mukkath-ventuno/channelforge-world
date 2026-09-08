@@ -1,0 +1,35 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+- Extra text detected after JSON object
+
+New Terminal Output:
+
+c37cf208f09f:/app# grep -rn "detectAvails" packages/
+packages/data-plane/src/avails.ts:40:export function detectAvails(manifest: string, channelId: string): Avail[] {
+packages/data-plane/src/stitch.test.ts:3:import { detectAvails } from "./avails.js";
+packages/data-plane/src/stitch.test.ts:46:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/stitch.test.ts:59:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/stitch.test.ts:67:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/server.ts:16:import { detectAvails } from "./avails.js";
+packages/data-plane/src/server.ts:76:    const avails = detectAvails(originBody, channel);
+packages/data-plane/src/avails.test.ts:2:import { detectAvails } from "./avails.js";
+packages/data-plane/src/avails.test.ts:8:describe("detectAvails (PRD §9, §41)", () => {
+packages/data-plane/src/avails.test.ts:21:    const avails = detectAvails(m, "channel_food");
+packages/data-plane/src/avails.test.ts:36:    const a = detectAvails(before, "ch")[0]!;
+packages/data-plane/src/avails.test.ts:37:    const b = detectAvails(after, "ch")[0]!;
+packages/data-plane/src/avails.test.ts:51:    const avails = detectAvails(m, "ch");
+packages/data-plane/src/avails.test.ts:66:    expect(detectAvails(m, "ch")[0]!.programDateTime).toBe("2026-08-29T12:15:00.000Z");
+packages/data-plane/src/avails.test.ts:71:    expect(detectAvails(m, "ch")).toEqual([]);
+packages/data-plane/src/avails.test.ts:86:    const avails = detectAvails(m, "channel_yoga");
+packages/data-plane/src/avails.test.ts:100:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBe("BRK-xyz-0001");
+packages/data-plane/src/avails.test.ts:105:    expect(detectAvails(m, "ch")[0]!.externalBreakId).toBeUndefined();
+packages/data-plane/src/avails.test.ts:123:    const avails = detectAvails(m, "ch");
+packages/data-plane/src/avails.test.ts:143:    const avails = detectAvails(m, "ch");
+packages/data-plane/dist/avails.js:14:export function detectAvails(manifest, channelId) {
+packages/data-plane/dist/avails.d.ts:25:export declare function detectAvails(manifest: string, channelId: string): Avail[];
+packages/data-plane/dist/server.js:13:import { detectAvails } from "./avails.js";
+packages/data-plane/dist/server.js:55:        const avails = detectAvails(originBody, channel);
+c37cf208f09f:/app# grep -rn "opportunityId" packages/
+packages/admin-web/src/pages/DebugPage.tsx:74:                  Ad decision — {row.opportunityId} · {row.decision.breakDuration}s break
+packages/admin-web/src/api/ssai.ts:79:  opportunityId: string;
+
