@@ -1,0 +1,26 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# ls -la /app/packages/data-plane/dist/avails.js
+-rw-r--r--    1 root     root          6155 Sep  8 13:20 /app/packages/data-plane/dist/avails.js
+e337ca9acc5b:/app# head -20 /app/packages/data-plane/dist/avails.js
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+import { parseMarkerLine } from "@ssai/core";
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+export function detectAvails(manifest, channelId) {
+    const lines = manifest.split("\n");
+    let mediaSequence = 0;
+    // MEDIA-SEQUENCE at the start of the playlist window — used as the avail's startSequence
+    // when a CUE-OUT has scrolled out of the window (late tune-in / reconnect mid-break) and we
+    // only see the CUE-IN. Without this, sessions joining mid-break never trigger an ad decision.
+    let windowStartSequence = 0;
+e337ca9acc5b:/app#

@@ -1,0 +1,108 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat packages/core/src/types.ts
+// Core domain types for FAST World SSAI.
+// These mirror the PRD data model (§10, §13, §16-21, §35, §44-47) and are the
+// shared vocabulary between the control plane and the data plane.
+
+/** A detected ad-break opportunity (PRD §10, §45). */
+export interface AdOpportunity {
+  opportunityId: string;
+  channelId: string;
+  /** The producer's stable break id (ChannelForge's break_id, from the DATERANGE ID), when the
+   *  origin carried one. Lets reconciliation key a delivery back to the exact planned break. */
+  externalBreakId?: string;
+  /** ISO-8601 timestamp of the break start. */
+  breakStart: string;
+  /** Intended break duration in seconds. */
+  breakDuration: number;
+  source: "scte35" | "cue_out" | "daterange";
+  signalType: "cue_out" | "cue_in" | "daterange";
+  programId?: string;
+  breakType?: "preroll" | "midroll" | "postroll";
+}
+
+/** Campaign state relevant to eligibility (PRD §13, §16, §17). */
+export interface Campaign {
+  campaignId: string;
+  advertiser: string;
+  /** ISO-8601. */
+  startDate: string;
+  /** ISO-8601. */
+  endDate: string;
+  status: "active" | "paused" | "archived";
+  /** Channels this campaign targets. Empty = all channels. */
+  targetChannels: string[];
+}
+
+export type CreativeStatus = "uploaded" | "validating" | "transcoding" | "ready" | "failed";
+
+/** A prepared ad creative (PRD §13, §14). */
+export interface Creative {
+  creativeId: string;
+  campaignId: string;
+  name: string;
+  /** Creative duration in seconds (15 / 30 / 60 for MVP seed). */
+  duration: number;
+  status: CreativeStatus;
+  /** Higher priority is considered first (PRD §17). */
+  priority: number;
+  /** Distribution weight among creatives at the same priority (PRD §17). */
+  weight: number;
+}
+
+/** Optional, limited session context used for MVP targeting (PRD §12, §16). */
+export interface SessionContext {
+  sessionId: string;
+  channelId: string;
+  deviceType?: string;
+  country?: string;
+}
+
+export type PodItemType = "ad" | "slate";
+
+/** One slot in a constructed pod (PRD §18-19, §47). */
+export interface PodItem {
+  type: PodItemType;
+  /** Present when type === "ad". */
+  creativeId?: string;
+  campaignId?: string;
+  duration: number;
+  /** Position within the pod, 0-indexed. */
+  position: number;
+  /** Seconds from break start where this item begins. */
+  startOffset: number;
+  endOffset: number;
+}
+
+/** Why a candidate creative was not selected (PRD §35). */
+export interface RejectedCreative {
+  creativeId: string;
+  reason: RejectionReason;
+}
+
+export type RejectionReason =
+  | "campaign_inactive"
+  | "creative_not_ready"
+  | "channel_mismatch"
+  | "campaign_not_started"
+  | "campaign_expired"
+  | "duration_exceeds_remaining_avail"
+  | "no_remaining_avail";
+
+/** Full, reconstructable output of a decision (PRD §35, §46, §56). */
+export interface AdDecision {
+  opportunityId: string;
+  sessionId: string;
+  channelId: string;
+  breakDuration: number;
+  eligible: Creative[];
+  rejected: RejectedCreative[];
+  pod: PodItem[];
+  /** Seconds filled by ads vs slate. */
+  adSeconds: number;
+  slateSeconds: number;
+  /** Seed used, when the decision was made deterministically (PRD §56). */
+  seed?: string;
+}
+8b0f29f00026:/app#

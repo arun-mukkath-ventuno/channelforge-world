@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I have a clear understanding. The fix is to:\n1. Add a `podId` parameter to `sendAdBeacon`\n2. Include `pod_id` in the beacon body\n3. In `startAdBeaconWatcher`, pass the `start` time (or a derived pod_id) to `sendAdBeacon`\n\nSince each airing of the same ad has a unique `start` time, we can use the `start` time as the `pod_id`. This way, the dedup key `[session_id, pod_id, ad_id, eventType]` will be different for each airing.\n\nLet me make the fix.",
+  "plan": "Modify src/lib/ssai.ts to:\n1. Add `podId` parameter to `sendAdBeacon`\n2. Include `pod_id` in the beacon body\n3. In `startAdBeaconWatcher`, pass `w.start` as `podId` to `sendAdBeacon`",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/ssai_patch.py << 'EOF'\nimport re\n\nwith open('src/lib/ssai.ts', 'r') as f:\n    content = f.read()\n\n# Fix 1: Add podId parameter to sendAdBeacon and include pod_id in the body\nold_sendAdBeacon = '''/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */\nexport function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\n  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });'''\n\nnew_sendAdBeacon = '''/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */\nexport function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId: string): void {\n  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, pod_id: podId });'''\n\ncontent = content.replace(old_sendAdBeacon, new_sendAdBeacon)\n\n# Fix 2: Pass podId to sendAdBeacon in startAdBeaconWatcher\nold_call = '''          fired.add(key);\n          sendAdBeacon(opts.sessionId, beacon, w.adId);'''\n\nnew_call = '''          fired.add(key);\n          sendAdBeacon(opts.sessionId, beacon, w.adId, String(w.start));'''\n\ncontent = content.replace(old_call, new_call)\n\nwith open('src/lib/ssai.ts', 'w') as f:\n    f.write(content)\n\nprint('Done')\nEOF\npython3 /tmp/ssai_patch.py\n",
+      "duration": 0.5
+    }
+  ]
+}

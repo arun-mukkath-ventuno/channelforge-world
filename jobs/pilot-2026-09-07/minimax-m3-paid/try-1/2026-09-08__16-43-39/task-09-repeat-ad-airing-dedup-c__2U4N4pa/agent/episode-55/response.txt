@@ -1,0 +1,7 @@
+
+
+{
+  "analysis": "The fix is in place and the server is running with the updated build. The task is complete.\n\n## Final Summary\n\n**Problem**: A creative's second airing in the same viewing session wasn't being counted because the SSAI server's deduplication was treating them as the same event.\n\n**Root Cause**: The SSAI's `deriveEventId()` computes a deterministic hash from `[session_id, pod_id ?? \"\", ad_id, eventType]`. Our beacons were sent without `pod_id`, so two different airings of the same `ad_id` produced identical event_ids and collapsed into one.\n\n**Fix** (in `src/lib/ssai.ts`):\n1. `sendAdBeacon` now accepts an optional `podId` and includes `pod_id` in the request body.\n2. `startAdBeaconWatcher` passes `String(w.start)` (the ad window's start timestamp, unique per airing) as the pod_id.\n\nEach airing now produces a distinct event_id on the SSAI side, while genuine duplicate re-sends of the *same* airing (after manifest refresh mid-break) still collapse correctly via the local `fired` set keyed on `${adId}:${start}:${beacon}`.\n\nThe service has been rebuilt and restarted (port 3000, responding HTTP 200).",
+  "plan": "Task complete.",
+  "task_complete": true
+}

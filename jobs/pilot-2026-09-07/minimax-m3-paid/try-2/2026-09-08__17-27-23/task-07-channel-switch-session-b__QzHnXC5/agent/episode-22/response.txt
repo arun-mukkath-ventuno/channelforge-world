@@ -1,0 +1,20 @@
+
+
+{
+  "analysis": "No services appear to be running. The only listener is DNS. The esbuild is likely from the test runner. Let me look for service files like Docker or systemd.",
+  "plan": "Look for any startup scripts or dockerfiles to find what services should be running.",
+  "commands": [
+    {
+      "keystrokes": "ls -la ..\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find / -name \"docker-compose*\" 2>/dev/null\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "find / -name \"*.service\" 2>/dev/null | head\n",
+      "duration": 1.0
+    }
+  ]
+}

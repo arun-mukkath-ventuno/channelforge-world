@@ -1,0 +1,132 @@
+New Terminal Output:
+
+root@b168bc56cd63:/app# cat app/services/rights_takedown.py
+"""Emergency rights takedown (PRD 3.0 §8.3, ADR-5).
+
+Placing a takedown is a non-destructive override: it blocks the target (asset or series) at every
+eligibility decision point, identifies the future published events and agreements it affects, and
+raises an incident — without rewriting any immutable published schedule version. Deterministic
+schedule replacement, the airing-now choice, and EPG deltas are follow-ups (the last needs ADR-6);
+this increment delivers the block, the impact report, and the incident/audit trail.
+"""
+
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.auth.deps import RequestMeta
+from app.clock import now_utc
+from app.models import DistributionAgreement, RightsTakedown
+from app.repositories import audit as audit_repo
+from app.repositories import rights as rights_repo
+from app.services import alerts as alerts_service
+from app.services.errors import NotFound, ServiceError
+
+_VALID_SCOPES = {"asset", "series"}
+
+
+@dataclass
+class AffectedSummary:
+    event_count: int = 0
+    channel_ids: list[str] = field(default_factory=list)
+    agreement_ids: list[str] = field(default_factory=list)
+
+
+def _affected(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID, now: datetime
+) -> AffectedSummary:
+    events = rights_repo.affected_future_events(
+        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now
+    )
+    channel_ids = sorted({str(e.channel_id) for e in events})
+    agreement_ids: list[str] = []
+    if channel_ids:
+        rows = db.scalars(
+            select(DistributionAgreement.id).where(
+                DistributionAgreement.organization_id == org_id,
+                DistributionAgreement.channel_id.in_([uuid.UUID(c) for c in channel_ids]),
+            )
+        )
+        agreement_ids = sorted(str(a) for a in rows)
+    return AffectedSummary(
+        event_count=len(events), channel_ids=channel_ids, agreement_ids=agreement_ids
+    )
+
+
+def preview(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> AffectedSummary:
+    if scope_type not in _VALID_SCOPES:
+        raise ServiceError(f"Takedown scope_type must be one of {sorted(_VALID_SCOPES)}.")
+    return _affected(
+        db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now_utc()
+    )
+
+
+def place_takedown(
+    db: Session,
+    *,
+    org_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
+    scope_type: str,
+    scope_id: uuid.UUID,
+    reason: str,
+    meta: RequestMeta,
+) -> tuple[RightsTakedown, AffectedSummary]:
+    if scope_type not in _VALID_SCOPES:
+        raise ServiceError(f"Takedown scope_type must be one of {sorted(_VALID_SCOPES)}.")
+    if not reason.strip():
+        raise ServiceError("A takedown requires a reason.")
+
+    now = now_utc()
+    takedown = rights_repo.create_takedown(
+        db, organization_id=org_id, scope_type=scope_type, scope_id=scope_id,
+        reason=reason, status="active", actor_user_id=actor_id,
+    )
+    affected = _affected(db, org_id=org_id, scope_type=scope_type, scope_id=scope_id, now=now)
+
+    alerts_service.raise_alert(
+        db, org_id=org_id, alert_type="rights_takedown", severity="critical",
+        message=f"Emergency takedown on {scope_type} {scope_id}: {reason}",
+        action="Review affected future events and agreements; replace or reschedule as needed.",
+        dedup_key=f"rights_takedown:{takedown.id}",
+    )
+    audit_repo.record(
+        db, action="rights_takedown.place", actor_user_id=actor_id, organization_id=org_id,
+        object_type="rights_takedown", object_id=str(takedown.id),
+        after={"scope_type": scope_type, "scope_id": str(scope_id),
+               "affected_events": affected.event_count,
+               "affected_agreements": affected.agreement_ids},
+        ip=meta.ip, user_agent=meta.user_agent,
+    )
+    db.commit()
+    return takedown, affected
+
+
+def lift_takedown(
+    db: Session, *, org_id: uuid.UUID, actor_id: uuid.UUID | None,
+    takedown_id: uuid.UUID, meta: RequestMeta,
+) -> RightsTakedown:
+    takedown = rights_repo.get_takedown(db, org_id=org_id, takedown_id=takedown_id)
+    if takedown is None:
+        raise NotFound("Takedown not found.")
+    if takedown.status == "active":
+        takedown.status = "lifted"
+        takedown.lifted_at = now_utc()
+        takedown.lifted_by = actor_id
+        alerts_service.auto_resolve_by_dedup(
+            db, org_id=org_id, dedup_key=f"rights_takedown:{takedown.id}"
+        )
+        audit_repo.record(
+            db, action="rights_takedown.lift", actor_user_id=actor_id, organization_id=org_id,
+            object_type="rights_takedown", object_id=str(takedown.id),
+            ip=meta.ip, user_agent=meta.user_agent,
+        )
+        db.commit()
+    return takedown
+root@b168bc56cd63:/app#

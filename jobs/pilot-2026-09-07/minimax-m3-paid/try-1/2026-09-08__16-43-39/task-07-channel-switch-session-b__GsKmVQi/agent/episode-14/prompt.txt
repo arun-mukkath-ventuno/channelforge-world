@@ -1,0 +1,42 @@
+New Terminal Output:
+
+6c4c79003a75:/app# cat packages/persistence/dist/repositories/sessions.js
+// Playback session repository (PRD §11, §12, §44).
+import { toIso } from "../map.js";
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db, input) {
+    await db.query(`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO NOTHING`, [
+        input.id,
+        input.channelId,
+        input.deviceType ?? null,
+        input.country ?? null,
+        input.anonymousId ?? null,
+        input.ipHash ?? null,
+        input.userAgent ?? null,
+    ]);
+}
+export async function touchSession(db, id) {
+    await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+}
+function toSession(r) {
+    return {
+        id: r.id,
+        channelId: r.channel_id,
+        createdAt: toIso(r.created_at),
+        lastActivityAt: toIso(r.last_activity_at),
+        deviceType: r.device_type,
+        country: r.country,
+        anonymousId: r.anonymous_id,
+    };
+}
+export async function getSession(db, id) {
+    const rows = (await db.query("SELECT * FROM playback_sessions WHERE id = $1", [id])).rows;
+    return rows[0] ? toSession(rows[0]) : null;
+}
+export async function listSessions(db, limit = 100) {
+    const rows = (await db.query("SELECT * FROM playback_sessions ORDER BY last_activity_at DESC LIMIT $1", [limit])).rows;
+    return rows.map(toSession);
+}
+//# sourceMappingURL=sessions.js.map6c4c79003a75:/app#

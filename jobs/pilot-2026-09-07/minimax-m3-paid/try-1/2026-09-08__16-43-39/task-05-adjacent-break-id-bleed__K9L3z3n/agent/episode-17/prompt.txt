@@ -1,0 +1,27 @@
+New Terminal Output:
+
+4838fd889d89:/app# cat > /tmp/test-bug.mjs << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/dist/avails.js";
+>
+> const m = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   '#EXT-X-DATERANGE:ID="BRK-first",DURATION=30,SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   '#EXT-X-DATERANGE:ID="BRK-second",DURATION=15,SCTE35-OUT=0xFD',
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+>
+> const avails = detectAvails(m, "ch");
+> console.log("First avail externalBreakId:", avails[0]?.externalBreakId);
+> console.log("Second avail externalBreakId:", avails[1]?.externalBreakId);
+> console.log("Expected: BRK-first, BRK-second");
+> EOF
+4838fd889d89:/app# node /tmp/test-bug.mjs
+First avail externalBreakId: BRK-first
+Second avail externalBreakId: BRK-first
+Expected: BRK-first, BRK-second
+4838fd889d89:/app#

@@ -1,0 +1,105 @@
+New Terminal Output:
+
+26306d2ed51a:/app# cat src/app/api/fast/ads/current/route.ts
+// GET /api/fast/ads/current?channel=<id>
+// Real SCTE-35 ad-break state for a channel: fetches the channel's live media
+// playlist server-side (no CORS needed there), parses the SCTE avails the
+// ChannelForge packager signals, and returns the current/next break with absolute
+// timing. Powers the AD-BREAK flag, the playout timeline's ad segment, and the
+// operator SCTE/SSAI column — real, not the mid-roll estimate. ~8s cache.
+import { NextRequest } from "next/server";
+import { getChannelDefs } from "@/lib/channel-config-store";
+import { parseScteAvails, type ScteAvail } from "@/lib/ssai";
+
+export const dynamic = "force-dynamic";
+
+type AdState = {
+  channelId: number;
+  serverNow: number;
+  source: "scte" | "none";
+  inBreak: boolean;
+  breakStart: number | null;
+  breakEnd: number | null;
+  durationSec: number | null;
+  nextBreakStart: number | null;
+  avails: ScteAvail[];
+};
+
+const cache = new Map<number, { at: number; data: AdState }>();
+const TTL = 8_000;
+
+async function fetchText(url: string): Promise<string | null> {
+  try {
+    const r = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(5_000) });
+    if (!r.ok) return null;
+    return await r.text();
+  } catch {
+    return null;
+  }
+}
+
+// Resolve the first variant media-playlist URI from a master playlist.
+function firstVariant(masterUrl: string, master: string): string | null {
+  const lines = master.split("\n").map((l) => l.trim());
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith("#EXT-X-STREAM-INF")) {
+      const uri = lines[i + 1];
+      if (uri && !uri.startsWith("#")) return new URL(uri, masterUrl).toString();
+    }
+  }
+  // Not a master (already a media playlist) → use it directly.
+  return null;
+}
+
+async function av4Channel(hlsUrl: string): Promise<ScteAvail[] | null> {
+  const master = await fetchText(hlsUrl);
+  if (master == null) return null;
+  let mediaText = master;
+  let mediaUrl = hlsUrl;
+  const variant = firstVariant(hlsUrl, master);
+  if (variant) {
+    const v = await fetchText(variant);
+    if (v == null) return null;
+    mediaText = v;
+    mediaUrl = variant;
+  }
+  void mediaUrl;
+  return parseScteAvails(mediaText);
+}
+
+export async function GET(req: NextRequest) {
+  const id = Number(new URL(req.url).searchParams.get("channel"));
+  if (!Number.isFinite(id)) return Response.json({ error: "bad channel" }, { status: 400 });
+
+  const now = Date.now();
+  const hit = cache.get(id);
+  if (hit && now - hit.at < TTL) return Response.json({ ...hit.data, serverNow: now });
+
+  const defs = await getChannelDefs();
+  const def = defs.find((d) => d.id === id);
+  if (!def) return Response.json({ error: "not found" }, { status: 404 });
+
+  const avails = def.hlsUrl ? await av4Channel(def.hlsUrl) : null;
+  let data: AdState;
+  if (avails == null) {
+    data = { channelId: id, serverNow: now, source: "none", inBreak: false, breakStart: null, breakEnd: null, durationSec: null, nextBreakStart: null, avails: [
+] };
+  } else {
+    const active = avails.find((a) => now >= a.start && now < a.end);
+    const upcoming = avails.filter((a) => a.start > now).sort((a, b) => a.start - b.start)[0];
+    data = {
+      channelId: id,
+      serverNow: now,
+      source: "scte",
+      inBreak: !!active,
+      breakStart: active ? active.start : null,
+      breakEnd: active ? active.end : null,
+      durationSec: active ? active.durationSec : null,
+      nextBreakStart: upcoming ? upcoming.start : null,
+      avails,
+    };
+  }
+  cache.set(id, { at: now, data });
+  return Response.json(data);
+}
+26306d2ed51a:/app#

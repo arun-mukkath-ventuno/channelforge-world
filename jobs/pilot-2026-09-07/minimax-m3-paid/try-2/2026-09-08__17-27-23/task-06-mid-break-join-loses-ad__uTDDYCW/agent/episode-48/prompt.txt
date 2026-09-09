@@ -1,0 +1,24 @@
+New Terminal Output:
+
+04a690a73d92:/app/packages/data-plane# grep -n 'open\|Mid-break\|trailing' dist/avails.js | head -20
+13: *  trailing mid-break case (CUE-OUT with no CUE-IN yet in the window). */
+24:    let open = null;
+41:            // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+42:            if (open && open.externalBreakId === undefined)
+43:                open.externalBreakId = marker.id;
+46:        if (marker?.kind === "cue_out" && !open) {
+47:            open = {
+58:        if (marker?.kind === "cue_in" && open) {
+59:            const declared = open.declaredDuration;
+61:                opportunityId: `opp_${channelId}_${open.startSequence}`,
+63:                ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+64:                duration: declared ?? open.measuredDuration,
+66:                measuredDuration: open.measuredDuration,
+67:                startSequence: open.startSequence,
+68:                ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+69:                startLine: open.startLine,
+72:            open = null;
+79:            if (open)
+80:                open.measuredDuration += segDur;
+89:    // Mid-break: we walked off the end of the playlist mid-break (saw a CUE-OUT
+04a690a73d92:/app/packages/data-plane#

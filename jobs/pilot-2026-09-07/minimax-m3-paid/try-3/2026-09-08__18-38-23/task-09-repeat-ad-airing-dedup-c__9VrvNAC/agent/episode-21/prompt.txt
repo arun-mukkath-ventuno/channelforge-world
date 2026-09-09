@@ -1,0 +1,40 @@
+New Terminal Output:
+
+497e45620a91:/app# sed -n '55,90p' src/lib/ssai.ts
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+export interface AdWindow {
+  adId: string;
+  start: number; // epoch ms
+  end: number; // epoch ms
+}
+
+/** Parse ad avails from a stitched media playlist's EXT-X-DATERANGE lines (CLASS com.fastworld.ad). */
+export function parseAdWindows(manifest: string): AdWindow[] {
+  const out: AdWindow[] = [];
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+    const attr = (k: string): string | undefined => line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("DURATION");
+    const adId = attr("X-AD-ID") || attr("ID");
+    if (!startDate || !dur || !adId) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ adId, start, end: start + seconds * 1000 });
+  }
+  return out;
+}
+
+export interface ScteAvail {
+  id: string;
+  start: number; // epoch ms — break start (absolute, from START-DATE)
+  end: number; // epoch ms
+  durationSec: number;
+}
+497e45620a91:/app#

@@ -1,0 +1,12 @@
+
+
+{
+  "analysis": "The debug endpoint also requires auth. Let me check the auth gate again - it seems `/v1/sessions/:id` and `/v1/debug/:id` require auth. Let me look at the actual code to see what's accessible. Looking at line 97: only POST to certain paths bypass auth. So GET requests require auth. Let me login first.",
+  "plan": "Login first and use the cookie for auth.",
+  "commands": [
+    {
+      "keystrokes": "node -e \"\nconst base = 'http://localhost:4000';\n(async () => {\n  // login\n  const lr = await fetch(base + '/admin/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({user: process.env.ADMIN_USER, password: process.env.ADMIN_PASSWORD})});\n  const setCookie = lr.headers.get('set-cookie');\n  console.log('Login:', lr.status, setCookie ? 'ok' : 'no cookie');\n\n  const r1 = await fetch(base + '/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channel_id:'channel_news'})});\n  const j1 = await r1.json();\n  console.log('Session created:', j1.session_id, 'on', j1.channel_id);\n\n  const r2 = await fetch(base + '/v1/debug/session/' + j1.session_id, {headers:{Cookie: setCookie}});\n  const j2 = await r2.json();\n  console.log('Session after creation:', j2.session?.channelId);\n\n  const r3 = await fetch(base + '/v1/ad-decision', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: j1.session_id, channel_id: 'channel_food', opportunity_id: 'opp_test_1', duration: 30})});\n  console.log('Ad decision status:', r3.status);\n\n  const r4 = await fetch(base + '/v1/debug/session/' + j1.session_id, {headers:{Cookie: setCookie}});\n  const j4 = await r4.json();\n  console.log('Session after channel switch:', j4.session?.channelId);\n  console.log('Fix works correctly:', j4.session?.channelId === 'channel_food' ? 'YES' : 'NO');\n})();\n\" 2>&1 | grep -v '\"level\"'\n",
+      "duration": 3.0
+    }
+  ]
+}

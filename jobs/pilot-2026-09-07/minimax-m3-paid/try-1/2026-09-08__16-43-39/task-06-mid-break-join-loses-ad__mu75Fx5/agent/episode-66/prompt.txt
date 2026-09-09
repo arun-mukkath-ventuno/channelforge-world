@@ -1,0 +1,27 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat > /tmp/test_incomplete.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Incomplete trailing - CUE-OUT without CUE-IN
+> const incomplete = `#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> slate.ts`;
+>
+> const result = detectAvails(incomplete, "ch");
+> console.log("Incomplete trailing (CUE-OUT without CUE-IN):");
+> console.log(JSON.stringify(result, null, 2));
+>
+> if (result.length === 0) {
+>   console.log("✓ Correctly ignored (as expected)");
+> } else {
+>   console.log("❌ Should have been ignored!");
+> }
+> EOF
+8b0f29f00026:/app# npx tsx /tmp/test_incomplete.ts
+Incomplete trailing (CUE-OUT without CUE-IN):
+[]
+✓ Correctly ignored (as expected)
+8b0f29f00026:/app#

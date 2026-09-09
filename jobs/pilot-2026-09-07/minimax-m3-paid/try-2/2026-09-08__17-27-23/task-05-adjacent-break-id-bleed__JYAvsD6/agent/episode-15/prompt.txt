@@ -1,0 +1,47 @@
+New Terminal Output:
+
+cbccd910d082:/app# find packages -name '*.test.ts' | xargs ls -la
+-rw-r--r--    1 root     root          4797 Sep  5 08:18 packages/control-plane/src/beacons.test.ts
+-rw-r--r--    1 root     root          2635 Sep  5 08:18 packages/control-plane/src/events-normalize.test.ts
+-rw-r--r--    1 root     root          9527 Sep  5 08:18 packages/control-plane/src/server.test.ts
+-rw-r--r--    1 root     root          2879 Sep  5 08:18 packages/control-plane/src/vast-fetch.test.ts
+-rw-r--r--    1 root     root          4782 Sep  5 08:18 packages/control-plane/src/vast-inventory.test.ts
+-rw-r--r--    1 root     root          5133 Sep  5 08:18 packages/control-plane/src/vast.test.ts
+-rw-r--r--    1 root     root          3094 Sep  5 08:18 packages/core/src/eligibility.test.ts
+-rw-r--r--    1 root     root          3684 Sep  5 08:18 packages/core/src/pod.test.ts
+-rw-r--r--    1 root     root          2494 Sep  5 08:18 packages/core/src/scte.test.ts
+-rw-r--r--    1 root     root          1910 Sep  5 08:18 packages/core/src/session-token.test.ts
+-rw-r--r--    1 root     root          1309 Sep  5 08:18 packages/creative-worker/src/validate.test.ts
+-rw-r--r--    1 root     root          6339 Sep  5 08:18 packages/creative-worker/src/worker.test.ts
+-rw-r--r--    1 root     root          4988 Sep  5 08:18 packages/data-plane/src/avails.test.ts
+-rw-r--r--    1 root     root          3588 Sep  5 08:18 packages/data-plane/src/media.test.ts
+-rw-r--r--    1 root     root          2730 Sep  5 08:18 packages/data-plane/src/origin-slice4.test.ts
+-rw-r--r--    1 root     root          2085 Sep  5 08:18 packages/data-plane/src/origin.test.ts
+-rw-r--r--    1 root     root          2476 Sep  5 08:18 packages/data-plane/src/stitch.test.ts
+-rw-r--r--    1 root     root          4986 Sep  5 08:18 packages/persistence/src/analytics.test.ts
+-rw-r--r--    1 root     root          1164 Sep  5 08:18 packages/persistence/src/pod-cache.test.ts
+-rw-r--r--    1 root     root          6321 Sep  5 08:18 packages/persistence/src/reconciliation.test.ts
+-rw-r--r--    1 root     root          4618 Sep  5 08:18 packages/persistence/src/repositories.test.ts
+-rw-r--r--    1 root     root          1029 Sep  5 08:18 packages/storage/src/s3.test.ts
+cbccd910d082:/app# cat packages/data-plane/package.json
+{
+  "name": "@ssai/data-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI data plane — the performance-sensitive manifest / stitching hot path. Minimal deps, predictable behavior.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fastify": "^5.1.0"
+  }
+}
+cbccd910d082:/app#

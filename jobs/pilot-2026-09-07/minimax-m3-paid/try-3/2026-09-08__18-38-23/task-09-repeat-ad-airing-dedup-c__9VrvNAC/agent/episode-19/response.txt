@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I understand. The `pod_id` is the key field that distinguishes different airings of the same ad in the same session. The dedup key is `[session_id, pod_id ?? \"\", ad_id ?? \"\", eventType]`. \n\nIf `pod_id` is empty/not provided, then the same `session_id + ad_id + eventType` would produce the same event_id, causing the second airing to be deduped.\n\nThe fix is to send `pod_id` in the beacon. Let me look at the AdWindow structure to see if there's any pod identifier available.",
+  "plan": "Let me look at the AdWindow structure and how it could include a pod_id.",
+  "commands": [
+    {
+      "keystrokes": "grep -n 'pod\\|adId\\|X-AD' src/lib/ssai.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

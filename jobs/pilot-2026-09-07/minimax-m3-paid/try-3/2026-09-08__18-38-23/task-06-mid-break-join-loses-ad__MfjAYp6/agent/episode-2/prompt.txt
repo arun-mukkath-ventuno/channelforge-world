@@ -1,0 +1,43 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat /app/package.json
+{
+  "name": "ssaiadserver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FAST World SSAI Ad Server — server-side ad insertion for ChannelForge linear HLS channels",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --build",
+    "dev:control": "npm run dev --workspace @ssai/control-plane",
+    "dev:data": "npm run dev --workspace @ssai/data-plane",
+    "lint": "tsc --build --pretty false"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
+e337ca9acc5b:/app# ls -la /app/packages
+total 36
+drwxr-xr-x    1 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 ..
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 admin-web
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 control-plane
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 core
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 creative-worker
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 data-plane
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 persistence
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 storage
+e337ca9acc5b:/app#

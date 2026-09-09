@@ -1,0 +1,59 @@
+New Terminal Output:
+
+8b0f29f00026:/app/packages/data-plane# cd /app && npx tsx /tmp/test_daterange.ts
+Early viewer (CUE-OUT + DATERANGE present):
+[
+  {
+    "opportunityId": "opp_ch_102",
+    "channelId": "ch",
+    "externalBreakId": "BRK-abc-1234",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 24,
+    "startSequence": 102,
+    "startLine": 8,
+    "endLine": 18
+  }
+]
+
+Late viewer (only CUE-IN, DATERANGE scrolled off):
+[
+  {
+    "opportunityId": "opp_ch_104",
+    "channelId": "ch",
+    "duration": 12,
+    "measuredDuration": 12,
+    "startSequence": 104,
+    "startLine": 4,
+    "endLine": 8
+  }
+]
+8b0f29f00026:/app# npx tsx /tmp/test_bug3.ts
+Early viewer:
+[
+  {
+    "opportunityId": "opp_ch_102",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 24,
+    "startSequence": 102,
+    "startLine": 8,
+    "endLine": 17
+  }
+]
+
+Mid-break viewer (CUE-OUT still present):
+[
+  {
+    "opportunityId": "opp_ch_103",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 18,
+    "startSequence": 103,
+    "startLine": 4,
+    "endLine": 11
+  }
+]
+8b0f29f00026:/app#

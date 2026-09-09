@@ -1,0 +1,44 @@
+New Terminal Output:
+
+840252e8a3ed:/app# cat > /tmp/patch.js << 'EOF'
+> const fs = require('node:fs');
+> const path = "packages/persistence/src/repositories/sessions.ts";
+> let content = fs.readFileSync(path, 'utf8');
+> const old = `  await db.query(
+>     \`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+>      VALUES ($1, $2, $3, $4, $5, $6, $7)
+>      ON CONFLICT (id) DO NOTHING\`,
+>     [
+>       input.id,
+>       input.channelId,
+>       input.deviceType ?? null,
+>       input.country ?? null,
+>       input.anonymousId ?? null,
+>       input.ipHash ?? null,
+>       input.userAgent ?? null,
+>     ],
+>   );`;
+> const new_ = `  await db.query(
+>     \`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+>      VALUES ($1, $2, $3, $4, $5, $6, $7)
+>      ON CONFLICT (id) DO UPDATE SET
+>        channel_id = EXCLUDED.channel_id,
+>        last_activity_at = now()\`,
+>     [
+>       input.id,
+>       input.channelId,
+>       input.deviceType ?? null,
+>       input.country ?? null,
+>       input.anonymousId ?? null,
+>       input.ipHash ?? null,
+>       input.userAgent ?? null,
+>     ],
+>   );`;
+> if (!content.includes(old)) { console.error('NOT FOUND'); process.exit(1); }
+> content = content.replace(old, new_);
+> fs.writeFileSync(path, content);
+> console.log('patched');
+> EOF
+840252e8a3ed:/app# node /tmp/patch.js
+patched
+840252e8a3ed:/app#

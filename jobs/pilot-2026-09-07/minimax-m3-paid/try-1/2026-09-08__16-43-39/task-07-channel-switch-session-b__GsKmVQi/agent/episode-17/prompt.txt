@@ -1,0 +1,43 @@
+New Terminal Output:
+
+6c4c79003a75:/app# ls packages/control-plane/dist/
+beacons.d.ts                    events-normalize.test.d.ts      vast-fetch.d.ts                 vast-inventory.test.d.ts
+beacons.d.ts.map                events-normalize.test.d.ts.map  vast-fetch.d.ts.map             vast-inventory.test.d.ts.map
+beacons.js                      events-normalize.test.js        vast-fetch.js                   vast-inventory.test.js
+beacons.js.map                  events-normalize.test.js.map    vast-fetch.js.map               vast-inventory.test.js.map
+beacons.test.d.ts               server.d.ts                     vast-fetch.test.d.ts            vast.d.ts
+beacons.test.d.ts.map           server.d.ts.map                 vast-fetch.test.d.ts.map        vast.d.ts.map
+beacons.test.js                 server.js                       vast-fetch.test.js              vast.js
+beacons.test.js.map             server.js.map                   vast-fetch.test.js.map          vast.js.map
+events-normalize.d.ts           server.test.d.ts                vast-inventory.d.ts             vast.test.d.ts
+events-normalize.d.ts.map       server.test.d.ts.map            vast-inventory.d.ts.map         vast.test.d.ts.map
+events-normalize.js             server.test.js                  vast-inventory.js               vast.test.js
+events-normalize.js.map         server.test.js.map              vast-inventory.js.map           vast.test.js.map
+6c4c79003a75:/app# cat packages/control-plane/package.json
+{
+  "name": "@ssai/control-plane",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI control plane — campaigns, creatives, channels, sessions, ad decisioning, events, analytics, debug APIs.",
+  "main": "./dist/server.js",
+  "scripts": {
+    "build": "tsc --build",
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.0.1",
+    "@fastify/multipart": "^9.0.1",
+    "@fastify/static": "^8.0.3",
+    "@ssai/core": "*",
+    "@ssai/persistence": "*",
+    "@ssai/storage": "*",
+    "fast-xml-parser": "^4.5.7",
+    "fastify": "^5.1.0"
+  },
+  "devDependencies": {
+    "form-data": "^4.0.1"
+  }
+}
+6c4c79003a75:/app#

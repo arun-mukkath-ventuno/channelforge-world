@@ -1,0 +1,14 @@
+{
+  "analysis": "The build succeeded. Now let me check if there's a service that needs to be restarted. Let me check the dist directory.",
+  "plan": "Check the dist files and look for any service scripts.",
+  "commands": [
+    {
+      "keystrokes": "ls -la dist/\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -name 'start*' -o -name 'run*' 2>/dev/null | grep -v node_modules | head -10\n",
+      "duration": 0.1
+    }
+  ]
+}

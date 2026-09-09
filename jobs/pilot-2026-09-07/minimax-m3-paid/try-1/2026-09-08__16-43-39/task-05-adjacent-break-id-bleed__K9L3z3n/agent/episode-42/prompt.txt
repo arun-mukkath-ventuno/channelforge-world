@@ -1,0 +1,31 @@
+New Terminal Output:
+
+4838fd889d89:/app# sed -n '70,100p' packages/data-plane/dist/avails.js
+                endLine: i,
+            });
+            open = null;
+            // The tag block ended at the CUE-IN, so a DATERANGE id from the previous avail cannot
+            // carry over onto the next one. For a normal inter-avail segment the URI line below
+            // also clears it; this covers back-to-back breaks with no media URI between CUE-IN
+            // and the next CUE-OUT.
+            blockBreakId = undefined;
+            continue;
+        }
+        // Count segments (an #EXTINF followed by a URI advances the media sequence).
+        const infMatch = trimmed.match(EXTINF);
+        if (infMatch) {
+            const segDur = Number(infMatch[1]);
+            if (open)
+                open.measuredDuration += segDur;
+            // The URI line follows; advance the sequence when we consume it below.
+        }
+        else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+            // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+            mediaSequence += 1;
+            blockBreakId = undefined;
+        }
+    }
+    return avails;
+}
+//# sourceMappingURL=avails.js.map
+4838fd889d89:/app#

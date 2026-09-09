@@ -1,0 +1,104 @@
+New Terminal Output:
+
+cbccd910d082:/app# cd /app && npm test 2>&1 | head -100
+
+> ssaiadserver@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/control-plane/src/server.test.ts (0 test)
+ ❯ packages/creative-worker/src/worker.test.ts (5 tests | 5 failed) 15ms
+   × prepareCreative — state machine (PRD §14) > validates, transcodes, stores HLS and marks the creative ready 9ms
+     → ENOENT: no such file or directory, scandir '/app/migrations'
+     → The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+   × prepareCreative — state machine (PRD §14) > fails the creative on a duration mismatch, recording the reason (§40) 2ms
+     → ENOENT: no such file or directory, scandir '/app/migrations'
+     → The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+   × prepareCreative — state machine (PRD §14) > fails cleanly when transcoding throws 1ms
+     → ENOENT: no such file or directory, scandir '/app/migrations'
+     → The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+   × prepareCreative — state machine (PRD §14) > prepares from a source stored in the object store (uploaded via API) 1ms
+     → ENOENT: no such file or directory, scandir '/app/migrations'
+     → The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+   × prepareCreative — state machine (PRD §14) > fails when no source is set 1ms
+     → ENOENT: no such file or directory, scandir '/app/migrations'
+     → The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+ ❯ packages/persistence/src/reconciliation.test.ts (0 test)
+ ✓ packages/control-plane/src/vast.test.ts (11 tests) 5ms
+ ✓ packages/data-plane/src/avails.test.ts (10 tests) 5ms
+ ❯ packages/persistence/src/analytics.test.ts (0 test)
+ ❯ packages/control-plane/src/beacons.test.ts (0 test)
+ ❯ packages/control-plane/src/vast-inventory.test.ts (0 test)
+ ❯ packages/persistence/src/repositories.test.ts (0 test)
+ ✓ packages/core/src/pod.test.ts (8 tests) 5ms
+ ✓ packages/data-plane/src/media.test.ts (5 tests) 4ms
+ ✓ packages/core/src/eligibility.test.ts (9 tests) 4ms
+ ✓ packages/control-plane/src/vast-fetch.test.ts (5 tests) 6ms
+ ✓ packages/data-plane/src/origin-slice4.test.ts (7 tests) 3ms
+ ✓ packages/control-plane/src/events-normalize.test.ts (7 tests) 4ms
+ ✓ packages/core/src/scte.test.ts (11 tests) 3ms
+ ✓ packages/data-plane/src/stitch.test.ts (3 tests) 2ms
+ ✓ packages/data-plane/src/origin.test.ts (4 tests) 4ms
+ ✓ packages/core/src/session-token.test.ts (6 tests) 3ms
+ ✓ packages/creative-worker/src/validate.test.ts (6 tests) 2ms
+ ✓ packages/persistence/src/pod-cache.test.ts (3 tests) 2ms
+ ✓ packages/storage/src/s3.test.ts (4 tests) 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/control-plane/src/beacons.test.ts [ packages/control-plane/src/beacons.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/control-plane/src/beacons.test.ts:17:16
+     15| const here = dirname(fileURLToPath(import.meta.url));
+     16| const MIG_DIR = resolve(here, "../../../migrations");
+     17| const SCHEMA = readdirSync(MIG_DIR)
+       |                ^
+     18|   .filter((f) => f.endsWith(".sql")).sort()
+     19|   .map((f) => readFileSync(join(MIG_DIR, f), "utf8")).join("\n");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯
+
+ FAIL  packages/control-plane/src/server.test.ts [ packages/control-plane/src/server.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/control-plane/src/server.test.ts:13:16
+     11| const here = dirname(fileURLToPath(import.meta.url));
+     12| const MIG_DIR = resolve(here, "../../../migrations");
+     13| const SCHEMA = readdirSync(MIG_DIR)
+       |                ^
+     14|   .filter((f) => f.endsWith(".sql"))
+     15|   .sort()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/16]⎯
+
+ FAIL  packages/control-plane/src/vast-inventory.test.ts [ packages/control-plane/src/vast-inventory.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/control-plane/src/vast-inventory.test.ts:17:16
+     15| const here = dirname(fileURLToPath(import.meta.url));
+     16| const MIG_DIR = resolve(here, "../../../migrations");
+     17| const SCHEMA = readdirSync(MIG_DIR)
+       |                ^
+     18|   .filter((f) => f.endsWith(".sql"))
+     19|   .sort()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/16]⎯
+
+ FAIL  packages/persistence/src/analytics.test.ts [ packages/persistence/src/analytics.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/persistence/src/analytics.test.ts:19:16
+     17| const here = dirname(fileURLToPath(import.meta.url));
+     18| const MIG_DIR = resolve(here, "../../../migrations");
+     19| const SCHEMA = readdirSync(MIG_DIR)
+       |                ^
+     20|   .filter((f) => f.endsWith(".sql"))
+     21|   .sort()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/16]⎯
+
+ FAIL  packages/persistence/src/reconciliation.test.ts [ packages/persistence/src/reconciliation.test.ts ]
+Error: ENOENT: no such file or directory, scandir '/app/migrations'
+ ❯ packages/persistence/src/reconciliation.test.ts:19:16
+     17| const here = dirname(fileURLToPath(import.meta.url));
+     18| const MIG_DIR = resolve(here, "../../../migrations");
+cbccd910d082:/app#

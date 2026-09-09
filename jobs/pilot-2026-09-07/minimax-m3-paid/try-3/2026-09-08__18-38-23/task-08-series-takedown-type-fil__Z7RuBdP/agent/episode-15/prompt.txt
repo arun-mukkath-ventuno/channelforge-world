@@ -1,0 +1,38 @@
+New Terminal Output:
+
+root@b168bc56cd63:/app# python3 -c "
+> import re
+> with open('app/repositories/rights.py', 'r') as f:
+>     content = f.read()
+> # Remove the line that filters by scope_type == 'asset'
+> old = '''    \"\"\"An active takedown covering this asset, if any.\"\"\"
+>     scope_ids = [asset.id]
+>     if asset.series_id is not None:
+>         scope_ids.append(asset.series_id)
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == \"active\",
+>             RightsTakedown.scope_type == \"asset\",
+>             RightsTakedown.scope_id.in_(scope_ids),
+>         )
+>     )'''
+> new = '''    \"\"\"An active takedown covering this asset directly or via its series, if any.\"\"\"
+>     scope_ids = [asset.id]
+>     if asset.series_id is not None:
+>         scope_ids.append(asset.series_id)
+>     return db.scalar(
+>         select(RightsTakedown).where(
+>             RightsTakedown.organization_id == org_id,
+>             RightsTakedown.status == \"active\",
+>             RightsTakedown.scope_id.in_(scope_ids),
+>         )
+>     )'''
+> assert old in content, 'Old text not found'
+> content = content.replace(old, new)
+> with open('app/repositories/rights.py', 'w') as f:
+>     f.write(content)
+> print('Fix applied successfully')
+> "
+Fix applied successfully
+root@b168bc56cd63:/app#

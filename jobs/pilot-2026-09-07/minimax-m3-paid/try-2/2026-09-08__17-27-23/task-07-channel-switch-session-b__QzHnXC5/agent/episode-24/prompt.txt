@@ -1,0 +1,38 @@
+New Terminal Output:
+
+840252e8a3ed:/app# ls /etc/supervisor* 2>/dev/null; ls /etc/init.d/ 2>/dev/null
+840252e8a3ed:/app# ls /var/log/ 2>/dev/null | head; ls /logs 2>/dev/null
+apk.log
+agent      artifacts  verifier
+840252e8a3ed:/app# cat /app/packages/persistence/package.json
+{
+  "name": "@ssai/persistence",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SSAI persistence — Postgres repositories, migration runner, and the Redis pod cache that bridges control plane and data plane.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "migrate": "tsx src/cli/migrate.ts",
+    "seed": "tsx src/cli/seed.ts"
+  },
+  "dependencies": {
+    "@ssai/core": "*",
+    "ioredis": "^5.4.1",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.10",
+    "pg-mem": "^3.0.5"
+  }
+}
+840252e8a3ed:/app#

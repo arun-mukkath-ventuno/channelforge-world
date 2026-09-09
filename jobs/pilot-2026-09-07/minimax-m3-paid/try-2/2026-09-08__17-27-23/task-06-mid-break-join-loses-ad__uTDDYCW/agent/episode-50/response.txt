@@ -1,0 +1,14 @@
+{
+  "analysis": "All 29 tests pass. Now let me think about whether I missed something. Let me re-read the bug description:\n\n'A partner reports that some viewer sessions never see any ad play during part of an ad break — they just get the channel's own default content for that stretch instead — even though the break was scheduled and ad-filled correctly, and other, continuously-connected viewers on the very same channel saw a normal ad-stitched break at the same time.'\n\n'They've isolated the trigger: it only affects a session whose *first* manifest request for a given break lands after the break has already been playing for a while — a fresh tune-in, a reconnect after a network blip, or just a client that was slow to start polling. Anything that was already polling before the break started is unaffected, all the way through the same break.'\n\n'It isn't about ad availability, eligibility, or a bad decision — a session that's affected by this never even shows up as having tried. And it isn't only new viewers either: the *same* session, if it had already been decided an ad for this exact break earlier (before reconnecting), still doesn't get it back — it re-enters the break and gets nothing for whatever's left of it.'\n\nMy fix addresses both:\n1. New viewers (fresh tune-in / reconnect / slow polling) - now get an Avail detected and a decision made\n2. Same session reconnecting - if the playlist window still contains the CUE-OUT, the same opportunityId is used, so the cached pod is retrieved\n\nThe fix is minimal - just adds handling for trailing CUE-OUT without CUE-IN in detectAvails.\n\nNow let me also think about the 'restart whichever service needs it' instruction. Since there are no running services, I should ensure the build artifacts are in place. Let me check if any service is supposed to be running.",
+  "plan": "Let me check if there's any service that needs to be started/restarted.",
+  "commands": [
+    {
+      "keystrokes": "ls /etc/init.d /etc/systemd 2>&1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls /usr/local/bin/ | head -30\n",
+      "duration": 0.1
+    }
+  ]
+}

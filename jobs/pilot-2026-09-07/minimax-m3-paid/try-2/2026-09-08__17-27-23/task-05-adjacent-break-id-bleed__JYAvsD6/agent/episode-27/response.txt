@@ -1,0 +1,14 @@
+{
+  "analysis": "Now I'll apply the fix. The fix is to clear `blockBreakId` when we close an avail at CUE-IN. This handles the back-to-back case where the DATERANGE for break 1 is after the segments.",
+  "plan": "Apply the fix using sed to add `blockBreakId = undefined;` after `open = null;` in the CUE-IN branch.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's|      open = null;\\n      continue;|      open = null;\\n      blockBreakId = undefined;\\n      continue;|' packages/data-plane/src/avails.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '95,115p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

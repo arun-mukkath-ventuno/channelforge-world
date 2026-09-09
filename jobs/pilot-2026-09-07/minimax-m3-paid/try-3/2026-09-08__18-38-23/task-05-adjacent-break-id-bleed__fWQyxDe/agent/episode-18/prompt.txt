@@ -1,0 +1,31 @@
+New Terminal Output:
+
+cbd3d522fcae:/app# cat > /tmp/test_bug.mjs << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Back-to-back breaks where DATERANGE comes after the segment URI in the first break
+> const manifest = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "a.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-1",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "b.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-2",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+>
+> const avails = detectAvails(manifest, "ch");
+> console.log("Avails found:", avails.length);
+> for (const a of avails) {
+>   console.log(`  opp=${a.opportunityId}, externalBreakId=${a.externalBreakId}`);
+> }
+> EOF
+cbd3d522fcae:/app# cd /app && npx tsx /tmp/test_bug.mjs
+Avails found: 2
+  opp=opp_ch_0, externalBreakId=BRK-1
+  opp=opp_ch_1, externalBreakId=BRK-1
+cbd3d522fcae:/app#

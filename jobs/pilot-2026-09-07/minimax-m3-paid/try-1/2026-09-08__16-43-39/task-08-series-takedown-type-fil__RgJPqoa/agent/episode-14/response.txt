@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I confirmed the fix. The original .orig file shows the correct version that includes both asset and series IDs in `scope_ids` without filtering on scope_type. The current rights.py file has the bug because it added `RightsTakedown.scope_type == \"asset\"` which limits the query to only asset-scoped takedowns. I need to remove that filter. Let me apply the fix.",
+  "plan": "Apply the fix to the active_takedown_for_asset function by removing the scope_type filter.",
+  "commands": [
+    {
+      "keystrokes": "sed -i '/RightsTakedown.scope_type == \"asset\",/d' app/repositories/rights.py\n",
+      "duration": 0.1
+    }
+  ]
+}

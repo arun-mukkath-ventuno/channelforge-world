@@ -1,0 +1,16 @@
+
+
+{
+  "analysis": "Most tests are failing due to path resolution issues (not related to my fix). The test failures are about resolving `@/lib/telemetry-store` etc. - these are test setup issues, not related to my change. Only my ssai.test.ts test passed (2 tests).\n\nLet me check if these tests were already failing before my fix by running them in isolation or just verifying that my change doesn't break them.",
+  "plan": "Let me check if these test failures existed before my change by reverting my change temporarily, or look at the vite config.",
+  "commands": [
+    {
+      "keystrokes": "ls -la vite.config* 2>/dev/null; ls -la vitest.config* 2>/dev/null\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -name 'vitest*' -not -path '*/node_modules/*' 2>/dev/null\n",
+      "duration": 0.1
+    }
+  ]
+}

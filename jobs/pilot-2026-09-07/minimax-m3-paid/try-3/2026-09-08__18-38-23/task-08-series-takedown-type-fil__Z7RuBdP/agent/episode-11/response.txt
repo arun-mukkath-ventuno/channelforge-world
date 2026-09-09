@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I have full understanding of the bug. The `active_takedown_for_asset` function in `app/repositories/rights.py` has a filter `RightsTakedown.scope_type == \"asset\"` that should not be there. The function already correctly builds a `scope_ids` list that includes both `asset.id` and `asset.series_id`, but the filter on `scope_type` prevents series-scoped takedowns from being matched.\n\nThe fix is to remove the `RightsTakedown.scope_type == \"asset\"` filter. Let me also check if there are any other places where takedowns are checked.",
+  "plan": "Search for all places that use `active_takedown_for_asset` or similar takedown checks.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn \"active_takedown_for_asset\\|scope_type.*asset.*scope_id\\|RightsTakedown\" app/ --include=\"*.py\" | grep -v __pycache__\n",
+      "duration": 0.1
+    }
+  ]
+}

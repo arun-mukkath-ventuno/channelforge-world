@@ -1,0 +1,10 @@
+{
+  "analysis": "The fix works! Scenario 2 (late tune-in) now detects an avail. The session will get an ad decision for the remaining break.\n\nLet me also verify the stitchManifest works correctly with this new avail. Let me check the stitch.ts to see how it uses startLine.",
+  "plan": "Verify the stitch works with the new avail by testing the stitchManifest function.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test-stitch.mjs << 'EOF'\nimport { detectAvails } from '/app/packages/data-plane/dist/avails.js';\nimport { stitchManifest } from '/app/packages/data-plane/dist/stitch.js';\n\n// Late tune-in scenario\nconst late = [\n  '#EXTM3U',\n  '#EXT-X-VERSION:3',\n  '#EXT-X-TARGETDURATION:6',\n  '#EXT-X-MEDIA-SEQUENCE:103',\n  '#EXTINF:6.000,',\n  'slate001.ts',\n  '#EXTINF:6.000,',\n  'slate002.ts',\n  '#EXTINF:6.000,',\n  'slate003.ts',\n  '#EXT-X-CUE-IN',\n  '#EXTINF:6.000,',\n  'segment106.ts',\n].join('\\n');\n\nconst avails = detectAvails(late, 'channel_food');\nconsole.log('Avails:', JSON.stringify(avails, null, 2));\n\n// Simulate a rendered pod for the avail\nconst rendered = new Map();\nrendered.set(avails[0].opportunityId, [{\n  type: 'ad',\n  creativeId: 'cr_a',\n  campaignId: 'camp_a',\n  duration: 18,\n  startOffset: 0,\n  segments: [\n    { duration: 9, uri: '/v1/segments/cr_a/cr_a_000.ts' },\n    { duration: 9, uri: '/v1/segments/cr_a/cr_a_001.ts' },\n  ],\n}]);\n\nconst { manifest, stitched } = stitchManifest(late, avails, rendered);\nconsole.log('\\nStitched manifest:');\nconsole.log(manifest);\nconsole.log('\\nStitched:', stitched);\nEOF\nnode /tmp/test-stitch.mjs\n",
+      "duration": 1.0
+    }
+  ]
+}

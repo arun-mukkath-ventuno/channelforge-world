@@ -1,0 +1,34 @@
+New Terminal Output:
+
+04a690a73d92:/app# grep -rn 'avail' packages/data-plane/src/ | head -30
+packages/data-plane/src/avails.ts:5:// of the avail's first segment. Determinism matters: every viewer's data-plane
+packages/data-plane/src/avails.ts:23:  /** Actual duration summed from the segments inside the avail. */
+packages/data-plane/src/avails.ts:25:  /** Media sequence number of the first segment inside the avail. */
+packages/data-plane/src/avails.ts:38:/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+packages/data-plane/src/avails.ts:49:  const avails: Avail[] = [];
+packages/data-plane/src/avails.ts:51:  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+packages/data-plane/src/avails.ts:80:      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+packages/data-plane/src/avails.ts:98:      avails.push({
+packages/data-plane/src/avails.ts:127:  return avails;
+packages/data-plane/src/stitch.ts:2:// avails, and the *resolved* pod media for each avail, replace each avail's
+packages/data-plane/src/stitch.ts:10:import type { Avail } from "./avails.js";
+packages/data-plane/src/stitch.ts:24:/** Replace each avail that has resolved pod media; leave the rest untouched. */
+packages/data-plane/src/stitch.ts:27:  avails: Avail[],
+packages/data-plane/src/stitch.ts:34:  const availByStart = new Map<number, Avail>();
+packages/data-plane/src/stitch.ts:35:  for (const a of avails) availByStart.set(a.startLine, a);
+packages/data-plane/src/stitch.ts:41:    const avail = availByStart.get(i);
+packages/data-plane/src/stitch.ts:42:    const pod = avail ? rendered.get(avail.opportunityId) : undefined;
+packages/data-plane/src/stitch.ts:44:    if (avail && pod && pod.length > 0) {
+packages/data-plane/src/stitch.ts:45:      out.push(...renderPod(pod, emitMeta, avail.programDateTime));
+packages/data-plane/src/stitch.ts:46:      stitched.push(avail.opportunityId);
+packages/data-plane/src/stitch.ts:47:      i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+packages/data-plane/src/stitch.test.ts:3:import { detectAvails } from "./avails.js";
+packages/data-plane/src/stitch.test.ts:45:  it("replaces the avail region with real creative segment URLs", () => {
+packages/data-plane/src/stitch.test.ts:46:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/stitch.test.ts:47:    const { manifest, stitched } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+packages/data-plane/src/stitch.test.ts:48:    expect(stitched).toEqual([avails[0]!.opportunityId]);
+packages/data-plane/src/stitch.test.ts:59:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/stitch.test.ts:60:    const { manifest } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+packages/data-plane/src/stitch.test.ts:66:  it("leaves an avail untouched when no media is resolved (origin slate plays, §42)", () => {
+packages/data-plane/src/stitch.test.ts:67:    const avails = detectAvails(ORIGIN, "channel_food");
+04a690a73d92:/app#

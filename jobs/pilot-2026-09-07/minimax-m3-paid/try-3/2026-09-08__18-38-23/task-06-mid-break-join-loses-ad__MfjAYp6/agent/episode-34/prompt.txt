@@ -1,0 +1,31 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# node /tmp/test-bug.mjs
+=== Scenario 1: Normal polling (CUE-OUT and CUE-IN in window) ===
+Avails: [
+  {
+    "opportunityId": "opp_channel_food_101",
+    "channelId": "channel_food",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 12,
+    "startSequence": 101,
+    "startLine": 6,
+    "endLine": 11
+  }
+]
+
+=== Scenario 2: Late tune-in (CUE-OUT scrolled out, CUE-IN in window) ===
+Avails: [
+  {
+    "opportunityId": "opp_channel_food_103",
+    "channelId": "channel_food",
+    "duration": 18,
+    "measuredDuration": 18,
+    "startSequence": 103,
+    "startLine": 0,
+    "endLine": 10
+  }
+]
+Expected: should detect an avail, but got: 1
+e337ca9acc5b:/app#

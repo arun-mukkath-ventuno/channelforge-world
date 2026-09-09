@@ -1,0 +1,16 @@
+
+
+{
+  "analysis": "Now I'll apply the fix. The minimal targeted fix:\n\n1. Modify `sendAdBeacon` to accept an optional `podId` parameter and include it in the body.\n2. Modify `startAdBeaconWatcher` to pass `w.start` as the `podId`.\n\nLet me also consider another approach: should we use the manifest DATERANGE ID as the pod_id? The DATERANGE's ID is unique per ad marker, but in the test data it matches X-AD-ID. Looking at the watcher logic, the window already has a unique `start`, which is the most reliable identifier for the airing.\n\nActually, looking at `parseAdWindows`:\n```typescript\nconst adId = attr(\"X-AD-ID\") || attr(\"ID\");\n```\n\nThe ID is captured only as a fallback for adId. We could capture it separately. But honestly, using `w.start` is simpler and already uniquely identifies each airing.\n\nLet me write the fix.",
+  "plan": "I'll edit ssai.ts to:\n1. Add `podId` parameter to `sendAdBeacon` and include it in the beacon body.\n2. Update the call site in `startAdBeaconWatcher` to pass `w.start` as the `podId`.\n\nLet me apply the edit.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/ssai.patch << 'EOF'\n--- a/src/lib/ssai.ts\n+++ b/src/lib/ssai.ts\n@@ -40,8 +40,8 @@ export type AdBeacon =\n   | \"ad_complete\";\n \n /** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */\n-export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\n-  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });\n+export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId?: string): void {\n+  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, pod_id: podId ?? null });\n   try {\n     if (typeof navigator !== \"undefined\" && navigator.sendBeacon) {\n       navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: \"application/json\" }));\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /tmp/ssai.patch\n",
+      "duration": 0.1
+    }
+  ]
+}

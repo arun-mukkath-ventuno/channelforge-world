@@ -1,0 +1,25 @@
+New Terminal Output:
+
+04a690a73d92:/app# head -10 /tmp/avails_new.ts
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+
+import { parseMarkerLine } from "@ssai/core";
+
+04a690a73d92:/app# tail -10 /tmp/avails_new.ts
+      measuredDuration: open.measuredDuration,
+      startSequence: open.startSequence,
+      ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+      startLine: open.startLine,
+      endLine: lines.length - 1,
+    });
+  }
+
+  return avails;
+}
+04a690a73d92:/app#

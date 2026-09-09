@@ -1,0 +1,6 @@
+{
+  "analysis": "All 29 data-plane tests pass. The fix is complete and correct.\n\nThe bug was in `/app/packages/data-plane/src/avails.ts`: when a session's first manifest request for a break lands after the CUE-OUT has scrolled out of the playlist window (but the CUE-IN is still present), the `detectAvails` function returned an empty array, meaning no ad decision was made and the session got no ad.\n\nThe fix adds detection for this late tune-in / reconnect mid-break case by:\n1. Tracking the MEDIA-SEQUENCE at the start of the playlist window\n2. Tracking the measured duration since the last CUE-IN\n3. When a CUE-IN is encountered without a preceding CUE-OUT, creating an avail from the tracked values\n\nThis allows the session to get an ad decision for the remaining break content. The fix is minimal, doesn't change behavior for the common case (continuous polling), and all existing tests pass.",
+  "plan": "Mark the task as complete.",
+  "commands": [],
+  "task_complete": true
+}

@@ -1,0 +1,105 @@
+New Terminal Output:
+
+26306d2ed51a:/app# cat src/lib/channels.ts | head -100
+// ChannelForge is the source of truth. In this Phase-1 build the schedule is
+// generated deterministically on the server from a fixed program library; the
+// frontend must NEVER derive the schedule itself — it fetches from /api/fast/*
+// and only ticks the clock locally against the server-provided timestamps.
+//
+// When real ChannelForge outputs are available, replace `buildSchedule` and the
+// `hlsUrl` values (env overrides below) with live ChannelForge reads/proxies.
+//
+// Channels 101-104 are real: live ChannelForge FAST origins (SSAI ad-stitched) with
+// their guide from ChannelForge XMLTV, via the async accessors at the bottom of this file.
+
+import { loadForgeEpg, windowFilter } from "./channelforge-epg";
+import { getChannelDefs } from "./channel-config-store";
+
+// ChannelForge origins are auto-proxied same-origin (their origin serves no CORS).
+const FORGE_HLS_BASE = process.env.FORGE_HLS_BASE || "https://forge.ventunotech.com/hls";
+
+export type ProgramDef = {
+  title: string;
+  mins: number;
+  desc: string;
+};
+
+export type ChannelDef = {
+  id: number; // channel number, doubles as id
+  name: string;
+  genre: string;
+  bug: string; // channel bug lines, "\n"-separated, burned top-right
+  hlsUrl: string; // raw origin HLS (forge or a public test stream)
+  ssaiChannel?: string; // SSAI channel id — when set, play the ad-stitched session instead of hlsUrl
+  epgUrl?: string; // real ChannelForge XMLTV EPG (fetched server-side)
+  poster?: string; // real channel hero art (from the owned content sites)
+  logoCard?: string; // 16:9 branded channel-logo card for the rail tile (not a program still)
+  description?: string; // one-paragraph channel description (CHANNELS tab)
+  status?: "live" | "degraded" | "off"; // admin override; defaults to live
+  phase?: number; // demo generator: minutes of schedule offset
+  programThumbs?: string[]; // demo generator: per-program thumbnails
+  programs?: ProgramDef[]; // demo generator: fallback schedule when no epgUrl
+};
+
+export type Program = {
+  id: string; // content id
+  channelId: number;
+  title: string;
+  desc: string;
+  genre: string;
+  mins: number;
+  start: number; // epoch ms
+  end: number; // epoch ms
+  thumb?: string; // real program thumbnail
+};
+
+export type Channel = {
+  id: number;
+  channelNumber: number;
+  name: string;
+  genre: string;
+  bug: string;
+  hlsUrl: string;
+  ssaiChannel?: string;
+  poster?: string;
+  logoCard?: string;
+  description?: string;
+  status: "live" | "degraded" | "off";
+};
+
+const hls = (num: number, fallback: string) =>
+  process.env[`FAST_HLS_${num}`] || fallback;
+
+// Built-in defaults. These SEED the durable channel-config store on first run;
+// afterwards the store (edited via the admin UI) is authoritative. hlsUrl values
+// are raw origin URLs — ChannelForge origins are auto-proxied for the browser at
+// serialization time (see toChannel), and probed directly for health.
+export const SEED_CHANNELS: ChannelDef[] = [
+  {
+    id: 101,
+    name: "Home Cooking TV",
+    genre: "Food · Recipes",
+    bug: "HOME\nCOOKING\nTV",
+    phase: 0,
+    // Real ChannelForge live playout — FAST origin-only channel (no push destination),
+    // delivery-origin master (auto-proxied for the browser).
+    hlsUrl: hls(101, "https://forge.ventunotech.com/hls/28f882f7-6f56-4be4-9c5a-af009a63c11f/delivery_master.m3u8"),
+    ssaiChannel: "channel_homecooking", // play the SSAI ad-stitched session
+
+    // Real ChannelForge EPG — drives this channel's guide/Now-Next (server-side fetch).
+    epgUrl:
+      process.env.FAST_EPG_101 ||
+      "https://forge.ventunotech.com/hls/28f882f7-6f56-4be4-9c5a-af009a63c11f/epg.xml",
+    poster: "/art/food/hc-hero.webp", // from homecookingshow.in
+    logoCard: "/art/logos/card-101.webp", // branded channel-logo tile
+    description:
+      "Unhurried regional Indian cooking, shot in one kitchen. Recipes run at real speed with no jump cuts, programmed to the meal you're probably about to cook
+.",
+    // aligned to `programs` — real HomeCookingShow stills (site + YouTube channel)
+    programThumbs: [
+      "/art/food/hc-chettinad-yt.jpg", // Chettinad Chicken Curry
+      "/art/food/hc-paneer.webp", // exact match from homecookingshow.in
+      "/art/food/hc-biryani-yt.jpg", // Hyderabadi Mutton Dum Biryani
+      "/art/food/hc-prawn-yt.jpg", // Prawn Curry
+      "/art/food/hc-parotta-yt.jpg", // Flaky Kerala (Nool) Parotta
+26306d2ed51a:/app#

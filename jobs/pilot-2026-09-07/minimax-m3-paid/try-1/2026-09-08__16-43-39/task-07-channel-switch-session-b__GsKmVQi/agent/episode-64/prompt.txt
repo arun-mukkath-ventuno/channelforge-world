@@ -1,0 +1,58 @@
+New Terminal Output:
+
+6c4c79003a75:/app# ls packages/data-plane/src/
+avails.test.ts         media.test.ts          origin-slice4.test.ts  segment.ts             stitch.ts
+avails.ts              media.ts               origin.test.ts         server.ts
+decider.ts             origin-rewrite.ts      origin.ts              stitch.test.ts
+6c4c79003a75:/app# cat packages/data-plane/src/server.ts | tail -50
+    return manifest;
+  });
+
+  // Serve prepared creative segments the stitched manifest points at (PRD §14).
+  app.get("/v1/segments/:creativeId/:file", async (req, reply) => {
+    const { creativeId, file } = req.params as { creativeId: string; file: string };
+    if (!SAFE_ID.test(creativeId) || !SAFE_FILE.test(file)) {
+      return reply.code(400).send({ error: "invalid segment path" });
+    }
+    return serveStored(reply, store, `creatives/${creativeId}/${file}`, file);
+  });
+
+  // Serve prepared slate segments (PRD §20).
+  app.get("/v1/slate/:slateId/:file", async (req, reply) => {
+    const { slateId, file } = req.params as { slateId: string; file: string };
+    if (!SAFE_ID.test(slateId) || !SAFE_FILE.test(file)) {
+      return reply.code(400).send({ error: "invalid segment path" });
+    }
+    return serveStored(reply, store, `slates/${slateId}/${file}`, file);
+  });
+
+  return app;
+}
+
+async function serveStored(reply: import("fastify").FastifyReply, store: ObjectStore, key: string, file: string) {
+  try {
+    const data = await store.get(key);
+    const ext = file.split(".").pop()!;
+    reply.header("content-type", CONTENT_TYPES[ext] ?? "application/octet-stream");
+    reply.header("cache-control", "public, max-age=31536000, immutable");
+    return reply.send(data);
+  } catch {
+    return reply.code(404).send({ error: "segment_not_found" });
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const { createRedis, RedisPodCache } = await import("@ssai/persistence");
+  const { createObjectStoreFromEnv } = await import("@ssai/storage");
+  const podCache = new RedisPodCache(createRedis());
+  const origin = new OriginClient();
+  const store = await createObjectStoreFromEnv();
+  const controlPlaneUrl = process.env.CONTROL_PLANE_URL ?? "http://localhost:4000";
+  const decider = new HttpPodDecider(controlPlaneUrl);
+  const app = buildServer({ podCache, origin, store, decider });
+  app.listen({ port: Number(process.env.DATA_PLANE_PORT ?? 4010), host: "0.0.0.0" }).catch((err) => {
+    app.log.error(err);
+    process.exit(1);
+  });
+}
+6c4c79003a75:/app#

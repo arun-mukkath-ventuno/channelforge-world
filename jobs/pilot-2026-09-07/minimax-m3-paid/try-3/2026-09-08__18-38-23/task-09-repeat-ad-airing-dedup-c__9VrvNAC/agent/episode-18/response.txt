@@ -1,0 +1,14 @@
+{
+  "analysis": "Now let me understand the issue better. Looking at the SSAI dedup logic:\n\n```javascript\nconst basis = [raw.session_id, raw.pod_id ?? \"\", raw.ad_id ?? \"\", eventType].join(\"|\");\n```\n\nIf `pod_id` is not provided (empty string), then the dedup key is just `session_id + ad_id + eventType`. So if the same creative (ad_id) is played twice in the same session, both airings would generate the same event_id, and the second airing's events would be deduped.\n\nThe fix needs to include some identifier that distinguishes different airings of the same creative. Looking at the beacon code:\n\n```javascript\nexport function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {\n  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });\n```\n\nThe beacon doesn't include `pod_id` or any other identifier that would distinguish airings. The dedup key needs to include something that distinguishes different airings.\n\nLooking at the basis: `[session_id, pod_id ?? \"\", ad_id ?? \"\", eventType]`. The `pod_id` is the natural way to distinguish different airings of the same ad in the same session. But the beacon doesn't include it.\n\nLet me look at the AdWindow structure to see if there's a pod_id or similar identifier.",
+  "plan": "Look at the AdWindow and any related code to understand if pod_id is available.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn 'pod_id\\|podId' src/\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -rn 'pod_id\\|podId' /reference/\n",
+      "duration": 0.1
+    }
+  ]
+}

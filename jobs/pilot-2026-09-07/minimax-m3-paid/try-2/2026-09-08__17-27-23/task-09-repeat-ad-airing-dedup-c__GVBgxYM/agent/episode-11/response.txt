@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I understand the issue clearly. The deduplication key is `[session_id, pod_id, ad_id, eventType]`. If the same ad_id is played twice in the same session with no pod_id or opportunity_id, both airings will have the same hash, so the second airing will be deduplicated as a duplicate of the first.\n\nThe fix should include some identifier that distinguishes different airings. Looking at the data model, `opportunity_id` would be the natural choice - each ad break (opportunity) is unique. Alternatively, the start time of the airing could differentiate them.\n\nLet me look at how `sendAdBeacon` is called and what data is available. The `AdWindow` has `start` (epoch ms), so we could include that as a unique identifier for each airing.\n\nLooking at the current code:\n```\nconst key = `${w.adId}:${w.start}:${beacon}`;\nif (fired.has(key)) continue;\nfired.add(key);\nsendAdBeacon(opts.sessionId, beacon, w.adId);\n```\n\nThe local dedup uses `adId:start:beacon` which is correct locally. But the remote dedup uses `[session_id, pod_id, ad_id, eventType]` which doesn't include the start time.\n\nThe fix needs to send the `start` time (or some unique airing identifier) as part of the beacon so the remote service can differentiate two airings. Looking at the RawEvent interface, we have `opportunity_id` which seems like a good fit for the airing/break identifier. But we don't have a `pod_id` either.\n\nActually, looking more carefully, the most natural way is to send an `opportunity_id` that distinguishes different airings. The `start` time of the ad window would work as a unique identifier for each airing.\n\nLet me check what other relevant context exists. Let me look at the test file for ssai to see what's tested.",
+  "plan": "Let me look at the test file for ssai to understand the expected behavior.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/src/lib/ssai.test.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

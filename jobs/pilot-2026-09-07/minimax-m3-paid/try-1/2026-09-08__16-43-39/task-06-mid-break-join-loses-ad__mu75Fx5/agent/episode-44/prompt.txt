@@ -1,0 +1,211 @@
+New Terminal Output:
+
+8b0f29f00026:/app# python3 << 'PYEOF'
+> content = '''// Avail detection over an origin media playlist (PRD §9, §22, §41).
+> //
+> // Walks the playlist, finds each CUE-OUT...CUE-IN region, and assigns a
+> // *deterministic* opportunity id derived from the channel + the media sequence
+> // of the avail's first segment. Determinism matters: every viewer's data-plane
+> // request and the decisioning path must agree on the same opportunity id for a
+> // given break without coordinating, so the cached pod is found on the hot path.
+> //
+> // A session whose *first* manifest request for a given break lands after the
+> // break has already been playing for a while may receive a manifest whose
+eakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in > // CUE-OUT has already scrolled off the live window but whose CUE-IN is still
+> // present (PRD §41). Such a window looks like the back end of a break without
+ attach to a> // its start marker. The detected avail must still be returned so the data
+> // plane decides an ad for it; otherwise the session sees the origin slate for
+> // the rest of the break and never shows up as having tried.
+>
+> import { parseMarkerLine } from "@ssai/core";
+>
+(> export interface Avail {
+>   opportunityId: string;
+f>   channelId: string;
+>   /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+>    *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+>    *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+>    *  by contrast, is a media-sequence-derived id independent of the producer). */
+>   externalBreakId?: string;
+Duratio>   /** Break duration: the marker's declared duration, or the summed segment time. */
+>   duration: number;
+>   /** Declared duration from the marker, if it carried a valid one. */
+>   declaredDuration?: number;
+>   /** Actual duration summed from the segments inside the avail. */
+>   measuredDuration: number;
+>   /** Media sequence number of the first segment inside the avail. */
+>   startSequence: number;
+>   programDateTime?: string;
+>   /** Line index of the CUE-OUT marker, or of the first segment of a synthetic avail
+>    *  synthesized when the CUE-OUT has scrolled off but the CUE-IN is still in the window. */
+>   startLine: number;
+>   /** Line index of the CUE-IN marker. */
+>   endLine: number;
+> }
+>
+i> const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\\d+)/;
+> const EXTINF = /^#EXTINF:([\\d.]+)/;
+> const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+>
+> /** Detect all complete avails in the manifest. Incomplete trailing avails (a
+>  *  CUE-OUT with no CUE-IN yet in the window) are ignored - PRD §41.
+>  *
+r?.>  *  Symmetrically, a manifest whose CUE-IN is present but whose CUE-OUT has
+>  *  already scrolled off the live window is the back of an in-progress break.
+>  *  Such a window is synthesized into an avail anchored on the first visible
+>  *  segment so a freshly-tuned-in session still gets a decision for the rest
+>  *  of the break. */
+> export function detectAvails(manifest: string, channelId: string): Avail[] {
+>   const lines = manifest.split("\\n");
+>
+>   let mediaSequence = 0;
+>   let lastPdt: string | undefined;
+>   // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+>   // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+>   // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+>   let blockBreakId: string | undefined;
+pp_${>   const avails: Avail[] = [];
+>
+channelId}_${extId}` : `opp_${c>   // Pending avail state while we walk from CUE-OUT to CUE-IN.
+>   let open: {
+>     startLine: number;
+undefined ? {} : { exte>     startSequence: number;
+>     declaredDuration?: number;
+u>     measuredDuration: number;
+>     pdt?: string;
+re>     externalBreakId?: string;
+tSequen>   } | null = null;
+Seq>
+u>   // Synthetic avail state when we see a CUE-IN without a preceding CUE-OUT:
+>   // the break started earlier in the live window and its CUE-OUT has scrolled
+>   // off, but the break is still in progress (the CUE-IN has just been emitted).
+>   // We synthesize an avail anchored on the first visible inside-avail segment.
+>   let orphan: {
+nfM>     startLine: number;
+{
+      const seg>     startSequence: number;
+
+>     measuredDuration: number;
+>     pdt?: string;
+>     externalBreakId?: string;
+>   } | null = null;
+>
+n>   for (let i = 0; i < lines.length; i++) {
+>     const line = lines[i]!;
+!trim>     const trimmed = line.trim();
+>
+>     const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+>     if (seqMatch) {
+>       mediaSequence = Number(seqMatch[1]);
+>       continue;
+>     }
+>
+i>     const pdtMatch = trimmed.match(PROGRAM_DATE_TIME);
+>     if (pdtMatch) {
+>       lastPdt = pdtMatch[1]!.trim();
+>       // continue - PDT applies to the next segment.
+>     }
+/>
+/>     const marker = parseMarkerLine(line, i);
+>     if (marker?.kind === "daterange" && marker.id) {
+>       blockBreakId = marker.id;
+>       // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+>       if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+>       // Also attach to a synthetic (orphan) avail if the DATERANGE happens to
+>       // still be in the window for an in-progress break whose CUE-OUT scrolled off.
+>       if (orphan && orphan.externalBreakId === undefined) orphan.externalBreakId = marker.id;
+>       continue;
+>     }
+>     if (marker?.kind === "cue_out" && !open) {
+>       // If we were tracking a synthetic avail for the same break, it has now
+>       // been confirmed by the CUE-OUT arriving; collapse to the normal path
+>       // so subsequent CUE-IN closes it cleanly with the CUE-OUT-anchored id.
+>       if (orphan) orphan = null;
+>       open = {
+>         startLine: i,
+>         startSequence: mediaSequence,
+>         measuredDuration: 0,
+>         ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+>         ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+>         // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+>         ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+>       };
+>       continue;
+>     }
+>     if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: `opp_${channelId}_${open.startSequence}`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       continue;
+>     }
+>     if (marker?.kind === "cue_in" && !open && orphan) {
+>       // CUE-IN without a preceding CUE-OUT: we have a synthetic (orphan) avail
+>       // for the in-progress break. Close it at the CUE-IN so the stitcher can
+>       // replace the remaining inside-avail segments with the decided pod.
+>       const extId = orphan.externalBreakId;
+>       avails.push({
+>         // When the producer's stable DATERANGE id is available, key the
+>         // opportunity on it - that id is the same across viewers who connect
+>         // at different points in the same break, so a session that was already
+>         // decided for this break can reuse its cached pod on reconnect.
+>         // Otherwise fall back to the first visible inside-avail segment's media
+>         // sequence (deterministic for this window, same scheme as before).
+>         opportunityId: extId ? `opp_${channelId}_${extId}` : `opp_${channelId}_${orphan.startSequence}`,
+>         channelId,
+>         ...(extId === undefined ? {} : { externalBreakId: extId }),
+>         duration: orphan.measuredDuration,
+>         measuredDuration: orphan.measuredDuration,
+>         startSequence: orphan.startSequence,
+>         ...(orphan.pdt === undefined ? {} : { programDateTime: orphan.pdt }),
+>         startLine: orphan.startLine,
+>         endLine: i,
+>       });
+>       orphan = null;
+>       continue;
+>     }
+>
+>     // Count segments (an #EXTINF followed by a URI advances the media sequence).
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) open.measuredDuration += segDur;
+>       // The URI line follows; advance the sequence when we consume it below.
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       // A media segment URI line - the tag block ended, so a DATERANGE id does not carry over.
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>       // If no CUE-OUT is open but we are accumulating segments before a CUE-IN,
+>       // we are inside an in-progress break whose CUE-OUT scrolled off. Start
+>       // tracking a synthetic avail on the first such segment.
+>       if (!open && !orphan && mediaSequence > 0) {
+>         orphan = {
+>           startLine: i - 1 >= 0 ? i - 1 : i,
+>           startSequence: mediaSequence - 1,
+>           measuredDuration: 0,
+>           ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+>         };
+>       }
+>     }
+>   }
+>
+>   return avails;
+> }
+> '''
+> with open('packages/data-plane/src/avails.ts', 'w') as f:
+>     f.write(content)
+> print('Written')
+> PYEOF
+bash: python3: command not found
+8b0f29f00026:/app#

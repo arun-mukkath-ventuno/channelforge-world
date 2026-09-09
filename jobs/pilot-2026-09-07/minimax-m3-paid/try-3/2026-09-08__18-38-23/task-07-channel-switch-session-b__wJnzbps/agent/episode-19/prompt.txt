@@ -1,0 +1,34 @@
+New Terminal Output:
+
+53f0dc87b88f:/app# grep -rn "session\|channel" packages/data-plane/src/ | head -30
+packages/data-plane/src/avails.ts:4:// *deterministic* opportunity id derived from the channel + the media sequence
+packages/data-plane/src/avails.ts:13:  channelId: string;
+packages/data-plane/src/avails.ts:40:export function detectAvails(manifest: string, channelId: string): Avail[] {
+packages/data-plane/src/avails.ts:99:        opportunityId: `opp_${channelId}_${open.startSequence}`,
+packages/data-plane/src/avails.ts:100:        channelId,
+packages/data-plane/src/origin.ts:17:  /** Build the media-playlist URL for a channel/variant. */
+packages/data-plane/src/origin.ts:18:  urlFor?: (channel: string, variant: string) => string;
+packages/data-plane/src/origin.ts:20:   * Per-channel media-playlist URL, e.g. a real ChannelForge origin
+packages/data-plane/src/origin.ts:21:   * `{channel: "https://forge…/hls/{uuid}/delivery.m3u8"}`. A channel present here is
+packages/data-plane/src/origin.ts:22:   * fetched verbatim (its URL is the full media playlist); channels absent fall back to the
+packages/data-plane/src/origin.ts:23:   * `{baseUrl}/{channel}/{variant}.m3u8` convention. Defaults from CHANNELFORGE_ORIGIN_MAP (JSON).
+packages/data-plane/src/origin.ts:30:/** Parse the CHANNELFORGE_ORIGIN_MAP env (JSON object) into a channel→url map. */
+packages/data-plane/src/origin.ts:53:  private readonly urlFor: (channel: string, variant: string) => string;
+packages/data-plane/src/origin.ts:63:      ((channel, variant) => this.originMap[channel] ?? `${this.baseUrl}/${channel}/${variant}.m3u8`);
+packages/data-plane/src/origin.ts:66:  /** The resolved origin media-playlist URL for a channel — also the base for absolutizing
+packages/data-plane/src/origin.ts:68:  originUrlFor(channel: string, variant = "index"): string {
+packages/data-plane/src/origin.ts:69:    return this.urlFor(channel, variant);
+packages/data-plane/src/origin.ts:72:  async fetchMediaPlaylist(channel: string, variant = "index"): Promise<OriginResult> {
+packages/data-plane/src/origin.ts:73:    const url = this.urlFor(channel, variant);
+packages/data-plane/src/media.test.ts:85:  it("loops the channel slate clip to cover the slate duration exactly", async () => {
+packages/data-plane/src/media.test.ts:86:    const store = storeWith({ "slates/channel_food/channel_food.m3u8": SLATE_VARIANT });
+packages/data-plane/src/media.test.ts:87:    const rendered = await resolvePodSegments(slatePod, store, { channelId: "channel_food" });
+packages/data-plane/src/media.test.ts:91:      "/v1/slate/channel_food/s_000.ts",
+packages/data-plane/src/media.test.ts:92:      "/v1/slate/channel_food/s_001.ts",
+packages/data-plane/src/media.test.ts:93:      "/v1/slate/channel_food/s_000.ts",
+packages/data-plane/src/media.test.ts:94:      "/v1/slate/channel_food/s_001.ts",
+packages/data-plane/src/media.test.ts:98:  it("falls back to the default slate when the channel has none", async () => {
+packages/data-plane/src/media.test.ts:100:    const rendered = await resolvePodSegments(slatePod, store, { channelId: "channel_food" });
+packages/data-plane/src/stitch.test.ts:46:    const avails = detectAvails(ORIGIN, "channel_food");
+packages/data-plane/src/stitch.test.ts:59:    const avails = detectAvails(ORIGIN, "channel_food");
+53f0dc87b88f:/app#

@@ -1,0 +1,10 @@
+{
+  "analysis": "I see the bug. In the `active_takedown_for_asset` function, the SQL query filters `RightsTakedown.scope_type == \"asset\"` but the scope_ids list contains both the asset's own ID and its series ID. This means if the takedown is scoped to the series, it will be missed. Let me check the original file and the tests to confirm.",
+  "plan": "Check the original file to see how the function was before.",
+  "commands": [
+    {
+      "keystrokes": "cat app/repositories/rights.py.orig\n",
+      "duration": 0.1
+    }
+  ]
+}

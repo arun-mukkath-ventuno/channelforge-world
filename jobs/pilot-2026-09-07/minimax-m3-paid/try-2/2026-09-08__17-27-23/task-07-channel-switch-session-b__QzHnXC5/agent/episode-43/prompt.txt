@@ -1,0 +1,74 @@
+New Terminal Output:
+
+840252e8a3ed:/app# node -e "
+> const base = 'http://localhost:4000';
+> (async () => {
+>   const lr = await fetch(base + '/admin/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({user: process.env.ADMIN
+_USER, password: process.env.ADMIN_PASSWORD})});
+>   const setCookie = lr.headers.get('set-cookie');
+>
+>   const r1 = await fetch(base + '/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channel_id:'channel_news',
+device_type:'tv', country:'US'})});
+>   const j1 = await r1.json();
+>   console.log('Session created:', j1.session_id, 'on', j1.channel_id);
+>
+>   const r2 = await fetch(base + '/v1/debug/session/' + j1.session_id, {headers:{Cookie: setCookie}});
+>   const j2 = await r2.json();
+>   console.log('Initial:', j2.session);
+>
+>   const r3 = await fetch(base + '/v1/ad-decision', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: j1.session_i
+d, channel_id: 'channel_food', opportunity_id: 'opp_test_2', duration: 30})});
+>   console.log('Ad decision:', r3.status);
+>
+>   const r4 = await fetch(base + '/v1/debug/session/' + j1.session_id, {headers:{Cookie: setCookie}});
+>   const j4 = await r4.json();
+>   console.log('After channel switch:', j4.session);
+>   console.log('device_type preserved:', j4.session?.deviceType === 'tv' ? 'YES' : 'NO');
+>   console.log('country preserved:', j4.session?.country === 'US' ? 'YES' : 'NO');
+>   console.log('channel updated:', j4.session?.channelId === 'channel_food' ? 'YES' : 'NO');
+> })();
+> " 2>&1 | grep -v '"level"'
+{"level":30,"time":1788869054123,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-m","req":{"method":"POST","url":"/admin/api/login","host":"localhost:4000","r
+emoteAddress":"127.0.0.1","remotePort":56056},"msg":"incoming request"}
+{"level":30,"time":1788869054123,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-m","res":{"statusCode":200},"responseTime":0.4974590000056196,"msg":"request
+completed"}
+{"level":30,"time":1788869054128,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-n","req":{"method":"POST","url":"/v1/sessions","host":"localhost:4000","remot
+eAddress":"127.0.0.1","remotePort":56058},"msg":"incoming request"}
+{"level":30,"time":1788869054134,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-n","res":{"statusCode":200},"responseTime":5.637374999991152,"msg":"request c
+ompleted"}
+Session created: sess_89825000-f539-4e75-a994-dd7f9acf1130 on channel_news
+{"level":30,"time":1788869054138,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-o","req":{"method":"GET","url":"/v1/debug/session/sess_89825000-f539-4e75-a99
+4-dd7f9acf1130","host":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":56056},"msg":"incoming request"}
+{"level":30,"time":1788869054143,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-o","res":{"statusCode":200},"responseTime":5.377457999973558,"msg":"request c
+ompleted"}
+Initial: {
+  id: 'sess_89825000-f539-4e75-a994-dd7f9acf1130',
+  channelId: 'channel_news',
+  createdAt: '2026-09-08T12:04:14.131Z',
+  lastActivityAt: '2026-09-08T12:04:14.131Z',
+  deviceType: 'tv',
+  country: 'US',
+  anonymousId: null
+}
+{"level":30,"time":1788869054147,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-p","req":{"method":"POST","url":"/v1/ad-decision","host":"localhost:4000","re
+moteAddress":"127.0.0.1","remotePort":56058},"msg":"incoming request"}
+{"level":30,"time":1788869054152,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-p","res":{"statusCode":200},"responseTime":5.242249999981141,"msg":"request c
+ompleted"}
+Ad decision: 200
+{"level":30,"time":1788869054155,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-q","req":{"method":"GET","url":"/v1/debug/session/sess_89825000-f539-4e75-a99
+4-dd7f9acf1130","host":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":56056},"msg":"incoming request"}
+{"level":30,"time":1788869054156,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-q","res":{"statusCode":200},"responseTime":0.9605830000073183,"msg":"request
+completed"}
+After channel switch: {
+  id: 'sess_89825000-f539-4e75-a994-dd7f9acf1130',
+  channelId: 'channel_food',
+  createdAt: '2026-09-08T12:04:14.131Z',
+  lastActivityAt: '2026-09-08T12:04:14.148Z',
+  deviceType: 'tv',
+  country: 'US',
+  anonymousId: null
+}
+device_type preserved: YES
+country preserved: YES
+channel updated: YES
+840252e8a3ed:/app#

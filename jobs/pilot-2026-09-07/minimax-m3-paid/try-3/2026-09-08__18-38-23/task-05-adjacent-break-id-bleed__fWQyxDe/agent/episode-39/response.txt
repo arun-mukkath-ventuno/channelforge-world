@@ -1,0 +1,6 @@
+{
+  "analysis": "The fix is verified and complete:\n1. The bug was in `packages/data-plane/src/avails.ts` - the CUE-IN handler didn't clear `blockBreakId`, causing back-to-back ad breaks to leak the previous break's DATERANGE ID to the next break.\n2. The fix adds `blockBreakId = undefined;` after `open = null;` in the CUE-IN handler.\n3. All 29 existing tests pass.\n4. The bug case now correctly assigns each break its own externalBreakId.\n5. The dist files have been rebuilt.\n6. No running service to restart (no node/tsx processes running).\n\nThe fix is minimal, targeted, and doesn't weaken any existing functionality.",
+  "plan": "Marking task as complete.",
+  "commands": [],
+  "task_complete": true
+}

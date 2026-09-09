@@ -1,0 +1,78 @@
+New Terminal Output:
+
+8b0f29f00026:/app/packages/data-plane# cd /app && cat > /tmp/test_daterange.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Manifest with CUE-OUT and DATERANGE - early viewer
+> const early = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:100
+> #EXTINF:6.000,
+> seg100.ts
+> #EXTINF:6.000,
+> seg101.ts
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-abc-1234",PLANNED-DURATION=30,SCTE35-OUT=0xFC
+> #EXTINF:6.000,
+> seg102.ts
+> #EXTINF:6.000,
+> seg103.ts
+> #EXTINF:6.000,
+> seg104.ts
+> #EXTINF:6.000,
+> seg105.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg106.ts
+> `;
+>
+> // Same break but only CUE-IN visible (CUE-OUT and DATERANGE scrolled off)
+> const late = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:104
+> #EXTINF:6.000,
+> seg104.ts
+> #EXTINF:6.000,
+> seg105.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg106.ts
+> `;
+>
+> console.log("Early viewer (CUE-OUT + DATERANGE present):");
+> console.log(JSON.stringify(detectAvails(early, "ch"), null, 2));
+>
+> console.log("\nLate viewer (only CUE-IN, DATERANGE scrolled off):");
+> console.log(JSON.stringify(detectAvails(late, "ch"), null, 2));
+> EOF
+8b0f29f00026:/app# npx tsx /tmp/test_daterange.ts
+Early viewer (CUE-OUT + DATERANGE present):
+[
+  {
+    "opportunityId": "opp_ch_102",
+    "channelId": "ch",
+    "externalBreakId": "BRK-abc-1234",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 24,
+    "startSequence": 102,
+    "startLine": 8,
+    "endLine": 18
+  }
+]
+
+Late viewer (only CUE-IN, DATERANGE scrolled off):
+[
+  {
+    "opportunityId": "opp_ch_104",
+    "channelId": "ch",
+    "duration": 6,
+    "measuredDuration": 6,
+    "startSequence": 104,
+    "startLine": 4,
+    "endLine": 8
+  }
+]
+8b0f29f00026:/app#

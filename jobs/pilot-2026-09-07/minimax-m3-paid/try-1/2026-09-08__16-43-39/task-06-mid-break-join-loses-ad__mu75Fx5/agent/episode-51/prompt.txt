@@ -1,0 +1,88 @@
+New Terminal Output:
+
+8b0f29f00026:/app# node -e "const fs=require('fs'); const c=fs.readFileSync('packages/data-plane/src/avails.ts','utf8'); console.log(c.includes('let orphan = nu
+ll'));"
+false
+8b0f29f00026:/app# sed -n '100,180p' packages/data-plane/src/avails.ts
+      // continue — PDT applies to the next segment.
+    }
+
+    const marker = parseMarkerLine(line, i);
+    if (marker?.kind === "daterange" && marker.id) {
+      blockBreakId = marker.id;
+      // DATERANGE-OUT typically follows the CUE-OUT in the same block; attach it to the open avail.
+      if (open && open.externalBreakId === undefined) open.externalBreakId = marker.id;
+      // Also attach to a synthetic (orphan) avail if the DATERANGE happens to
+      // still be in the window for an in-progress break whose CUE-OUT scrolled off.
+      if (orphan && orphan.externalBreakId === undefined) orphan.externalBreakId = marker.id;
+      continue;
+    }
+    if (marker?.kind === "cue_out" && !open) {
+      // If we were tracking a synthetic avail for the same break, the CUE-OUT
+      // arriving confirms the window; promote it back to the normal path so a
+      // later CUE-IN closes it with the CUE-OUT-anchored id and startSequence.
+      if (orphan) orphan = null;
+      open = {
+        startLine: i,
+        startSequence: mediaSequence,
+        measuredDuration: 0,
+        ...(marker.duration === undefined ? {} : { declaredDuration: marker.duration }),
+        ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        // Covers a producer that emits DATERANGE before CUE-OUT within the same block.
+        ...(blockBreakId === undefined ? {} : { externalBreakId: blockBreakId }),
+      };
+      continue;
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+    if (marker?.kind === "cue_in" && !open && orphan) {
+      // CUE-IN without a preceding CUE-OUT: close the synthetic avail so the
+      // stitcher replaces the remaining inside-avail segments with the decided
+      // pod and the session sees an ad for the rest of the break.
+      const extId = orphan.externalBreakId;
+      avails.push({
+        // When the producer's stable DATERANGE id is in the window, key the
+        // opportunity on it — that id is the same for every viewer that
+        // touches this break, so a session already decided for it reuses its
+        // cached pod on reconnect. Otherwise fall back to the first visible
+        // inside-avail segment's media sequence (deterministic for this window,
+        // same scheme as the normal CUE-OUT-anchored case).
+        opportunityId: extId ? `opp_${channelId}_${extId}` : `opp_${channelId}_${orphan.startSequence}`,
+        channelId,
+        ...(extId === undefined ? {} : { externalBreakId: extId }),
+        duration: orphan.measuredDuration,
+        measuredDuration: orphan.measuredDuration,
+        startSequence: orphan.startSequence,
+        ...(orphan.pdt === undefined ? {} : { programDateTime: orphan.pdt }),
+        startLine: orphan.startLine,
+        endLine: i,
+      });
+      orphan = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+    if (infMatch) {
+      const segDur = Number(infMatch[1]);
+      if (open) open.measuredDuration += segDur;
+      else if (orphan) orphan.measuredDuration += segDur;
+      // The URI line follows; advance the sequence when we consume it below.
+    } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+8b0f29f00026:/app#

@@ -1,0 +1,10 @@
+{
+  "analysis": "The stitch function uses `startLine` and `endLine` to find and replace the avail region. If we don't have CUE-OUT (startLine) but do have CUE-IN (endLine), we can still create an avail with a synthetic startLine pointing to before the CUE-IN.\n\nLet me look at the test for incomplete avails again and think about what fix is needed.",
+  "plan": "Check how avails.test.ts uses opportunityId to understand what needs to remain stable.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/data-plane/src/avails.test.ts | tail -50\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+
+
+{
+  "analysis": "Seeded successfully. Now let me retest.",
+  "plan": "Retest the channel switch scenario.",
+  "commands": [
+    {
+      "keystrokes": "node -e \"\nconst base = 'http://localhost:4000';\n(async () => {\n  const r1 = await fetch(base + '/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channel_id:'channel_news'})});\n  const j1 = await r1.json();\n  console.log('Session created:', j1.session_id, 'on', j1.channel_id);\n\n  const r2 = await fetch(base + '/v1/sessions/' + j1.session_id);\n  const j2 = await r2.json();\n  console.log('Session after creation:', j2.channelId);\n\n  const r3 = await fetch(base + '/v1/ad-decision', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: j1.session_id, channel_id: 'channel_food', opportunity_id: 'opp_test_1', duration: 30})});\n  const j3 = await r3.json();\n  console.log('Ad decision response status:', r3.status, 'channelId in resp:', j3.session?.channelId || j3.session?.channel_id || 'n/a');\n\n  const r4 = await fetch(base + '/v1/sessions/' + j1.session_id);\n  const j4 = await r4.json();\n  console.log('Session after channel switch:', j4.channelId);\n  console.log('PASS' + (j4.channelId === 'channel_food' ? '!' : ' (FAIL - expected channel_food)'));\n})();\n\" 2>&1 | grep -v '\"level\"'\n",
+      "duration": 3.0
+    }
+  ]
+}

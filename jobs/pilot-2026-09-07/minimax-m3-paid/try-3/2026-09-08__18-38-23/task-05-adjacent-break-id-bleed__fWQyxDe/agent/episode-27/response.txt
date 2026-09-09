@@ -1,0 +1,14 @@
+{
+  "analysis": "No node/tsx server processes are running. Let me check if there's a way to restart the service. Let me look for any process management or supervisor configuration.",
+  "plan": "Look for service management files.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /app/\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -name 'docker-compose*' -o -name 'Dockerfile*' -o -name 'supervisord*' -o -name '*.service' 2>/dev/null | grep -v node_modules | head -20\n",
+      "duration": 0.1
+    }
+  ]
+}

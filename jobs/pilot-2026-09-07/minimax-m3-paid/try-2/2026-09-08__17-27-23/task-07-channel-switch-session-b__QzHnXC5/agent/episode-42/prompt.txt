@@ -1,0 +1,57 @@
+New Terminal Output:
+
+840252e8a3ed:/app# node -e "
+> const base = 'http://localhost:4000';
+> (async () => {
+>   // login
+>   const lr = await fetch(base + '/admin/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({user: process.env.ADMIN
+_USER, password: process.env.ADMIN_PASSWORD})});
+>   const setCookie = lr.headers.get('set-cookie');
+>   console.log('Login:', lr.status, setCookie ? 'ok' : 'no cookie');
+>
+>   const r1 = await fetch(base + '/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channel_id:'channel_news'})
+});
+>   const j1 = await r1.json();
+>   console.log('Session created:', j1.session_id, 'on', j1.channel_id);
+>
+>   const r2 = await fetch(base + '/v1/debug/session/' + j1.session_id, {headers:{Cookie: setCookie}});
+>   const j2 = await r2.json();
+>   console.log('Session after creation:', j2.session?.channelId);
+>
+>   const r3 = await fetch(base + '/v1/ad-decision', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: j1.session_i
+d, channel_id: 'channel_food', opportunity_id: 'opp_test_1', duration: 30})});
+>   console.log('Ad decision status:', r3.status);
+>
+>   const r4 = await fetch(base + '/v1/debug/session/' + j1.session_id, {headers:{Cookie: setCookie}});
+>   const j4 = await r4.json();
+>   console.log('Session after channel switch:', j4.session?.channelId);
+>   console.log('Fix works correctly:', j4.session?.channelId === 'channel_food' ? 'YES' : 'NO');
+> })();
+> " 2>&1 | grep -v '"level"'
+{"level":30,"time":1788869033139,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-h","req":{"method":"POST","url":"/admin/api/login","host":"localhost:4000","r
+emoteAddress":"127.0.0.1","remotePort":43288},"msg":"incoming request"}
+{"level":30,"time":1788869033140,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-h","res":{"statusCode":200},"responseTime":0.5251669999852311,"msg":"request
+completed"}
+Login: 200 ok
+{"level":30,"time":1788869033144,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-i","req":{"method":"POST","url":"/v1/sessions","host":"localhost:4000","remot
+eAddress":"127.0.0.1","remotePort":43302},"msg":"incoming request"}
+{"level":30,"time":1788869033152,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-i","res":{"statusCode":200},"responseTime":7.156583000003593,"msg":"request c
+ompleted"}
+Session created: sess_5915e8b7-439a-40d7-86e6-8f0deefecb91 on channel_news
+{"level":30,"time":1788869033155,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-j","req":{"method":"GET","url":"/v1/debug/session/sess_5915e8b7-439a-40d7-86e
+6-8f0deefecb91","host":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":43288},"msg":"incoming request"}
+{"level":30,"time":1788869033162,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-j","res":{"statusCode":200},"responseTime":6.89862500000163,"msg":"request co
+mpleted"}
+Session after creation: channel_news
+{"level":30,"time":1788869033165,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-k","req":{"method":"POST","url":"/v1/ad-decision","host":"localhost:4000","re
+moteAddress":"127.0.0.1","remotePort":43302},"msg":"incoming request"}
+{"level":30,"time":1788869033169,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-k","res":{"statusCode":200},"responseTime":4.2508749999979045,"msg":"request
+completed"}
+Ad decision status: 200
+{"level":30,"time":1788869033171,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-l","req":{"method":"GET","url":"/v1/debug/session/sess_5915e8b7-439a-40d7-86e
+6-8f0deefecb91","host":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":43288},"msg":"incoming request"}
+{"level":30,"time":1788869033173,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-l","res":{"statusCode":200},"responseTime":1.0058750000025611,"msg":"request
+completed"}
+Session after channel switch: channel_food
+Fix works correctly: YES
+840252e8a3ed:/app#

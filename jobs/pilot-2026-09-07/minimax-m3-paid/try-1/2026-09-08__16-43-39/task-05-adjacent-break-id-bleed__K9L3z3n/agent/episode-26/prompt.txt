@@ -1,0 +1,117 @@
+New Terminal Output:
+
+4838fd889d89:/app# cat > /tmp/test-edge.mjs << 'JSEOF'
+> import { detectAvails } from "/app/packages/data-plane/dist/avails.js";
+>
+> function runTest(name, manifest, expected) {
+>   const avails = detectAvails(manifest, "ch");
+>   const actual = avails.map(a => ({opp: a.opportunityId, ext: a.externalBreakId}));
+>   const ok = JSON.stringify(actual) === JSON.stringify(expected);
+>   console.log((ok ? "PASS  " : "FAIL  ") + name);
+>   if (!ok) {
+>     console.log("  Expected:", JSON.stringify(expected));
+>     console.log("  Actual:  ", JSON.stringify(actual));
+>   }
+> }
+>
+> // Test 1: Original "does not leak" test - with content between breaks
+> const m1 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "a.ts",
+>   "#EXT-X-CUE-IN",
+>   "#EXTINF:6.000,",
+>   "b.ts",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "c.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("original 'no leak' test", m1, [{opp:"opp_ch_0", ext:"BRK-first"}, {opp:"opp_ch_2", ext: undefined}]);
+>
+> // Test 2: Back-to-back with DATERANGE for both breaks (no content between)
+> const m2 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   '#EXT-X-DATERANGE:ID="BRK-first",DURATION=30,SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   '#EXT-X-DATERANGE:ID="BRK-second",DURATION=15,SCTE35-OUT=0xFD',
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("back-to-back with DATERANGE for both", m2, [{opp:"opp_ch_0", ext:"BRK-first"}, {opp:"opp_ch_1", ext:"BRK-second"}]);
+>
+> // Test 3: Back-to-back with DATERANGE for first only
+> const m3 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   '#EXT-X-DATERANGE:ID="BRK-first",DURATION=30,SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("back-to-back with DATERANGE for first only", m3, [{opp:"opp_ch_0", ext:"BRK-first"}, {opp:"opp_ch_1", ext: undefined}]);
+>
+> // Test 4: Back-to-back with DATERANGE for second only
+> const m4 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   '#EXT-X-DATERANGE:ID="BRK-second",DURATION=15,SCTE35-OUT=0xFD',
+>   "#EXTINF:6.000,",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("back-to-back with DATERANGE for second only", m4, [{opp:"opp_ch_0", ext: undefined}, {opp:"opp_ch_1", ext:"BRK-second"}]);
+>
+> // Test 5: DATERANGE before CUE-OUT in same block, back-to-back
+> const m5 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   '#EXT-X-DATERANGE:ID="BRK-first",DURATION=30,SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "#EXT-X-CUE-IN",
+>   '#EXT-X-DATERANGE:ID="BRK-second",DURATION=15,SCTE35-OUT=0xFD',
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("back-to-back DATERANGE before CUE-OUT", m5, [{opp:"opp_ch_0", ext:"BRK-first"}, {opp:"opp_ch_1", ext:"BRK-second"}]);
+>
+> // Test 6: Normal case (with content between, like the existing test)
+> const m6 = [
+>   "#EXT-X-MEDIA-SEQUENCE:100",
+>   "#EXTINF:6.000,",
+>   "s100.ts",
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "slate.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("normal case", m6, [{opp:"opp_ch_102", ext: undefined}]);
+> JSEOF
+4838fd889d89:/app# node /tmp/test-edge.mjs
+PASS  original 'no leak' test
+FAIL  back-to-back with DATERANGE for both
+  Expected: [{"opp":"opp_ch_0","ext":"BRK-first"},{"opp":"opp_ch_1","ext":"BRK-second"}]
+  Actual:   [{"opp":"opp_ch_0","ext":"BRK-first"},{"opp":"opp_ch_0","ext":"BRK-second"}]
+FAIL  back-to-back with DATERANGE for first only
+  Expected: [{"opp":"opp_ch_0","ext":"BRK-first"},{"opp":"opp_ch_1"}]
+  Actual:   [{"opp":"opp_ch_0","ext":"BRK-first"},{"opp":"opp_ch_0"}]
+FAIL  back-to-back with DATERANGE for second only
+  Expected: [{"opp":"opp_ch_0"},{"opp":"opp_ch_1","ext":"BRK-second"}]
+  Actual:   [{"opp":"opp_ch_0"},{"opp":"opp_ch_0","ext":"BRK-second"}]
+FAIL  back-to-back DATERANGE before CUE-OUT
+  Expected: [{"opp":"opp_ch_0","ext":"BRK-first"},{"opp":"opp_ch_1","ext":"BRK-second"}]
+  Actual:   [{"opp":"opp_ch_0","ext":"BRK-first"},{"opp":"opp_ch_0","ext":"BRK-second"}]
+FAIL  normal case
+  Expected: [{"opp":"opp_ch_102"}]
+  Actual:   [{"opp":"opp_ch_101"}]
+4838fd889d89:/app#

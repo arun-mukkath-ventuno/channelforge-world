@@ -1,0 +1,71 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat > /tmp/test-stitch.mjs << 'EOF'
+> import { detectAvails } from '/app/packages/data-plane/dist/avails.js';
+> import { stitchManifest } from '/app/packages/data-plane/dist/stitch.js';
+>
+> // Late tune-in scenario
+> const late = [
+>   '#EXTM3U',
+>   '#EXT-X-VERSION:3',
+>   '#EXT-X-TARGETDURATION:6',
+>   '#EXT-X-MEDIA-SEQUENCE:103',
+>   '#EXTINF:6.000,',
+>   'slate001.ts',
+>   '#EXTINF:6.000,',
+>   'slate002.ts',
+>   '#EXTINF:6.000,',
+>   'slate003.ts',
+>   '#EXT-X-CUE-IN',
+>   '#EXTINF:6.000,',
+>   'segment106.ts',
+> ].join('\n');
+>
+> const avails = detectAvails(late, 'channel_food');
+> console.log('Avails:', JSON.stringify(avails, null, 2));
+>
+> // Simulate a rendered pod for the avail
+> const rendered = new Map();
+> rendered.set(avails[0].opportunityId, [{
+>   type: 'ad',
+>   creativeId: 'cr_a',
+>   campaignId: 'camp_a',
+>   duration: 18,
+>   startOffset: 0,
+>   segments: [
+>     { duration: 9, uri: '/v1/segments/cr_a/cr_a_000.ts' },
+>     { duration: 9, uri: '/v1/segments/cr_a/cr_a_001.ts' },
+>   ],
+> }]);
+>
+> const { manifest, stitched } = stitchManifest(late, avails, rendered);
+> console.log('\nStitched manifest:');
+> console.log(manifest);
+> console.log('\nStitched:', stitched);
+> EOF
+e337ca9acc5b:/app# node /tmp/test-stitch.mjs
+Avails: [
+  {
+    "opportunityId": "opp_channel_food_103",
+    "channelId": "channel_food",
+    "duration": 18,
+    "measuredDuration": 18,
+    "startSequence": 103,
+    "startLine": 0,
+    "endLine": 10
+  }
+]
+
+Stitched manifest:
+#EXT-X-DISCONTINUITY
+#EXT-X-DATERANGE:ID="cr_a",CLASS="com.fastworld.ad",DURATION=18,X-AD-ID="cr_a",X-CAMPAIGN-ID="camp_a"
+#EXTINF:9.000,
+/v1/segments/cr_a/cr_a_000.ts
+#EXTINF:9.000,
+/v1/segments/cr_a/cr_a_001.ts
+#EXT-X-DISCONTINUITY
+#EXTINF:6.000,
+segment106.ts
+
+Stitched: [ 'opp_channel_food_103' ]
+e337ca9acc5b:/app#

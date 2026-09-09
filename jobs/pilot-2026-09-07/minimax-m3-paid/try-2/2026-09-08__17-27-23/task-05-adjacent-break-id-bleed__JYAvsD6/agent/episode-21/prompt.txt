@@ -1,0 +1,26 @@
+New Terminal Output:
+
+cbccd910d082:/app# find /app -type d -name migrations 2>/dev/null
+cbccd910d082:/app# cd /app && npx vitest run packages/data-plane/src/avails.test.ts 2>&1
+
+ RUN  v2.1.9 /app
+
+ ✓ packages/data-plane/src/avails.test.ts (10)
+   ✓ detectAvails (PRD §9, §41) (10)
+     ✓ derives a deterministic opportunity id from channel + media sequence
+     ✓ is stable across playlist refreshes (same avail → same id as the window slides)
+     ✓ falls back to measured duration when the marker duration is invalid (PRD §41)
+     ✓ captures PROGRAM-DATE-TIME preceding the avail
+     ✓ ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)
+     ✓ captures the DATERANGE ID as externalBreakId (real ChannelForge order: CUE-OUT then DATERANGE)
+     ✓ captures the id when the producer emits DATERANGE before CUE-OUT in the same block
+     ✓ leaves externalBreakId undefined when the origin carried no DATERANGE id
+     ✓ does not leak one break's id onto a later break that has none
+     ✓ detects multiple avails in one window
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  12:12:12
+   Duration  179ms (transform 57ms, setup 0ms, collect 65ms, tests 5ms, environment 0ms, prepare 28ms)
+
+cbccd910d082:/app#

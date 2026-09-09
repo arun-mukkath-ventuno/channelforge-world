@@ -1,0 +1,73 @@
+New Terminal Output:
+
+04a690a73d92:/app# cat > /tmp/avails_patch.py << 'EOF'
+> import re
+>
+> with open('packages/data-plane/src/avails.ts', 'r') as f:
+>     content = f.read()
+>
+> # Add the mid-break handling after the main loop
+> old_end = '''    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) open.measuredDuration += segDur;
+>       // The URI line follows; advance the sequence when we consume it below.
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>     }
+>   }
+>
+>   return avails;
+> }'''
+>
+> new_end = '''    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) open.measuredDuration += segDur;
+>       // The URI line follows; advance the sequence when we consume it below.
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>     }
+>   }
+>
+>   // Mid-break: we saw a CUE-OUT but never reached CUE-IN within the playlist window.
+>   // A session whose first manifest request for this break lands here (a fresh tune-in,
+>   // reconnect after a network blip, or a slow-to-poll client) must still get an ad —
+>   // otherwise it just gets the channel's default content for the rest of the break.
+>   // Emit the trailing avail so the decider runs and the cache lookup happens.
+>   if (open) {
+>     const declared = open.declaredDuration;
+>     avails.push({
+>       opportunityId: `opp_${channelId}_${open.startSequence}`,
+>       channelId,
+>       ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>       duration: declared ?? open.measuredDuration,
+>       ...(declared === undefined ? {} : { declaredDuration: declared }),
+>       measuredDuration: open.measuredDuration,
+>       startSequence: open.startSequence,
+>       ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>       startLine: open.startLine,
+>       endLine: lines.length - 1,
+>     });
+>   }
+>
+>   return avails;
+> }'''
+>
+> if old_end in content:
+>     content = content.replace(old_end, new_end)
+>     with open('packages/data-plane/src/avails.ts', 'w') as f:
+>         f.write(content)
+>     print('Patch applied')
+> else:
+>     print('Pattern not found')
+> EOF
+04a690a73d92:/app# python3 /tmp/avails_patch.py
+bash: python3: command not found
+04a690a73d92:/app#

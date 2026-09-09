@@ -1,0 +1,10 @@
+{
+  "analysis": "The control-plane doesn't have any avail detection logic - it just receives the avail info from the data-plane via the /v1/ad-decision endpoint. The fix is only needed in the data-plane.\n\nLet me also verify the fix handles the case where the session reconnects mid-break and the CUE-OUT has scrolled out. Let me write a more comprehensive test.",
+  "plan": "Write a comprehensive test to verify the reconnect scenario.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test-reconnect.mjs << 'EOF'\nimport { detectAvails } from '/app/packages/data-plane/dist/avails.js';\n\n// Scenario: Session was polling, break started, then session reconnects mid-break\n// Original playlist (before reconnect):\nconst original = [\n  '#EXTM3U',\n  '#EXT-X-MEDIA-SEQUENCE:100',\n  '#EXTINF:6.000,',\n  'segment100.ts',\n  '#EXT-X-CUE-OUT:30',\n  '#EXTINF:6.000,',\n  'slate001.ts',\n  '#EXTINF:6.000,',\n  'slate002.ts',\n  '#EXTINF:6.000,',\n  'slate003.ts',\n  '#EXT-X-CUE-IN',\n  '#EXTINF:6.000,',\n  'segment105.ts',\n].join('\\n');\n\nconst originalAvails = detectAvails(original, 'channel_food');\nconsole.log('Original playlist avails:', originalAvails[0]?.opportunityId);\n\n// After session reconnects mid-break (CUE-OUT scrolled out, CUE-IN still in window):\nconst reconnect = [\n  '#EXTM3U',\n  '#EXT-X-MEDIA-SEQUENCE:103',\n  '#EXTINF:6.000,',\n  'slate002.ts',\n  '#EXTINF:6.000,',\n  'slate003.ts',\n  '#EXT-X-CUE-IN',\n  '#EXTINF:6.000,',\n  'segment105.ts',\n].join('\\n');\n\nconst reconnectAvails = detectAvails(reconnect, 'channel_food');\nconsole.log('Reconnect playlist avails:', reconnectAvails[0]?.opportunityId);\nconsole.log('Reconnect avail duration:', reconnectAvails[0]?.duration);\nconsole.log('\\nSession gets a new ad decision for the remaining break!');\nEOF\nnode /tmp/test-reconnect.mjs\n",
+      "duration": 1.0
+    }
+  ]
+}

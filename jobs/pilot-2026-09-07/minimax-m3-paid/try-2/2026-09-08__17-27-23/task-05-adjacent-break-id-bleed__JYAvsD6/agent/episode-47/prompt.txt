@@ -1,0 +1,17 @@
+New Terminal Output:
+
+cbccd910d082:/app# sed -i 's|// The DATERANGE ID seen in the current segment.\u0027s tag block, cleared at each segment boundary so|// The DATERANGE ID seen in
+the current segment\u0027s tag block. Cleared at each segment URI and at each break\n  // boundary (CUE-IN) so|' packages/data-plane/src/avails.ts
+cbccd910d082:/app# sed -n '45,55p' packages/data-plane/src/avails.ts
+  // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+  // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+  // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+  let blockBreakId: string | undefined;
+  const avails: Avail[] = [];
+
+  // Pending avail state while we walk from CUE-OUT to CUE-IN.
+  let open: {
+    startLine: number;
+    startSequence: number;
+    declaredDuration?: number;
+cbccd910d082:/app#

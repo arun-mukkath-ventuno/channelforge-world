@@ -1,0 +1,10 @@
+{
+  "analysis": "Found the bug! In `ensureSession`, when a session already exists (`ON CONFLICT (id) DO NOTHING`), the channel_id is NOT updated to the new channel. This means if a session switches channels, the original channel stays in the session record. Let me check how this is used in the data-plane to confirm.",
+  "plan": "Look at how ensureSession is called in the data-plane.",
+  "commands": [
+    {
+      "keystrokes": "grep -r \"ensureSession\\|touchSession\" packages/ --include=\"*.ts\"\n",
+      "duration": 0.1
+    }
+  ]
+}

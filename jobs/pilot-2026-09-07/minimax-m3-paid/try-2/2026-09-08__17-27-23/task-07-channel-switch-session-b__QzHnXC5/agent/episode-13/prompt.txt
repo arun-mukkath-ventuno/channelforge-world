@@ -1,0 +1,14 @@
+New Terminal Output:
+
+840252e8a3ed:/app# ls -la migrations/
+total 32
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  6 10:45 ..
+-rw-r--r--    1 root     root          5581 Sep  5 08:18 001_init.sql
+-rw-r--r--    1 root     root           335 Sep  5 08:18 002_creative_prep.sql
+-rw-r--r--    1 root     root           530 Sep  5 08:18 003_opportunity_external_break_id.sql
+-rw-r--r--    1 root     root           482 Sep  5 08:18 004_vast.sql
+-rw-r--r--    1 root     root           971 Sep  5 08:18 005_beacons.sql
+840252e8a3ed:/app# find migrations -name "*.sql" -exec grep -l "playback_sessions" {} \;
+migrations/001_init.sql
+840252e8a3ed:/app#

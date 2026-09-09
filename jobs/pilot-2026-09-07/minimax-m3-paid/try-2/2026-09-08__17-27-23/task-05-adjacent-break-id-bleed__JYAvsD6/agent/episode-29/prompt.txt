@@ -1,0 +1,53 @@
+New Terminal Output:
+
+cbccd910d082:/app# python3 -c "
+> import re
+> with open('packages/data-plane/src/avails.ts', 'r') as f:
+>     content = f.read()
+>
+> # Replace 'open = null;' followed by 'continue;' with 'open = null; blockBreakId = undefined; continue;'
+> # Only in the CUE-IN branch
+> old = '''      open = null;
+>       continue;
+>     }
+>
+>     // Count segments'''
+> new = '''      open = null;
+>       blockBreakId = undefined;
+>       continue;
+>     }
+>
+>     // Count segments'''
+>
+> if old in content:
+>     content = content.replace(old, new)
+>     with open('packages/data-plane/src/avails.ts', 'w') as f:
+>         f.write(content)
+>     print('Replacement successful')
+> else:
+>     print('Pattern not found')
+> "
+bash: python3: command not found
+cbccd910d082:/app# sed -n '95,115p' packages/data-plane/src/avails.ts
+    }
+    if (marker?.kind === "cue_in" && open) {
+      const declared = open.declaredDuration;
+      avails.push({
+        opportunityId: `opp_${channelId}_${open.startSequence}`,
+        channelId,
+        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+        duration: declared ?? open.measuredDuration,
+        ...(declared === undefined ? {} : { declaredDuration: declared }),
+        measuredDuration: open.measuredDuration,
+        startSequence: open.startSequence,
+        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+        startLine: open.startLine,
+        endLine: i,
+      });
+      open = null;
+      continue;
+    }
+
+    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+    const infMatch = trimmed.match(EXTINF);
+cbccd910d082:/app#

@@ -1,0 +1,34 @@
+New Terminal Output:
+
+8b0f29f00026:/app/packages/data-plane# cd /app
+8b0f29f00026:/app# grep -rn "PRD" packages/data-plane/src/ | head -30
+packages/data-plane/src/avails.ts:1:// Avail detection over an origin media playlist (PRD §9, §22, §41).
+packages/data-plane/src/avails.ts:39: *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41. */
+packages/data-plane/src/origin.ts:1:// ChannelForge origin client (PRD §8, §42, §48). Fetches the origin media
+packages/data-plane/src/origin.ts:95:      // Origin failed — serve last-good if we have it (PRD §42).
+packages/data-plane/src/media.test.ts:43:describe("resolvePodSegments (PRD §14, §42)", () => {
+packages/data-plane/src/media.test.ts:80:describe("slate fill from prepared media (PRD §20, §21)", () => {
+packages/data-plane/src/stitch.ts:1:// Manifest stitching (PRD §22-25). Given an origin media playlist, its detected
+packages/data-plane/src/stitch.ts:14:  /** Emit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+packages/data-plane/src/stitch.ts:59:    out.push("#EXT-X-DISCONTINUITY"); // timing/encoding boundary (PRD §24)
+packages/data-plane/src/stitch.ts:78:  out.push("#EXT-X-DISCONTINUITY"); // rejoin origin content (PRD §24)
+packages/data-plane/src/stitch.test.ts:44:describe("stitchManifest (PRD §22-25)", () => {
+packages/data-plane/src/stitch.test.ts:58:  it("emits discontinuities and ad metadata (PRD §24, §25)", () => {
+packages/data-plane/src/server.ts:1:// SSAI Data Plane (PRD §11, §22-24, §48, §52).
+packages/data-plane/src/server.ts:28:  /** HMAC secret for verifying playback tokens (PRD §57). Shared with control plane. */
+packages/data-plane/src/server.ts:35:// Only serve simple segment/playlist filenames — no path traversal (PRD §57).
+packages/data-plane/src/server.ts:55:  // Personalized media playlist (PRD §11, §22, §24, §52).
+packages/data-plane/src/server.ts:59:    // Verify the signed playback token (PRD §57) before doing any work.
+packages/data-plane/src/server.ts:101:  // Serve prepared creative segments the stitched manifest points at (PRD §14).
+packages/data-plane/src/server.ts:110:  // Serve prepared slate segments (PRD §20).
+packages/data-plane/src/decider.ts:2:// control plane's Ad Decision Service for one (PRD §15). The control plane
+packages/data-plane/src/decider.ts:49:      // ADS unavailable → no pod → origin slate plays (PRD §37).
+packages/data-plane/src/origin.test.ts:8:describe("OriginClient (PRD §8, §42)", () => {
+packages/data-plane/src/media.ts:1:// Resolve a decided pod into the actual HLS segments to stitch (PRD §14, §20, §22).
+packages/data-plane/src/media.ts:8:// survives (PRD §42).
+packages/data-plane/src/media.ts:12:// default (PRD §21). If no slate is prepared, synthetic refs are emitted as a
+packages/data-plane/src/media.ts:34:  /** Channel id, used to pick the channel slate (PRD §21). */
+packages/data-plane/src/media.ts:94:      // Creative not prepared/stored → degrade this slot to slate (PRD §42).
+packages/data-plane/src/avails.test.ts:8:describe("detectAvails (PRD §9, §41)", () => {
+packages/data-plane/src/avails.test.ts:41:  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+8b0f29f00026:/app#

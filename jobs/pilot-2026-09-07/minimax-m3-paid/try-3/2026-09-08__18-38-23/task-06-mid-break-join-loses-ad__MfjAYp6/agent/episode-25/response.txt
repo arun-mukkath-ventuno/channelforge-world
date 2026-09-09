@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I understand the code structure. Let me design the fix:\n\n1. Track the MEDIA-SEQUENCE value at the start of the playlist window (when we first see MEDIA-SEQUENCE).\n2. Track the measured duration since the last CUE-IN (or since the start of the window).\n3. When we see a CUE-IN and `open` is null (CUE-OUT scrolled out), create an avail with:\n   - startSequence = the MEDIA-SEQUENCE at the start of the window\n   - measuredDuration = the measured duration since the last CUE-IN\n   - startLine = the line after the last CUE-IN (or 0 if no previous CUE-IN)\n   - endLine = the CUE-IN line\n\nLet me implement this fix.",
+  "plan": "Write the fix to avails.ts. I'll track the window start sequence and the measured duration since the last CUE-IN.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/packages/data-plane/src/avails.ts | wc -l\n",
+      "duration": 0.1
+    }
+  ]
+}

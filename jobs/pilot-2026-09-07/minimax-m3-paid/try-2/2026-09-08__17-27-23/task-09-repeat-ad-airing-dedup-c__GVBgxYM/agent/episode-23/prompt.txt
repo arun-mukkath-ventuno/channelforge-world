@@ -1,0 +1,38 @@
+New Terminal Output:
+
+d71dcf74f9c3:/app# cat > /tmp/ssai_patch.py << 'EOF'
+> import re
+>
+> with open('/app/src/lib/ssai.ts', 'r') as f:
+>     content = f.read()
+>
+> # Replace sendAdBeacon function to accept opportunityId and include event_id
+> old_func = '''/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+> export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+>   const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });'''
+>
+> new_func = '''/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback.
+>  *  `opportunityId` uniquely identifies this airing of the creative (e.g. the ad window's
+>  *  start epoch ms). It's folded into the event_id so two distinct airings of the same
+>  *  creative in the same session produce different ids and are both recorded, while
+>  *  genuine re-sends of the same beacon (e.g. after a manifest refresh) still dedup. */
+> export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, opportunityId: string | number): void {
+>   const eventId = `evt_${sessionId}_${opportunityId}_${adId}_${event}`;
+>   const body = JSON.stringify({ event, event_id: eventId, session_id: sessionId, ad_id: adId, opportunity_id: String(opportunityId) });'''
+>
+> content = content.replace(old_func, new_func)
+>
+> # Replace the call site to pass w.start
+> old_call = '''          sendAdBeacon(opts.sessionId, beacon, w.adId);'''
+> new_call = '''          sendAdBeacon(opts.sessionId, beacon, w.adId, w.start);'''
+>
+> content = content.replace(old_call, new_call)
+>
+> with open('/app/src/lib/ssai.ts', 'w') as f:
+>     f.write(content)
+>
+> print('Patched successfully')
+> EOF
+d71dcf74f9c3:/app# python3 /tmp/ssai_patch.py
+Patched successfully
+d71dcf74f9c3:/app#

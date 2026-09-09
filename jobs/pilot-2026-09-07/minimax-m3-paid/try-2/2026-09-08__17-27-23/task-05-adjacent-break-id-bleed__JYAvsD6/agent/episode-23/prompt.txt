@@ -1,0 +1,82 @@
+New Terminal Output:
+
+cbccd910d082:/app# cat > /tmp/test-bug.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Back-to-back breaks: CUE-IN immediately followed by CUE-OUT, no segments between.
+> const manifest = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXTINF:6.000,
+> content-0.ts
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-1",PLANNED-DURATION=30,SCTE35-OUT=0xFC
+> #EXTINF:6.000,
+> seg1-1.ts
+> #EXTINF:6.000,
+> seg1-2.ts
+> #EXTINF:6.000,
+> seg1-3.ts
+> #EXTINF:6.000,
+> seg1-4.ts
+> #EXTINF:6.000,
+> seg1-5.ts
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-2",PLANNED-DURATION=30,SCTE35-OUT=0xFC
+> #EXTINF:6.000,
+> seg2-1.ts
+> #EXTINF:6.000,
+> seg2-2.ts
+> #EXTINF:6.000,
+> seg2-3.ts
+> #EXTINF:6.000,
+> seg2-4.ts
+> #EXTINF:6.000,
+> seg2-5.ts
+> #EXT-X-CUE-IN`;
+>
+> const avails = detectAvails(manifest, "channel_test");
+> console.log(JSON.stringify(avails, null, 2));
+> console.log("\nExpected:");
+> console.log("avails[0].externalBreakId === 'BRK-1'");
+> console.log("avails[1].externalBreakId === 'BRK-2'");
+> console.log("\nActual:");
+> console.log("avails[0].externalBreakId:", avails[0]?.externalBreakId);
+> console.log("avails[1].externalBreakId:", avails[1]?.externalBreakId);
+> EOF
+cbccd910d082:/app# cd /app && npx tsx /tmp/test-bug.ts
+[
+  {
+    "opportunityId": "opp_channel_test_1",
+    "channelId": "channel_test",
+    "externalBreakId": "BRK-1",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 30,
+    "startSequence": 1,
+    "startLine": 6,
+    "endLine": 18
+  },
+  {
+    "opportunityId": "opp_channel_test_6",
+    "channelId": "channel_test",
+    "externalBreakId": "BRK-2",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 30,
+    "startSequence": 6,
+    "startLine": 19,
+    "endLine": 31
+  }
+]
+
+Expected:
+avails[0].externalBreakId === 'BRK-1'
+avails[1].externalBreakId === 'BRK-2'
+
+Actual:
+avails[0].externalBreakId: BRK-1
+avails[1].externalBreakId: BRK-2
+cbccd910d082:/app#

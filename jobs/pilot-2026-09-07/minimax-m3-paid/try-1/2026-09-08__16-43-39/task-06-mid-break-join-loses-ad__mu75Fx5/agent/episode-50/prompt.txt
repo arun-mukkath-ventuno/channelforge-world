@@ -1,0 +1,80 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat > /tmp/test_bug3.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Early viewer - all segments present
+> const early = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:100
+> #EXTINF:6.000,
+> seg100.ts
+> #EXTINF:6.000,
+> seg101.ts
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg102.ts
+> #EXTINF:6.000,
+> seg103.ts
+> #EXTINF:6.000,
+> seg104.ts
+> #EXTINF:6.000,
+> seg105.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg106.ts
+> `;
+>
+> // Mid-break viewer - first inside-avail scrolled off, CUE-OUT still in window
+> const midBreak = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:103
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg103.ts
+> #EXTINF:6.000,
+> seg104.ts
+> #EXTINF:6.000,
+> seg105.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg106.ts
+> `;
+>
+> console.log("Early viewer:");
+> console.log(JSON.stringify(detectAvails(early, "ch"), null, 2));
+>
+> console.log("\nMid-break viewer (CUE-OUT still present):");
+> console.log(JSON.stringify(detectAvails(midBreak, "ch"), null, 2));
+> EOF
+8b0f29f00026:/app# npx tsx /tmp/test_bug3.ts
+Early viewer:
+[
+  {
+    "opportunityId": "opp_ch_102",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 24,
+    "startSequence": 102,
+    "startLine": 8,
+    "endLine": 17
+  }
+]
+
+Mid-break viewer (CUE-OUT still present):
+[
+  {
+    "opportunityId": "opp_ch_103",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 18,
+    "startSequence": 103,
+    "startLine": 4,
+    "endLine": 11
+  }
+]
+8b0f29f00026:/app#

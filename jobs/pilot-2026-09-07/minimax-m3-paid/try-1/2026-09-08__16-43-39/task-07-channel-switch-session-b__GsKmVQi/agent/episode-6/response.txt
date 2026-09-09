@@ -1,0 +1,10 @@
+{
+  "analysis": "I see the bug! The `ensureSession` function uses `ON CONFLICT (id) DO NOTHING`, which means if a session already exists, it won't update the channel_id. This is the defect — when a session continues under a different channel, the channel_id isn't updated. Let me look at how this is called.",
+  "plan": "Check how ensureSession is called in the data-plane to confirm my understanding of the bug.",
+  "commands": [
+    {
+      "keystrokes": "grep -rn \"ensureSession\" packages/\n",
+      "duration": 0.1
+    }
+  ]
+}

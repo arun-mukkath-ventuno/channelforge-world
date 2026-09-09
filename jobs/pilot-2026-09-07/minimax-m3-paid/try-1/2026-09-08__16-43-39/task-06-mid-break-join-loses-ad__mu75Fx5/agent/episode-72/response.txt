@@ -1,0 +1,14 @@
+{
+  "analysis": "Only the docker DNS resolver is listening, no app services. Let me check if there are services on other hosts (this container might be part of a docker compose).",
+  "plan": "Check for docker compose / look at hosts.",
+  "commands": [
+    {
+      "keystrokes": "cat /etc/hosts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "curl -s http://localhost:4010/health 2>&1; echo; curl -s http://localhost:4000/health 2>&1; echo; curl -s http://localhost:8080/ 2>&1\n",
+      "duration": 5.0
+    }
+  ]
+}

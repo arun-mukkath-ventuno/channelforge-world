@@ -1,0 +1,51 @@
+New Terminal Output:
+
+8b0f29f00026:/app# ls -la packages/control-plane/src/
+total 100
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 ..
+-rw-r--r--    1 root     root          4797 Sep  5 08:18 beacons.test.ts
+-rw-r--r--    1 root     root          3516 Sep  5 08:18 beacons.ts
+-rw-r--r--    1 root     root          2635 Sep  5 08:18 events-normalize.test.ts
+-rw-r--r--    1 root     root          3959 Sep  5 08:18 events-normalize.ts
+-rw-r--r--    1 root     root          9527 Sep  5 08:18 server.test.ts
+-rw-r--r--    1 root     root         22957 Sep  5 08:18 server.ts
+-rw-r--r--    1 root     root          2879 Sep  5 08:18 vast-fetch.test.ts
+-rw-r--r--    1 root     root          2530 Sep  5 08:18 vast-fetch.ts
+-rw-r--r--    1 root     root          4782 Sep  5 08:18 vast-inventory.test.ts
+-rw-r--r--    1 root     root          3934 Sep  5 08:18 vast-inventory.ts
+-rw-r--r--    1 root     root          5133 Sep  5 08:18 vast.test.ts
+-rw-r--r--    1 root     root          5874 Sep  5 08:18 vast.ts
+8b0f29f00026:/app# grep -rn "opportunity" packages/control-plane/src/ | head -30
+packages/control-plane/src/server.ts:5:// the opportunity + decision + pod, and writes the pod to the Redis cache that
+packages/control-plane/src/server.ts:167:      opportunity_id?: string;
+packages/control-plane/src/server.ts:172:    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+packages/control-plane/src/server.ts:173:      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+packages/control-plane/src/server.ts:178:    const opportunity: AdOpportunity = {
+packages/control-plane/src/server.ts:179:      opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:197:      opportunity,
+packages/control-plane/src/server.ts:208:    // Persist opportunity + session + decision atomically (PRD §46, §47).
+packages/control-plane/src/server.ts:211:      await oppsRepo.upsertOpportunity(tx, opportunity);
+packages/control-plane/src/server.ts:220:        ["ad_opportunity_detected", {}],
+packages/control-plane/src/server.ts:229:          opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:239:      opportunityId: body.opportunity_id,
+packages/control-plane/src/server.ts:281:  // Admin-gated (not in the public allowlist above). One row per opportunity, keyed by the
+packages/control-plane/src/server.ts:319:  app.get("/v1/debug/opportunity/:id", async (req) => {
+packages/control-plane/src/server.ts:321:    return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+packages/control-plane/src/events-normalize.ts:51:  opportunity_id?: string;
+packages/control-plane/src/events-normalize.ts:69:  opportunityId: string | null;
+packages/control-plane/src/events-normalize.ts:114:    opportunityId: raw.opportunity_id ?? null,
+packages/control-plane/src/beacons.test.ts:64:    const ev = { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId: "cr_vast_1" };
+packages/control-plane/src/beacons.test.ts:71:    expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "o", creati
+veId: "cr_house" })).toBe(0);
+packages/control-plane/src/beacons.test.ts:72:    expect(await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: null, opportunityId: "o", creati
+veId: "cr_vast_1" })).toBe(0);
+packages/control-plane/src/beacons.test.ts:85:    await enqueueEventBeacons(db, { eventType: "ad_impression", sessionId: "s1", opportunityId: "opp1", creativeId
+: "cr_vast_1" });
+packages/control-plane/src/beacons.ts:32:  ev: { eventType: string; sessionId?: string | null; opportunityId?: string | null; creativeId?: string | null },
+packages/control-plane/src/beacons.ts:34:  if (!ev.creativeId || !ev.sessionId || !ev.opportunityId) return 0;
+packages/control-plane/src/beacons.ts:41:      opportunityId: ev.opportunityId,
+packages/control-plane/src/server.test.ts:196:        opportunity_id: "opp_channel_yoga_202",
+packages/control-plane/src/server.test.ts:205:    const { breaks } = res.json() as { breaks: Array<{ opportunityId: string; externalBreakId: string | null }> };
+packages/control-plane/src/server.test.ts:208:      opportunityId: "opp_channel_yoga_202",
+8b0f29f00026:/app#

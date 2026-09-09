@@ -1,0 +1,20 @@
+
+
+{
+  "analysis": "Now let me update the call site in `startAdBeaconWatcher` to pass `w.start` as the pod_id.",
+  "plan": "Let me edit the watcher to pass `w.start` as the pod_id.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's|sendAdBeacon(opts.sessionId, beacon, w.adId);|sendAdBeacon(opts.sessionId, beacon, w.adId, String(w.start));|' src/lib/ssai.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '40,55p' src/lib/ssai.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '155,170p' src/lib/ssai.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

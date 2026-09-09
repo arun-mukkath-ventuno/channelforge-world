@@ -1,0 +1,64 @@
+New Terminal Output:
+
+d71dcf74f9c3:/app# cat /app/src/lib/ssai.ts | head -60
+// SSAI (server-side ad insertion) client — the AD leg of the Stream Telemetry Blueprint.
+//
+// For channels with an `ssaiChannel`, the player requests a session from the ad server, plays the
+// returned stitched `playback_url` (ChannelForge content + spliced ads), and fires per-ad quartile
+// beacons. This is SEPARATE from the audience telemetry in `telemetry-store` / `/api/fast/events`
+// (concurrents, QoE) — that stays untouched; ad events go to the SSAI's `/v1/events`.
+
+export const SSAI_BASE = (
+  process.env.NEXT_PUBLIC_SSAI_BASE || "https://ssai.ventunotech.com"
+).replace(/\/$/, "");
+
+export interface SsaiSession {
+  sessionId: string;
+  playbackUrl: string;
+}
+
+/** Create a playback session and get the stitched manifest URL for an SSAI channel. */
+export async function createSsaiSession(ssaiChannel: string): Promise<SsaiSession | null> {
+  try {
+    const res = await fetch(`${SSAI_BASE}/v1/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel_id: ssaiChannel }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d?.session_id || !d?.playback_url) return null;
+    return { sessionId: String(d.session_id), playbackUrl: String(d.playback_url) };
+  } catch {
+    return null;
+  }
+}
+
+export type AdBeacon =
+  | "ad_impression"
+  | "ad_start"
+  | "ad_first_quartile"
+  | "ad_midpoint"
+  | "ad_third_quartile"
+  | "ad_complete";
+
+/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback.
+ *  `opportunityId` uniquely identifies this airing of the creative (e.g. the ad window's
+ *  start epoch ms). It's folded into the event_id so two distinct airings of the same
+ *  creative in the same session produce different ids and are both recorded, while
+ *  genuine re-sends of the same beacon (e.g. after a manifest refresh) still dedup. */
+export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, opportunityId: string | number): void {
+  const eventId = `evt_${sessionId}_${opportunityId}_${adId}_${event}`;
+  const body = JSON.stringify({ event, event_id: eventId, session_id: sessionId, ad_id: adId, opportunity_id: String(opportunityId) });
+  try {
+    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+      navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: "application/json" }));
+    } else {
+      void fetch(`${SSAI_BASE}/v1/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      });
+    }
+d71dcf74f9c3:/app#

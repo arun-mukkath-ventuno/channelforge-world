@@ -1,0 +1,25 @@
+New Terminal Output:
+
+8b0f29f00026:/app# for ip in 172.20.0.2 172.20.0.4 172.20.0.5; do echo "=== $ip ==="; timeout 1 bash -c "echo > /dev/tcp/$ip/4010 2>/dev/null && echo 'data-plan
+e (4010) open' || echo 'data-plane (4010) closed'"; timeout 1 bash -c "echo > /dev/tcp/$ip/4000 2>/dev/null && echo 'control-plane (4000) open' || echo 'control
+-plane (4000) closed'"; timeout 1 bash -c "echo > /dev/tcp/$ip/8080 2>/dev/null && echo 'channelforge (8080) open' || echo 'channelforge (8080) closed'"; done 2
+>&1
+=== 172.20.0.2 ===
+bash: connect: Connection refused
+bash: line 1: /dev/tcp/172.20.0.2/4010: Connection refused
+data-plane (4010) closed
+bash: connect: Connection refused
+bash: line 1: /dev/tcp/172.20.0.2/4000: Connection refused
+control-plane (4000) closed
+bash: connect: Connection refused
+bash: line 1: /dev/tcp/172.20.0.2/8080: Connection refused
+channelforge (8080) closed
+=== 172.20.0.4 ===
+Terminated                 timeout 1 bash -c "echo > /dev/tcp/$ip/4010 2>/dev/null && echo 'data-plane (4010) open' || echo 'data-plane (4010) closed'"
+Terminated                 timeout 1 bash -c "echo > /dev/tcp/$ip/4000 2>/dev/null && echo 'control-plane (4000) open' || echo 'control-plane (4000) closed'"
+Terminated                 timeout 1 bash -c "echo > /dev/tcp/$ip/8080 2>/dev/null && echo 'channelforge (8080) open' || echo 'channelforge (8080) closed'"
+=== 172.20.0.5 ===
+Terminated                 timeout 1 bash -c "echo > /dev/tcp/$ip/4010 2>/dev/null && echo 'data-plane (4010) open' || echo 'data-plane (4010) closed'"
+Terminated                 timeout 1 bash -c "echo > /dev/tcp/$ip/4000 2>/dev/null && echo 'control-plane (4000) open' || echo 'control-plane (4000) closed'"
+Terminated                 timeout 1 bash -c "echo > /dev/tcp/$ip/8080 2>/dev/null && echo 'channelforge (8080) open' || echo 'channelforge (8080) closed'"
+8b0f29f00026:/app#

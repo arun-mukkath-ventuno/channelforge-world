@@ -1,0 +1,85 @@
+New Terminal Output:
+
+497e45620a91:/app# cat /reference/ssaiadserver/persistence/repositories/events.ts
+// Append-only event stream (PRD §26, §29, §30). Source for analytics.
+
+import type { Queryable } from "../db.js";
+import { toIso } from "../map.js";
+
+export interface EventInput {
+  eventId: string;
+  eventType: string;
+  ts?: string;
+  sessionId?: string | null;
+  channelId?: string | null;
+  opportunityId?: string | null;
+  podId?: string | null;
+  adId?: string | null;
+  campaignId?: string | null;
+  creativeId?: string | null;
+  programId?: string | null;
+  playheadPosition?: number | null;
+  deviceType?: string | null;
+  country?: string | null;
+  payload?: unknown;
+}
+
+export async function appendEvent(db: Queryable, e: EventInput): Promise<void> {
+  await db.query(
+    `INSERT INTO events
+       (event_id, event_type, ts, session_id, channel_id, opportunity_id, pod_id, ad_id,
+        campaign_id, creative_id, program_id, playhead_position, device_type, country, payload)
+     VALUES ($1, $2, COALESCE($3, now()), $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15::jsonb)
+     ON CONFLICT (event_id) DO NOTHING`,
+    [
+      e.eventId,
+      e.eventType,
+      e.ts ?? null,
+      e.sessionId ?? null,
+      e.channelId ?? null,
+      e.opportunityId ?? null,
+      e.podId ?? null,
+      e.adId ?? null,
+      e.campaignId ?? null,
+      e.creativeId ?? null,
+      e.programId ?? null,
+      e.playheadPosition ?? null,
+      e.deviceType ?? null,
+      e.country ?? null,
+      e.payload === undefined ? null : JSON.stringify(e.payload),
+    ],
+  );
+}
+
+export interface StoredEvent extends Omit<EventInput, "payload"> {
+  ts: string;
+  payload: unknown;
+}
+
+export async function getEventsBySession(db: Queryable, sessionId: string): Promise<StoredEvent[]> {
+  const rows = (
+    await db.query<Record<string, unknown>>(
+      "SELECT * FROM events WHERE session_id = $1 ORDER BY ts",
+      [sessionId],
+    )
+  ).rows;
+
+  return rows.map((r) => ({
+    eventId: r.event_id as string,
+    eventType: r.event_type as string,
+    ts: toIso(r.ts),
+    sessionId: (r.session_id as string) ?? null,
+    channelId: (r.channel_id as string) ?? null,
+    opportunityId: (r.opportunity_id as string) ?? null,
+    podId: (r.pod_id as string) ?? null,
+    adId: (r.ad_id as string) ?? null,
+    campaignId: (r.campaign_id as string) ?? null,
+    creativeId: (r.creative_id as string) ?? null,
+    programId: (r.program_id as string) ?? null,
+    playheadPosition: r.playhead_position == null ? null : Number(r.playhead_position),
+    deviceType: (r.device_type as string) ?? null,
+    country: (r.country as string) ?? null,
+    payload: typeof r.payload === "string" ? JSON.parse(r.payload) : r.payload,
+  }));
+}
+497e45620a91:/app#

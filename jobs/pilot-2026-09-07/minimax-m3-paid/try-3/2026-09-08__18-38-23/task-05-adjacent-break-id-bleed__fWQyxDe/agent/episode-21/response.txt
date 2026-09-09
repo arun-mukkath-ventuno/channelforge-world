@@ -1,0 +1,14 @@
+{
+  "analysis": "Now I'll apply the fix. I need to add `blockBreakId = undefined;` after `open = null;` in the CUE-IN handler. This ensures that when the next CUE-OUT is seen (in a back-to-back scenario), it won't pick up the stale blockBreakId.",
+  "plan": "Apply the fix using sed.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's/      open = null;$/      open = null;\\n      blockBreakId = undefined;/' packages/data-plane/src/avails.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '90,115p' packages/data-plane/src/avails.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

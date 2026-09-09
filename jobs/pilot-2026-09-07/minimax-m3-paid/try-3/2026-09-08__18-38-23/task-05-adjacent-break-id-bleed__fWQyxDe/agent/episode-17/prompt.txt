@@ -1,0 +1,50 @@
+New Terminal Output:
+
+cbd3d522fcae:/app/packages/data-plane# cd /app
+cbd3d522fcae:/app# cat > /tmp/test_bug.mjs << 'EOF'
+> import { detectAvails } from "./packages/data-plane/src/avails.ts";
+>
+> // Back-to-back breaks where DATERANGE comes after the segment URI in the first break
+> const manifest = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "a.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-1",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "b.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-2",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+>
+> const avails = detectAvails(manifest, "ch");
+> console.log("Avails found:", avails.length);
+> for (const a of avails) {
+>   console.log(`  opp=${a.opportunityId}, externalBreakId=${a.externalBreakId}`);
+> }
+> EOF
+cbd3d522fcae:/app# cd /app && npx tsx /tmp/test_bug.mjs
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/tmp/packages/data-plane/src/avails.ts' imported from /tmp/test_bug.mjs
+Did you mean to import "../app/packages/data-plane/src/avails.ts"?
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:861:10)
+    at defaultResolve (node:internal/modules/esm/resolve:985:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:747:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:783:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///app/node_modules/tsx/dist/register-C4vWVmug.mjs:2:10932)
+    at resolveDirectorySync (file:///app/node_modules/tsx/dist/register-C4vWVmug.mjs:2:12238)
+    at resolveTsPathsSync (file:///app/node_modules/tsx/dist/register-C4vWVmug.mjs:2:13445)
+    at resolve (file:///app/node_modules/tsx/dist/register-C4vWVmug.mjs:2:15991) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///tmp/packages/data-plane/src/avails.ts'
+}
+
+Node.js v22.23.2
+cbd3d522fcae:/app#

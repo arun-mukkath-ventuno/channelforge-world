@@ -1,0 +1,73 @@
+New Terminal Output:
+
+cbccd910d082:/app# cat > /tmp/test-bug.ts << 'EOF'
+> import { detectAvails } from "./packages/data-plane/src/avails.js";
+>
+> // Back-to-back breaks: CUE-IN immediately followed by CUE-OUT, no segments between.
+> // Both breaks have DATERANGE IDs in the typical ChannelForge order (CUE-OUT then DATERANGE).
+> const manifest = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXTINF:6.000,
+> content-0.ts
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-1",PLANNED-DURATION=30,SCTE35-OUT=0xFC
+> #EXTINF:6.000,
+> seg1-1.ts
+> #EXTINF:6.000,
+> seg1-2.ts
+> #EXTINF:6.000,
+> seg1-3.ts
+> #EXTINF:6.000,
+> seg1-4.ts
+> #EXTINF:6.000,
+> seg1-5.ts
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-OUT:30
+> #EXT-X-DATERANGE:ID="BRK-2",PLANNED-DURATION=30,SCTE35-OUT=0xFC
+> #EXTINF:6.000,
+> seg2-1.ts
+> #EXTINF:6.000,
+> seg2-2.ts
+> #EXTINF:6.000,
+> seg2-3.ts
+> #EXTINF:6.000,
+> seg2-4.ts
+> #EXTINF:6.000,
+> seg2-5.ts
+> #EXT-X-CUE-IN`;
+>
+> const avails = detectAvails(manifest, "channel_test");
+> console.log(JSON.stringify(avails, null, 2));
+> console.log("\nExpected:");
+> console.log("avails[0].externalBreakId === 'BRK-1'");
+> console.log("avails[1].externalBreakId === 'BRK-2'");
+> console.log("\nActual:");
+> console.log("avails[0].externalBreakId:", avails[0]?.externalBreakId);
+> console.log("avails[1].externalBreakId:", avails[1]?.externalBreakId);
+> EOF
+cbccd910d082:/app# cd /app && npx tsx /tmp/test-bug.ts
+node:internal/modules/cjs/loader:1430
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module './packages/data-plane/src/avails.js'
+Require stack:
+- /tmp/test-bug.ts
+    at node:internal/modules/cjs/loader:1430:15
+    at nextResolveSimple (/app/node_modules/tsx/dist/register-C557imBs.cjs:10:1006)
+    at /app/node_modules/tsx/dist/register-C557imBs.cjs:9:4959
+    at /app/node_modules/tsx/dist/register-C557imBs.cjs:9:4261
+    at resolveTsPaths (/app/node_modules/tsx/dist/register-C557imBs.cjs:10:759)
+    at /app/node_modules/tsx/dist/register-C557imBs.cjs:10:1199
+    at j._resolveFilename (file:///app/node_modules/tsx/dist/register-C4vWVmug.mjs:2:17957)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1040:19)
+    at defaultResolve (node:internal/modules/cjs/loader:1075:31)
+    at nextStep (node:internal/modules/customization_hooks:189:26) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [ '/tmp/test-bug.ts' ]
+}
+
+Node.js v22.23.2
+cbccd910d082:/app#

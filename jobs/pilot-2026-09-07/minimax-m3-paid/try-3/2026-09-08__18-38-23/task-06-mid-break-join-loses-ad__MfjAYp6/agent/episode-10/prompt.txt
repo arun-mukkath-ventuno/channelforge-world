@@ -1,0 +1,25 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# grep -n 'ad-decision\|ad_decision\|decide\|opportunity\|opps' /app/packages/control-plane/src/server.ts | head -40
+5:// the opportunity + decision + pod, and writes the pod to the Redis cache that
+16:import { decide, signSession, verifySession, type AdOpportunity, type Campaign, type CreativeStatus, type SessionContext } from "@ssai/core";
+26:  opportunities as oppsRepo,
+89:  // Public: health, login, the player endpoints, the ad-decision (internal), and
+97:    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+163:  app.post("/v1/ad-decision", async (req, reply) => {
+167:      opportunity_id?: string;
+172:    if (!body.channel_id || !body.opportunity_id || typeof body.duration !== "number") {
+173:      return reply.code(400).send({ error: "channel_id, opportunity_id and duration are required" });
+178:    const opportunity: AdOpportunity = {
+179:      opportunityId: body.opportunity_id,
+196:    const decision = decide({
+197:      opportunity,
+208:    // Persist opportunity + session + decision atomically (PRD §46, §47).
+211:      await oppsRepo.upsertOpportunity(tx, opportunity);
+220:        ["ad_opportunity_detected", {}],
+229:          opportunityId: body.opportunity_id,
+239:      opportunityId: body.opportunity_id,
+281:  // Admin-gated (not in the public allowlist above). One row per opportunity, keyed by the
+319:  app.get("/v1/debug/opportunity/:id", async (req) => {
+321:    return { opportunityId: id, decisions: await decisionsRepo.getDecisionsByOpportunity(pool, id) };
+e337ca9acc5b:/app#

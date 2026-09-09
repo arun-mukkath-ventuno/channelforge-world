@@ -1,0 +1,23 @@
+New Terminal Output:
+
+53f0dc87b88f:/app# grep -rn "ensureSession\|touchSession" packages/
+packages/control-plane/src/server.ts:133:    await sessionsRepo.ensureSession(pool, {
+packages/control-plane/src/server.ts:210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+packages/control-plane/src/server.ts:266:    for (const sid of touched) await sessionsRepo.touchSession(pool, sid);
+packages/control-plane/dist/server.js:90:        await sessionsRepo.ensureSession(pool, {
+packages/control-plane/dist/server.js:152:            await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id });
+packages/control-plane/dist/server.js:207:            await sessionsRepo.touchSession(pool, sid);
+packages/persistence/src/repositories.test.ts:10:import { ensureSession, getSession } from "./repositories/sessions.js";
+packages/persistence/src/repositories.test.ts:81:    await ensureSession(db, { id: "sess_1", channelId: "channel_food", deviceType: "web", country: "IN" });
+packages/persistence/src/reconciliation.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/reconciliation.test.ts:70:  await ensureSession(db, { id: "s1", channelId: "channel_yoga" });
+packages/persistence/src/reconciliation.test.ts:71:  await ensureSession(db, { id: "s2", channelId: "channel_yoga" });
+packages/persistence/src/analytics.test.ts:11:import { ensureSession } from "./repositories/sessions.js";
+packages/persistence/src/analytics.test.ts:68:  await ensureSession(db, { id: "s1", channelId: "channel_food" });
+packages/persistence/src/repositories/sessions.ts:37:export async function ensureSession(db: Queryable, input: SessionInput): Promise<void> {
+packages/persistence/src/repositories/sessions.ts:54:export async function touchSession(db: Queryable, id: string): Promise<void> {
+packages/persistence/dist/repositories/sessions.js:4:export async function ensureSession(db, input) {
+packages/persistence/dist/repositories/sessions.js:17:export async function touchSession(db, id) {
+packages/persistence/dist/repositories/sessions.d.ts:21:export declare function ensureSession(db: Queryable, input: SessionInput): Promise<void>;
+packages/persistence/dist/repositories/sessions.d.ts:22:export declare function touchSession(db: Queryable, id: string): Promise<void>;
+53f0dc87b88f:/app#

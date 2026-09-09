@@ -1,0 +1,106 @@
+New Terminal Output:
+
+6c4c79003a75:/app# cat packages/control-plane/src/server.test.ts | head -100
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import FormData from "form-data";
+import { newDb } from "pg-mem";
+import { MemoryPodCache, type Pool } from "@ssai/persistence";
+import { MemoryObjectStore } from "@ssai/storage";
+import { buildServer } from "./server.js";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const MIG_DIR = resolve(here, "../../../migrations");
+const SCHEMA = readdirSync(MIG_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+  .join("\n");
+
+function build() {
+  const mem = newDb();
+  mem.public.none(SCHEMA);
+  const { Pool } = mem.adapters.createPg();
+  const pool = new Pool() as unknown as Pool;
+  const store = new MemoryObjectStore();
+  const app = buildServer({ pool, podCache: new MemoryPodCache(), store, logger: false, authDisabled: true });
+  return { app, store };
+}
+
+function buildWithAuth() {
+  const mem = newDb();
+  mem.public.none(SCHEMA);
+  const { Pool } = mem.adapters.createPg();
+  const pool = new Pool() as unknown as Pool;
+  return buildServer({
+    pool,
+    podCache: new MemoryPodCache(),
+    store: new MemoryObjectStore(),
+    logger: false,
+    adminUser: "ops",
+    adminPassword: "s3cret",
+    cookieSecure: false,
+  });
+}
+
+let app: ReturnType<typeof build>["app"];
+let store: ReturnType<typeof build>["store"];
+beforeEach(() => {
+  ({ app, store } = build());
+});
+
+describe("write APIs (PRD §43)", () => {
+  it("creates and lists a channel", async () => {
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/channels",
+      payload: { id: "channel_food", name: "FAST Food", origin_url: "http://origin/food" },
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ id: "channel_food", name: "FAST Food", status: "active" });
+
+    const list = await app.inject({ method: "GET", url: "/v1/channels" });
+    expect(list.json()).toHaveLength(1);
+  });
+
+  it("validates required channel fields", async () => {
+    const res = await app.inject({ method: "POST", url: "/v1/channels", payload: { name: "x" } });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it("creates a campaign with channel targeting and edits it", async () => {
+    await app.inject({ method: "POST", url: "/v1/channels", payload: { id: "channel_food", name: "F", origin_url: "u" } });
+    const created = await app.inject({
+      method: "POST",
+      url: "/v1/campaigns",
+      payload: { id: "camp_1", advertiser: "CoffeeCo", start_date: "2026-01-01T00:00:00Z", end_date: "2026-12-31T00:00:00Z", target_channels: ["channel_food"] }
+,
+    });
+    expect(created.statusCode).toBe(201);
+    expect(created.json()).toMatchObject({ campaignId: "camp_1", targetChannels: ["channel_food"] });
+
+    const edited = await app.inject({ method: "PUT", url: "/v1/campaigns/camp_1", payload: { status: "paused" } });
+    expect(edited.json()).toMatchObject({ status: "paused", targetChannels: ["channel_food"] }); // targeting preserved
+
+    const missing = await app.inject({ method: "PUT", url: "/v1/campaigns/nope", payload: { status: "paused" } });
+    expect(missing.statusCode).toBe(404);
+  });
+
+  it("creates a creative under a campaign", async () => {
+    await app.inject({ method: "POST", url: "/v1/campaigns", payload: { id: "camp_1", advertiser: "A", start_date: "2026-01-01T00:00:00Z", end_date: "2026-12-31
+T00:00:00Z" } });
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/creatives",
+      payload: { id: "cr_1", campaign_id: "camp_1", name: "spot", duration: 30, priority: 10, weight: 100 },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json()).toMatchObject({ creativeId: "cr_1", duration: 30, priority: 10 });
+  });
+
+  it("rejects a creative referencing a missing campaign (FK) with 400", async () => {
+    const res = await app.inject({
+      method: "POST",
+6c4c79003a75:/app#

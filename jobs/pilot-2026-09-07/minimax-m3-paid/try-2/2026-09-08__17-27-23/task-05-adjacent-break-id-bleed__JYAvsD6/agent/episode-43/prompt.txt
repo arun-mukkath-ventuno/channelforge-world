@@ -1,0 +1,30 @@
+New Terminal Output:
+
+cbccd910d082:/app# sed -n '65,90p' /app/packages/data-plane/dist/avails.js
+                ...(declared === undefined ? {} : { declaredDuration: declared }),
+                measuredDuration: open.measuredDuration,
+                startSequence: open.startSequence,
+                ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+                startLine: open.startLine,
+                endLine: i,
+            });
+            open = null;
+            blockBreakId = undefined;
+            continue;
+        }
+        // Count segments (an #EXTINF followed by a URI advances the media sequence).
+        const infMatch = trimmed.match(EXTINF);
+        if (infMatch) {
+            const segDur = Number(infMatch[1]);
+            if (open)
+                open.measuredDuration += segDur;
+            // The URI line follows; advance the sequence when we consume it below.
+        }
+        else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+            // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+            mediaSequence += 1;
+            blockBreakId = undefined;
+        }
+    }
+    return avails;
+cbccd910d082:/app#

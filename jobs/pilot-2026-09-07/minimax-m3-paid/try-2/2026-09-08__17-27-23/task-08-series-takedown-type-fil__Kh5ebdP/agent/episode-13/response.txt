@@ -1,0 +1,14 @@
+{
+  "analysis": "The line was removed, but there's an extra blank line. Let me also fix the docstring to match the original.",
+  "plan": "Clean up the extra blank line and restore the docstring to match the original.",
+  "commands": [
+    {
+      "keystrokes": "python3 -c \"\nimport re\nwith open('app/repositories/rights.py', 'r') as f:\n    content = f.read()\n# Remove the empty line left after removing the scope_type line\ncontent = content.replace('            RightsTakedown.status == \\\"active\\\",\\n\\n            RightsTakedown.scope_id.in_(scope_ids),', '            RightsTakedown.status == \\\"active\\\",\\n            RightsTakedown.scope_id.in_(scope_ids),')\nwith open('app/repositories/rights.py', 'w') as f:\n    f.write(content)\n\"\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "sed -n '160,180p' app/repositories/rights.py\n",
+      "duration": 0.1
+    }
+  ]
+}

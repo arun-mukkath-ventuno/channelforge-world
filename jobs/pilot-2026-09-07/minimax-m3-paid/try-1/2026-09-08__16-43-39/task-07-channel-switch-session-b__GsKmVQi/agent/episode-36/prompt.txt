@@ -1,0 +1,11 @@
+New Terminal Output:
+
+6c4c79003a75:/app# for pid in /proc/[0-9]*/; do p=$(basename $pid); if [ -r $pid/cmdline ]; then cmd=$(cat $pid/cmdline 2>/dev/null | tr '\0' ' '); if [ -n "$cm
+d" ]; then echo "PID $p: $cmd"; fi; fi; done
+PID 1: sleep infinity
+PID 111: asciinema rec --stdin /logs/agent/recording.cast
+PID 115: /bin/bash
+PID 96: tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+PID 97: bash --login
+PID 98: cat
+6c4c79003a75:/app#

@@ -1,0 +1,14 @@
+New Terminal Output:
+
+497e45620a91:/app# grep -n 'pod\|adId\|X-AD' src/lib/ssai.ts
+43:export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+44:  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
+62:  adId: string;
+75:    const adId = attr("X-AD-ID") || attr("ID");
+76:    if (!startDate || !dur || !adId) continue;
+80:    out.push({ adId, start, end: start + seconds * 1000 });
+118:// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+141:  const fired = new Set<string>(); // `${adId}:${start}:${beacon}`
+162:          const key = `${w.adId}:${w.start}:${beacon}`;
+165:          sendAdBeacon(opts.sessionId, beacon, w.adId);
+497e45620a91:/app#

@@ -1,0 +1,38 @@
+New Terminal Output:
+
+497e45620a91:/app# sed -n '80,200p' src/app/api/fast/routes.test.ts
+  });
+});
+
+describe("POST /api/fast/events (A3 · events schema)", () => {
+  const post = (body: unknown) =>
+    eventsPost(new Request("http://x", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+
+  it("accepts a single event and an array", async () => {
+    expect((await (await post({ event: "session_start" })).json()).accepted).toBe(1);
+    expect((await (await post([{ event: "a" }, { event: "b" }])).json()).accepted).toBe(2);
+  });
+
+  it("drops items with no string `event` (the schema's only required field)", async () => {
+    const j = await (await post([{ event: "ok" }, { foo: 1 }, { event: 5 }])).json();
+    expect(j.accepted).toBe(1);
+  });
+
+  it("rejects malformed JSON with 400", async () => {
+    const res = await eventsPost(new Request("http://x", { method: "POST", body: "{" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("the vendored contract requires a string `event`", () => {
+    const schema = JSON.parse(
+      readFileSync(fileURLToPath(new URL("../../../../test/contracts/api/events.schema.json", import.meta.url)), "utf8")
+    );
+    expect(schema.$defs.event.required).toContain("event");
+    expect(schema.$defs.event.properties.event.type).toBe("string");
+  });
+});
+497e45620a91:/app#

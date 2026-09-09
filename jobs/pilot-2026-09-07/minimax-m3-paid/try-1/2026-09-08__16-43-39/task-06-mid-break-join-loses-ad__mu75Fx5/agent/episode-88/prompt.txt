@@ -1,0 +1,36 @@
+New Terminal Output:
+
+8b0f29f00026:/app/packages/data-plane# cd /app && npm test 2>&1 | tail -30
+     18|   const mem = newDb();
+     19|   for (const f of readdirSync(MIG_DIR).filter((f) => f.endsWith(".sql"…
+       |                   ^
+     20|     mem.public.none(readFileSync(join(MIG_DIR, f), "utf8"));
+     21|   }
+ ❯ packages/creative-worker/src/worker.test.ts:57:8
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/16]⎯
+
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > validates, transcodes, stores HLS and marks the creative ready
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails the creative on a duration mismatch, recording the reason
+ (§40)
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails cleanly when transcoding throws
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > prepares from a source stored in the object store (uploaded via
+ API)
+ FAIL  packages/creative-worker/src/worker.test.ts > prepareCreative — state machine (PRD §14) > fails when no source is set
+TypeError: The "path" argument must be of type string or an instance of Buffer or URL. Received undefined
+ ❯ packages/creative-worker/src/worker.test.ts:70:9
+     68|
+     69| afterEach(async () => {
+     70|   await rm(storeRoot, { recursive: true, force: true });
+       |         ^
+     71|   await rm(workDir, { recursive: true, force: true });
+     72| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/16]⎯
+
+ Test Files  7 failed | 15 passed (22)
+      Tests  5 failed | 99 passed (104)
+   Start at  11:42:58
+   Duration  3.29s (transform 271ms, setup 0ms, collect 303ms, tests 66ms, environment 3ms, prepare 657ms)
+
+8b0f29f00026:/app#

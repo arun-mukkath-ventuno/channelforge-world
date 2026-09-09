@@ -1,0 +1,64 @@
+New Terminal Output:
+
+4838fd889d89:/app# cat > /tmp/patch.py << 'PYEOF'
+> import re
+>
+> with open('packages/data-plane/src/avails.ts', 'r') as f:
+>     content = f.read()
+>
+> # The CUE-IN handler currently sets open = null. Add blockBreakId = undefined there too.
+> old = '''    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: `opp_${channelId}_${open.startSequence}`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       continue;
+>     }'''
+>
+> new = '''    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: `opp_${channelId}_${open.startSequence}`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       // The block ended at the CUE-IN, so a DATERANGE id from the previous avail cannot carry
+>       // over onto the next avail. (For a normal inter-avail segment the URI line below also
+>       // clears it; this covers back-to-back breaks with no media URI between CUE-IN and the
+>       // next CUE-OUT.)
+>       blockBreakId = undefined;
+>       continue;
+>     }'''
+>
+> if old not in content:
+>     print('ERROR: Could not find the pattern to replace!')
+>     exit(1)
+>
+> content = content.replace(old, new)
+>
+> with open('packages/data-plane/src/avails.ts', 'w') as f:
+>     f.write(content)
+>
+> print('Patch applied successfully.')
+> PYEOF
+4838fd889d89:/app# python3 /tmp/patch.py
+bash: python3: command not found
+4838fd889d89:/app#

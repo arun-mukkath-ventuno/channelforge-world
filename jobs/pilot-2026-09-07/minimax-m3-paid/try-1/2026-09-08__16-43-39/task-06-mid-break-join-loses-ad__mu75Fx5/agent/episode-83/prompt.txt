@@ -1,0 +1,113 @@
+New Terminal Output:
+
+8b0f29f00026:/app/packages/data-plane# cat > /tmp/test_edge.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Edge case 1: normal avail
+> console.log("=== Normal avail (CUE-OUT...CUE-IN) ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> slate.ts
+> #EXT-X-CUE-IN`, "ch"), null, 2));
+>
+> // Edge case 2: incomplete trailing (CUE-OUT only)
+> console.log("\n=== Incomplete trailing (CUE-OUT only) ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> slate.ts`, "ch"), null, 2));
+>
+> // Edge case 3: late mid-break (no CUE-OUT, CUE-IN present)
+> console.log("\n=== Late mid-break (only CUE-IN) ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:106
+> #EXTINF:6.000,
+> slate003.ts
+> #EXTINF:6.000,
+> slate004.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg110.ts`, "ch"), null, 2));
+>
+> // Edge case 4: CUE-IN without CUE-OUT and no preceding segments
+> console.log("\n=== CUE-IN without CUE-OUT, no preceding segments ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> post.ts`, "ch"), null, 2));
+>
+> // Edge case 5: multiple avails, with first CUE-IN without preceding CUE-OUT
+> console.log("\n=== Multiple avails, first mid-break ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:104
+> #EXTINF:6.000,
+> slate.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> pre.ts
+> #EXT-X-CUE-OUT:15
+> #EXTINF:6.000,
+> slate2.ts
+> #EXT-X-CUE-IN`, "ch"), null, 2));
+> EOF
+8b0f29f00026:/app/packages/data-plane# npx tsx /tmp/test_edge.ts
+=== Normal avail (CUE-OUT...CUE-IN) ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 6,
+    "startSequence": 0,
+    "startLine": 2,
+    "endLine": 5
+  }
+]
+
+=== Incomplete trailing (CUE-OUT only) ===
+[]
+
+=== Late mid-break (only CUE-IN) ===
+[
+  {
+    "opportunityId": "opp_ch_106",
+    "channelId": "ch",
+    "duration": 12,
+    "measuredDuration": 12,
+    "startSequence": 106,
+    "startLine": 2,
+    "endLine": 6
+  }
+]
+
+=== CUE-IN without CUE-OUT, no preceding segments ===
+[]
+
+=== Multiple avails, first mid-break ===
+[
+  {
+    "opportunityId": "opp_ch_104",
+    "channelId": "ch",
+    "duration": 6,
+    "measuredDuration": 6,
+    "startSequence": 104,
+    "startLine": 2,
+    "endLine": 4
+  },
+  {
+    "opportunityId": "opp_ch_106",
+    "channelId": "ch",
+    "duration": 15,
+    "declaredDuration": 15,
+    "measuredDuration": 6,
+    "startSequence": 106,
+    "startLine": 7,
+    "endLine": 10
+  }
+]
+8b0f29f00026:/app/packages/data-plane#

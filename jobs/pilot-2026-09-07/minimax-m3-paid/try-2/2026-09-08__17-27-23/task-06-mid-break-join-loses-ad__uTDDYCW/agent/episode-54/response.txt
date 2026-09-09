@@ -1,0 +1,14 @@
+{
+  "analysis": "The docker-entrypoint.sh is just a node wrapper. Let me check what's running and how the service is started. The PID 1 process is 'sleep infinity' so the service isn't running normally - this is a test/verification environment.",
+  "plan": "Check if there's some sort of harness or test setup that runs the service.",
+  "commands": [
+    {
+      "keystrokes": "ls /tmp/\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /proc/1/cmdline | tr '\\0' ' '\n",
+      "duration": 0.1
+    }
+  ]
+}

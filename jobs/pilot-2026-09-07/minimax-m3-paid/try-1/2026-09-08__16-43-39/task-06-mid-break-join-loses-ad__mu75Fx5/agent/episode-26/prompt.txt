@@ -1,0 +1,70 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat > /tmp/test_bug.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Original manifest - viewer joins at start of break
+> const original = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:100
+> #EXTINF:6.000,
+> seg100.ts
+> #EXTINF:6.000,
+> seg101.ts
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> slate001.ts
+> #EXTINF:6.000,
+> slate002.ts
+> #EXTINF:6.000,
+> slate003.ts
+> #EXTINF:6.000,
+> slate004.ts
+> #EXTINF:6.000,
+> slate005.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg110.ts
+> `;
+>
+> // Mid-break viewer - several segments have scrolled off, including the FIRST inside-avail
+> const midBreak = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:106
+> #EXTINF:6.000,
+> slate003.ts
+> #EXTINF:6.000,
+> slate004.ts
+> #EXTINF:6.000,
+> slate005.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg110.ts
+> `;
+>
+> console.log("Original viewer avails:");
+> console.log(JSON.stringify(detectAvails(original, "ch"), null, 2));
+>
+> console.log("\nMid-break viewer avails:");
+> console.log(JSON.stringify(detectAvails(midBreak, "ch"), null, 2));
+> EOF
+8b0f29f00026:/app# cd /app && npx tsx /tmp/test_bug.ts
+Original viewer avails:
+[
+  {
+    "opportunityId": "opp_ch_102",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 30,
+    "startSequence": 102,
+    "startLine": 8,
+    "endLine": 19
+  }
+]
+
+Mid-break viewer avails:
+[]
+8b0f29f00026:/app#

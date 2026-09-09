@@ -1,0 +1,47 @@
+New Terminal Output:
+
+840252e8a3ed:/app# grep -n "session\|Session\|ensureSession" packages/control-plane/src/server.ts | head -50
+3:// Owns campaigns, creatives, channels, sessions, ad decisioning, event
+16:import { decide, signSession, verifySession, type AdOpportunity, type Campaign, type CreativeStatus, type SessionContext } from "@ssai/core";
+25:  sessions as sessionsRepo,
+46:  sessionSecret?: string;
+48:  sessionTtlSeconds?: number;
+63:export const DEV_SESSION_SECRET = "dev-insecure-session-secret";
+75:  const sessionSecret = deps.sessionSecret ?? process.env.SESSION_SIGNING_SECRET ?? DEV_SESSION_SECRET;
+76:  const sessionTtlSeconds = deps.sessionTtlSeconds ?? Number(process.env.SESSION_TTL_SECONDS ?? 86400);
+97:    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+100:    const claims = token ? verifySession(token, sessionSecret) : null;
+109:    const token = signSession(adminUser, "admin", sessionSecret, { ttlSeconds: sessionTtlSeconds });
+115:      maxAge: sessionTtlSeconds,
+127:  // ── Sessions (PRD §11, §12) ──────────────────────────────────────────────
+128:  app.post("/v1/sessions", async (req, reply) => {
+132:    const sessionId = `sess_${randomUUID()}`;
+133:    await sessionsRepo.ensureSession(pool, {
+134:      id: sessionId,
+141:      eventType: "session_created",
+142:      sessionId,
+147:    const token = signSession(sessionId, body.channel_id, sessionSecret, { ttlSeconds: sessionTtlSeconds });
+149:      session_id: sessionId,
+156:  app.get("/v1/sessions/:id", async (req, reply) => {
+158:    const session = await sessionsRepo.getSession(pool, id);
+159:    return session ?? reply.code(404).send({ error: "not_found" });
+165:      session_id?: string;
+176:    const sessionId = body.session_id ?? `sess_${randomUUID()}`;
+187:    const session: SessionContext = { sessionId, channelId: body.channel_id };
+198:      session,
+208:    // Persist opportunity + session + decision atomically (PRD §46, §47).
+210:      await sessionsRepo.ensureSession(tx, { id: sessionId, channelId: body.channel_id! });
+227:          sessionId,
+238:      sessionId,
+261:      if (normalized.sessionId) touched.add(normalized.sessionId);
+265:    // Telemetry keeps a session "active" for streaming analytics.
+266:    for (const sid of touched) await sessionsRepo.touchSession(pool, sid);
+304:  app.get("/v1/sessions", async (req) => {
+306:    return sessionsRepo.listSessions(pool, q.limit ? Number(q.limit) : undefined);
+310:  app.get("/v1/debug/session/:id", async (req) => {
+312:    const [session, decisions, events] = await Promise.all([
+313:      sessionsRepo.getSession(pool, id),
+314:      decisionsRepo.getDecisionsBySession(pool, id),
+315:      eventsRepo.getEventsBySession(pool, id),
+317:    return { session, decisions, events };
+840252e8a3ed:/app#

@@ -1,0 +1,14 @@
+{
+  "analysis": "Stability test passes - same oppId for both. Now let me also write a test that simulates the actual bug scenario and verifies it's fixed.",
+  "plan": "Run a comprehensive test of the bug scenario.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test_bug_real.ts << 'EOF'\nimport { detectAvails } from \"/app/packages/data-plane/src/avails.ts\";\n\n// Late mid-break viewer - CUE-OUT scrolled off, CUE-IN present, no DATERANGE\nconst late = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:106\n#EXTINF:6.000,\nslate003.ts\n#EXTINF:6.000,\nslate004.ts\n#EXTINF:6.000,\nslate005.ts\n#EXT-X-CUE-IN\n#EXTINF:6.000,\nseg110.ts\n`;\n\nconst result = detectAvails(late, \"ch\");\nconsole.log(\"Late mid-break viewer (CUE-OUT scrolled off):\");\nconsole.log(JSON.stringify(result, null, 2));\n\nif (result.length === 0) {\n  console.log(\"\\n❌ BUG STILL PRESENT - no avail detected!\");\n} else {\n  console.log(\"\\n✓ FIX WORKS - avail detected\");\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npx tsx /tmp/test_bug_real.ts\n",
+      "duration": 5.0
+    }
+  ]
+}

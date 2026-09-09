@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I understand. The `active_takedown_for_asset` function in the repository is called by `evaluate_asset` to check whether an asset is under an active takedown. The original code looked for any takedown (asset-scoped or series-scoped) with the matching scope_id. The bug is that the modified code restricts to only `scope_type == 'asset'`, which misses series-scoped takedowns. The fix is to remove this constraint.\n\nLet me also check the tests to ensure I understand the expected behavior.",
+  "plan": "Let me check the tests to ensure my understanding is correct.",
+  "commands": [
+    {
+      "keystrokes": "ls tests/\n",
+      "duration": 0.1
+    }
+  ]
+}

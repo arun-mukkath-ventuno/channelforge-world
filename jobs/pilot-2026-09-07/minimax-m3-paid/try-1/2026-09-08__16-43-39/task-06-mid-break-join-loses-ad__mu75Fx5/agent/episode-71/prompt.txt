@@ -1,0 +1,34 @@
+New Terminal Output:
+
+8b0f29f00026:/app/packages/data-plane# head -30 dist/avails.js
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+//
+// A session whose *first* manifest request for a given break lands after the
+// break has already been playing for a while may receive a manifest whose
+// CUE-OUT has already scrolled off the live window but whose CUE-IN is still
+// present (PRD §41). Such a window is the back end of an in-progress break
+// without its start marker. The detected avail is synthesized so the data
+// plane still decides an ad for it; otherwise the session sees the origin
+// slate for the rest of the break and never shows up as having tried.
+import { parseMarkerLine } from "@ssai/core";
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41.
+ *
+ *  Symmetrically, a manifest whose CUE-IN is present but whose CUE-OUT has
+ *  already scrolled off the live window is the back of an in-progress break;
+ *  it is synthesized into an avail anchored on the first visible inside-avail
+ *  segment so a freshly-tuned-in session still gets a decision for the rest
+ *  of the break. */
+export function detectAvails(manifest, channelId) {
+    const lines = manifest.split("\n");
+    let mediaSequence = 0;
+8b0f29f00026:/app/packages/data-plane#

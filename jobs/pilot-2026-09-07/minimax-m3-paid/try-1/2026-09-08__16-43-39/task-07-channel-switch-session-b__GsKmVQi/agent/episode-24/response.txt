@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I have a clear understanding of the bug. The `ensureSession` function in `packages/persistence/src/repositories/sessions.ts` uses `ON CONFLICT (id) DO NOTHING`, which means when a session is created for the first time, the channel_id is set, but if the same session_id is used again with a different channel_id (because the viewer switched channels but kept the same session_id), the channel_id is NOT updated. The fix is to change the ON CONFLICT clause to update the channel_id and last_activity_at when a conflict occurs.",
+  "plan": "Make the fix to the sessions.ts file. Change `ON CONFLICT (id) DO NOTHING` to `ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id, last_activity_at = now()`. Also update the dist file.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/fix_sessions.py << 'EOF'\nimport re\n\nfile_path = 'packages/persistence/src/repositories/sessions.ts'\nwith open(file_path, 'r') as f:\n    content = f.read()\n\nold = '''INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)\n     VALUES ($1, $2, $3, $4, $5, $6, $7)\n     ON CONFLICT (id) DO NOTHING'''\n\nnew = '''INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)\n     VALUES ($1, $2, $3, $4, $5, $6, $7)\n     ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id, last_activity_at = now()'''\n\ncontent = content.replace(old, new)\n\nwith open(file_path, 'w') as f:\n    f.write(content)\n\nprint('Fixed sessions.ts')\nEOF\npython3 /tmp/fix_sessions.py\n",
+      "duration": 0.5
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+New Terminal Output:
+
+cbccd910d082:/app# cat > /tmp/test-bug3.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Variant: DATERANGE comes AFTER segments (some producers do this), back-to-back.
+> const manifest = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXTINF:6.000,
+> content-0.ts
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg1-1.ts
+> #EXTINF:6.000,
+> seg1-2.ts
+> #EXT-X-DATERANGE:ID="BRK-1",PLANNED-DURATION=30,SCTE35-OUT=0xFC
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg2-1.ts
+> #EXTINF:6.000,
+> seg2-2.ts
+> #EXT-X-DATERANGE:ID="BRK-2",PLANNED-DURATION=30,SCTE35-OUT=0xFC
+> #EXT-X-CUE-IN`;
+>
+> const avails = detectAvails(manifest, "channel_test");
+> console.log("avails[0].externalBreakId:", avails[0]?.externalBreakId);
+> console.log("avails[1].externalBreakId:", avails[1]?.externalBreakId);
+> console.log("\nExpected: BRK-1, BRK-2");
+> EOF
+cbccd910d082:/app# cd /app && npx tsx /tmp/test-bug3.ts
+avails[0].externalBreakId: BRK-1
+avails[1].externalBreakId: BRK-1
+
+Expected: BRK-1, BRK-2
+cbccd910d082:/app#

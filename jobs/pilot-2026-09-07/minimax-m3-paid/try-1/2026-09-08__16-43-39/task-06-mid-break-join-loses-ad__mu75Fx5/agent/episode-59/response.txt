@@ -1,0 +1,14 @@
+{
+  "analysis": "All tests pass. Now let me also check the case with DATERANGE ID.",
+  "plan": "Test the DATERANGE scenario.",
+  "commands": [
+    {
+      "keystrokes": "cd /app && cat > /tmp/test_daterange.ts << 'EOF'\nimport { detectAvails } from \"/app/packages/data-plane/src/avails.ts\";\n\n// Manifest with CUE-OUT and DATERANGE - early viewer\nconst early = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:100\n#EXTINF:6.000,\nseg100.ts\n#EXTINF:6.000,\nseg101.ts\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID=\"BRK-abc-1234\",PLANNED-DURATION=30,SCTE35-OUT=0xFC\n#EXTINF:6.000,\nseg102.ts\n#EXTINF:6.000,\nseg103.ts\n#EXTINF:6.000,\nseg104.ts\n#EXTINF:6.000,\nseg105.ts\n#EXT-X-CUE-IN\n#EXTINF:6.000,\nseg106.ts\n`;\n\n// Same break but only CUE-IN visible (CUE-OUT and DATERANGE scrolled off)\nconst late = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:104\n#EXTINF:6.000,\nseg104.ts\n#EXTINF:6.000,\nseg105.ts\n#EXT-X-CUE-IN\n#EXTINF:6.000,\nseg106.ts\n`;\n\nconsole.log(\"Early viewer (CUE-OUT + DATERANGE present):\");\nconsole.log(JSON.stringify(detectAvails(early, \"ch\"), null, 2));\n\nconsole.log(\"\\nLate viewer (only CUE-IN, DATERANGE scrolled off):\");\nconsole.log(JSON.stringify(detectAvails(late, \"ch\"), null, 2));\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npx tsx /tmp/test_daterange.ts\n",
+      "duration": 5.0
+    }
+  ]
+}

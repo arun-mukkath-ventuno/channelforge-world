@@ -1,0 +1,32 @@
+New Terminal Output:
+
+26306d2ed51a:/app# cat > /tmp/ssai.patch << 'EOF'
+> --- a/src/lib/ssai.ts
+> +++ b/src/lib/ssai.ts
+> @@ -40,8 +40,8 @@ export type AdBeacon =
+>    | "ad_complete";
+>
+>  /** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+> -export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+> -  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
+> +export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId?: string): void {
+> +  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, pod_id: podId ?? null });
+>    try {
+>      if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+>        navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: "application/json" }));
+> EOF
+26306d2ed51a:/app# cat /tmp/ssai.patch
+--- a/src/lib/ssai.ts
++++ b/src/lib/ssai.ts
+@@ -40,8 +40,8 @@ export type AdBeacon =
+   | "ad_complete";
+
+ /** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+-export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+-  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
++export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string, podId?: string): void {
++  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId, pod_id: podId ?? null });
+   try {
+     if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+       navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: "application/json" }));
+26306d2ed51a:/app#

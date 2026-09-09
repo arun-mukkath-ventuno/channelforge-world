@@ -1,0 +1,18 @@
+{
+  "analysis": "The data-plane service has been restarted successfully. It's now listening on port 4010. Let me verify the service is running and the fix is in place.",
+  "plan": "Verify the service is running and the fix works.",
+  "commands": [
+    {
+      "keystrokes": "cat /tmp/ssai-data-plane.pid\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ps -p $(cat /tmp/ssai-data-plane.pid) 2>&1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "curl -s http://localhost:4010/health 2>&1\n",
+      "duration": 1.0
+    }
+  ]
+}

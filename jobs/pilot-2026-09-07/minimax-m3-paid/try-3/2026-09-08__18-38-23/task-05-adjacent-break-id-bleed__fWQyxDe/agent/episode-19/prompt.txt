@@ -1,0 +1,31 @@
+New Terminal Output:
+
+cbd3d522fcae:/app# cat > /tmp/test_normal.mjs << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Normal case: DATERANGE comes before segment URI in the same block
+> const manifest = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   '#EXT-X-DATERANGE:ID="BRK-1",SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "a.ts",
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   '#EXT-X-DATERANGE:ID="BRK-2",SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "b.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+>
+> const avails = detectAvails(manifest, "ch");
+> console.log("Normal case (DATERANGE before segment):");
+> for (const a of avails) {
+>   console.log(`  opp=${a.opportunityId}, externalBreakId=${a.externalBreakId}`);
+> }
+> EOF
+cbd3d522fcae:/app# npx tsx /tmp/test_normal.mjs
+Normal case (DATERANGE before segment):
+  opp=opp_ch_0, externalBreakId=BRK-1
+  opp=opp_ch_1, externalBreakId=BRK-2
+cbd3d522fcae:/app#

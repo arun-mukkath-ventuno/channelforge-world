@@ -1,0 +1,70 @@
+New Terminal Output:
+
+840252e8a3ed:/app# node -e "
+> const base = 'http://localhost:4000';
+> (async () => {
+>   // Step 1: create session on channel_news
+>   const r1 = await fetch(base + '/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channel_id:'channel_news'})
+});
+>   const j1 = await r1.json();
+>   console.log('Session created:', j1.session_id, 'on', j1.channel_id);
+>
+>   // Step 2: get the session - should still be channel_news
+>   const r2 = await fetch(base + '/v1/sessions/' + j1.session_id);
+>   const j2 = await r2.json();
+>   console.log('Session after creation:', j2.channelId);
+>
+>   // Step 3: call /v1/ad-decision with the same session id but different channel (simulating a channel change)
+>   const r3 = await fetch(base + '/v1/ad-decision', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: j1.session_i
+d, channel_id: 'channel_food', opportunity_id: 'opp_test_1', duration: 30})});
+>   const j3 = await r3.json();
+>   console.log('Ad decision response status:', r3.status);
+>   console.log('Ad decision:', JSON.stringify(j3).slice(0, 200));
+>
+>   // Step 4: get the session - should now be channel_food
+>   const r4 = await fetch(base + '/v1/sessions/' + j1.session_id);
+>   const j4 = await r4.json();
+>   console.log('Session after channel switch:', j4.channelId);
+> })();
+> "
+{"level":30,"time":1788868973562,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-5","req":{"method":"POST","url":"/v1/sessions","host":"localhost:4000","remot
+eAddress":"127.0.0.1","remotePort":56050},"msg":"incoming request"}
+{"level":50,"time":1788868973569,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-5","req":{"method":"POST","url":"/v1/sessions","host":"localhost:4000","remot
+eAddress":"127.0.0.1","remotePort":56050},"res":{"statusCode":500},"err":{"type":"DatabaseError","message":"insert or update on table \"playback_sessions\" viol
+ates foreign key constraint \"playback_sessions_channel_id_fkey\"","stack":"error: insert or update on table \"playback_sessions\" violates foreign key constrai
+nt \"playback_sessions_channel_id_fkey\"\n    at /app/node_modules/pg-pool/index.js:45:11\n    at process.processTicksAndRejections (node:internal/process/task_
+queues:103:5)\n    at async Module.ensureSession (file:///app/packages/persistence/dist/repositories/sessions.js:5:5)\n    at async Object.<anonymous> (file:///
+app/packages/control-plane/dist/server.js:90:9)","length":313,"name":"error","severity":"ERROR","code":"23503","detail":"Key (channel_id)=(channel_news) is not
+present in table \"channels\".","schema":"public","table":"playback_sessions","constraint":"playback_sessions_channel_id_fkey","file":"ri_triggers.c","line":"26
+08","routine":"ri_ReportViolation"},"msg":"insert or update on table \"playback_sessions\" violates foreign key constraint \"playback_sessions_channel_id_fkey\"
+"}
+{"level":30,"time":1788868973569,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-5","res":{"statusCode":500},"responseTime":6.819583000004059,"msg":"request c
+ompleted"}
+Session created: undefined on undefined
+{"level":30,"time":1788868973574,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-6","req":{"method":"GET","url":"/v1/sessions/undefined","host":"localhost:400
+0","remoteAddress":"127.0.0.1","remotePort":56056},"msg":"incoming request"}
+{"level":30,"time":1788868973575,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-6","res":{"statusCode":401},"responseTime":0.2101249999977881,"msg":"request
+completed"}
+Session after creation: undefined
+{"level":30,"time":1788868973578,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-7","req":{"method":"POST","url":"/v1/ad-decision","host":"localhost:4000","re
+moteAddress":"127.0.0.1","remotePort":56050},"msg":"incoming request"}
+{"level":50,"time":1788868973586,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-7","req":{"method":"POST","url":"/v1/ad-decision","host":"localhost:4000","re
+moteAddress":"127.0.0.1","remotePort":56050},"res":{"statusCode":500},"err":{"type":"DatabaseError","message":"insert or update on table \"playback_sessions\" v
+iolates foreign key constraint \"playback_sessions_channel_id_fkey\"","stack":"error: insert or update on table \"playback_sessions\" violates foreign key const
+raint \"playback_sessions_channel_id_fkey\"\n    at /app/node_modules/pg/lib/client.js:694:17\n    at process.processTicksAndRejections (node:internal/process/t
+ask_queues:103:5)\n    at async Module.ensureSession (file:///app/packages/persistence/dist/repositories/sessions.js:5:5)\n    at async file:///app/packages/con
+trol-plane/dist/server.js:152:13\n    at async withTransaction (file:///app/packages/persistence/dist/db.js:16:24)\n    at async Object.<anonymous> (file:///app
+/packages/control-plane/dist/server.js:151:9)","length":313,"name":"error","severity":"ERROR","code":"23503","detail":"Key (channel_id)=(channel_food) is not pr
+esent in table \"channels\".","schema":"public","table":"playback_sessions","constraint":"playback_sessions_channel_id_fkey","file":"ri_triggers.c","line":"2608
+","routine":"ri_ReportViolation"},"msg":"insert or update on table \"playback_sessions\" violates foreign key constraint \"playback_sessions_channel_id_fkey\""}
+{"level":30,"time":1788868973587,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-7","res":{"statusCode":500},"responseTime":8.669292000005953,"msg":"request c
+ompleted"}
+Ad decision response status: 500
+Ad decision: {"statusCode":500,"code":"23503","error":"Internal Server Error","message":"insert or update on table \"playback_sessions\" violates foreign key co
+nstraint \"playback_sessions_channel_id_fkey\""}
+{"level":30,"time":1788868973590,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-8","req":{"method":"GET","url":"/v1/sessions/undefined","host":"localhost:400
+0","remoteAddress":"127.0.0.1","remotePort":56056},"msg":"incoming request"}
+{"level":30,"time":1788868973590,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-8","res":{"statusCode":401},"responseTime":0.2157909999950789,"msg":"request
+completed"}
+Session after channel switch: undefined
+840252e8a3ed:/app#

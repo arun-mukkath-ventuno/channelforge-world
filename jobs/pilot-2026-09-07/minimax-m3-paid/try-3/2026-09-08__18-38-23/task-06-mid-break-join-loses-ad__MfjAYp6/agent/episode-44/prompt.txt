@@ -1,0 +1,52 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat > /tmp/test-reconnect.mjs << 'EOF'
+> import { detectAvails } from '/app/packages/data-plane/dist/avails.js';
+>
+> // Scenario: Session was polling, break started, then session reconnects mid-break
+> // Original playlist (before reconnect):
+> const original = [
+>   '#EXTM3U',
+>   '#EXT-X-MEDIA-SEQUENCE:100',
+>   '#EXTINF:6.000,',
+>   'segment100.ts',
+>   '#EXT-X-CUE-OUT:30',
+>   '#EXTINF:6.000,',
+>   'slate001.ts',
+>   '#EXTINF:6.000,',
+>   'slate002.ts',
+>   '#EXTINF:6.000,',
+>   'slate003.ts',
+>   '#EXT-X-CUE-IN',
+>   '#EXTINF:6.000,',
+>   'segment105.ts',
+> ].join('\n');
+>
+> const originalAvails = detectAvails(original, 'channel_food');
+> console.log('Original playlist avails:', originalAvails[0]?.opportunityId);
+>
+> // After session reconnects mid-break (CUE-OUT scrolled out, CUE-IN still in window):
+> const reconnect = [
+>   '#EXTM3U',
+>   '#EXT-X-MEDIA-SEQUENCE:103',
+>   '#EXTINF:6.000,',
+>   'slate002.ts',
+>   '#EXTINF:6.000,',
+>   'slate003.ts',
+>   '#EXT-X-CUE-IN',
+>   '#EXTINF:6.000,',
+>   'segment105.ts',
+> ].join('\n');
+>
+> const reconnectAvails = detectAvails(reconnect, 'channel_food');
+> console.log('Reconnect playlist avails:', reconnectAvails[0]?.opportunityId);
+> console.log('Reconnect avail duration:', reconnectAvails[0]?.duration);
+> console.log('\nSession gets a new ad decision for the remaining break!');
+> EOF
+e337ca9acc5b:/app# node /tmp/test-reconnect.mjs
+Original playlist avails: opp_channel_food_101
+Reconnect playlist avails: opp_channel_food_103
+Reconnect avail duration: 12
+
+Session gets a new ad decision for the remaining break!
+e337ca9acc5b:/app#

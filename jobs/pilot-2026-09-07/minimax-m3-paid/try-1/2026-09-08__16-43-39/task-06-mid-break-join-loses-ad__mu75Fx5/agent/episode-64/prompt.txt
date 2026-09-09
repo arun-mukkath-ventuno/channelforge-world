@@ -1,0 +1,57 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat > /tmp/test_stable.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Two slides - test from existing tests
+> const before = `#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:100
+> #EXTINF:6.000,
+> s100.ts
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> slate.ts
+> #EXT-X-CUE-IN`;
+>
+> const after = `#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:101
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> slate.ts
+> #EXT-X-CUE-IN`;
+>
+> console.log("Before:");
+> console.log(JSON.stringify(detectAvails(before, "ch"), null, 2));
+>
+> console.log("\nAfter:");
+> console.log(JSON.stringify(detectAvails(after, "ch"), null, 2));
+> EOF
+8b0f29f00026:/app# npx tsx /tmp/test_stable.ts
+Before:
+[
+  {
+    "opportunityId": "opp_ch_101",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 6,
+    "startSequence": 101,
+    "startLine": 4,
+    "endLine": 7
+  }
+]
+
+After:
+[
+  {
+    "opportunityId": "opp_ch_101",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 6,
+    "startSequence": 101,
+    "startLine": 2,
+    "endLine": 5
+  }
+]
+8b0f29f00026:/app#

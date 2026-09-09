@@ -1,0 +1,12 @@
+
+
+{
+  "analysis": "Let me use node to write the patch.",
+  "plan": "Use node to perform the patch.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/patch.js << 'EOF'\nconst fs = require('node:fs');\nconst path = \"packages/persistence/src/repositories/sessions.ts\";\nlet content = fs.readFileSync(path, 'utf8');\nconst old = `  await db.query(\n    \\`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)\n     VALUES ($1, $2, $3, $4, $5, $6, $7)\n     ON CONFLICT (id) DO NOTHING\\`,\n    [\n      input.id,\n      input.channelId,\n      input.deviceType ?? null,\n      input.country ?? null,\n      input.anonymousId ?? null,\n      input.ipHash ?? null,\n      input.userAgent ?? null,\n    ],\n  );`;\nconst new_ = `  await db.query(\n    \\`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)\n     VALUES ($1, $2, $3, $4, $5, $6, $7)\n     ON CONFLICT (id) DO UPDATE SET\n       channel_id = EXCLUDED.channel_id,\n       last_activity_at = now()\\`,\n    [\n      input.id,\n      input.channelId,\n      input.deviceType ?? null,\n      input.country ?? null,\n      input.anonymousId ?? null,\n      input.ipHash ?? null,\n      input.userAgent ?? null,\n    ],\n  );`;\nif (!content.includes(old)) { console.error('NOT FOUND'); process.exit(1); }\ncontent = content.replace(old, new_);\nfs.writeFileSync(path, content);\nconsole.log('patched');\nEOF\nnode /tmp/patch.js\n",
+      "duration": 0.5
+    }
+  ]
+}

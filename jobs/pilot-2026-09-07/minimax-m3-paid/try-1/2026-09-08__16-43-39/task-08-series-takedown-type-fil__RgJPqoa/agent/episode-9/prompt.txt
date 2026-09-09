@@ -1,0 +1,25 @@
+New Terminal Output:
+
+root@63cfd5c67291:/app# sed -n '700,720p' app/services/schedules.py
+    agreement-independent denials — validity window, blackout, linear/AVOD permission, and active
+    takedowns. Territory/partner-specific rights are enforced per agreement at distributor
+    eligibility. Falls back to the asset's legacy rights window when no policy is assigned.
+    """
+    org_id = asset.organization_id
+    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+        return [f"'{event.title}': asset is under an active emergency takedown"]
+    policies = rights_repo.resolve_applicable(
+        db, org_id=org_id, asset=asset, channel_id=event.channel_id
+    )
+    ctx = rights_engine.RightsContext(air_start=start, air_end=end, language=asset.language)
+    decision = rights_engine.evaluate(policies, ctx, asset=asset)
+    if not decision.allowed:
+        codes = ", ".join(sorted({r.code for r in decision.reasons}))
+        return [f"'{event.title}': rights not valid for its air time ({codes})"]
+    return []
+
+
+def validate(db: Session, version: ScheduleVersion) -> list[str]:
+    """Return a list of issues; empty means the timeline is publishable."""
+    channel = db.get(Channel, version.channel_id)
+root@63cfd5c67291:/app#

@@ -1,0 +1,40 @@
+New Terminal Output:
+
+8b0f29f00026:/app# ls -la packages/persistence/src/
+total 84
+drwxr-xr-x    4 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    1 root     root          4096 Sep  5 09:09 ..
+-rw-r--r--    1 root     root          4986 Sep  5 08:18 analytics.test.ts
+-rw-r--r--    1 root     root          5971 Sep  5 08:18 analytics.ts
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 cli
+-rw-r--r--    1 root     root          1146 Sep  5 08:18 db.ts
+-rw-r--r--    1 root     root           780 Sep  5 08:18 index.ts
+-rw-r--r--    1 root     root           487 Sep  5 08:18 map.ts
+-rw-r--r--    1 root     root          1088 Sep  5 08:18 migrate.ts
+-rw-r--r--    1 root     root          1164 Sep  5 08:18 pod-cache.test.ts
+-rw-r--r--    1 root     root          2366 Sep  5 08:18 pod-cache.ts
+-rw-r--r--    1 root     root          6321 Sep  5 08:18 reconciliation.test.ts
+-rw-r--r--    1 root     root          5116 Sep  5 08:18 reconciliation.ts
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 repositories
+-rw-r--r--    1 root     root          4618 Sep  5 08:18 repositories.test.ts
+-rw-r--r--    1 root     root          3201 Sep  5 08:18 seed.ts
+8b0f29f00026:/app# cat packages/persistence/src/index.ts 2>/dev/null
+// @ssai/persistence — Postgres repositories, migrations, and the Redis pod cache.
+
+export * from "./db.js";
+export * from "./migrate.js";
+export * from "./pod-cache.js";
+export * from "./seed.js";
+export * from "./analytics.js";
+export * from "./reconciliation.js";
+
+export * as channels from "./repositories/channels.js";
+export * as campaigns from "./repositories/campaigns.js";
+export * as creatives from "./repositories/creatives.js";
+export * as sessions from "./repositories/sessions.js";
+export * as opportunities from "./repositories/opportunities.js";
+export * as decisions from "./repositories/decisions.js";
+export * as events from "./repositories/events.js";
+export * as slates from "./repositories/slates.js";
+export * as beacons from "./repositories/beacons.js";
+8b0f29f00026:/app#

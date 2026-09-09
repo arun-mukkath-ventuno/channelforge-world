@@ -1,0 +1,18 @@
+{
+  "analysis": "All tests pass. Now let me write a test case that demonstrates the bug. The bug is that when two breaks are back-to-back (CUE-IN immediately followed by CUE-OUT), and the DATERANGE appears after the segment URI in the first break, the second break gets the first break's id.\n\nLet me create a quick test to verify my understanding.",
+  "plan": "Let me write a small test script to verify the bug.",
+  "commands": [
+    {
+      "keystrokes": "cd /app\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /tmp/test_bug.mjs << 'EOF'\nimport { detectAvails } from \"./packages/data-plane/src/avails.ts\";\n\n// Back-to-back breaks where DATERANGE comes after the segment URI in the first break\nconst manifest = [\n  \"#EXT-X-MEDIA-SEQUENCE:0\",\n  \"#EXT-X-CUE-OUT:30\",\n  \"#EXTINF:6.000,\",\n  \"a.ts\",\n  '#EXT-X-DATERANGE:ID=\"BRK-1\",SCTE35-OUT=0xFC',\n  \"#EXT-X-CUE-IN\",\n  \"#EXT-X-CUE-OUT:15\",\n  \"#EXTINF:6.000,\",\n  \"b.ts\",\n  '#EXT-X-DATERANGE:ID=\"BRK-2\",SCTE35-OUT=0xFC',\n  \"#EXT-X-CUE-IN\",\n].join(\"\\n\");\n\nconst avails = detectAvails(manifest, \"ch\");\nconsole.log(\"Avails found:\", avails.length);\nfor (const a of avails) {\n  console.log(`  opp=${a.opportunityId}, externalBreakId=${a.externalBreakId}`);\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cd /app && npx tsx /tmp/test_bug.mjs\n",
+      "duration": 5.0
+    }
+  ]
+}

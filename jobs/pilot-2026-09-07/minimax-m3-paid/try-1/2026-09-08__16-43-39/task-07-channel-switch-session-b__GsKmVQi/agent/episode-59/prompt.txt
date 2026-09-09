@@ -1,0 +1,38 @@
+New Terminal Output:
+
+6c4c79003a75:/app# sed -n '185,220p' packages/control-plane/src/server.test.ts
+});
+
+describe("per-break reconciliation (ChannelForge telemetry blueprint)", () => {
+  it("records external_break_id from an ad-decision and lists it per break", async () => {
+    await app.inject({ method: "POST", url: "/v1/channels", payload: { id: "channel_yoga", name: "Yoga", origin_url: "http://origin/yoga" } });
+    const dec = await app.inject({
+      method: "POST",
+      url: "/v1/ad-decision",
+      payload: {
+        session_id: "sess_1",
+        channel_id: "channel_yoga",
+        opportunity_id: "opp_channel_yoga_202",
+        external_break_id: "BRK-a11e5310-0003",
+        duration: 30,
+      },
+    });
+    expect(dec.statusCode).toBe(200);
+
+    const res = await app.inject({ method: "GET", url: "/v1/reconciliation/breaks?channel=channel_yoga" });
+    expect(res.statusCode).toBe(200);
+    const { breaks } = res.json() as { breaks: Array<{ opportunityId: string; externalBreakId: string | null }> };
+    expect(breaks).toHaveLength(1);
+    expect(breaks[0]).toMatchObject({
+      opportunityId: "opp_channel_yoga_202",
+      externalBreakId: "BRK-a11e5310-0003",
+      channelId: "channel_yoga",
+    });
+  });
+
+  it("gates /v1/reconciliation/breaks behind the admin cookie", async () => {
+    const authed = buildWithAuth();
+    expect((await authed.inject({ method: "GET", url: "/v1/reconciliation/breaks" })).statusCode).toBe(401);
+  });
+});
+6c4c79003a75:/app#

@@ -1,0 +1,64 @@
+New Terminal Output:
+
+4838fd889d89:/app# cat > /tmp/patch.mjs << 'JSEOF'
+> import { readFileSync, writeFileSync } from 'fs';
+>
+> let content = readFileSync('packages/data-plane/src/avails.ts', 'utf8');
+>
+> const oldBlock = [
+>   '    if (marker?.kind === "cue_in" && open) {',
+>   '      const declared = open.declaredDuration;',
+>   '      avails.push({',
+>   '        opportunityId: \`opp_${channelId}_${open.startSequence}\`,',
+>   '        channelId,',
+>   '        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),',
+>   '        duration: declared ?? open.measuredDuration,',
+>   '        ...(declared === undefined ? {} : { declaredDuration: declared }),',
+>   '        measuredDuration: open.measuredDuration,',
+>   '        startSequence: open.startSequence,',
+>   '        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),',
+>   '        startLine: open.startLine,',
+>   '        endLine: i,',
+>   '      });',
+>   '      open = null;',
+>   '      continue;',
+>   '    }'
+> ].join('\n');
+>
+> const newBlock = [
+>   '    if (marker?.kind === "cue_in" && open) {',
+>   '      const declared = open.declaredDuration;',
+>   '      avails.push({',
+>   '        opportunityId: \`opp_${channelId}_${open.startSequence}\`,',
+>   '        channelId,',
+>   '        ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),',
+>   '        duration: declared ?? open.measuredDuration,',
+>   '        ...(declared === undefined ? {} : { declaredDuration: declared }),',
+>   '        measuredDuration: open.measuredDuration,',
+>   '        startSequence: open.startSequence,',
+>   '        ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),',
+>   '        startLine: open.startLine,',
+>   '        endLine: i,',
+>   '      });',
+>   '      open = null;',
+>   '      // The tag block ended at the CUE-IN, so a DATERANGE id from the previous avail cannot',
+>   '      // carry over onto the next one. For a normal inter-avail segment the URI line below',
+>   '      // also clears it; this covers back-to-back breaks with no media URI between CUE-IN',
+>   '      // and the next CUE-OUT.',
+>   '      blockBreakId = undefined;',
+>   '      continue;',
+>   '    }'
+> ].join('\n');
+>
+> if (!content.includes(oldBlock)) {
+>   console.error('ERROR: pattern not found');
+>   process.exit(1);
+> }
+>
+> content = content.replace(oldBlock, newBlock);
+> writeFileSync('packages/data-plane/src/avails.ts', content);
+> console.log('Patched successfully');
+> JSEOF
+4838fd889d89:/app# node /tmp/patch.mjs
+Patched successfully
+4838fd889d89:/app#

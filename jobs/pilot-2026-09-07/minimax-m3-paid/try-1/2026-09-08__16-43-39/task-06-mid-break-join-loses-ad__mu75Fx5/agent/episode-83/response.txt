@@ -1,0 +1,14 @@
+{
+  "analysis": "All edge cases pass correctly:\n1. Normal avail: detected correctly\n2. Incomplete trailing: ignored correctly\n3. Late mid-break: detected (the bug fix!)\n4. CUE-IN without preceding segments: ignored (no orphan)\n5. Multiple avails with first being mid-break: BOTH detected correctly!\n\nWait, edge case 4 is interesting. `CUE-IN without CUE-OUT and no preceding segments` returns []. That's because there's no URI line between MEDIA-SEQUENCE and CUE-IN, so no orphan is created. Good.\n\nBut what about edge case 4 where there's NO segment between MEDIA-SEQUENCE and CUE-IN? That's the case where the CUE-OUT and ALL inside-avail segments scrolled off. No avail to detect. Good.\n\nNow let me think about whether there are services that need to be restarted. The task says \"restart whichever service needs it\". Since no service is currently running, I'll just ensure the build is fresh.\n\nActually wait - the task description says \"running system reflects your change\". So there must be a service somewhere. Let me check the running system more carefully.",
+  "plan": "Check the running system.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /var/run/ /etc/services.d/ 2>&1 | head -30\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls /etc/service/ 2>&1; cat /etc/inittab 2>&1 | head -10\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,82 @@
+New Terminal Output:
+
+04a690a73d92:/app# cat > /tmp/patch.mjs << 'EOF'
+> import { readFileSync, writeFileSync } from 'node:fs';
+>
+> const path = 'packages/data-plane/src/avails.ts';
+> let content = readFileSync(path, 'utf8');
+>
+> const oldEnd = `    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) open.measuredDuration += segDur;
+>       // The URI line follows; advance the sequence when we consume it below.
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>     }
+>   }
+>
+>   return avails;
+> }`;
+>
+> const newEnd = `    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) open.measuredDuration += segDur;
+>       // The URI line follows; advance the sequence when we consume it below.
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>     }
+>   }
+>
+>   // Mid-break: we saw a CUE-OUT but never reached CUE-IN within the playlist window.
+>   // A session whose first manifest request for this break lands here (a fresh tune-in,
+>   // reconnect after a network blip, or a slow-to-poll client) must still get an ad —
+>   // otherwise it just gets the channel's default content for the rest of the break.
+>   // Emit the trailing avail so the decider runs and the cache lookup happens.
+>   if (open) {
+>     const declared = open.declaredDuration;
+>     avails.push({
+>       opportunityId: \`opp_${channelId}_${open.startSequence}\`,
+>       channelId,
+>       ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>       duration: declared ?? open.measuredDuration,
+>       ...(declared === undefined ? {} : { declaredDuration: declared }),
+>       measuredDuration: open.measuredDuration,
+>       startSequence: open.startSequence,
+>       ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>       startLine: open.startLine,
+>       endLine: lines.length - 1,
+>     });
+>   }
+>
+>   return avails;
+> }`;
+>
+> if (content.includes(oldEnd)) {
+>   content = content.replace(oldEnd, newEnd);
+>   writeFileSync(path, content);
+>   console.log('Patch applied');
+> } else {
+>   console.log('Pattern not found');
+> }
+> EOF
+04a690a73d92:/app# node /tmp/patch.mjs
+file:///tmp/patch.mjs:43
+      opportunityId: \`opp_${channelId}_${open.startSequence}\`,
+                             ^
+
+ReferenceError: channelId is not defined
+    at file:///tmp/patch.mjs:43:30
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.2
+04a690a73d92:/app#

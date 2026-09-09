@@ -1,0 +1,14 @@
+{
+  "analysis": "Now I need to understand the bug better. The issue is that:\n\n1. A session's *first* manifest request for a given break lands after the break has already been playing for a while (a fresh tune-in, a reconnect, or a slow client).\n2. The session doesn't get an ad for that break.\n3. Even if the same session had been decided an ad for this exact break earlier (before reconnecting), it still doesn't get it back.\n\nLet me look at the origin.ts and origin-rewrite.ts to understand the manifest fetching.",
+  "plan": "Read origin.ts and origin-rewrite.ts.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/packages/data-plane/src/origin.ts\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/packages/data-plane/src/origin-rewrite.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat > /tmp/test_bug2.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Early viewer - all segments present
+> const early = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:100
+> #EXTINF:6.000,
+> seg100.ts
+> #EXTINF:6.000,
+> seg101.ts
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg102.ts
+> #EXTINF:6.000,
+> seg103.ts
+> #EXTINF:6.000,
+> seg104.ts
+> #EXTINF:6.000,
+> seg105.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg106.ts
+> `;
+>
+> // Late mid-break viewer - first inside-avail has scrolled off, but CUE-OUT still present
+> const lateMidBreak = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:103
+> #EXTINF:6.000,
+> seg103.ts
+> #EXTINF:6.000,
+> seg104.ts
+> #EXTINF:6.000,
+> seg105.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg106.ts
+> `;
+>
+> // Wait, this one has CUE-OUT scrolled off. Let me also test when CUE-OUT is still present
+> const lateMidBreakWithCueOut = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:103
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> seg103.ts
+> #EXTINF:6.000,
+> seg104.ts
+> #EXTINF:6.000,
+> seg105.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg106.ts
+> `;
+>
+> console.log("Early viewer:");
+> console.log(JSON.stringify(detectAvails(early, "ch").map(a => ({ opp: a.opportunityId, startSeq: a.startSequence })), null, 2));
+>
+> console.log("\nLate mid-break (no CUE-OUT):");
+> console.log(JSON.stringify(detectAvails(lateMidBreak, "ch").map(a => ({ opp: a.opportunityId, startSeq: a.startSequence })), null, 2));
+>
+> console.log("\nLate mid-break (with CUE-OUT still present):");
+> console.log(JSON.stringify(detectAvails(lateMidBreakWithCueOut, "ch").map(a => ({ opp: a.opportunityId, startSeq: a.startSequence })), null, 2));
+> EOF
+8b0f29f00026:/app# npx tsx /tmp/test_bug2.ts
+Early viewer:
+[
+  {
+    "opp": "opp_ch_102",
+    "startSeq": 102
+  }
+]
+
+Late mid-break (no CUE-OUT):
+[]
+
+Late mid-break (with CUE-OUT still present):
+[
+  {
+    "opp": "opp_ch_103",
+    "startSeq": 103
+  }
+]
+8b0f29f00026:/app#

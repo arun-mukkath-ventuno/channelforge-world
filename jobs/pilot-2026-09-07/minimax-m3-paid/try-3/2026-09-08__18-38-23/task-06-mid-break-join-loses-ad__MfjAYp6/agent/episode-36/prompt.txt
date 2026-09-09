@@ -1,0 +1,24 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat > /tmp/test-incomplete.mjs << 'EOF'
+> import { detectAvails } from '/app/packages/data-plane/dist/avails.js';
+>
+> // Incomplete trailing avail (CUE-OUT with no CUE-IN)
+> const incomplete = [
+>   '#EXTM3U',
+>   '#EXT-X-VERSION:3',
+>   '#EXT-X-TARGETDURATION:6',
+>   '#EXT-X-MEDIA-SEQUENCE:0',
+>   '#EXT-X-CUE-OUT:30',
+>   '#EXTINF:6.000,',
+>   'slate.ts',
+> ].join('\n');
+>
+> const avails = detectAvails(incomplete, 'ch');
+> console.log('Incomplete trailing avail avails:', JSON.stringify(avails));
+> console.log('Expected: [] (per existing test)');
+> EOF
+e337ca9acc5b:/app# node /tmp/test-incomplete.mjs
+Incomplete trailing avail avails: []
+Expected: [] (per existing test)
+e337ca9acc5b:/app#

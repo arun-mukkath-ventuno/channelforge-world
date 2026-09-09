@@ -1,0 +1,14 @@
+{
+  "analysis": "I've confirmed the bug! The second avail gets `externalBreakId=BRK-1` instead of `BRK-2`. This is exactly the bug described in the report.\n\nNow let me also test the case where the DATERANGE comes BEFORE the segment URI (which is the normal case) to make sure my fix doesn't break that:",
+  "plan": "Test the normal case to confirm it works correctly, then fix the bug.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test_normal.mjs << 'EOF'\nimport { detectAvails } from \"/app/packages/data-plane/src/avails.ts\";\n\n// Normal case: DATERANGE comes before segment URI in the same block\nconst manifest = [\n  \"#EXT-X-MEDIA-SEQUENCE:0\",\n  \"#EXT-X-CUE-OUT:30\",\n  '#EXT-X-DATERANGE:ID=\"BRK-1\",SCTE35-OUT=0xFC',\n  \"#EXTINF:6.000,\",\n  \"a.ts\",\n  \"#EXT-X-CUE-IN\",\n  \"#EXT-X-CUE-OUT:15\",\n  '#EXT-X-DATERANGE:ID=\"BRK-2\",SCTE35-OUT=0xFC',\n  \"#EXTINF:6.000,\",\n  \"b.ts\",\n  \"#EXT-X-CUE-IN\",\n].join(\"\\n\");\n\nconst avails = detectAvails(manifest, \"ch\");\nconsole.log(\"Normal case (DATERANGE before segment):\");\nfor (const a of avails) {\n  console.log(`  opp=${a.opportunityId}, externalBreakId=${a.externalBreakId}`);\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npx tsx /tmp/test_normal.mjs\n",
+      "duration": 5.0
+    }
+  ]
+}

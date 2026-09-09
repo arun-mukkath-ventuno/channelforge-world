@@ -1,0 +1,52 @@
+New Terminal Output:
+
+04a690a73d92:/app# cd packages/data-plane && npx vitest run 2>&1 | tail -80
+
+ RUN  v2.1.9 /app/packages/data-plane
+
+ ❯ src/avails.test.ts (10 tests | 1 failed) 9ms
+   × detectAvails (PRD §9, §41) > ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet) 5ms
+     → expected [ { opportunityId: 'opp_ch_0', …(7) } ] to deeply equal []
+ ✓ src/media.test.ts (5 tests) 3ms
+ ✓ src/origin-slice4.test.ts (7 tests) 3ms
+ ✓ src/stitch.test.ts (3 tests) 2ms
+ ✓ src/origin.test.ts (4 tests) 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/avails.test.ts > detectAvails (PRD §9, §41) > ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)
+AssertionError: expected [ { opportunityId: 'opp_ch_0', …(7) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "channelId": "ch",
++     "declaredDuration": 30,
++     "duration": 30,
++     "endLine": 3,
++     "measuredDuration": 6,
++     "opportunityId": "opp_ch_0",
++     "startLine": 1,
++     "startSequence": 0,
++   },
++ ]
+
+ ❯ src/avails.test.ts:71:35
+     69|   it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet…
+     70|     const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30"…
+     71|     expect(detectAvails(m, "ch")).toEqual([]);
+       |                                   ^
+     72|   });
+     73|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  1 failed | 28 passed (29)
+   Start at  12:53:43
+   Duration  674ms (transform 104ms, setup 0ms, collect 136ms, tests 22ms, environment 1ms, prepare 171ms)
+
+04a690a73d92:/app/packages/data-plane#

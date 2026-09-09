@@ -1,0 +1,14 @@
+{
+  "analysis": "All 29 tests pass. The fix is complete and:\n\n1. The source file `packages/data-plane/src/avails.ts` is updated\n2. The compiled output `packages/data-plane/dist/avails.js` is updated\n3. All existing tests still pass\n4. The bug scenario (late mid-break viewer with CUE-OUT scrolled off but CUE-IN present) is now correctly handled\n\nThe fix is minimal, targeted, and preserves all existing behavior for normal cases. No services need to be restarted since none are currently running.\n\nLet me also do one final sanity check on the complete fix to make sure it's all in order.",
+  "plan": "Final verification.",
+  "commands": [
+    {
+      "keystrokes": "cd /app && wc -l packages/data-plane/src/avails.ts packages/data-plane/dist/avails.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -c orphan packages/data-plane/src/avails.ts packages/data-plane/dist/avails.js\n",
+      "duration": 0.1
+    }
+  ]
+}

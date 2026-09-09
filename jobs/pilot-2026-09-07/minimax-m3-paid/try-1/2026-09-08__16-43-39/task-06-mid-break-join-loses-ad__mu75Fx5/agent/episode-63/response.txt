@@ -1,0 +1,14 @@
+{
+  "analysis": "Late viewer now has measuredDuration=12 (2 segments x 6 seconds). Now let me think about what other edge cases need to be tested.\n\nLet me also think about the most critical scenario - the bug scenario. The bug states:\n1. Mid-break viewer doesn't see ad\n2. Decider never called\n3. Previously-decided session doesn't get ad back\n\nWith my fix, mid-break viewer (no CUE-OUT) DOES get the avail detected. Decider IS called. \n\nFor the \"previously decided\" case, when DATERANGE is present, the same oppId is used (cache hit). When DATERANGE is absent, the oppId differs (cache miss but new decision).\n\nThe bug report mentions ChannelForge. Let me check if there's a DATERANGE always present. Actually, the bug scenario is more subtle - it says \"first manifest request for a given break lands after the break has already been playing for a while\". This is the bug scenario where avails is empty.\n\nLet me also check: does my fix handle the case where CUE-OUT is present and CUE-IN is also present (the normal case)? Yes - this is the unchanged behavior.\n\nLet me also check the test for \"is stable across playlist refreshes\":",
+  "plan": "Verify all the test scenarios.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test_stable.ts << 'EOF'\nimport { detectAvails } from \"/app/packages/data-plane/src/avails.ts\";\n\n// Two slides - test from existing tests\nconst before = `#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:100\n#EXTINF:6.000,\ns100.ts\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nslate.ts\n#EXT-X-CUE-IN`;\n\nconst after = `#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:101\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nslate.ts\n#EXT-X-CUE-IN`;\n\nconsole.log(\"Before:\");\nconsole.log(JSON.stringify(detectAvails(before, \"ch\"), null, 2));\n\nconsole.log(\"\\nAfter:\");\nconsole.log(JSON.stringify(detectAvails(after, \"ch\"), null, 2));\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npx tsx /tmp/test_stable.ts\n",
+      "duration": 5.0
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+New Terminal Output:
+
+26306d2ed51a:/app# sed -n '200,260p' src/app/fast-world/live/LiveClient.tsx
+    const goOff = () => setOffline(true);
+    const goOn = () => {
+      setOffline(false);
+      setReloadNonce((n) => n + 1);
+      loadGuide();
+      loadStatus();
+    };
+    window.addEventListener("offline", goOff);
+    window.addEventListener("online", goOn);
+    return () => {
+      window.removeEventListener("offline", goOff);
+      window.removeEventListener("online", goOn);
+    };
+  }, [loadGuide, loadStatus]);
+
+  // SSAI ad-stitched session for the current channel.
+  const ssaiChannel = rows[ch]?.channel.ssaiChannel;
+  useEffect(() => {
+    setSsaiSession(null);
+    if (!ssaiChannel) return;
+    let cancelled = false;
+    void createSsaiSession(ssaiChannel).then((s) => {
+      if (!cancelled) setSsaiSession(s);
+    });
+    return () => { cancelled = true; };
+  }, [ssaiChannel]);
+
+  // Real SCTE ad-break state for the tuned channel (drives AD-BREAK flag, timeline,
+  // operator SCTE column). Polled ~10s; falls back to the mid-roll estimate when no
+  // avail data is available.
+  useEffect(() => {
+    if (!currentId) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const r = await fetch(`/api/fast/ads/current?channel=${currentId}`, { cache: "no-store" });
+        if (r.ok && !cancelled) setAdState(await r.json());
+      } catch { /* keep prior */ }
+    };
+    setAdState(null);
+    load();
+    const t = setInterval(load, 10_000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [currentId]);
+
+  const view = buildView(rows, ch, now, offset, status, adState);
+
+  const openInfo = (program: Program, channelIndex: number) => {
+    emit({ event: "program_select", channelId: program.channelId, programId: program.id });
+    setInfo({ program, channelIndex });
+  };
+
+  const goFullscreen = () => {
+    const el = playerCellRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) document.exitFullscreen();
+    else el.requestFullscreen?.();
+  };
+  const goPip = async () => {
+    const v = videoRef.current;
+    if (!v) return;
+26306d2ed51a:/app#

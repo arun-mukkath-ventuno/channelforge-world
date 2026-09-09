@@ -1,0 +1,10 @@
+{
+  "analysis": "I see a test `test_series_takedown_blocks_member_asset` that explicitly tests this scenario. The fix is to remove the `RightsTakedown.scope_type == \"asset\"` constraint in `active_takedown_for_asset`. The original behavior (as evident from the .orig file and the test) should not restrict to asset scope. Let me make the fix.",
+  "plan": "Apply the fix to the rights.py repository by removing the scope_type filter on asset. The simplest fix is to remove the `RightsTakedown.scope_type == \"asset\"` line and restore the original behavior.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '160,180p' app/repositories/rights.py\n",
+      "duration": 0.1
+    }
+  ]
+}

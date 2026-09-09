@@ -1,0 +1,14 @@
+{
+  "analysis": "The other tests fail due to module resolution issues (they use the `@/` alias which isn't configured for vitest). These are pre-existing issues, not caused by my changes. The ssai.test.ts tests pass.\n\nLet me check if there's a vitest config or if the tests are supposed to be run differently.",
+  "plan": "Check if there's a vitest config and see how the tests are typically run.",
+  "commands": [
+    {
+      "keystrokes": "ls -la vitest* vite* 2>/dev/null\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find . -name 'vitest*' -o -name 'vite*' 2>/dev/null | grep -v node_modules | head -10\n",
+      "duration": 0.1
+    }
+  ]
+}

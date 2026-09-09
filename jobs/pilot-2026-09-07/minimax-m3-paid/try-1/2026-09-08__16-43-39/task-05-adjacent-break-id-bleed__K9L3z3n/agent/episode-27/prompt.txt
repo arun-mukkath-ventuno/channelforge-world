@@ -1,0 +1,110 @@
+New Terminal Output:
+
+4838fd889d89:/app# cat > /tmp/test-edge2.mjs << 'JSEOF'
+> import { detectAvails } from "/app/packages/data-plane/dist/avails.js";
+>
+> function runTest(name, manifest, expected) {
+>   const avails = detectAvails(manifest, "ch");
+>   const actual = avails.map(a => ({opp: a.opportunityId, ext: a.externalBreakId, seq: a.startSequence}));
+>   const ok = JSON.stringify(actual) === JSON.stringify(expected);
+>   console.log((ok ? "PASS  " : "FAIL  ") + name);
+>   if (!ok) {
+>     console.log("  Expected:", JSON.stringify(expected));
+>     console.log("  Actual:  ", JSON.stringify(actual));
+>   }
+> }
+>
+> // Test 1: Back-to-back with DATERANGE for both breaks (each with own segments)
+> const m1 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   '#EXT-X-DATERANGE:ID="BRK-first",DURATION=30,SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "a1.ts",
+>   "#EXTINF:6.000,",
+>   "a2.ts",
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   '#EXT-X-DATERANGE:ID="BRK-second",DURATION=15,SCTE35-OUT=0xFD',
+>   "#EXTINF:6.000,",
+>   "c1.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("back-to-back with DATERANGE for both", m1, [{opp:"opp_ch_0", ext:"BRK-first", seq:0}, {opp:"opp_ch_2", ext:"BRK-second", seq:2}]);
+>
+> // Test 2: Back-to-back, DATERANGE only on first (each with own segments)
+> const m2 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   '#EXT-X-DATERANGE:ID="BRK-first",DURATION=30,SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "a1.ts",
+>   "#EXTINF:6.000,",
+>   "a2.ts",
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "c1.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("back-to-back with DATERANGE for first only", m2, [{opp:"opp_ch_0", ext:"BRK-first", seq:0}, {opp:"opp_ch_2", ext: undefined, seq:2}]);
+>
+> // Test 3: Back-to-back, DATERANGE only on second (each with own segments)
+> const m3 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "a1.ts",
+>   "#EXTINF:6.000,",
+>   "a2.ts",
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   '#EXT-X-DATERANGE:ID="BRK-second",DURATION=15,SCTE35-OUT=0xFD',
+>   "#EXTINF:6.000,",
+>   "c1.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("back-to-back with DATERANGE for second only", m3, [{opp:"opp_ch_0", ext: undefined, seq:0}, {opp:"opp_ch_2", ext:"BRK-second", seq:2}]);
+>
+> // Test 4: Original 'no leak' test
+> const m4 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   '#EXT-X-DATERANGE:ID="BRK-first",SCTE35-OUT=0xFC',
+>   "#EXTINF:6.000,",
+>   "a.ts",
+>   "#EXT-X-CUE-IN",
+>   "#EXTINF:6.000,",
+>   "b.ts",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "c.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("original 'no leak' test (with content between)", m4, [{opp:"opp_ch_0", ext:"BRK-first", seq:0}, {opp:"opp_ch_2", ext: undefined, seq:2}]);
+>
+> // Test 5: DATERANGE before CUE-OUT in same block, back-to-back
+> const m5 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   '#EXT-X-DATERANGE:ID="BRK-first",DURATION=30,SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "a1.ts",
+>   "#EXTINF:6.000,",
+>   "a2.ts",
+>   "#EXT-X-CUE-IN",
+>   '#EXT-X-DATERANGE:ID="BRK-second",DURATION=15,SCTE35-OUT=0xFD',
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "c1.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+> runTest("back-to-back DATERANGE before CUE-OUT", m5, [{opp:"opp_ch_0", ext:"BRK-first", seq:0}, {opp:"opp_ch_2", ext:"BRK-second", seq:2}]);
+> JSEOF
+4838fd889d89:/app# node /tmp/test-edge2.mjs
+PASS  back-to-back with DATERANGE for both
+PASS  back-to-back with DATERANGE for first only
+PASS  back-to-back with DATERANGE for second only
+PASS  original 'no leak' test (with content between)
+PASS  back-to-back DATERANGE before CUE-OUT
+4838fd889d89:/app#

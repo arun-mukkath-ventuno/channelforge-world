@@ -1,0 +1,17 @@
+New Terminal Output:
+
+497e45620a91:/app# grep -n 'ad\|impression\|quartile\|beacon' src/app/api/fast/routes.test.ts | head -30
+4:import { readFileSync } from "fs";
+39:    const bad = (path: string[]) => hlsGet(new Request("http://x"), { params: Promise.resolve({ path }) });
+40:    expect((await bad(["..", "x"])).status).toBe(400);
+41:    expect((await bad(["https:", "", "evil.com", "x.m3u8"])).status).toBe(400);
+42:    expect((await bad([])).status).toBe(400);
+48:      ({ ok: true, status: 200, headers: new Headers({ "accept-ranges": "bytes" }), body: "#EXTM3U" } as any)));
+53:    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+54:    expect(res.headers.get("content-type")).toBe("application/vnd.apple.mpegurl");
+59:    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, headers: new Headers(), body: "seg" } as any)));
+63:    expect(res.headers.get("content-type")).toBe("video/mp2t");
+79:    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+87:      headers: { "content-type": "application/json" },
+108:      readFileSync(fileURLToPath(new URL("../../../../test/contracts/api/events.schema.json", import.meta.url)), "utf8")
+497e45620a91:/app#

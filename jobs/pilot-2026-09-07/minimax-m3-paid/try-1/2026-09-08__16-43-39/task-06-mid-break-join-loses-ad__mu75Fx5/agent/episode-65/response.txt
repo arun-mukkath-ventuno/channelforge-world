@@ -1,0 +1,14 @@
+{
+  "analysis": "The bug fix works. Now let me also test the test for incomplete trailing avail (which must still be ignored).",
+  "plan": "Verify incomplete trailing avails are still ignored.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test_incomplete.ts << 'EOF'\nimport { detectAvails } from \"/app/packages/data-plane/src/avails.ts\";\n\n// Incomplete trailing - CUE-OUT without CUE-IN\nconst incomplete = `#EXTM3U\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nslate.ts`;\n\nconst result = detectAvails(incomplete, \"ch\");\nconsole.log(\"Incomplete trailing (CUE-OUT without CUE-IN):\");\nconsole.log(JSON.stringify(result, null, 2));\n\nif (result.length === 0) {\n  console.log(\"✓ Correctly ignored (as expected)\");\n} else {\n  console.log(\"❌ Should have been ignored!\");\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npx tsx /tmp/test_incomplete.ts\n",
+      "duration": 5.0
+    }
+  ]
+}

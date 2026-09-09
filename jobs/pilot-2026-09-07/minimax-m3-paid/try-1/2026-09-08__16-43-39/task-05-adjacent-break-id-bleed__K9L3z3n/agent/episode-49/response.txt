@@ -1,0 +1,11 @@
+{
+  "analysis": "All 63 tests pass in data-plane and core. The fix is complete:\n\n## Summary\n\n**Bug:** In `packages/data-plane/src/avails.ts`, the `blockBreakId` variable (which tracks the DATERANGE id seen in the current segment's tag block) was only cleared at a media URI line. In back-to-back ad break scenarios — where one break ends at the exact instant the next one begins with no regular programming between them — the CUE-IN of the first break could be immediately followed by the CUE-OUT of the second break without any intervening URI line. This caused `blockBreakId` to retain the first break's DATERANGE id, leading to the second break inheriting the first break's producer break id.\n\n**Fix:** Added `blockBreakId = undefined;` to the CUE-IN handler, so the id is cleared when an avail closes, in addition to the existing clearing at the URI line. This is a minimal, targeted fix that doesn't affect any existing marker syntax handling.\n\n**Files modified:**\n- `packages/data-plane/src/avails.ts` — added the clear in the CUE-IN branch.\n- `packages/data-plane/dist/avails.js` — recompiled via `npm run build`.\n\n**Test results:** All 10 avails tests pass, all 63 tests in data-plane and core pass. The reproduction case now returns the correct `BRK-second` for the second break.\n\nRegarding service restart: there are no running services in this container to restart. The build output (which is what gets deployed) is up-to-date with the fix.",
+  "plan": "Task complete. No service restart needed as no service is currently running, but the build is updated.",
+  "commands": [
+    {
+      "keystrokes": "echo 'Fix applied. Build updated. All relevant tests pass.'\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": true
+}

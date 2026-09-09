@@ -1,0 +1,14 @@
+{
+  "analysis": "CONFIRMED THE BUG! The second avail gets 'BRK-first' instead of 'BRK-second'. The bug is exactly as I suspected: `blockBreakId` is only cleared at a media URI line, not at a CUE-IN marker. So when two breaks are back-to-back with no media URI between CUE-IN of break 1 and CUE-OUT of break 2 (or even if the EXTINF/URI order is unusual), the second break inherits the first break's DATERANGE id.\n\nNow let me think about the fix. The simplest fix is to also clear `blockBreakId` when we close an avail (at the CUE-IN marker), or to NOT clear it at URI but only when the avail closes. But actually, the existing behavior of clearing at URI is also needed for the case where the DATERANGE appears before CUE-OUT in the same block - we need blockBreakId to be set so CUE-OUT can use it.\n\nLet me think about this carefully:\n1. When we see DATERANGE → set blockBreakId\n2. When we see CUE-OUT → use blockBreakId as the externalBreakId\n3. When we see CUE-IN → avail is done; blockBreakId should be cleared\n4. When we see a URI → blockBreakId should be cleared (end of tag block)\n\nThe fix is to also clear `blockBreakId` at the CUE-IN marker. Let me verify this doesn't break any existing tests.\n\nLet me look at the test case 'does not leak one break's id onto a later break that has none':\n\n```\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID=\"BRK-first\",SCTE35-OUT=0xFC\n#EXTINF:6.000,\na.ts\n#EXT-X-CUE-IN\n#EXTINF:6.000,\nb.ts          <-- URI line clears blockBreakId\n#EXT-X-CUE-OUT:15\n#EXTINF:6.000,\nc.ts\n#EXT-X-CUE-IN\n```\n\nHere, after CUE-IN, blockBreakId is \"BRK-first\". Then b.ts clears it. Then CUE-OUT sees undefined. Works.\n\nWith my fix, CUE-IN also clears blockBreakId. Then b.ts also clears it (no-op). Still works.\n\nAnother existing test:\n```\n#EXT-X-MEDIA-SEQUENCE:200\n#EXTINF:6.000,\ns200.ts\n#EXT-X-CUE-OUT:90\n#EXT-X-DATERANGE:ID=\"BRK-a11e5310-0003\",PLANNED-DURATION=90,SCTE35-OUT=0xFC30\n#EXT-X-PROGRAM-DATE-TIME:2026-08-29T12:15:00.000Z\n#EXTINF:6.000,\nslate.ts\n#EXT-X-CUE-IN\n```\n\nThis is fine, my fix doesn't affect this.\n\nAnother test:\n```\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-DATERANGE:ID=\"BRK-xyz-0001\",PLANNED-DURATION=30,SCTE35-OUT=0xFC\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nslate.ts\n#EXT-X-CUE-IN\n```\n\nThis is also fine.\n\nSo the fix is: clear `blockBreakId` when we encounter CUE-IN (which closes an avail).\n\nLet me apply this fix.",
+  "plan": "Apply the fix: clear `blockBreakId` when CUE-IN closes an avail, in addition to the existing URI-line clearing.",
+  "commands": [
+    {
+      "keystrokes": "cd /app\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cp packages/data-plane/src/avails.ts /tmp/avails.ts.bak\n",
+      "duration": 0.1
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+New Terminal Output:
+
+4838fd889d89:/app# ls /logs 2>&1
+agent      artifacts  verifier
+4838fd889d89:/app# cat /etc/passwd | head -5
+root:x:0:0:root:/root:/bin/sh
+bin:x:1:1:bin:/bin:/sbin/nologin
+daemon:x:2:2:daemon:/sbin:/sbin/nologin
+lp:x:4:7:lp:/var/spool/lpd:/sbin/nologin
+sync:x:5:0:sync:/sbin:/bin/sync
+4838fd889d89:/app# ps -ef 2>&1
+PID   USER     TIME  COMMAND
+    1 root      0:00 sleep infinity
+   94 root      0:00 [tmux: client]
+   95 root      0:00 {tmux: server} tmux new-session -x 160 -y 40 -d -s terminus-2 bash --login ; pipe-pane -t terminus-2 cat > /logs/agent/terminus_2.pane
+   96 root      0:00 bash --login
+   97 root      0:00 cat
+  110 root      0:00 asciinema rec --stdin /logs/agent/recording.cast
+  114 root      0:00 /bin/bash
+  488 root      0:00 [esbuild]
+  557 root      0:00 [esbuild]
+  921 root      0:00 [esbuild]
+ 1433 root      0:00 [esbuild]
+ 1971 root      0:00 [esbuild]
+ 2053 root      0:00 [esbuild]
+ 2538 root      0:00 ps -ef
+4838fd889d89:/app#

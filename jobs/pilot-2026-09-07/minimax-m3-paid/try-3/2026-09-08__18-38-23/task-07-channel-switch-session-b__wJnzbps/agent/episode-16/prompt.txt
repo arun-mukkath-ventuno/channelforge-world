@@ -1,0 +1,153 @@
+New Terminal Output:
+
+53f0dc87b88f:/app# cat packages/persistence/src/reconciliation.test.ts
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { newDb } from "pg-mem";
+import type { Queryable } from "./db.js";
+import { getBreakDeliveries } from "./reconciliation.js";
+import { insertChannel } from "./repositories/channels.js";
+import { insertCampaign } from "./repositories/campaigns.js";
+import { insertCreative } from "./repositories/creatives.js";
+import { ensureSession } from "./repositories/sessions.js";
+import { upsertOpportunity } from "./repositories/opportunities.js";
+import { saveDecision } from "./repositories/decisions.js";
+import { appendEvent } from "./repositories/events.js";
+import type { AdDecision, AdOpportunity } from "@ssai/core";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const MIG_DIR = resolve(here, "../../../migrations");
+const SCHEMA = readdirSync(MIG_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+  .join("\n");
+
+function freshDb(): Queryable {
+  const mem = newDb();
+  mem.public.none(SCHEMA);
+  const { Pool } = mem.adapters.createPg();
+  return new Pool() as unknown as Queryable;
+}
+
+function opp(over: Partial<AdOpportunity> & Pick<AdOpportunity, "opportunityId">): AdOpportunity {
+  return {
+    channelId: "channel_yoga",
+    breakStart: "2026-08-29T12:15:00Z",
+    breakDuration: 60,
+    source: "cue_out",
+    signalType: "cue_out",
+    ...over,
+  };
+}
+
+function decision(over: Partial<AdDecision> & Pick<AdDecision, "opportunityId" | "sessionId">): AdDecision {
+  return {
+    channelId: "channel_yoga",
+    breakDuration: 60,
+    eligible: [],
+    rejected: [],
+    pod: [],
+    adSeconds: 0,
+    slateSeconds: 0,
+    ...over,
+  };
+}
+
+let db: Queryable;
+beforeEach(async () => {
+  db = freshDb();
+  await insertChannel(db, { id: "channel_yoga", name: "Yoga", originUrl: "http://origin/yoga" });
+  await insertChannel(db, { id: "channel_food", name: "Food", originUrl: "http://origin/food" });
+  await insertCampaign(db, {
+    id: "c1",
+    advertiser: "Brand",
+    startDate: "2026-01-01T00:00:00Z",
+    endDate: "2026-12-31T00:00:00Z",
+    status: "active",
+    targetChannels: [],
+  });
+  await insertCreative(db, { id: "cr1", campaignId: "c1", name: "Ad", duration: 30, status: "ready", priority: 0, weight: 100 });
+  await ensureSession(db, { id: "s1", channelId: "channel_yoga" });
+  await ensureSession(db, { id: "s2", channelId: "channel_yoga" });
+});
+
+describe("getBreakDeliveries — per-break reconciliation detail", () => {
+  it("keys a filled break by its externalBreakId with ad seconds + impressions", async () => {
+    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_202", externalBreakId: "BRK-a11e5310-0003" }));
+    await saveDecision(db, {
+      decisionId: "dec1",
+      podId: "pod1",
+      requestedAt: "2026-08-29T12:15:01Z",
+      completedAt: "2026-08-29T12:15:01Z",
+      decision: decision({
+        opportunityId: "opp_channel_yoga_202",
+        sessionId: "s1",
+        pod: [{ type: "ad", creativeId: "cr1", campaignId: "c1", duration: 30, position: 0, startOffset: 0, endOffset: 30 }],
+        adSeconds: 30,
+        slateSeconds: 0,
+      }),
+    });
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "s1", opportunityId: "opp_channel_yoga_202", podId: "pod1" });
+    await appendEvent(db, { eventId: "e2", eventType: "ad_complete", sessionId: "s1", opportunityId: "opp_channel_yoga_202", podId: "pod1" });
+
+    const breaks = await getBreakDeliveries(db);
+    expect(breaks).toHaveLength(1);
+    expect(breaks[0]).toMatchObject({
+      opportunityId: "opp_channel_yoga_202",
+      externalBreakId: "BRK-a11e5310-0003",
+      channelId: "channel_yoga",
+      filled: true,
+      adSeconds: 30,
+      slateSeconds: 0,
+      impressions: 1,
+      errors: 0,
+    });
+    expect(breaks[0]!.quartiles.complete).toBe(1);
+  });
+
+  it("reports an unfilled break (no decision) as filled=false", async () => {
+    await upsertOpportunity(db, opp({ opportunityId: "opp_channel_yoga_9", externalBreakId: "BRK-nofill-0001" }));
+    const breaks = await getBreakDeliveries(db);
+    expect(breaks).toHaveLength(1);
+    expect(breaks[0]).toMatchObject({ filled: false, adSeconds: 0, impressions: 0, externalBreakId: "BRK-nofill-0001" });
+  });
+
+  it("aggregates ad seconds + impressions across multiple viewer sessions of one break", async () => {
+    await upsertOpportunity(db, opp({ opportunityId: "opp_multi", externalBreakId: "BRK-multi" }));
+    for (const [sid, dec, pod] of [["s1", "dec1", "pod1"], ["s2", "dec2", "pod2"]] as const) {
+      await saveDecision(db, {
+        decisionId: dec,
+        podId: pod,
+        requestedAt: "2026-08-29T12:15:01Z",
+        completedAt: "2026-08-29T12:15:01Z",
+        decision: decision({
+          opportunityId: "opp_multi",
+          sessionId: sid,
+          pod: [{ type: "ad", creativeId: "cr1", campaignId: "c1", duration: 30, position: 0, startOffset: 0, endOffset: 30 }],
+          adSeconds: 30,
+          slateSeconds: 0,
+        }),
+      });
+      await appendEvent(db, { eventId: `imp_${sid}`, eventType: "ad_impression", sessionId: sid, opportunityId: "opp_multi", podId: pod });
+    }
+    const breaks = await getBreakDeliveries(db);
+    expect(breaks).toHaveLength(1);
+    expect(breaks[0]).toMatchObject({ adSeconds: 60, impressions: 2, filled: true });
+  });
+
+  it("filters by channel and since", async () => {
+    await upsertOpportunity(db, opp({ opportunityId: "opp_yoga", externalBreakId: "BRK-yoga", breakStart: "2026-08-29T12:00:00Z" }));
+    await upsertOpportunity(db, opp({ opportunityId: "opp_food", channelId: "channel_food", externalBreakId: "BRK-food", breakStart: "2026-08-29T12:00:00Z" }));
+    await upsertOpportunity(db, opp({ opportunityId: "opp_old", externalBreakId: "BRK-old", breakStart: "2020-01-01T00:00:00Z" }));
+
+    const yoga = await getBreakDeliveries(db, { channelId: "channel_yoga" });
+    expect(yoga.map((b) => b.externalBreakId).sort()).toEqual(["BRK-old", "BRK-yoga"]);
+
+    const recent = await getBreakDeliveries(db, { channelId: "channel_yoga", since: "2026-01-01T00:00:00Z" });
+    expect(recent.map((b) => b.externalBreakId)).toEqual(["BRK-yoga"]);
+  });
+});
+53f0dc87b88f:/app#

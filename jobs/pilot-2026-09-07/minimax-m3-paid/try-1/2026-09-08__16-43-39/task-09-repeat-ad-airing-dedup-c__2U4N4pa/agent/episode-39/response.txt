@@ -1,0 +1,16 @@
+
+
+{
+  "analysis": "This is the audience telemetry (separately documented in the comments as separate from the SSAI events). The bug is specifically about SSAI events, not audience telemetry.\n\nMy fix is targeted at the SSAI beacon logic in ssai.ts. Let me also think about whether I need to do anything more.\n\nThe bug description says:\n> 'When you believe the fix is correct, restart whichever service needs it so the running system reflects your change.'\n\nLet me find the running service and restart it. But I don't see a running service yet. Let me check what processes are running and what port the service runs on.",
+  "plan": "Let me check for any running services and see what needs to be restarted.",
+  "commands": [
+    {
+      "keystrokes": "ps aux | grep -v grep | grep -v 'sleep\\|tmux\\|asciinema\\|bash'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "netstat -tnlp 2>/dev/null || ss -tnlp 2>/dev/null\n",
+      "duration": 0.1
+    }
+  ]
+}

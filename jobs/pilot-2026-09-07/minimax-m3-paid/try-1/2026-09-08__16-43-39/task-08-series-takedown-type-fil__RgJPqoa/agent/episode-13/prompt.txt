@@ -1,0 +1,23 @@
+New Terminal Output:
+
+root@63cfd5c67291:/app# diff -u app/repositories/rights.py app/repositories/rights.py.orig
+--- app/repositories/rights.py  2026-09-06 14:22:42.000000000 +0000
++++ app/repositories/rights.py.orig     2026-09-05 07:37:17.000000000 +0000
+@@ -161,7 +161,7 @@
+ def active_takedown_for_asset(
+     db: Session, *, org_id: uuid.UUID, asset: Asset
+ ) -> RightsTakedown | None:
+-    """An active takedown covering this asset, if any."""
++    """An active takedown covering this asset directly or via its series, if any."""
+     scope_ids = [asset.id]
+     if asset.series_id is not None:
+         scope_ids.append(asset.series_id)
+@@ -169,7 +169,6 @@
+         select(RightsTakedown).where(
+             RightsTakedown.organization_id == org_id,
+             RightsTakedown.status == "active",
+-            RightsTakedown.scope_type == "asset",
+             RightsTakedown.scope_id.in_(scope_ids),
+         )
+     )
+root@63cfd5c67291:/app#

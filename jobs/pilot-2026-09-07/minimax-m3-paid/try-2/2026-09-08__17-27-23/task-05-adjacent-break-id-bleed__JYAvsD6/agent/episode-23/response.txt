@@ -1,0 +1,14 @@
+{
+  "analysis": "Interesting! The basic back-to-back scenario with segments inside each break works correctly. Let me try a different scenario - what if the DATERANGE comes BEFORE CUE-OUT for some producers, AND there's no segment URI between breaks.",
+  "plan": "Try the DATERANGE-before-CUE-OUT variant with back-to-back.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test-bug2.ts << 'EOF'\nimport { detectAvails } from \"/app/packages/data-plane/src/avails.ts\";\n\n// Variant: DATERANGE comes BEFORE CUE-OUT (some producers do this), back-to-back.\nconst manifest = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:6.000,\ncontent-0.ts\n#EXT-X-DATERANGE:ID=\"BRK-1\",PLANNED-DURATION=30,SCTE35-OUT=0xFC\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nseg1-1.ts\n#EXTINF:6.000,\nseg1-2.ts\n#EXTINF:6.000,\nseg1-3.ts\n#EXTINF:6.000,\nseg1-4.ts\n#EXTINF:6.000,\nseg1-5.ts\n#EXT-X-CUE-IN\n#EXT-X-DATERANGE:ID=\"BRK-2\",PLANNED-DURATION=30,SCTE35-OUT=0xFC\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nseg2-1.ts\n#EXTINF:6.000,\nseg2-2.ts\n#EXTINF:6.000,\nseg2-3.ts\n#EXTINF:6.000,\nseg2-4.ts\n#EXTINF:6.000,\nseg2-5.ts\n#EXT-X-CUE-IN`;\n\nconst avails = detectAvails(manifest, \"channel_test\");\nconsole.log(\"avails[0].externalBreakId:\", avails[0]?.externalBreakId);\nconsole.log(\"avails[1].externalBreakId:\", avails[1]?.externalBreakId);\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cd /app && npx tsx /tmp/test-bug2.ts\n",
+      "duration": 5.0
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+New Terminal Output:
+
+{"level":30,"time":1788868895851,"pid":1579,"hostname":"840252e8a3ed","msg":"Server listening at http://172.20.0.4:4000"}
+grep -n "ON CONFLICT" packages/persistence/dist/repositories/sessions.js
+7:     ON CONFLICT (id) DO UPDATE SET
+840252e8a3ed:/app# cat packages/persistence/dist/repositories/sessions.js | head -25
+// Playback session repository (PRD §11, §12, §44).
+import { toIso } from "../map.js";
+/** Create the session if absent; idempotent so ad-decision can ensure it exists. */
+export async function ensureSession(db, input) {
+    await db.query(`INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (id) DO UPDATE SET
+       channel_id = EXCLUDED.channel_id,
+       last_activity_at = now()`, [
+        input.id,
+        input.channelId,
+        input.deviceType ?? null,
+        input.country ?? null,
+        input.anonymousId ?? null,
+        input.ipHash ?? null,
+        input.userAgent ?? null,
+    ]);
+}
+export async function touchSession(db, id) {
+    await db.query("UPDATE playback_sessions SET last_activity_at = now() WHERE id = $1", [id]);
+}
+function toSession(r) {
+    return {
+        id: r.id,
+        channelId: r.channel_id,
+840252e8a3ed:/app#

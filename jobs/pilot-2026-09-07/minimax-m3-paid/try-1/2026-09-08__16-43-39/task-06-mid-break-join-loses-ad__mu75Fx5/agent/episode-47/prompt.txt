@@ -1,0 +1,54 @@
+New Terminal Output:
+
+8b0f29f00026:/app# head -50 packages/data-plane/src/avails.ts
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+//
+// A session whose *first* manifest request for a given break lands after the
+// break has already been playing for a while may receive a manifest whose
+// CUE-OUT has already scrolled off the live window but whose CUE-IN is still
+// present (PRD §41). Such a window is the back end of an in-progress break
+// without its start marker. The detected avail is synthesized so the data
+// plane still decides an ad for it; otherwise the session sees the origin
+// slate for the rest of the break and never shows up as having tried.
+
+import { parseMarkerLine } from "@ssai/core";
+
+export interface Avail {
+  opportunityId: string;
+  channelId: string;
+  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+   *  by contrast, is a media-sequence-derived id independent of the producer). */
+  externalBreakId?: string;
+  /** Break duration: the marker's declared duration, or the summed segment time. */
+  duration: number;
+  /** Declared duration from the marker, if it carried a valid one. */
+  declaredDuration?: number;
+  /** Actual duration summed from the segments inside the avail. */
+  measuredDuration: number;
+  /** Media sequence number of the first segment inside the avail. */
+  startSequence: number;
+  programDateTime?: string;
+  /** Line index of the CUE-OUT marker, or the EXTINF line above the first segment of a
+   *  synthesized avail when the CUE-OUT has scrolled off but the CUE-IN is still in the window. */
+  startLine: number;
+  /** Line index of the CUE-IN marker. */
+  endLine: number;
+}
+
+const MEDIA_SEQUENCE = /^#EXT-X-MEDIA-SEQUENCE:(\d+)/;
+const EXTINF = /^#EXTINF:([\d.]+)/;
+const PROGRAM_DATE_TIME = /^#EXT-X-PROGRAM-DATE-TIME:(.+)/;
+
+/** Detect all complete avails in the manifest. Incomplete trailing avails (a
+ *  CUE-OUT with no CUE-IN yet in the window) are ignored — PRD §41.
+ *
+ *  Symmetrically, a manifest whose CUE-IN is present but whose CUE-OUT has
+8b0f29f00026:/app#

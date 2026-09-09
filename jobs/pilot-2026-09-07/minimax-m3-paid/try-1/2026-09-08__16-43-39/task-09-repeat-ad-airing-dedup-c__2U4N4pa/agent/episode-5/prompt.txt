@@ -1,0 +1,183 @@
+New Terminal Output:
+
+26306d2ed51a:/app# cat src/lib/ssai.ts
+// SSAI (server-side ad insertion) client — the AD leg of the Stream Telemetry Blueprint.
+//
+// For channels with an `ssaiChannel`, the player requests a session from the ad server, plays the
+// returned stitched `playback_url` (ChannelForge content + spliced ads), and fires per-ad quartile
+// beacons. This is SEPARATE from the audience telemetry in `telemetry-store` / `/api/fast/events`
+// (concurrents, QoE) — that stays untouched; ad events go to the SSAI's `/v1/events`.
+
+export const SSAI_BASE = (
+  process.env.NEXT_PUBLIC_SSAI_BASE || "https://ssai.ventunotech.com"
+).replace(/\/$/, "");
+
+export interface SsaiSession {
+  sessionId: string;
+  playbackUrl: string;
+}
+
+/** Create a playback session and get the stitched manifest URL for an SSAI channel. */
+export async function createSsaiSession(ssaiChannel: string): Promise<SsaiSession | null> {
+  try {
+    const res = await fetch(`${SSAI_BASE}/v1/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ channel_id: ssaiChannel }),
+    });
+    if (!res.ok) return null;
+    const d = await res.json();
+    if (!d?.session_id || !d?.playback_url) return null;
+    return { sessionId: String(d.session_id), playbackUrl: String(d.playback_url) };
+  } catch {
+    return null;
+  }
+}
+
+export type AdBeacon =
+  | "ad_impression"
+  | "ad_start"
+  | "ad_first_quartile"
+  | "ad_midpoint"
+  | "ad_third_quartile"
+  | "ad_complete";
+
+/** Fire one ad tracking beacon to the SSAI. Best-effort; failures never disrupt playback. */
+export function sendAdBeacon(sessionId: string, event: AdBeacon, adId: string): void {
+  const body = JSON.stringify({ event, session_id: sessionId, ad_id: adId });
+  try {
+    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+      navigator.sendBeacon(`${SSAI_BASE}/v1/events`, new Blob([body], { type: "application/json" }));
+    } else {
+      void fetch(`${SSAI_BASE}/v1/events`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      });
+    }
+  } catch {
+    /* best-effort */
+  }
+}
+
+export interface AdWindow {
+  adId: string;
+  start: number; // epoch ms
+  end: number; // epoch ms
+}
+
+/** Parse ad avails from a stitched media playlist's EXT-X-DATERANGE lines (CLASS com.fastworld.ad). */
+export function parseAdWindows(manifest: string): AdWindow[] {
+  const out: AdWindow[] = [];
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:") || !line.includes('CLASS="com.fastworld.ad"')) continue;
+    const attr = (k: string): string | undefined => line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("DURATION");
+    const adId = attr("X-AD-ID") || attr("ID");
+    if (!startDate || !dur || !adId) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ adId, start, end: start + seconds * 1000 });
+  }
+  return out;
+}
+
+export interface ScteAvail {
+  id: string;
+  start: number; // epoch ms — break start (absolute, from START-DATE)
+  end: number; // epoch ms
+  durationSec: number;
+}
+
+/**
+ * Parse SCTE-35 ad avails from a ChannelForge media playlist. These are the ad
+ * OPPORTUNITIES the packager signals (where SSAI may splice), distinct from
+ * `parseAdWindows` which reads the ads actually stitched in. Reads
+ * `#EXT-X-DATERANGE` lines carrying `SCTE35-OUT` with an absolute `START-DATE`
+ * and `PLANNED-DURATION`.
+ */
+export function parseScteAvails(manifest: string): ScteAvail[] {
+  const out: ScteAvail[] = [];
+  for (const line of manifest.split("\n")) {
+    if (!line.startsWith("#EXT-X-DATERANGE:")) continue;
+    if (!/SCTE35-OUT/i.test(line)) continue;
+    const attr = (k: string): string | undefined =>
+      line.match(new RegExp(`${k}="?([^",]+)"?`))?.[1];
+    const startDate = attr("START-DATE");
+    const dur = attr("PLANNED-DURATION") || attr("DURATION");
+    const id = attr("ID") || "brk";
+    if (!startDate || !dur) continue;
+    const start = Date.parse(startDate);
+    const seconds = Number(dur);
+    if (Number.isNaN(start) || Number.isNaN(seconds)) continue;
+    out.push({ id, start, end: start + seconds * 1000, durationSec: seconds });
+  }
+  return out;
+}
+
+// Quartile thresholds → beacon. Fired at most once per (adId+start) window.
+const QUARTILES: [number, AdBeacon][] = [
+  [0, "ad_impression"],
+  [0, "ad_start"],
+  [0.25, "ad_first_quartile"],
+  [0.5, "ad_midpoint"],
+  [0.75, "ad_third_quartile"],
+  [1, "ad_complete"],
+];
+
+/**
+ * Watch the wall-clock playhead against the stitched manifest's ad windows and fire quartile
+ * beacons as each ad plays. `playheadDate()` returns the current playhead as epoch ms (from
+ * Shaka's getPlayheadTimeAsDate). Returns a stop() cleanup.
+ */
+export function startAdBeaconWatcher(opts: {
+  sessionId: string;
+  manifestUrl: string;
+  playheadDate: () => number | null;
+  refetchMs?: number;
+  tickMs?: number;
+}): () => void {
+  let windows: AdWindow[] = [];
+  const fired = new Set<string>(); // `${adId}:${start}:${beacon}`
+  let stopped = false;
+
+  async function refresh() {
+    try {
+      const res = await fetch(opts.manifestUrl, { cache: "no-store" });
+      if (res.ok) windows = parseAdWindows(await res.text());
+    } catch {
+      /* keep prior windows */
+    }
+  }
+
+  const tick = () => {
+    if (stopped) return;
+    const now = opts.playheadDate();
+    if (now != null) {
+      for (const w of windows) {
+        if (now < w.start || now > w.end) continue;
+        const progress = (now - w.start) / Math.max(1, w.end - w.start);
+        for (const [threshold, beacon] of QUARTILES) {
+          if (progress + 1e-6 < threshold) continue;
+          const key = `${w.adId}:${w.start}:${beacon}`;
+          if (fired.has(key)) continue;
+          fired.add(key);
+          sendAdBeacon(opts.sessionId, beacon, w.adId);
+        }
+      }
+    }
+  };
+
+  void refresh();
+  const refetch = setInterval(refresh, opts.refetchMs ?? 10_000);
+  const ticker = setInterval(tick, opts.tickMs ?? 1_000);
+  return () => {
+    stopped = true;
+    clearInterval(refetch);
+    clearInterval(ticker);
+  };
+}
+26306d2ed51a:/app#

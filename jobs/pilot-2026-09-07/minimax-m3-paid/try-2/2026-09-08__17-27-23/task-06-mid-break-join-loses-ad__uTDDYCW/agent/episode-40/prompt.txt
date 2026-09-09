@@ -1,0 +1,41 @@
+New Terminal Output:
+
+04a690a73d92:/app# cat > /tmp/test_patch.mjs << 'PATCH_END'
+> import { readFileSync, writeFileSync } from 'node:fs';
+>
+> const path = 'packages/data-plane/src/avails.test.ts';
+> let content = readFileSync(path, 'utf8');
+>
+> const oldTest = `  it("ignores an incomplete trailing avail (CUE-OUT with no CUE-IN yet)", () => {
+>     const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+>     expect(detectAvails(m, "ch")).toEqual([]);
+>   });`;
+>
+> const newTest = `  it("emits a trailing mid-break avail so late tune-ins / reconnects get a decision (PRD §41)", () => {
+>     const m = manifest(["#EXT-X-MEDIA-SEQUENCE:0", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts"]);
+>     const avails = detectAvails(m, "ch");
+>     expect(avails).toHaveLength(1);
+>     expect(avails[0]).toMatchObject({
+>       opportunityId: "opp_ch_0",
+>       channelId: "ch",
+>       duration: 30,
+>       declaredDuration: 30,
+>       measuredDuration: 6,
+>       startSequence: 0,
+>       startLine: 1,
+>     });
+>     // endLine covers the rest of the playlist so the stitcher replaces it.
+>     expect(avails[0]!.endLine).toBe(3);
+>   });`;
+>
+> if (content.includes(oldTest)) {
+>   content = content.replace(oldTest, newTest);
+>   writeFileSync(path, content);
+>   console.log('Test updated');
+> } else {
+>   console.log('Pattern not found');
+> }
+> PATCH_END
+04a690a73d92:/app# node /tmp/test_patch.mjs
+Test updated
+04a690a73d92:/app#

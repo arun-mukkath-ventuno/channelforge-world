@@ -1,0 +1,10 @@
+{
+  "analysis": "No services are running on the standard ports. Let me check more carefully for any running services or processes that might be related to the SSAI system.",
+  "plan": "Check for any running services more thoroughly.",
+  "commands": [
+    {
+      "keystrokes": "ls /proc/*/cmdline 2>/dev/null | while read f; do echo \"$f: $(cat $f | tr '\\0' ' ')\"; done 2>/dev/null | grep -v \"cat\\|tmux\\|bash\\|sleep\\|asciinema\\|terminus\" | head -20\n",
+      "duration": 0.5
+    }
+  ]
+}

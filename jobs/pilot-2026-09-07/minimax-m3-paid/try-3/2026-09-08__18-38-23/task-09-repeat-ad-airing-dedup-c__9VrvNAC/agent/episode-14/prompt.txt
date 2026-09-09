@@ -1,0 +1,312 @@
+New Terminal Output:
+
+497e45620a91:/app# cat src/components/fast/FastPlayer.tsx
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { emit } from "@/lib/fast-client";
+import { startAdBeaconWatcher } from "@/lib/ssai";
+
+export type PlayerStatus = "loading" | "playing" | "recovering" | "slate";
+
+type Props = {
+  hlsUrl: string;
+  /** When set, hlsUrl is an SSAI-stitched session — fire ad-quartile beacons against this session. */
+  ssaiSessionId?: string;
+  channelId: number;
+  channelName: string;
+  channelBug: string;
+  muted: boolean;
+  paused: boolean;
+  captionsOn: boolean;
+  /** Bump to force a fresh manifest load (e.g. after reconnecting). */
+  reloadNonce: number;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  onStatus?: (s: PlayerStatus) => void;
+  onCaptionsAvailable?: (available: boolean) => void;
+};
+
+// Shaka has no bundled types for the compiled build; keep the surface we use loose.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+export default function FastPlayer({
+  hlsUrl,
+  ssaiSessionId,
+  channelId,
+  channelName,
+  channelBug,
+  muted,
+  paused,
+  captionsOn,
+  reloadNonce,
+  videoRef,
+  onStatus,
+  onCaptionsAvailable,
+}: Props) {
+  const playerRef = useRef<any>(null);
+  const shakaRef = useRef<any>(null);
+  const retryRef = useRef<number>(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startedAt = useRef<number>(0);
+  const bufferAt = useRef<number | null>(null);
+  const [status, setStatus] = useState<PlayerStatus>("loading");
+
+  const setStat = (s: PlayerStatus) => {
+    setStatus(s);
+    onStatus?.(s);
+  };
+
+  // Reflect muted/paused without reloading the stream.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (v) v.muted = muted;
+  }, [muted, videoRef]);
+
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (paused) v.pause();
+    else v.play().catch(() => {});
+  }, [paused, videoRef]);
+
+  // Toggle caption/subtitle track visibility (no-op if the stream has none).
+  useEffect(() => {
+    const p = playerRef.current;
+    if (!p) return;
+    try {
+      const tracks = p.getTextTracks?.() ?? [];
+      if (captionsOn && tracks.length) p.selectTextTrack(tracks[0]);
+      p.setTextTrackVisibility?.(captionsOn && tracks.length > 0);
+    } catch {
+      /* no text tracks */
+    }
+  }, [captionsOn, status]);
+
+  // Load / switch the manifest. Re-runs on channel change or a reload nonce bump.
+  useEffect(() => {
+    let cancelled = false;
+    const v = videoRef.current;
+    if (!v) return;
+
+    setStat("loading");
+    startedAt.current = performance.now();
+
+    async function boot() {
+      const mod: any = await import("shaka-player/dist/shaka-player.compiled.js");
+      const shaka = mod.default ?? mod;
+      shakaRef.current = shaka;
+      if (cancelled) return;
+
+      if (!shaka.Player.isBrowserSupported()) {
+        // Native HLS fallback (Safari) if Shaka can't run.
+        if (v!.canPlayType("application/vnd.apple.mpegurl")) {
+          v!.src = hlsUrl;
+        } else {
+          setStat("slate");
+          emit({ event: "playback_error", channelId, errorCode: "unsupported" });
+        }
+        return;
+      }
+
+      shaka.polyfill.installAll();
+
+      if (!playerRef.current) {
+        const player = new shaka.Player();
+        await player.attach(v);
+        player.configure({
+          streaming: { lowLatencyMode: false, rebufferingGoal: 2, bufferingGoal: 10 },
+        });
+        player.addEventListener("error", (e: any) => onShakaError(e?.detail));
+        playerRef.current = player;
+      }
+
+      try {
+        retryRef.current = 0;
+        await playerRef.current.load(hlsUrl);
+        if (cancelled) return;
+        v!.loop = true; // placeholder streams loop; live streams ignore this
+        v!.muted = muted;
+        onCaptionsAvailable?.((playerRef.current.getTextTracks?.() ?? []).length > 0);
+        if (!paused) await v!.play().catch(() => {});
+      } catch (err) {
+        if (!cancelled) onShakaError(err);
+      }
+    }
+
+    function scheduleRetry(delay: number, resetCount = false) {
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+      retryTimer.current = setTimeout(async () => {
+        if (cancelled || !playerRef.current) return;
+        if (resetCount) retryRef.current = 0;
+        try {
+          await playerRef.current.load(hlsUrl);
+          if (!cancelled && !paused) await v!.play().catch(() => {});
+        } catch {
+          onShakaError({ code: "retry_failed" });
+        }
+      }, delay);
+    }
+
+    function onShakaError(detail: any) {
+      if (cancelled) return;
+      emit({ event: "manifest_error", channelId, errorCode: String(detail?.code ?? "unknown") });
+      const attempt = ++retryRef.current;
+      if (attempt > 3) {
+        // Exhausted fast recovery — show the ChannelForge slate, keep probing slowly.
+        setStat("slate");
+        scheduleRetry(15000, true);
+        return;
+      }
+      setStat("recovering");
+      scheduleRetry(Math.min(2000 * Math.pow(1.6, attempt - 1), 8000));
+    }
+
+    function onPlaying() {
+      if (cancelled) return;
+      if (status !== "playing") {
+        emit({ event: "playback_start", channelId, startupMs: Math.round(performance.now() - startedAt.current) });
+      }
+      if (bufferAt.current != null) {
+        emit({ event: "buffer_end", channelId, bufferMs: Math.round(performance.now() - bufferAt.current) });
+        bufferAt.current = null;
+      }
+      setStat("playing");
+    }
+    function onWaiting() {
+      if (cancelled) return;
+      if (bufferAt.current == null) {
+        bufferAt.current = performance.now();
+        emit({ event: "buffer_start", channelId });
+      }
+    }
+
+    v.addEventListener("playing", onPlaying);
+    v.addEventListener("waiting", onWaiting);
+
+    boot();
+
+    return () => {
+      cancelled = true;
+      v.removeEventListener("playing", onPlaying);
+      v.removeEventListener("waiting", onWaiting);
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hlsUrl, channelId, reloadNonce]);
+
+  // Ad quartile beacons (SSAI channels only). Watches the wall-clock playhead against the stitched
+  // manifest's ad windows and fires impression/quartiles to the ad server. Separate from the
+  // audience heartbeat; no-ops until an ad actually plays.
+  useEffect(() => {
+    if (!ssaiSessionId) return;
+    const stop = startAdBeaconWatcher({
+      sessionId: ssaiSessionId,
+      manifestUrl: hlsUrl,
+      playheadDate: () => {
+        const d = playerRef.current?.getPlayheadTimeAsDate?.();
+        return d ? d.getTime() : null;
+      },
+    });
+    return stop;
+  }, [ssaiSessionId, hlsUrl]);
+
+  // Tear down Shaka only on unmount.
+  useEffect(() => {
+    return () => {
+      if (playerRef.current) {
+        playerRef.current.destroy().catch(() => {});
+        playerRef.current = null;
+      }
+    };
+  }, []);
+
+  return (
+    <>
+      <video
+        ref={videoRef}
+        playsInline
+        autoPlay
+        muted={muted}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          background: "#000",
+        }}
+      />
+      {status === "slate" ? (
+        <Slate channelName={channelName} channelBug={channelBug} />
+      ) : status === "loading" || status === "recovering" ? (
+        <FaultOverlay status={status} />
+      ) : null}
+    </>
+  );
+}
+
+function FaultOverlay({ status }: { status: PlayerStatus }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 16,
+        background: "#000",
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        className="fw-spin"
+        style={{
+          width: 26,
+          height: 26,
+          border: "2px solid rgba(245,243,241,.25)",
+          borderTopColor: "#ec3013",
+          borderRadius: "50%",
+        }}
+      />
+      <div style={{ font: "600 11px/1 var(--mono)", letterSpacing: ".14em", color: "rgba(245,243,241,.6)" }}>
+        {status === "loading" ? "TUNING CHANNEL" : "WE'RE RESTORING THIS CHANNEL"}
+      </div>
+    </div>
+  );
+}
+
+// ChannelForge fallback slate — failure should look intentional, like broadcast.
+function Slate({ channelName, channelBug }: { channelName: string; channelBug: string }) {
+  return (
+    <div
+      style={{
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 20,
+        background: "linear-gradient(150deg,#141210 0%,#0a0908 100%)",
+        pointerEvents: "none",
+        textAlign: "center",
+        padding: 24,
+      }}
+    >
+      <div style={{ fontWeight: 700, fontSize: "clamp(20px,5vw,40px)", letterSpacing: ".04em", color: "rgba(255,255,255,.16)", whiteSpace: "pre-line", lineHeigh
+t: 1.05 }}>
+        {channelBug}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <span className="fw-pulse" style={{ width: 7, height: 7, background: "#ec3013", borderRadius: "50%" }} />
+        <span style={{ font: "700 11px/1 var(--mono)", letterSpacing: ".18em", color: "#ec3013" }}>STANDBY</span>
+      </div>
+      <div style={{ font: "600 10px/1.5 var(--mono)", letterSpacing: ".14em", color: "rgba(245,243,241,.5)" }}>
+        CHANNELFORGE · RESTORING {channelName.toUpperCase()}
+      </div>
+    </div>
+  );
+}
+497e45620a91:/app#

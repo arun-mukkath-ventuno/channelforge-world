@@ -1,0 +1,20 @@
+New Terminal Output:
+
+840252e8a3ed:/app# node -e "fetch('http://localhost:4000/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channe
+l_id:'channel_food'})}).then(r=>r.json()).then(j=>console.log(JSON.stringify(j)))"
+{"level":30,"time":1788868937340,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-1","req":{"method":"POST","url":"/v1/sessions","host":"localhost:4000","remot
+eAddress":"127.0.0.1","remotePort":39800},"msg":"incoming request"}
+{"level":50,"time":1788868937359,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-1","req":{"method":"POST","url":"/v1/sessions","host":"localhost:4000","remot
+eAddress":"127.0.0.1","remotePort":39800},"res":{"statusCode":500},"err":{"type":"DatabaseError","message":"insert or update on table \"playback_sessions\" viol
+ates foreign key constraint \"playback_sessions_channel_id_fkey\"","stack":"error: insert or update on table \"playback_sessions\" violates foreign key constrai
+nt \"playback_sessions_channel_id_fkey\"\n    at /app/node_modules/pg-pool/index.js:45:11\n    at process.processTicksAndRejections (node:internal/process/task_
+queues:103:5)\n    at async Module.ensureSession (file:///app/packages/persistence/dist/repositories/sessions.js:5:5)\n    at async Object.<anonymous> (file:///
+app/packages/control-plane/dist/server.js:90:9)","length":313,"name":"error","severity":"ERROR","code":"23503","detail":"Key (channel_id)=(channel_food) is not
+present in table \"channels\".","schema":"public","table":"playback_sessions","constraint":"playback_sessions_channel_id_fkey","file":"ri_triggers.c","line":"26
+08","routine":"ri_ReportViolation"},"msg":"insert or update on table \"playback_sessions\" violates foreign key constraint \"playback_sessions_channel_id_fkey\"
+"}
+{"level":30,"time":1788868937362,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-1","res":{"statusCode":500},"responseTime":21.214500000001863,"msg":"request
+completed"}
+{"statusCode":500,"code":"23503","error":"Internal Server Error","message":"insert or update on table \"playback_sessions\" violates foreign key constraint \"pl
+ayback_sessions_channel_id_fkey\""}
+840252e8a3ed:/app#

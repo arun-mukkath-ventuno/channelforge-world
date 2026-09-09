@@ -1,0 +1,24 @@
+New Terminal Output:
+
+26306d2ed51a:/app# cat src/app/api/fast/routes.test.ts | head -20
+// B2 · route handlers + A3 · events schema. Handlers are invoked directly with a
+// Request (and Promise-wrapped params for dynamic segments); fetch is mocked.
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+
+import { GET as channelById } from "@/app/api/fast/channels/[id]/route";
+import { GET as hlsGet, OPTIONS as hlsOptions } from "@/app/api/fast/hls/[...path]/route";
+import { POST as eventsPost } from "@/app/api/fast/events/route";
+
+beforeEach(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).__fastChannels = undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).__fastChannelsMem = undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).__fastTelemetryStore = undefined;
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+26306d2ed51a:/app#

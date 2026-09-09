@@ -1,0 +1,86 @@
+New Terminal Output:
+
+cbd3d522fcae:/app# cat > /tmp/test_edge.mjs << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Edge case: DATERANGE after segment URI in BOTH breaks (back-to-back)
+> const manifest = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "a.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-1",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "b.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-2",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+>
+> const avails = detectAvails(manifest, "ch");
+> console.log("Edge case (DATERANGE after segment in both):");
+> for (const a of avails) {
+>   console.log(`  opp=${a.opportunityId}, externalBreakId=${a.externalBreakId}`);
+> }
+>
+> // Edge case: Three back-to-back breaks
+> const manifest3 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "a.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-1",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "b.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-2",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:20",
+>   "#EXTINF:6.000,",
+>   "c.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-3",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+>
+> const avails3 = detectAvails(manifest3, "ch");
+> console.log("\nThree back-to-back breaks:");
+> for (const a of avails3) {
+>   console.log(`  opp=${a.opportunityId}, externalBreakId=${a.externalBreakId}`);
+> }
+>
+> // Edge case: Back-to-back where second break has NO DATERANGE
+> const manifest4 = [
+>   "#EXT-X-MEDIA-SEQUENCE:0",
+>   "#EXT-X-CUE-OUT:30",
+>   "#EXTINF:6.000,",
+>   "a.ts",
+>   '#EXT-X-DATERANGE:ID="BRK-1",SCTE35-OUT=0xFC',
+>   "#EXT-X-CUE-IN",
+>   "#EXT-X-CUE-OUT:15",
+>   "#EXTINF:6.000,",
+>   "b.ts",
+>   "#EXT-X-CUE-IN",
+> ].join("\n");
+>
+> const avails4 = detectAvails(manifest4, "ch");
+> console.log("\nBack-to-back, second break has no DATERANGE:");
+> for (const a of avails4) {
+>   console.log(`  opp=${a.opportunityId}, externalBreakId=${a.externalBreakId}`);
+> }
+> EOF
+cbd3d522fcae:/app# npx tsx /tmp/test_edge.mjs
+Edge case (DATERANGE after segment in both):
+  opp=opp_ch_0, externalBreakId=BRK-1
+  opp=opp_ch_1, externalBreakId=BRK-2
+
+Three back-to-back breaks:
+  opp=opp_ch_0, externalBreakId=BRK-1
+  opp=opp_ch_1, externalBreakId=BRK-2
+  opp=opp_ch_2, externalBreakId=BRK-3
+
+Back-to-back, second break has no DATERANGE:
+  opp=opp_ch_0, externalBreakId=BRK-1
+  opp=opp_ch_1, externalBreakId=undefined
+cbd3d522fcae:/app#

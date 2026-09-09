@@ -1,0 +1,20 @@
+New Terminal Output:
+
+cbd3d522fcae:/app/packages/data-plane# sed -n '60,75p' dist/avails.js
+            avails.push({
+                opportunityId: `opp_${channelId}_${open.startSequence}`,
+                channelId,
+                ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+                duration: declared ?? open.measuredDuration,
+                ...(declared === undefined ? {} : { declaredDuration: declared }),
+                measuredDuration: open.measuredDuration,
+                startSequence: open.startSequence,
+                ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+                startLine: open.startLine,
+                endLine: i,
+            });
+            open = null;
+            blockBreakId = undefined;
+            continue;
+        }
+cbd3d522fcae:/app/packages/data-plane#

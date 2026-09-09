@@ -1,0 +1,10 @@
+{
+  "analysis": "All data-plane tests pass. Now let me understand the bug more clearly. Let me write a quick test to verify my understanding of the bug.",
+  "plan": "Create a test script to verify the bug scenario.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test-bug.mjs << 'EOF'\nimport { detectAvails } from '/app/packages/data-plane/dist/avails.js';\n\n// Scenario 1: Session was polling, CUE-OUT and CUE-IN both in window\nconst before = [\n  '#EXTM3U',\n  '#EXT-X-VERSION:3',\n  '#EXT-X-TARGETDURATION:6',\n  '#EXT-X-MEDIA-SEQUENCE:100',\n  '#EXTINF:6.000,',\n  'segment100.ts',\n  '#EXT-X-CUE-OUT:30',\n  '#EXTINF:6.000,',\n  'slate001.ts',\n  '#EXTINF:6.000,',\n  'slate002.ts',\n  '#EXT-X-CUE-IN',\n  '#EXTINF:6.000,',\n  'segment105.ts',\n].join('\\n');\n\nconsole.log('=== Scenario 1: Normal polling (CUE-OUT and CUE-IN in window) ===');\nconst a1 = detectAvails(before, 'channel_food');\nconsole.log('Avails:', JSON.stringify(a1, null, 2));\n\n// Scenario 2: Late tune-in - CUE-OUT scrolled out, CUE-IN still in window\nconst late = [\n  '#EXTM3U',\n  '#EXT-X-VERSION:3',\n  '#EXT-X-TARGETDURATION:6',\n  '#EXT-X-MEDIA-SEQUENCE:103',\n  '#EXTINF:6.000,',\n  'slate001.ts',\n  '#EXTINF:6.000,',\n  'slate002.ts',\n  '#EXTINF:6.000,',\n  'slate003.ts',\n  '#EXT-X-CUE-IN',\n  '#EXTINF:6.000,',\n  'segment106.ts',\n].join('\\n');\n\nconsole.log('\\n=== Scenario 2: Late tune-in (CUE-OUT scrolled out, CUE-IN in window) ===');\nconst a2 = detectAvails(late, 'channel_food');\nconsole.log('Avails:', JSON.stringify(a2, null, 2));\nconsole.log('Expected: should detect an avail, but got:', a2.length);\nEOF\nnode /tmp/test-bug.mjs\n",
+      "duration": 1.0
+    }
+  ]
+}

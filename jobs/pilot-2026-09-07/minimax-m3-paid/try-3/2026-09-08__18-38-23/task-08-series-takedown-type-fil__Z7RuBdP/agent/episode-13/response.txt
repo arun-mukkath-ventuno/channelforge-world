@@ -1,0 +1,10 @@
+{
+  "analysis": "Both call sites use `active_takedown_for_asset` and would benefit from the fix. Now I'll apply the fix to remove the `RightsTakedown.scope_type == \"asset\"` filter.",
+  "plan": "Apply the fix by removing the `RightsTakedown.scope_type == \"asset\"` filter from the `active_takedown_for_asset` function. The function already correctly builds `scope_ids` to include both asset.id and asset.series_id, but the filter on scope_type prevents series-scoped takedowns from being matched.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '160,180p' app/repositories/rights.py\n",
+      "duration": 0.1
+    }
+  ]
+}

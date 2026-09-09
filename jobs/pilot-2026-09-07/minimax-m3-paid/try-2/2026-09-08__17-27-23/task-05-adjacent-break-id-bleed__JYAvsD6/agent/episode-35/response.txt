@@ -1,0 +1,10 @@
+{
+  "analysis": "All core tests pass. Now I need to identify which service needs to be restarted. Looking at the bug, the fix is in `packages/data-plane/src/avails.ts`. The data-plane service is the one that uses this code. Let me check what services are running.",
+  "plan": "Check what services are running and restart the data-plane service.",
+  "commands": [
+    {
+      "keystrokes": "ps aux | grep -E 'node|tsx' | grep -v grep\n",
+      "duration": 0.1
+    }
+  ]
+}

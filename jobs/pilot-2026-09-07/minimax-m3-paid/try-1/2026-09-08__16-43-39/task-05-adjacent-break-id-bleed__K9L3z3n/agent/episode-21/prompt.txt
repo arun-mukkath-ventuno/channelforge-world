@@ -1,0 +1,70 @@
+New Terminal Output:
+
+4838fd889d89:/app# cat > /tmp/patch.mjs << 'JSEOF'
+> import { readFileSync, writeFileSync } from 'fs';
+>
+> let content = readFileSync('packages/data-plane/src/avails.ts', 'utf8');
+>
+> const old = `    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: \`opp_${channelId}_${open.startSequence}\`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       continue;
+>     }`;
+>
+> const neu = `    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: \`opp_${channelId}_${open.startSequence}\`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       // The tag block ended at the CUE-IN, so a DATERANGE id from the previous avail cannot
+>       // carry over onto the next one. For a normal inter-avail segment the URI line below also
+>       // clears it; this covers back-to-back breaks with no media URI between CUE-IN and the
+>       // next CUE-OUT.
+>       blockBreakId = undefined;
+>       continue;
+>     }`;
+>
+> if (!content.includes(old)) {
+>   console.error('ERROR: pattern not found');
+>   process.exit(1);
+> }
+>
+> content = content.replace(old, neu);
+> writeFileSync('packages/data-plane/src/avails.ts', content);
+> console.log('Patched successfully');
+> JSEOF
+4838fd889d89:/app# node /tmp/patch.mjs
+file:///tmp/patch.mjs:8
+        opportunityId: \`opp_${channelId}_${open.startSequence}\`,
+                               ^
+
+ReferenceError: channelId is not defined
+    at file:///tmp/patch.mjs:8:32
+    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)
+
+Node.js v22.23.2
+4838fd889d89:/app#

@@ -1,0 +1,14 @@
+{
+  "analysis": "Now I understand the bug clearly. The `ensureSession` function in `packages/persistence/src/repositories/sessions.ts` uses `ON CONFLICT (id) DO NOTHING`, which means when a session is created for the first time, the channel_id is set, but if the same session_id is used again with a different channel_id (because the viewer switched channels but kept the same session_id), the channel_id is NOT updated. Let me check for running services more carefully.",
+  "plan": "Check for running services and processes.",
+  "commands": [
+    {
+      "keystrokes": "ps aux\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "netstat -tlnp 2>/dev/null || ss -tlnp\n",
+      "duration": 0.1
+    }
+  ]
+}

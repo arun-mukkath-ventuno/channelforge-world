@@ -1,0 +1,12 @@
+
+
+{
+  "analysis": "Logged in. Let me run an end-to-end test of the channel-switching scenario.",
+  "plan": "Now run an end-to-end test: create a session on channel_news, then call /v1/ad-decision with the same session_id but different channel.",
+  "commands": [
+    {
+      "keystrokes": "node -e \"\nconst base = 'http://localhost:4000';\n(async () => {\n  // Step 1: create session on channel_news\n  const r1 = await fetch(base + '/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channel_id:'channel_news'})});\n  const j1 = await r1.json();\n  console.log('Session created:', j1.session_id, 'on', j1.channel_id);\n\n  // Step 2: get the session - should still be channel_news\n  const r2 = await fetch(base + '/v1/sessions/' + j1.session_id);\n  const j2 = await r2.json();\n  console.log('Session after creation:', j2.channelId);\n\n  // Step 3: call /v1/ad-decision with the same session id but different channel (simulating a channel change)\n  const r3 = await fetch(base + '/v1/ad-decision', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: j1.session_id, channel_id: 'channel_food', opportunity_id: 'opp_test_1', duration: 30})});\n  const j3 = await r3.json();\n  console.log('Ad decision response status:', r3.status);\n  console.log('Ad decision:', JSON.stringify(j3).slice(0, 200));\n\n  // Step 4: get the session - should now be channel_food\n  const r4 = await fetch(base + '/v1/sessions/' + j1.session_id);\n  const j4 = await r4.json();\n  console.log('Session after channel switch:', j4.channelId);\n})();\n\"\n",
+      "duration": 3.0
+    }
+  ]
+}

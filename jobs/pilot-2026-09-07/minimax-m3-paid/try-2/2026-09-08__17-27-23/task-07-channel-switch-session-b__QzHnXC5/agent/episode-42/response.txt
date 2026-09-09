@@ -1,0 +1,12 @@
+
+
+{
+  "analysis": "The fix works correctly end-to-end:\n- Session created on channel_news, recorded as channel_news\n- After ad-decision request with same session_id but different channel (channel_food), the session's recorded channel is now channel_food.\n\nThe fix is minimal, targeted, and only changes the session's recorded channel (and updates last_activity_at). It doesn't change how ad decisions, opportunities, or events are scoped or attributed.\n\nLet me also verify that an existing session still keeps its device_type/country/anonymous_id/ip_hash/user_agent fields when only channel_id is updated.",
+  "plan": "Verify that other session fields (device_type, country) are preserved when channel is updated.",
+  "commands": [
+    {
+      "keystrokes": "node -e \"\nconst base = 'http://localhost:4000';\n(async () => {\n  const lr = await fetch(base + '/admin/api/login', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({user: process.env.ADMIN_USER, password: process.env.ADMIN_PASSWORD})});\n  const setCookie = lr.headers.get('set-cookie');\n\n  const r1 = await fetch(base + '/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channel_id:'channel_news', device_type:'tv', country:'US'})});\n  const j1 = await r1.json();\n  console.log('Session created:', j1.session_id, 'on', j1.channel_id);\n\n  const r2 = await fetch(base + '/v1/debug/session/' + j1.session_id, {headers:{Cookie: setCookie}});\n  const j2 = await r2.json();\n  console.log('Initial:', j2.session);\n\n  const r3 = await fetch(base + '/v1/ad-decision', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: j1.session_id, channel_id: 'channel_food', opportunity_id: 'opp_test_2', duration: 30})});\n  console.log('Ad decision:', r3.status);\n\n  const r4 = await fetch(base + '/v1/debug/session/' + j1.session_id, {headers:{Cookie: setCookie}});\n  const j4 = await r4.json();\n  console.log('After channel switch:', j4.session);\n  console.log('device_type preserved:', j4.session?.deviceType === 'tv' ? 'YES' : 'NO');\n  console.log('country preserved:', j4.session?.country === 'US' ? 'YES' : 'NO');\n  console.log('channel updated:', j4.session?.channelId === 'channel_food' ? 'YES' : 'NO');\n})();\n\" 2>&1 | grep -v '\"level\"'\n",
+      "duration": 3.0
+    }
+  ]
+}

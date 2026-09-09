@@ -1,0 +1,10 @@
+{
+  "analysis": "Redis is the only host with DNS resolution. Let me check what ports are open on redis.",
+  "plan": "Try connecting to redis on 6379.",
+  "commands": [
+    {
+      "keystrokes": "timeout 2 bash -c 'exec 3<>/dev/tcp/redis/6379 && echo -e \"PING\\r\\n\" >&3 && head -1 <&3' 2>&1\n",
+      "duration": 3.0
+    }
+  ]
+}

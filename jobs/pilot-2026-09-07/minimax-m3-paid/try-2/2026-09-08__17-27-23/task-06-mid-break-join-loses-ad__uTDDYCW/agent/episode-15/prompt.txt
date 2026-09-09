@@ -1,0 +1,71 @@
+New Terminal Output:
+
+04a690a73d92:/app# cat packages/core/src/eligibility.ts
+// Ad eligibility (PRD §16). Pure and deterministic: given the same inputs and
+// `now`, it always returns the same partition of eligible / rejected creatives.
+
+import type { Campaign, Creative, RejectedCreative } from "./types.js";
+
+export interface EligibilityInput {
+  channelId: string;
+  /** Total break duration in seconds. */
+  breakDuration: number;
+  /** Evaluation time (ISO-8601). Injected for determinism/testability. */
+  now: string;
+  creatives: Creative[];
+  /** Campaigns keyed by campaignId. */
+  campaigns: Map<string, Campaign>;
+}
+
+export interface EligibilityResult {
+  eligible: Creative[];
+  rejected: RejectedCreative[];
+}
+
+/**
+ * Partition creatives into eligible / rejected for a given opportunity.
+ * Eligibility (PRD §16): campaign active AND creative ready AND channel matches
+ * AND start_date <= now <= end_date AND duration fits the remaining break.
+ *
+ * Here we gate on the *full* break duration (a creative longer than the whole
+ * break can never fit); packing against remaining avail happens in the pod
+ * builder, which may reject additional creatives for `no_remaining_avail`.
+ */
+export function evaluateEligibility(input: EligibilityInput): EligibilityResult {
+  const nowMs = Date.parse(input.now);
+  const eligible: Creative[] = [];
+  const rejected: RejectedCreative[] = [];
+
+  for (const creative of input.creatives) {
+    const campaign = input.campaigns.get(creative.campaignId);
+
+    if (!campaign || campaign.status !== "active") {
+      rejected.push({ creativeId: creative.creativeId, reason: "campaign_inactive" });
+      continue;
+    }
+    if (creative.status !== "ready") {
+      rejected.push({ creativeId: creative.creativeId, reason: "creative_not_ready" });
+      continue;
+    }
+    if (campaign.targetChannels.length > 0 && !campaign.targetChannels.includes(input.channelId)) {
+      rejected.push({ creativeId: creative.creativeId, reason: "channel_mismatch" });
+      continue;
+    }
+    if (nowMs < Date.parse(campaign.startDate)) {
+      rejected.push({ creativeId: creative.creativeId, reason: "campaign_not_started" });
+      continue;
+    }
+    if (nowMs > Date.parse(campaign.endDate)) {
+      rejected.push({ creativeId: creative.creativeId, reason: "campaign_expired" });
+      continue;
+    }
+    if (creative.duration > input.breakDuration) {
+      rejected.push({ creativeId: creative.creativeId, reason: "duration_exceeds_remaining_avail" });
+      continue;
+    }
+    eligible.push(creative);
+  }
+
+  return { eligible, rejected };
+}
+04a690a73d92:/app#

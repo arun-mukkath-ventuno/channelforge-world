@@ -1,0 +1,50 @@
+New Terminal Output:
+
+840252e8a3ed:/app# cat > /tmp/sessions_patch.py << 'EOF'
+> import re
+>
+> path = "packages/persistence/src/repositories/sessions.ts"
+> with open(path, 'r') as f:
+>     content = f.read()
+>
+> old = '''  await db.query(
+>     `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+>      VALUES ($1, $2, $3, $4, $5, $6, $7)
+>      ON CONFLICT (id) DO NOTHING`,
+>     [
+>       input.id,
+>       input.channelId,
+>       input.deviceType ?? null,
+>       input.country ?? null,
+>       input.anonymousId ?? null,
+>       input.ipHash ?? null,
+>       input.userAgent ?? null,
+>     ],
+>   );'''
+>
+> new = '''  await db.query(
+>     `INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+>      VALUES ($1, $2, $3, $4, $5, $6, $7)
+>      ON CONFLICT (id) DO UPDATE SET
+>        channel_id = EXCLUDED.channel_id,
+>        last_activity_at = now()`,
+>     [
+>       input.id,
+>       input.channelId,
+>       input.deviceType ?? null,
+>       input.country ?? null,
+>       input.anonymousId ?? null,
+>       input.ipHash ?? null,
+>       input.userAgent ?? null,
+>     ],
+>   );'''
+>
+> assert old in content, "Could not find expected code block"
+> content = content.replace(old, new)
+> with open(path, 'w') as f:
+>     f.write(content)
+> print("patched")
+> EOF
+840252e8a3ed:/app# python3 /tmp/sessions_patch.py
+bash: python3: command not found
+840252e8a3ed:/app#

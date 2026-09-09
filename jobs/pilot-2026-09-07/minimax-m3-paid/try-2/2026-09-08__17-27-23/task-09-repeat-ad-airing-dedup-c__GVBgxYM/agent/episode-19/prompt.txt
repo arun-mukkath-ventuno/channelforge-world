@@ -1,0 +1,104 @@
+New Terminal Output:
+
+d71dcf74f9c3:/app# cat /app/src/lib/fast-challenges.ts
+// Agent-challenge definitions for the AGENT CHALLENGES tab. Each is a fault injected
+// into the same environment the TV runs on, plus the recorded agent-repair trace.
+// v2 replays these honestly (labelled REPLAY) — there is no live agent-repair
+// backend yet; when one exists, stream its real trace in place of `lines`.
+// Channel numbers map to our real lineup (101–104).
+
+export type ChallengeSeverity = "BLOCKING" | "HIGH" | "COMPLIANCE" | "DEGRADED";
+
+export type Challenge = {
+  id: string;
+  title: string;
+  sev: ChallengeSeverity;
+  meta: string;
+  desc: string;
+  verdict: string;
+  scoring: string;
+  // [timestamp-or-label, message]; first line uses the run's start time.
+  lines: [string, string][];
+};
+
+export const CHALLENGES: Challenge[] = [
+  {
+    id: "asset",
+    title: "Missing source asset",
+    sev: "BLOCKING",
+    meta: "CH 104 · 15:30 · schedule + media library",
+    desc: "A program scheduled at 15:30 on Ventuno Mix has no playable source asset. Playout will hit a slate in eleven minutes.",
+    verdict: "Channel 104 restored with a rights-compliant substitute. No slate reached air.",
+    scoring: "availability kept · rights respected · schedule length preserved · 41s to repair",
+    lines: [
+      ["investigation started", "Read /api/channels/104/schedule"],
+      ["+00:07", "Found SCH-20260904-18234 → asset vt_mix_0442"],
+      ["+00:13", "GET /media/vt_mix_0442 → 404 NOT_FOUND"],
+      ["+00:18", "Queried media library for genre=featured, duration≈22m"],
+      ["+00:24", "Evaluated 3 candidates against rights windows"],
+      ["+00:29", "Rejected vt_hc_0187 — rights expired 2026-08-30"],
+      ["+00:33", "Selected vt_yy_0311 — cleared, 21m 40s, genre match"],
+      ["+00:37", "PATCH schedule 15:30 → vt_yy_0311, padded 20s to slot"],
+      ["+00:39", "Regenerated EPG, published XMLTV"],
+      ["+00:41", "Playout confirmed asset preloaded · stream healthy"],
+    ],
+  },
+  {
+    id: "collision",
+    title: "Schedule collision",
+    sev: "HIGH",
+    meta: "CH 103 · 16:04–16:22 · scheduling service",
+    desc: "Two programs overlap by eighteen minutes on Art All The Way. The EPG and the playout timeline now disagree.",
+    verdict: "Overlap resolved by shifting the later program; EPG and playout agree again.",
+    scoring: "no gap introduced · EPG consistent · viewer-visible change: none · 33s to repair",
+    lines: [
+      ["investigation started", "Diffed EPG against playout timeline for 103"],
+      ["+00:05", "Detected overlap: SCH-…881 16:04–16:30, SCH-…882 16:22–16:48"],
+      ["+00:11", "Checked channel rule: no gaps, no overlaps, 24h continuity"],
+      ["+00:16", "Option A shift later program → 16:30 (no gap)"],
+      ["+00:19", "Option B trim earlier program → rejected, breaks asset integrity"],
+      ["+00:24", "Applied option A, cascaded 3 downstream slots"],
+      ["+00:29", "Revalidated 24h timeline — 0 overlaps, 0 gaps"],
+      ["+00:33", "EPG republished · playout timeline matches"],
+    ],
+  },
+  {
+    id: "rights",
+    title: "Rights-window violation",
+    sev: "COMPLIANCE",
+    meta: "CH 101 · 21:00 · rights + scheduling",
+    desc: "An asset scheduled tonight on Home Cooking TV falls outside its licensed window. It must not reach air.",
+    verdict: "Non-compliant asset pulled before air and replaced from the cleared pool.",
+    scoring: "zero non-compliant airings · slot filled · audit note written · 28s to repair",
+    lines: [
+      ["investigation started", "Ran rights audit across next 24h for 101"],
+      ["+00:06", "Flagged vt_hc_0904 — window ended 2026-08-31"],
+      ["+00:10", "Confirmed against contract record CT-2291"],
+      ["+00:15", "Queried cleared pool, matched duration 26m ±60s"],
+      ["+00:20", "Swapped in vt_hc_0771 — cleared to 2027-03-31"],
+      ["+00:24", "Wrote audit entry, notified rights owner queue"],
+      ["+00:28", "Schedule revalidated · 0 non-compliant airings in 24h"],
+    ],
+  },
+  {
+    id: "degrade",
+    title: "Stream degradation",
+    sev: "DEGRADED",
+    meta: "CH 102 · live · packager + origin",
+    desc: "Segment generation latency on Yoga & You has crossed its threshold. Players are close to rebuffering.",
+    verdict: "Latency brought back under threshold without a visible interruption.",
+    scoring: "rebuffer ratio held under 0.5% · no viewer drop · 47s to repair",
+    lines: [
+      ["investigation started", "Read packager metrics for 102"],
+      ["+00:08", "Segment gen 9.4s vs 6.0s target · buffer trending down"],
+      ["+00:14", "Correlated with transcode queue depth 31"],
+      ["+00:21", "Identified competing backfill job on same worker pool"],
+      ["+00:27", "Deprioritised backfill, held live encode at priority 0"],
+      ["+00:34", "Segment gen 6.2s · buffer recovering"],
+      ["+00:41", "Manifest continuity verified, no discontinuity tag"],
+      ["+00:47", "Segment gen 5.8s · stream healthy"],
+    ],
+  },
+];
+d71dcf74f9c3:/app# find /app -name 'events.schema.json' 2>/dev/null
+

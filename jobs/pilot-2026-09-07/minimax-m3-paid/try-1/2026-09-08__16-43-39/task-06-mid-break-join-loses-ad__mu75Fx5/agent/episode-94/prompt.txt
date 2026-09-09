@@ -1,0 +1,49 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat packages/data-plane/src/avails.test.ts | head -45
+import { describe, it, expect } from "vitest";
+import { detectAvails } from "./avails.js";
+
+function manifest(lines: string[]): string {
+  return lines.join("\n");
+}
+
+describe("detectAvails (PRD §9, §41)", () => {
+  it("derives a deterministic opportunity id from channel + media sequence", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:100",
+      "#EXTINF:6.000,",
+      "s100.ts",
+      "#EXTINF:6.000,",
+      "s101.ts",
+      "#EXT-X-CUE-OUT:30",
+      "#EXTINF:6.000,",
+      "slate.ts",
+      "#EXT-X-CUE-IN",
+    ]);
+    const avails = detectAvails(m, "channel_food");
+    expect(avails).toHaveLength(1);
+    // Two segments consumed (100, 101), so the avail's first segment is 102.
+    expect(avails[0]).toMatchObject({
+      opportunityId: "opp_channel_food_102",
+      channelId: "channel_food",
+      duration: 30,
+      declaredDuration: 30,
+      startSequence: 102,
+    });
+  });
+
+  it("is stable across playlist refreshes (same avail → same id as the window slides)", () => {
+    const before = manifest(["#EXT-X-MEDIA-SEQUENCE:100", "#EXTINF:6.000,", "s100.ts", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    const after = manifest(["#EXT-X-MEDIA-SEQUENCE:101", "#EXT-X-CUE-OUT:30", "#EXTINF:6.000,", "slate.ts", "#EXT-X-CUE-IN"]);
+    const a = detectAvails(before, "ch")[0]!;
+    const b = detectAvails(after, "ch")[0]!;
+    expect(a.opportunityId).toBe(b.opportunityId); // opp_ch_101 in both
+  });
+
+  it("falls back to measured duration when the marker duration is invalid (PRD §41)", () => {
+    const m = manifest([
+      "#EXT-X-MEDIA-SEQUENCE:0",
+      "#EXT-X-CUE-OUT:oops",
+      "#EXTINF:6.000,",
+8b0f29f00026:/app#

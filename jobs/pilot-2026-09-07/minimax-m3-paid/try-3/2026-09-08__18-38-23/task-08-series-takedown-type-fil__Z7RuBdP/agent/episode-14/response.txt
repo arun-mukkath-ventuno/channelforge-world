@@ -1,0 +1,10 @@
+{
+  "analysis": "Now I'll apply the fix. I'll remove the `RightsTakedown.scope_type == \"asset\",` line and also update the docstring to reflect the correct behavior.",
+  "plan": "Apply the fix by using sed to remove the line containing `RightsTakedown.scope_type == \"asset\",` and update the docstring.",
+  "commands": [
+    {
+      "keystrokes": "python3 -c \"\nimport re\nwith open('app/repositories/rights.py', 'r') as f:\n    content = f.read()\n# Remove the line that filters by scope_type == 'asset'\nold = '''    \\\"\\\"\\\"An active takedown covering this asset, if any.\\\"\\\"\\\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \\\"active\\\",\n            RightsTakedown.scope_type == \\\"asset\\\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )'''\nnew = '''    \\\"\\\"\\\"An active takedown covering this asset directly or via its series, if any.\\\"\\\"\\\"\n    scope_ids = [asset.id]\n    if asset.series_id is not None:\n        scope_ids.append(asset.series_id)\n    return db.scalar(\n        select(RightsTakedown).where(\n            RightsTakedown.organization_id == org_id,\n            RightsTakedown.status == \\\"active\\\",\n            RightsTakedown.scope_id.in_(scope_ids),\n        )\n    )'''\nassert old in content, 'Old text not found'\ncontent = content.replace(old, new)\nwith open('app/repositories/rights.py', 'w') as f:\n    f.write(content)\nprint('Fix applied successfully')\n\"\n",
+      "duration": 0.5
+    }
+  ]
+}

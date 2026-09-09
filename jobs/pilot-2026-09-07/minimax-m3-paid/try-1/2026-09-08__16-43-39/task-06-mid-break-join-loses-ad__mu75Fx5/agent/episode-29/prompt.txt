@@ -1,0 +1,21 @@
+New Terminal Output:
+
+8b0f29f00026:/app# grep -rn 'opportunityId' packages/data-plane/src/ packages/core/src/
+packages/data-plane/src/avails.ts:12:  opportunityId: string;
+packages/data-plane/src/avails.ts:16:   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+packages/data-plane/src/avails.ts:99:        opportunityId: `opp_${channelId}_${open.startSequence}`,
+packages/data-plane/src/stitch.ts:42:    const pod = avail ? rendered.get(avail.opportunityId) : undefined;
+packages/data-plane/src/stitch.ts:46:      stitched.push(avail.opportunityId);
+packages/data-plane/src/stitch.test.ts:47:    const { manifest, stitched } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+packages/data-plane/src/stitch.test.ts:48:    expect(stitched).toEqual([avails[0]!.opportunityId]);
+packages/data-plane/src/stitch.test.ts:60:    const { manifest } = stitchManifest(ORIGIN, avails, renderedFor(avails[0]!.opportunityId, AD_MEDIA));
+packages/data-plane/src/server.ts:83:      const cached = await podCache.get(session, avail.opportunityId);
+packages/data-plane/src/server.ts:89:      if (pod) rendered.set(avail.opportunityId, await resolvePodSegments(pod, store, { channelId: channel }));
+packages/data-plane/src/decider.ts:37:          opportunity_id: avail.opportunityId,
+packages/data-plane/src/avails.test.ts:25:      opportunityId: "opp_channel_food_102",
+packages/data-plane/src/avails.test.ts:38:    expect(a.opportunityId).toBe(b.opportunityId); // opp_ch_101 in both
+packages/data-plane/src/avails.test.ts:144:    expect(avails.map((a) => a.opportunityId)).toEqual(["opp_ch_0", "opp_ch_2"]);
+packages/core/src/types.ts:7:  opportunityId: string;
+packages/core/src/types.ts:92:  opportunityId: string;
+packages/core/src/decide.ts:35:    opportunityId: opportunity.opportunityId,
+8b0f29f00026:/app#

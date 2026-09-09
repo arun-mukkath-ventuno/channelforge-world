@@ -1,0 +1,56 @@
+New Terminal Output:
+
+8b0f29f00026:/app# grep -rn "opportunityId\|externalBreakId" packages/core/src/decide.ts packages/core/src/pod.ts packages/core/src/eligibility.ts 2>/dev/null
+packages/core/src/decide.ts:35:    opportunityId: opportunity.opportunityId,
+8b0f29f00026:/app# cat packages/core/src/pod.ts | head -50
+// Deterministic pod construction (PRD §17-21, §35, §47).
+//
+// Rules:
+//   - Priority determines eligibility order (higher first).
+//   - Weight determines distribution among creatives at the same priority.
+//   - Greedily pack creatives that fit the remaining avail; each creative is
+//     used at most once per pod.
+//   - The break is ALWAYS fulfilled to its full duration: any remaining time is
+//     filled with a single slate item (PRD §19).
+
+import type { Creative, PodItem, RejectedCreative } from "./types.js";
+import { makeRng, weightedOrder } from "./rng.js";
+
+export interface BuildPodInput {
+  breakDuration: number;
+  /** Creatives already filtered by eligibility (PRD §16). */
+  eligible: Creative[];
+  /** Optional seed for reproducible selection (PRD §56). */
+  seed?: string;
+}
+
+export interface BuildPodResult {
+  pod: PodItem[];
+  /** Creatives that were eligible but could not be packed into remaining avail. */
+  rejected: RejectedCreative[];
+  adSeconds: number;
+  slateSeconds: number;
+}
+
+/** Order eligible creatives: priority desc, then weighted order within a priority tier. */
+export function orderEligible(eligible: Creative[], seed?: string): Creative[] {
+  const rng = makeRng(seed);
+  const byPriority = new Map<number, Creative[]>();
+  for (const c of eligible) {
+    const tier = byPriority.get(c.priority) ?? [];
+    tier.push(c);
+    byPriority.set(c.priority, tier);
+  }
+  const priorities = [...byPriority.keys()].sort((a, b) => b - a);
+  const ordered: Creative[] = [];
+  for (const p of priorities) {
+    ordered.push(...weightedOrder(byPriority.get(p)!, (c) => c.weight, rng));
+  }
+  return ordered;
+}
+
+export function buildPod(input: BuildPodInput): BuildPodResult {
+  const { breakDuration, seed } = input;
+  const ordered = orderEligible(input.eligible, seed);
+
+8b0f29f00026:/app#

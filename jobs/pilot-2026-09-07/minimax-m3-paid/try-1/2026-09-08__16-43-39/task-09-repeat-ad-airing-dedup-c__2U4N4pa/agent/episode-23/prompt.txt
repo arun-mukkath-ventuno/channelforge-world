@@ -1,0 +1,205 @@
+New Terminal Output:
+
+26306d2ed51a:/app# cat src/app/fast-world/live/LiveClient.tsx | head -200
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import Logo from "@/components/fast/Logo";
+import { PlayerStatus } from "@/components/fast/FastPlayer";
+import { createSsaiSession, type SsaiSession } from "@/lib/ssai";
+import { AdState, Channel, GuideRow, Program, Status, hms, emit } from "@/lib/fast-client";
+import { buildView } from "@/lib/fast-view";
+import { MONO } from "@/components/fast/ui";
+import PlayerBand from "@/components/fast/PlayerBand";
+import OperatorStrip from "@/components/fast/OperatorStrip";
+import StatusStrip from "@/components/fast/StatusStrip";
+import HomeTab from "@/components/fast/HomeTab";
+import GuideTab from "@/components/fast/GuideTab";
+import ChannelsTab from "@/components/fast/ChannelsTab";
+import AgentTab from "@/components/fast/AgentTab";
+import HoodTab from "@/components/fast/HoodTab";
+import ProgramDialog from "@/components/fast/ProgramDialog";
+import Bridge from "@/components/fast/Bridge";
+
+type Tab = "home" | "guide" | "channels" | "agent" | "hood";
+type InfoTarget = { program: Program; channelIndex: number } | null;
+
+const TABS: [Tab, string][] = [
+  ["home", "HOME"],
+  ["guide", "LIVE GUIDE"],
+  ["channels", "CHANNELS"],
+  ["agent", "AGENT CHALLENGES"],
+  ["hood", "UNDER THE HOOD"],
+];
+
+export default function LiveClient() {
+  const [mounted, setMounted] = useState(false);
+  const [rows, setRows] = useState<GuideRow[]>([]);
+  const [status, setStatus] = useState<Status | null>(null);
+  const [ch, setCh] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const [muted, setMuted] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const [info, setInfo] = useState<InfoTarget>(null);
+  const [playerStatus, setPlayerStatus] = useState<PlayerStatus>("loading");
+  const [captionsOn, setCaptionsOn] = useState(false);
+  const [captionsAvail, setCaptionsAvail] = useState(false);
+  const [reloadNonce, setReloadNonce] = useState(0);
+  const [epgFailed, setEpgFailed] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [ssaiSession, setSsaiSession] = useState<SsaiSession | null>(null);
+  const [adState, setAdState] = useState<AdState | null>(null);
+
+  // v2 shell state
+  const [tab, setTab] = useState<Tab>("home");
+  const [operator, setOperator] = useState(false);
+  const [osd, setOsd] = useState(false);
+  const [behind, setBehind] = useState(0);
+  const [cat, setCat] = useState("ALL");
+  const [challenge, setChallenge] = useState<string | null>(null);
+  const [runStart, setRunStart] = useState(0);
+
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const playerCellRef = useRef<HTMLDivElement | null>(null);
+  const sessionStarted = useRef(false);
+  const switchStart = useRef<number | null>(null);
+  const pendingSwitchCh = useRef<number | null>(null);
+  const osdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pausedRef = useRef(false);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
+
+  // 1s local tick — clock/progress, and behind-live counter while paused.
+  useEffect(() => {
+    setMounted(true);
+    setNow(Date.now());
+    const t = setInterval(() => {
+      setNow(Date.now());
+      setBehind((b) => (pausedRef.current ? b + 1 : b));
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const loadGuide = useCallback(async () => {
+    try {
+      const r = await fetch("/api/fast/guide", { cache: "no-store" });
+      if (!r.ok) throw new Error("epg");
+      const j = await r.json();
+      setRows(j.rows ?? []);
+      setEpgFailed(false);
+    } catch {
+      setEpgFailed(true);
+    }
+  }, []);
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const r = await fetch("/api/fast/status", { cache: "no-store" });
+      setStatus(await r.json());
+    } catch {
+      /* non-fatal */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadGuide();
+    loadStatus();
+    const g = setInterval(loadGuide, 60_000);
+    const s = setInterval(loadStatus, 20_000);
+    return () => {
+      clearInterval(g);
+      clearInterval(s);
+    };
+  }, [loadGuide, loadStatus]);
+
+  useEffect(() => {
+    if (!sessionStarted.current && rows.length) {
+      sessionStarted.current = true;
+      emit({ event: "session_start" });
+      emit({ event: "player_load", channelId: rows[0].channel.id });
+    }
+  }, [rows]);
+
+  const tune = useCallback(
+    (i: number) => {
+      const n = rows.length;
+      if (!n) return;
+      const idx = ((i % n) + n) % n;
+      setCh((prev) => {
+        if (idx !== prev && rows[idx]) {
+          switchStart.current = performance.now();
+          pendingSwitchCh.current = rows[idx].channel.id;
+        }
+        return idx;
+      });
+      setBehind(0);
+      setPaused(false);
+      setOsd(true);
+      if (osdTimer.current) clearTimeout(osdTimer.current);
+      osdTimer.current = setTimeout(() => setOsd(false), 3600);
+    },
+    [rows]
+  );
+
+  const toggleMute = useCallback(() => {
+    setMuted((m) => {
+      emit({ event: m ? "unmute" : "mute", channelId: rows[ch]?.channel.id });
+      return !m;
+    });
+  }, [rows, ch]);
+
+  const togglePlay = useCallback(() => {
+    setPaused((p) => {
+      emit({ event: p ? "playback_resume" : "playback_pause", channelId: rows[ch]?.channel.id });
+      return !p;
+    });
+  }, [rows, ch]);
+
+  // Keyboard: ↑↓ channel · G guide · I info · M mute · O operator · F fullscreen · Esc close.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const k = e.key.toLowerCase();
+      if (k === "escape") { setInfo(null); return; }
+      if (k === "g") { setTab("guide"); return; }
+      if (k === "o") { setOperator((v) => !v); return; }
+      if (k === "m") { toggleMute(); return; }
+      if (k === "f") { goFullscreen(); return; }
+      if (!rows.length) return;
+      if (k === "arrowdown") { e.preventDefault(); tune(ch + 1); }
+      else if (k === "arrowup") { e.preventDefault(); tune(ch - 1); }
+      else if (k === "i") { const c = rows[ch]; const p = c ? (c.programs.find((x) => now >= x.start && now < x.end) ?? c.programs[0]) : undefined; if (p) openI
+nfo(p, ch); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ch, rows, now, tune, toggleMute]);
+
+  // channel_change with measured click→first-frame latency.
+  useEffect(() => {
+    if (playerStatus === "playing" && switchStart.current != null && pendingSwitchCh.current != null) {
+      const latencyMs = Math.round(performance.now() - switchStart.current);
+      emit({ event: "channel_change", channelId: pendingSwitchCh.current, latencyMs });
+      switchStart.current = null;
+      pendingSwitchCh.current = null;
+    }
+  }, [playerStatus]);
+
+  // Viewer heartbeat (TTL-based live count) per channel.
+  const currentId = rows[ch]?.channel.id;
+  useEffect(() => {
+    if (!currentId) return;
+    emit({ event: "heartbeat", channelId: currentId });
+    const t = setInterval(() => emit({ event: "heartbeat", channelId: currentId }), 20_000);
+    const onHide = () => emit({ event: "player_exit", channelId: currentId });
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener("pagehide", onHide);
+    };
+  }, [currentId]);
+
+  // Network disconnect → banner; on reconnect, reload at the live edge.
+  useEffect(() => {
+    const goOff = () => setOffline(true);
+26306d2ed51a:/app#

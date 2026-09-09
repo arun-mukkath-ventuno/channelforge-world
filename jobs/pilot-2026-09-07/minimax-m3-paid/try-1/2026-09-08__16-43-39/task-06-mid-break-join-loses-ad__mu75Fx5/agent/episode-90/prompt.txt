@@ -1,0 +1,93 @@
+New Terminal Output:
+
+8b0f29f00026:/app/packages/data-plane# cat > /tmp/test_edge2.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Empty manifest
+> console.log("=== Empty manifest ===");
+> console.log(JSON.stringify(detectAvails("", "ch"), null, 2));
+>
+> // Just EXTM3U and header
+> console.log("\n=== Just header ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXTINF:6.000,
+> seg.ts`, "ch"), null, 2));
+>
+> // Two CUE-INs in a row (shouldn't happen but)
+> console.log("\n=== Two CUE-INs in a row ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> slate.ts
+> #EXT-X-CUE-IN
+> #EXT-X-CUE-IN`, "ch"), null, 2));
+>
+> // Avail with 0 segments inside
+> console.log("\n=== CUE-OUT followed by CUE-IN directly ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:0
+> #EXT-X-CUE-OUT:30
+> #EXT-X-CUE-IN`, "ch"), null, 2));
+>
+> // Edge: orphan created, then CUE-OUT (should be discarded, normal avail)
+> console.log("\n=== Orphan, then CUE-OUT ===");
+> console.log(JSON.stringify(detectAvails(`#EXTM3U
+> #EXT-X-MEDIA-SEQUENCE:100
+> #EXTINF:6.000,
+> seg100.ts
+> #EXT-X-CUE-OUT:30
+> #EXTINF:6.000,
+> slate.ts
+> #EXT-X-CUE-IN`, "ch"), null, 2));
+> EOF
+8b0f29f00026:/app/packages/data-plane# cd /app && npx tsx /tmp/test_edge2.ts
+=== Empty manifest ===
+[]
+
+=== Just header ===
+[]
+
+=== Two CUE-INs in a row ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 6,
+    "startSequence": 0,
+    "startLine": 2,
+    "endLine": 5
+  }
+]
+
+=== CUE-OUT followed by CUE-IN directly ===
+[
+  {
+    "opportunityId": "opp_ch_0",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 0,
+    "startSequence": 0,
+    "startLine": 2,
+    "endLine": 3
+  }
+]
+
+=== Orphan, then CUE-OUT ===
+[
+  {
+    "opportunityId": "opp_ch_101",
+    "channelId": "ch",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 6,
+    "startSequence": 101,
+    "startLine": 4,
+    "endLine": 7
+  }
+]
+8b0f29f00026:/app#

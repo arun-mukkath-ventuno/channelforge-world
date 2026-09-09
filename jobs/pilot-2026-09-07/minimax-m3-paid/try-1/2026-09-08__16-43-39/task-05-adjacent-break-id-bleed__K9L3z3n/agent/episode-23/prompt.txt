@@ -1,0 +1,18 @@
+New Terminal Output:
+
+4838fd889d89:/app# diff /tmp/avails.ts.bak packages/data-plane/src/avails.ts
+--- /tmp/avails.ts.bak
++++ packages/data-plane/src/avails.ts
+@@ -108,6 +108,11 @@
+         endLine: i,
+       });
+       open = null;
++      // The tag block ended at the CUE-IN, so a DATERANGE id from the previous avail cannot
++      // carry over onto the next one. For a normal inter-avail segment the URI line below
++      // also clears it; this covers back-to-back breaks with no media URI between CUE-IN
++      // and the next CUE-OUT.
++      blockBreakId = undefined;
+       continue;
+     }
+
+4838fd889d89:/app#

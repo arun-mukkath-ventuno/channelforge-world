@@ -1,0 +1,41 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat > /tmp/test-normal.mjs << 'EOF'
+> import { detectAvails } from '/app/packages/data-plane/dist/avails.js';
+>
+> // Normal polling - CUE-OUT and CUE-IN both in window
+> const before = [
+>   '#EXTM3U',
+>   '#EXT-X-VERSION:3',
+>   '#EXT-X-TARGETDURATION:6',
+>   '#EXT-X-MEDIA-SEQUENCE:100',
+>   '#EXTINF:6.000,',
+>   's100.ts',
+>   '#EXT-X-CUE-OUT:30',
+>   '#EXTINF:6.000,',
+>   'slate.ts',
+>   '#EXT-X-CUE-IN',
+> ].join('\n');
+>
+> const after = [
+>   '#EXTM3U',
+>   '#EXT-X-VERSION:3',
+>   '#EXT-X-TARGETDURATION:6',
+>   '#EXT-X-MEDIA-SEQUENCE:101',
+>   '#EXT-X-CUE-OUT:30',
+>   '#EXTINF:6.000,',
+>   'slate.ts',
+>   '#EXT-X-CUE-IN',
+> ].join('\n');
+>
+> const a = detectAvails(before, 'ch')[0];
+> const b = detectAvails(after, 'ch')[0];
+> console.log('Before opportunityId:', a.opportunityId);
+> console.log('After opportunityId:', b.opportunityId);
+> console.log('Stable:', a.opportunityId === b.opportunityId);
+> EOF
+e337ca9acc5b:/app# node /tmp/test-normal.mjs
+Before opportunityId: opp_ch_101
+After opportunityId: opp_ch_101
+Stable: true
+e337ca9acc5b:/app#

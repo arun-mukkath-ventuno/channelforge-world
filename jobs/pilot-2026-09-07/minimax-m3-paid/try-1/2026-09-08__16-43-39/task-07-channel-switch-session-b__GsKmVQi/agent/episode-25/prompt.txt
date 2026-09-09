@@ -1,0 +1,27 @@
+New Terminal Output:
+
+6c4c79003a75:/app# cat > /tmp/fix_sessions.py << 'EOF'
+> import re
+>
+> file_path = 'packages/persistence/src/repositories/sessions.ts'
+> with open(file_path, 'r') as f:
+>     content = f.read()
+>
+> old = '''INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+>      VALUES ($1, $2, $3, $4, $5, $6, $7)
+>      ON CONFLICT (id) DO NOTHING'''
+>
+> new = '''INSERT INTO playback_sessions (id, channel_id, device_type, country, anonymous_id, ip_hash, user_agent)
+>      VALUES ($1, $2, $3, $4, $5, $6, $7)
+>      ON CONFLICT (id) DO UPDATE SET channel_id = EXCLUDED.channel_id, last_activity_at = now()'''
+>
+> content = content.replace(old, new)
+>
+> with open(file_path, 'w') as f:
+>     f.write(content)
+>
+> print('Fixed sessions.ts')
+> EOF
+6c4c79003a75:/app# python3 /tmp/fix_sessions.py
+bash: python3: command not found
+6c4c79003a75:/app#

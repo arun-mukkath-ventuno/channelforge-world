@@ -1,0 +1,29 @@
+New Terminal Output:
+
+840252e8a3ed:/app# grep -n -A 15 "admin/api/login\|/login" packages/control-plane/src/server.ts | head -30
+95:    if (path === "/health" || path === "/admin/api/login" || path === "/") return;
+96-    if (path === "/favicon.svg" || path === "/favicon.ico") return;
+97-    if (method === "POST" && (path === "/v1/sessions" || path === "/v1/events" || path === "/v1/ad-decision")) return;
+98-    if (path.startsWith("/admin") && !path.startsWith("/admin/api")) return; // SPA html + assets
+99-    const token = (req.cookies as Record<string, string> | undefined)?.ssai_admin;
+100-    const claims = token ? verifySession(token, sessionSecret) : null;
+101-    if (!claims || claims.ch !== "admin") return reply.code(401).send({ error: "unauthorized" });
+102-  });
+103-
+104:  app.post("/admin/api/login", async (req, reply) => {
+105-    const { user, password } = (req.body ?? {}) as { user?: string; password?: string };
+106-    if (!user || !password || user !== adminUser || !adminPassword || !safeEqual(password, adminPassword)) {
+107-      return reply.code(401).send({ error: "Invalid username or password." });
+108-    }
+109-    const token = signSession(adminUser, "admin", sessionSecret, { ttlSeconds: sessionTtlSeconds });
+110-    reply.setCookie("ssai_admin", token, {
+111-      httpOnly: true,
+112-      secure: cookieSecure,
+113-      sameSite: "lax",
+114-      path: "/",
+115-      maxAge: sessionTtlSeconds,
+116-    });
+117-    return { user: adminUser };
+118-  });
+119-  app.get("/admin/api/me", async () => ({ user: adminUser }));
+840252e8a3ed:/app#

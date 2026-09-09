@@ -1,0 +1,140 @@
+New Terminal Output:
+
+cbccd910d082:/app# cat packages/data-plane/src/stitch.ts
+// Manifest stitching (PRD §22-25). Given an origin media playlist, its detected
+// avails, and the *resolved* pod media for each avail, replace each avail's
+// CUE-OUT…CUE-IN region with the pod's segments (real creative segments for ads,
+// synthesized for slate). Avails without resolved media are left as origin (their
+// ChannelForge slate plays) — playback survives ad failure (§42).
+//
+// Pure and synchronous by design: no DB, no transcode, no network. Segment media
+// is resolved beforehand (see media.ts) so this stays a lean string transform.
+
+import type { Avail } from "./avails.js";
+import type { RenderedPodItem } from "./media.js";
+
+export interface StitchOptions {
+  /** Emit EXT-X-DATERANGE ad metadata for observability (PRD §25). Default true. */
+  emitAdMetadata?: boolean;
+}
+
+export interface StitchResult {
+  manifest: string;
+  /** Opportunity ids that were stitched (had resolved media). */
+  stitched: string[];
+}
+
+/** Replace each avail that has resolved pod media; leave the rest untouched. */
+export function stitchManifest(
+  origin: string,
+  avails: Avail[],
+  rendered: Map<string, RenderedPodItem[]>,
+  opts: StitchOptions = {},
+): StitchResult {
+  const emitMeta = opts.emitAdMetadata ?? true;
+  const lines = origin.split("\n");
+
+  const availByStart = new Map<number, Avail>();
+  for (const a of avails) availByStart.set(a.startLine, a);
+
+  const out: string[] = [];
+  const stitched: string[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const avail = availByStart.get(i);
+    const pod = avail ? rendered.get(avail.opportunityId) : undefined;
+
+    if (avail && pod && pod.length > 0) {
+      out.push(...renderPod(pod, emitMeta, avail.programDateTime));
+      stitched.push(avail.opportunityId);
+      i = avail.endLine; // skip the origin avail region (CUE-OUT…CUE-IN inclusive)
+      continue;
+    }
+    out.push(lines[i]!);
+  }
+
+  return { manifest: out.join("\n"), stitched };
+}
+
+function renderPod(pod: RenderedPodItem[], emitMeta: boolean, breakStart?: string): string[] {
+  const out: string[] = [];
+  for (const item of pod) {
+    out.push("#EXT-X-DISCONTINUITY"); // timing/encoding boundary (PRD §24)
+
+    if (item.type === "ad" && emitMeta && item.creativeId) {
+      const start = breakStart
+        ? new Date(new Date(breakStart).getTime() + item.startOffset * 1000).toISOString()
+        : undefined;
+      out.push(
+        `#EXT-X-DATERANGE:ID="${item.creativeId}",CLASS="com.fastworld.ad",` +
+          (start ? `START-DATE="${start}",` : "") +
+          `DURATION=${item.duration},X-AD-ID="${item.creativeId}"` +
+          (item.campaignId ? `,X-CAMPAIGN-ID="${item.campaignId}"` : ""),
+      );
+    }
+
+    for (const seg of item.segments) {
+      out.push(`#EXTINF:${seg.duration.toFixed(3)},`);
+      out.push(seg.uri);
+    }
+  }
+  out.push("#EXT-X-DISCONTINUITY"); // rejoin origin content (PRD §24)
+  return out;
+}
+cbccd910d082:/app# cat packages/data-plane/src/decider.ts
+// When a viewer reaches an avail with no cached pod, the data plane asks the
+// control plane's Ad Decision Service for one (PRD §15). The control plane
+// persists the decision and writes the pod to the cache, so subsequent playlist
+// refreshes for this (session, opportunity) are pure cache reads on the hot path.
+
+import type { PodItem } from "@ssai/core";
+import type { Avail } from "./avails.js";
+
+export interface DecideRequest {
+  sessionId: string;
+  channelId: string;
+  avail: Avail;
+}
+
+export interface PodDecider {
+  decide(req: DecideRequest): Promise<PodItem[] | null>;
+}
+
+/** Posts to the control plane's /v1/ad-decision. */
+export class HttpPodDecider implements PodDecider {
+  constructor(
+    private readonly controlPlaneUrl: string,
+    private readonly fetchImpl: typeof fetch = fetch,
+    private readonly timeoutMs = 200,
+  ) {}
+
+  async decide({ sessionId, channelId, avail }: DecideRequest): Promise<PodItem[] | null> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    try {
+      const res = await this.fetchImpl(`${this.controlPlaneUrl}/v1/ad-decision`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          channel_id: channelId,
+          opportunity_id: avail.opportunityId,
+          duration: avail.duration,
+          ...(avail.externalBreakId === undefined
+            ? {}
+            : { external_break_id: avail.externalBreakId }),
+        }),
+        signal: controller.signal,
+      });
+      if (!res.ok) return null;
+      const decision = (await res.json()) as { pod?: PodItem[] };
+      return decision.pod ?? null;
+    } catch {
+      // ADS unavailable → no pod → origin slate plays (PRD §37).
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+cbccd910d082:/app#

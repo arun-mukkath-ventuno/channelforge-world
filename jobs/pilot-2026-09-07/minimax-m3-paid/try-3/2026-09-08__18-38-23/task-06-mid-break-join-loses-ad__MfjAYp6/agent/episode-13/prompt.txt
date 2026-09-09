@@ -1,0 +1,79 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat /app/packages/core/src/session-token.ts
+// Signed playback session tokens (PRD §57). The control plane mints a token the
+// player uses in its playback URL; the data plane verifies it before serving a
+// manifest, so a viewer cannot forge or tamper with a session id (or watch a
+// channel the token wasn't issued for). HMAC-SHA256, constant-time compare.
+
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+export interface SessionClaims {
+  /** The real session id (used as the pod-cache key). */
+  sid: string;
+  /** The channel the token is valid for. */
+  ch: string;
+  /** Optional expiry, unix seconds. */
+  exp?: number;
+}
+
+export interface SignOptions {
+  ttlSeconds?: number;
+  /** Injected clock (ms) for deterministic tests. */
+  now?: number;
+}
+
+const PREFIX = "v1";
+
+/** Produce `v1.<payload>.<sig>` — payload and signature are base64url. */
+export function signSession(sessionId: string, channelId: string, secret: string, opts: SignOptions = {}): string {
+  const claims: SessionClaims = { sid: sessionId, ch: channelId };
+  if (opts.ttlSeconds && opts.ttlSeconds > 0) {
+    claims.exp = Math.floor((opts.now ?? Date.now()) / 1000) + opts.ttlSeconds;
+  }
+  const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
+  const body = `${PREFIX}.${payload}`;
+  const sig = createHmac("sha256", secret).update(body).digest().toString("base64url");
+  return `${body}.${sig}`;
+}
+
+/** Verify a token; returns the claims or null if invalid/expired/tampered. */
+export function verifySession(token: string, secret: string, opts: { now?: number } = {}): SessionClaims | null {
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== PREFIX) return null;
+  const [, payload, sig] = parts;
+  const body = `${PREFIX}.${payload}`;
+
+  const expected = createHmac("sha256", secret).update(body).digest();
+  let provided: Buffer;
+  try {
+    provided = Buffer.from(sig!, "base64url");
+  } catch {
+    return null;
+  }
+  if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return null;
+
+  let claims: SessionClaims;
+  try {
+    claims = JSON.parse(Buffer.from(payload!, "base64url").toString("utf8")) as SessionClaims;
+  } catch {
+    return null;
+  }
+  if (!claims.sid || !claims.ch) return null;
+  if (claims.exp !== undefined && (opts.now ?? Date.now()) / 1000 > claims.exp) return null;
+  return claims;
+}
+e337ca9acc5b:/app# ls -la /app/packages/persistence/src/repositories
+total 48
+drwxr-xr-x    2 root     root          4096 Sep  5 08:18 .
+drwxr-xr-x    4 root     root          4096 Sep  5 08:18 ..
+-rw-r--r--    1 root     root          3039 Sep  5 08:18 beacons.ts
+-rw-r--r--    1 root     root          2754 Sep  5 08:18 campaigns.ts
+-rw-r--r--    1 root     root          1958 Sep  5 08:18 channels.ts
+-rw-r--r--    1 root     root          5638 Sep  5 08:18 creatives.ts
+-rw-r--r--    1 root     root          3234 Sep  5 08:18 decisions.ts
+-rw-r--r--    1 root     root          2628 Sep  5 08:18 events.ts
+-rw-r--r--    1 root     root          1030 Sep  5 08:18 opportunities.ts
+-rw-r--r--    1 root     root          2323 Sep  5 08:18 sessions.ts
+-rw-r--r--    1 root     root          1620 Sep  5 08:18 slates.ts
+e337ca9acc5b:/app#

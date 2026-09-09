@@ -1,0 +1,33 @@
+New Terminal Output:
+
+8b0f29f00026:/app/packages/data-plane# for host in localhost redis data-plane control-plane channelforge postgres db; do echo "=== $host ==="; timeout 1 bash -c
+ "echo > /dev/tcp/$host/80 2>/dev/null && echo 'port 80 open' || echo 'port 80 closed'"; done 2>&1
+=== localhost ===
+bash: connect: Connection refused
+bash: line 1: /dev/tcp/localhost/80: Connection refused
+port 80 closed
+=== redis ===
+bash: connect: Connection refused
+bash: line 1: /dev/tcp/redis/80: Connection refused
+port 80 closed
+=== data-plane ===
+bash: line 1: data-plane: Name does not resolve
+bash: line 1: /dev/tcp/data-plane/80: Invalid argument
+port 80 closed
+=== control-plane ===
+bash: line 1: control-plane: Name does not resolve
+bash: line 1: /dev/tcp/control-plane/80: Invalid argument
+port 80 closed
+=== channelforge ===
+bash: line 1: channelforge: Name does not resolve
+bash: line 1: /dev/tcp/channelforge/80: Invalid argument
+port 80 closed
+=== postgres ===
+bash: line 1: postgres: Name does not resolve
+bash: line 1: /dev/tcp/postgres/80: Invalid argument
+port 80 closed
+=== db ===
+bash: line 1: db: Name does not resolve
+bash: line 1: /dev/tcp/db/80: Invalid argument
+port 80 closed
+8b0f29f00026:/app/packages/data-plane#

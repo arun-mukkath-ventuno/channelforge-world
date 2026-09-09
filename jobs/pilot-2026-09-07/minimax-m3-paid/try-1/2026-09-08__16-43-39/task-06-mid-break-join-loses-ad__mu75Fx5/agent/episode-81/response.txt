@@ -1,0 +1,10 @@
+{
+  "analysis": "Redis is reachable. Let me check what's in it.",
+  "plan": "Check what's in Redis.",
+  "commands": [
+    {
+      "keystrokes": "timeout 2 bash -c 'exec 3<>/dev/tcp/redis/6379 && printf \"KEYS *\\r\\n\" >&3 && timeout 1 cat <&3' 2>&1 | head -20\n",
+      "duration": 3.0
+    }
+  ]
+}

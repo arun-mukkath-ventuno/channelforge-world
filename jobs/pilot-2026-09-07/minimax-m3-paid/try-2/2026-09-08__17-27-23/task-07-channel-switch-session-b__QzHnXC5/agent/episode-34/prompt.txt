@@ -1,0 +1,84 @@
+New Terminal Output:
+
+840252e8a3ed:/app# cat packages/persistence/src/seed.ts | head -80
+// Seed inventory for the FAST World demo/RL environment (PRD §50, §51).
+// Idempotent — every insert upserts, so re-running is safe.
+
+import type { Queryable } from "./db.js";
+import { insertChannel } from "./repositories/channels.js";
+import { insertCampaign } from "./repositories/campaigns.js";
+import { insertCreative } from "./repositories/creatives.js";
+
+const YEAR = { start: "2026-01-01T00:00:00Z", end: "2026-12-31T23:59:59Z" };
+
+const CHANNELS = [
+  { id: "channel_news", name: "FAST News" },
+  { id: "channel_food", name: "FAST Food" },
+  { id: "channel_travel", name: "FAST Travel" },
+  { id: "channel_fitness", name: "FAST Fitness" },
+  { id: "channel_entertainment", name: "FAST Entertainment" },
+];
+
+interface SeedCampaign {
+  id: string;
+  advertiser: string;
+  channels: string[];
+  creatives: { id: string; name: string; duration: number; priority: number; weight: number }[];
+}
+
+const CAMPAIGNS: SeedCampaign[] = [
+  {
+    id: "camp_food_a",
+    advertiser: "Food Brand A",
+    channels: ["channel_food"],
+    creatives: [{ id: "cr_food_a_30", name: "food_brand_a_30s", duration: 30, priority: 10, weight: 100 }],
+  },
+  {
+    id: "camp_appliance_b",
+    advertiser: "Appliance Brand B",
+    channels: ["channel_food", "channel_entertainment"],
+    creatives: [{ id: "cr_appliance_b_15", name: "appliance_brand_b_15s", duration: 15, priority: 8, weight: 100 }],
+  },
+  {
+    id: "camp_coffee",
+    advertiser: "CoffeeCo",
+    channels: ["channel_food", "channel_news"],
+    creatives: [
+      { id: "cr_coffee_30", name: "coffee_30s", duration: 30, priority: 6, weight: 100 },
+      { id: "cr_coffee_15", name: "coffee_15s", duration: 15, priority: 6, weight: 50 },
+    ],
+  },
+  {
+    id: "camp_travel_air",
+    advertiser: "SkyLine Air",
+    channels: ["channel_travel"],
+    creatives: [{ id: "cr_air_60", name: "skyline_air_60s", duration: 60, priority: 9, weight: 100 }],
+  },
+  {
+    id: "camp_fitness_gear",
+    advertiser: "FitGear",
+    channels: ["channel_fitness"],
+    creatives: [
+      { id: "cr_fitgear_30", name: "fitgear_30s", duration: 30, priority: 7, weight: 100 },
+      { id: "cr_fitgear_15", name: "fitgear_15s", duration: 15, priority: 7, weight: 60 },
+    ],
+  },
+  {
+    id: "camp_news_bank",
+    advertiser: "MetroBank",
+    channels: ["channel_news"],
+    creatives: [{ id: "cr_bank_30", name: "metrobank_30s", duration: 30, priority: 5, weight: 100 }],
+  },
+];
+
+export async function seedDatabase(db: Queryable): Promise<void> {
+  for (const c of CHANNELS) {
+    await insertChannel(db, {
+      id: c.id,
+      name: c.name,
+      originUrl: `http://channelforge:8080/${c.id}/master.m3u8`,
+      status: "active",
+    });
+  }
+
+840252e8a3ed:/app#

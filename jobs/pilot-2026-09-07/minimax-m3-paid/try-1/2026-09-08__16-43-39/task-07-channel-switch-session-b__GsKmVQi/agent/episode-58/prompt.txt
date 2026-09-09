@@ -1,0 +1,32 @@
+New Terminal Output:
+
+6c4c79003a75:/app# grep -n "session\|channel" packages/control-plane/src/server.test.ts | head -40
+52:  it("creates and lists a channel", async () => {
+55:      url: "/v1/channels",
+56:      payload: { id: "channel_food", name: "FAST Food", origin_url: "http://origin/food" },
+59:    expect(created.json()).toMatchObject({ id: "channel_food", name: "FAST Food", status: "active" });
+61:    const list = await app.inject({ method: "GET", url: "/v1/channels" });
+65:  it("validates required channel fields", async () => {
+66:    const res = await app.inject({ method: "POST", url: "/v1/channels", payload: { name: "x" } });
+70:  it("creates a campaign with channel targeting and edits it", async () => {
+71:    await app.inject({ method: "POST", url: "/v1/channels", payload: { id: "channel_food", name: "F", origin_url: "u" } });
+75:      payload: { id: "camp_1", advertiser: "CoffeeCo", start_date: "2026-01-01T00:00:00Z", end_date: "2026-12-31T00:00:00Z", target_channels: ["channel_food"
+] },
+78:    expect(created.json()).toMatchObject({ campaignId: "camp_1", targetChannels: ["channel_food"] });
+81:    expect(edited.json()).toMatchObject({ status: "paused", targetChannels: ["channel_food"] }); // targeting preserved
+108:    const res = await app.inject({ method: "POST", url: "/v1/channels", payload: { name: "N", origin_url: "u" } });
+152:    expect((await app.inject({ method: "GET", url: "/v1/channels" })).statusCode).toBe(401);
+167:    expect((await app.inject({ method: "GET", url: "/v1/channels", headers: header })).statusCode).toBe(200);
+174:    const r = await app.inject({ method: "POST", url: "/v1/events", payload: { event_type: "ad_impression", session_id: "s1" } });
+180:  it("requires tag_url and a known channel", async () => {
+181:    await app.inject({ method: "POST", url: "/v1/channels", payload: { id: "channel_art", name: "Art", origin_url: "http://o/art" } });
+182:    expect((await app.inject({ method: "POST", url: "/v1/channels/channel_art/vast-tag", payload: {} })).statusCode).toBe(400);
+183:    expect((await app.inject({ method: "POST", url: "/v1/channels/nope/vast-tag", payload: { tag_url: "https://tag/x" } })).statusCode).toBe(404);
+189:    await app.inject({ method: "POST", url: "/v1/channels", payload: { id: "channel_yoga", name: "Yoga", origin_url: "http://origin/yoga" } });
+194:        session_id: "sess_1",
+195:        channel_id: "channel_yoga",
+196:        opportunity_id: "opp_channel_yoga_202",
+203:    const res = await app.inject({ method: "GET", url: "/v1/reconciliation/breaks?channel=channel_yoga" });
+208:      opportunityId: "opp_channel_yoga_202",
+210:      channelId: "channel_yoga",
+6c4c79003a75:/app#

@@ -1,0 +1,10 @@
+{
+  "analysis": "I found the bug. The `ensureSession` function uses `ON CONFLICT (id) DO NOTHING`, which means if a session already exists, the channel_id is never updated. Let me look at the control-plane server.ts to confirm the use case.",
+  "plan": "Look at the control-plane server.ts to see how ensureSession is called and confirm the bug.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/control-plane/src/server.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

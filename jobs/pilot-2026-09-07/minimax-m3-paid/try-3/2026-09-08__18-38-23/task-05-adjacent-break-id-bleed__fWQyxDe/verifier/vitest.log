@@ -1,0 +1,49 @@
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/data-plane/src/avails.test.ts (12 tests | 2 failed) 14ms
+   × detectAvails (PRD §9, §41) > does not leak the first break's id onto a second break scheduled back-to-back in the same segment tag block (worker/scte35.py + worker/origin.py output, not a hand-built fixture) 7ms
+     → expected 'BRK-a1b2c3d4-0000' to be 'BRK-a1b2c3d4-0001' // Object.is equality
+   × detectAvails (PRD §9, §41) > does not leak ids across a longer, randomized run of back-to-back breaks (fresh ids/durations/ordering each run — a fix that special-cases two breaks, hardcodes an id, or relies on the position/count of DATERANGE lines rather than SCTE35-OUT/SCTE35-IN must fail this) 1ms
+     → expected 'BRK-i9bnwilx' to be 'BRK-1ip8kusn' // Object.is equality
+ ✓ packages/core/src/scte.test.ts (11 tests) 5ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts > detectAvails (PRD §9, §41) > does not leak the first break's id onto a second break scheduled back-to-back in the same segment tag block (worker/scte35.py + worker/origin.py output, not a hand-built fixture)
+AssertionError: expected 'BRK-a1b2c3d4-0000' to be 'BRK-a1b2c3d4-0001' // Object.is equality
+
+Expected: "BRK-a1b2c3d4-0001"
+Received: "BRK-a1b2c3d4-0000"
+
+ ❯ packages/data-plane/src/avails.test.ts:187:40
+    185|     expect(avails).toHaveLength(2);
+    186|     expect(avails[0]!.externalBreakId).toBe("BRK-a1b2c3d4-0000");
+    187|     expect(avails[1]!.externalBreakId).toBe("BRK-a1b2c3d4-0001");
+       |                                        ^
+    188|   });
+    189| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts > detectAvails (PRD §9, §41) > does not leak ids across a longer, randomized run of back-to-back breaks (fresh ids/durations/ordering each run — a fix that special-cases two breaks, hardcodes an id, or relies on the position/count of DATERANGE lines rather than SCTE35-OUT/SCTE35-IN must fail this)
+AssertionError: expected 'BRK-i9bnwilx' to be 'BRK-1ip8kusn' // Object.is equality
+
+Expected: "BRK-1ip8kusn"
+Received: "BRK-i9bnwilx"
+
+ ❯ packages/data-plane/src/avails.test.ts:224:42
+    222|     expect(avails).toHaveLength(breakCount);
+    223|     for (let b = 0; b < breakCount; b++) {
+    224|       expect(avails[b]!.externalBreakId).toBe(ids[b]);
+       |                                          ^
+    225|       expect(avails[b]!.declaredDuration).toBe(durations[b]);
+    226|     }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  2 failed | 21 passed (23)
+   Start at  13:14:31
+   Duration  359ms (transform 83ms, setup 0ms, collect 103ms, tests 19ms, environment 0ms, prepare 68ms)
+

@@ -1,0 +1,10 @@
+{
+  "analysis": "The verifier and artifacts directories are empty. The system is in a fresh state. Since there are no running services, the bug fix should be applied to the source code (which I've done). The test suite verifies the fix.\n\nHowever, the task says 'When you believe the fix is correct, restart whichever service needs it so the running system reflects your change.' This implies there should be a service that needs to be restarted.\n\nLet me look more carefully for any hints about how the service runs. Let me check the dist directory which has the compiled JavaScript.",
+  "plan": "Build the data plane package so the dist directory is up to date.",
+  "commands": [
+    {
+      "keystrokes": "cd packages/data-plane && npm run build 2>&1 | tail -20\n",
+      "duration": 30.0
+    }
+  ]
+}

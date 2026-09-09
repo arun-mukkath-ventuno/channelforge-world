@@ -1,0 +1,47 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat > /tmp/test_bug_real.ts << 'EOF'
+> import { detectAvails } from "/app/packages/data-plane/src/avails.ts";
+>
+> // Late mid-break viewer - CUE-OUT scrolled off, CUE-IN present, no DATERANGE
+> const late = `#EXTM3U
+> #EXT-X-VERSION:3
+> #EXT-X-TARGETDURATION:6
+> #EXT-X-MEDIA-SEQUENCE:106
+> #EXTINF:6.000,
+> slate003.ts
+> #EXTINF:6.000,
+> slate004.ts
+> #EXTINF:6.000,
+> slate005.ts
+> #EXT-X-CUE-IN
+> #EXTINF:6.000,
+> seg110.ts
+> `;
+>
+> const result = detectAvails(late, "ch");
+> console.log("Late mid-break viewer (CUE-OUT scrolled off):");
+> console.log(JSON.stringify(result, null, 2));
+>
+> if (result.length === 0) {
+>   console.log("\n❌ BUG STILL PRESENT - no avail detected!");
+> } else {
+>   console.log("\n✓ FIX WORKS - avail detected");
+> }
+> EOF
+8b0f29f00026:/app# npx tsx /tmp/test_bug_real.ts
+Late mid-break viewer (CUE-OUT scrolled off):
+[
+  {
+    "opportunityId": "opp_ch_106",
+    "channelId": "ch",
+    "duration": 18,
+    "measuredDuration": 18,
+    "startSequence": 106,
+    "startLine": 4,
+    "endLine": 10
+  }
+]
+
+✓ FIX WORKS - avail detected
+8b0f29f00026:/app#

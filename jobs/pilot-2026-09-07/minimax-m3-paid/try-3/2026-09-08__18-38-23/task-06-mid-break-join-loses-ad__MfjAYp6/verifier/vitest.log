@@ -1,0 +1,102 @@
+
+ RUN  v2.1.9 /app
+
+ ❯ packages/data-plane/src/avails.test.ts (13 tests | 2 failed) 17ms
+   × detectAvails (PRD §9, §41) > recovers a break whose opening tag has already scrolled out of the window (real worker/origin.py + worker/cue_schedule.py output: full 6-line playlist header, CUE-IN before its DATERANGE-IN) 6ms
+     → expected undefined to be 'BRK-old-0009' // Object.is equality
+   × detectAvails (PRD §9, §41) > ignores a CUE-IN that never gets a DATERANGE id at all (no producer break id to recover — same fallback as any avail with no DATERANGE) 3ms
+     → expected [ { opportunityId: 'opp_ch_0', …(6) } ] to deeply equal []
+(node:2637) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for accessing router options. The router options will be removed in `fastify@6`.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2637) [FSTDEP022] FastifyWarning: The router options for maxParamLength property access is deprecated. Please use "options.routerOptions" instead for accessing router options. The router options will be removed in `fastify@6`.
+ ❯ packages/data-plane/src/server.test.ts (2 tests | 1 failed) 47ms
+   × data-plane manifest hot path — mid-break join/reconnect (PRD §41 extension) > reattaches the same decided pod once a break's opening tag ages out of the window, instead of falling back to raw origin or re-deciding 43ms
+     → expected '#EXT-X-DISCONTINUITY\n#EXT-X-DATERANG…' to contain 'cr-first'
+ ✓ packages/data-plane/src/media.test.ts (5 tests) 4ms
+ ✓ packages/core/src/scte.test.ts (11 tests) 4ms
+ ✓ packages/data-plane/src/stitch.test.ts (3 tests) 4ms
+ ✓ packages/data-plane/src/origin.test.ts (4 tests) 4ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts > detectAvails (PRD §9, §41) > recovers a break whose opening tag has already scrolled out of the window (real worker/origin.py + worker/cue_schedule.py output: full 6-line playlist header, CUE-IN before its DATERANGE-IN)
+AssertionError: expected undefined to be 'BRK-old-0009' // Object.is equality
+
+- Expected: 
+"BRK-old-0009"
+
++ Received: 
+undefined
+
+ ❯ packages/data-plane/src/avails.test.ts:166:40
+    164|     const avails = detectAvails(m, "channel_food");
+    165|     expect(avails).toHaveLength(1);
+    166|     expect(avails[0]!.externalBreakId).toBe("BRK-old-0009");
+       |                                        ^
+    167|     // Only the visible portion (2 segments before the CUE-IN) counts …
+    168|     expect(avails[0]!.measuredDuration).toBe(12);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  packages/data-plane/src/avails.test.ts > detectAvails (PRD §9, §41) > ignores a CUE-IN that never gets a DATERANGE id at all (no producer break id to recover — same fallback as any avail with no DATERANGE)
+AssertionError: expected [ { opportunityId: 'opp_ch_0', …(6) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "channelId": "ch",
++     "duration": 6,
++     "endLine": 3,
++     "measuredDuration": 6,
++     "opportunityId": "opp_ch_0",
++     "startLine": 0,
++     "startSequence": 0,
++   },
++ ]
+
+ ❯ packages/data-plane/src/avails.test.ts:183:35
+    181|       "s1.ts",
+    182|     ]);
+    183|     expect(detectAvails(m, "ch")).toEqual([]);
+       |                                   ^
+    184|   });
+    185| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  packages/data-plane/src/server.test.ts > data-plane manifest hot path — mid-break join/reconnect (PRD §41 extension) > reattaches the same decided pod once a break's opening tag ages out of the window, instead of falling back to raw origin or re-deciding
+AssertionError: expected '#EXT-X-DISCONTINUITY\n#EXT-X-DATERANG…' to contain 'cr-first'
+
+- Expected
++ Received
+
+- cr-first
++ #EXT-X-DISCONTINUITY
++ #EXT-X-DATERANGE:ID="cr-second",CLASS="com.fastworld.ad",DURATION=12,X-AD-ID="cr-second"
++ #EXTINF:6.000,
++ /v1/segments/cr-second/cr-second_seg0.ts
++ #EXTINF:6.000,
++ /v1/segments/cr-second/cr-second_seg1.ts
++ #EXT-X-DISCONTINUITY
++ #EXT-X-DATERANGE:ID="BRK-mid-0004",SCTE35-IN=0xFC
++ #EXTINF:6.000,
++ http://origin.example/channel_food/s102.ts
+
+ ❯ packages/data-plane/src/server.test.ts:99:23
+     97|     expect(res2.headers["x-ssai-stitched"]).toBe("1");
+     98|     // The SAME ad must reattach — not raw origin passthrough, and not…
+     99|     expect(res2.body).toContain("cr-first");
+       |                       ^
+    100|     expect(res2.body).not.toContain("cr-second");
+    101|     expect(res2.body).not.toContain("s100.ts"); // raw origin segment …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  2 failed | 4 passed (6)
+      Tests  3 failed | 35 passed (38)
+   Start at  13:23:06
+   Duration  1.11s (transform 185ms, setup 0ms, collect 335ms, tests 80ms, environment 1ms, prepare 199ms)
+

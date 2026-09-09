@@ -1,0 +1,14 @@
+{
+  "analysis": "The RightsTakedown model confirms that scope_type can be either 'asset' or 'series'. The bug is clear: the `active_takedown_for_asset` function only looks for takedowns with `scope_type == 'asset'`, but it should also look for takedowns with `scope_type == 'series'` where the series_id matches the asset's series_id. Let me look at the rights service and tests to confirm the expected behavior.",
+  "plan": "Look at the rights service and the relevant tests to understand the expected behavior.",
+  "commands": [
+    {
+      "keystrokes": "ls -la app/services/ | grep -i right\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat tests/test_rights_takedown.py\n",
+      "duration": 0.1
+    }
+  ]
+}

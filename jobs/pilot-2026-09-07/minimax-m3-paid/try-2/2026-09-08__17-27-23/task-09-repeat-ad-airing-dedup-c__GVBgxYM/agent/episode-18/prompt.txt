@@ -1,0 +1,117 @@
+New Terminal Output:
+
+d71dcf74f9c3:/app# cat /app/src/app/api/fast/routes.test.ts
+// B2 · route handlers + A3 · events schema. Handlers are invoked directly with a
+// Request (and Promise-wrapped params for dynamic segments); fetch is mocked.
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+
+import { GET as channelById } from "@/app/api/fast/channels/[id]/route";
+import { GET as hlsGet, OPTIONS as hlsOptions } from "@/app/api/fast/hls/[...path]/route";
+import { POST as eventsPost } from "@/app/api/fast/events/route";
+
+beforeEach(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).__fastChannels = undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).__fastChannelsMem = undefined;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).__fastTelemetryStore = undefined;
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+
+describe("GET /api/fast/channels/:id", () => {
+  it("returns 404 for a non-numeric id", async () => {
+    const res = await channelById(new Request("http://x"), { params: Promise.resolve({ id: "abc" }) });
+    expect(res.status).toBe(404);
+  });
+  it("returns a seeded channel", async () => {
+    const res = await channelById(new Request("http://x"), { params: Promise.resolve({ id: "101" }) });
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.channel.id).toBe(101);
+  });
+});
+
+describe("HLS proxy /api/fast/hls/[...path]", () => {
+  it("rejects path traversal / absolute-url injection with 400", async () => {
+    const bad = (path: string[]) => hlsGet(new Request("http://x"), { params: Promise.resolve({ path }) });
+    expect((await bad(["..", "x"])).status).toBe(400);
+    expect((await bad(["https:", "", "evil.com", "x.m3u8"])).status).toBe(400);
+    expect((await bad([])).status).toBe(400);
+  });
+
+  it("forwards a manifest with CORS and the corrected MIME", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ({ ok: true, status: 200, headers: new Headers({ "accept-ranges": "bytes" }), body: "#EXTM3U" } as any)));
+    const res = await hlsGet(new Request("http://x"), {
+      params: Promise.resolve({ path: ["chan", "index.m3u8"] }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    expect(res.headers.get("content-type")).toBe("application/vnd.apple.mpegurl");
+  });
+
+  it("serves .ts segments as video/mp2t", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, status: 200, headers: new Headers(), body: "seg" } as any)));
+    const res = await hlsGet(new Request("http://x"), {
+      params: Promise.resolve({ path: ["chan", "index7.ts"] }),
+    });
+    expect(res.headers.get("content-type")).toBe("video/mp2t");
+  });
+
+  it("returns 502 when the upstream fetch fails", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error("down");
+    }));
+    const res = await hlsGet(new Request("http://x"), {
+      params: Promise.resolve({ path: ["chan", "index.m3u8"] }),
+    });
+    expect(res.status).toBe(502);
+  });
+
+  it("answers preflight OPTIONS with CORS", async () => {
+    const res = await hlsOptions();
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  });
+});
+
+describe("POST /api/fast/events (A3 · events schema)", () => {
+  const post = (body: unknown) =>
+    eventsPost(new Request("http://x", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    }));
+
+  it("accepts a single event and an array", async () => {
+    expect((await (await post({ event: "session_start" })).json()).accepted).toBe(1);
+    expect((await (await post([{ event: "a" }, { event: "b" }])).json()).accepted).toBe(2);
+  });
+
+  it("drops items with no string `event` (the schema's only required field)", async () => {
+    const j = await (await post([{ event: "ok" }, { foo: 1 }, { event: 5 }])).json();
+    expect(j.accepted).toBe(1);
+  });
+
+  it("rejects malformed JSON with 400", async () => {
+    const res = await eventsPost(new Request("http://x", { method: "POST", body: "{" }));
+    expect(res.status).toBe(400);
+  });
+
+  it("the vendored contract requires a string `event`", () => {
+    const schema = JSON.parse(
+      readFileSync(fileURLToPath(new URL("../../../../test/contracts/api/events.schema.json", import.meta.url)), "utf8")
+    );
+    expect(schema.$defs.event.required).toContain("event");
+    expect(schema.$defs.event.properties.event.type).toBe("string");
+  });
+});
+d71dcf74f9c3:/app#

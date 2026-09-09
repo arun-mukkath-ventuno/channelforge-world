@@ -1,0 +1,14 @@
+{
+  "analysis": "The late mid-break case now detects the avail. But there's still the issue that the opportunityId differs between the early viewer (opp_ch_102) and the late viewer (opp_ch_103). For the \"same session reconnecting\" case to find its previous decision, we need a stable opportunityId.\n\nLet me think about this. The bug report says:\n> the *same* session, if it had already been decided an ad for this exact break earlier (before reconnecting), still doesn't get it back\n\nIf we use the DATERANGE ID as the opportunityId, then both viewers get the same oppId and cache hits work. When DATERANGE is absent, they get different oppIds (no cache hit, but a new decision is made).\n\nLet me also think about the second scenario: when CUE-OUT is still present but startSequence has changed (we got opp_ch_103 for both, but the early viewer had opp_ch_102). Wait, my test showed both got opp_ch_103. Let me re-check.",
+  "plan": "Re-check the second scenario where CUE-OUT is present but first inside-avail scrolled.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test_bug3.ts << 'EOF'\nimport { detectAvails } from \"/app/packages/data-plane/src/avails.ts\";\n\n// Early viewer - all segments present\nconst early = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:100\n#EXTINF:6.000,\nseg100.ts\n#EXTINF:6.000,\nseg101.ts\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nseg102.ts\n#EXTINF:6.000,\nseg103.ts\n#EXTINF:6.000,\nseg104.ts\n#EXTINF:6.000,\nseg105.ts\n#EXT-X-CUE-IN\n#EXTINF:6.000,\nseg106.ts\n`;\n\n// Mid-break viewer - first inside-avail scrolled off, CUE-OUT still in window\nconst midBreak = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:103\n#EXT-X-CUE-OUT:30\n#EXTINF:6.000,\nseg103.ts\n#EXTINF:6.000,\nseg104.ts\n#EXTINF:6.000,\nseg105.ts\n#EXT-X-CUE-IN\n#EXTINF:6.000,\nseg106.ts\n`;\n\nconsole.log(\"Early viewer:\");\nconsole.log(JSON.stringify(detectAvails(early, \"ch\"), null, 2));\n\nconsole.log(\"\\nMid-break viewer (CUE-OUT still present):\");\nconsole.log(JSON.stringify(detectAvails(midBreak, \"ch\"), null, 2));\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npx tsx /tmp/test_bug3.ts\n",
+      "duration": 5.0
+    }
+  ]
+}

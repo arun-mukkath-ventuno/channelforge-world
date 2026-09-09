@@ -1,0 +1,10 @@
+{
+  "analysis": "All edge cases work correctly:\n1. DATERANGE after segment in both back-to-back breaks → each gets its own id ✓\n2. Three back-to-back breaks → each gets its own id ✓\n3. Back-to-back where second break has no DATERANGE → second gets undefined (no leak) ✓\n\nThe fix is minimal and targeted. Let me also run the full data-plane test suite one more time to confirm everything passes.",
+  "plan": "Run the data-plane tests one final time to confirm.",
+  "commands": [
+    {
+      "keystrokes": "cd packages/data-plane && npm test 2>&1 | tail -20\n",
+      "duration": 15.0
+    }
+  ]
+}

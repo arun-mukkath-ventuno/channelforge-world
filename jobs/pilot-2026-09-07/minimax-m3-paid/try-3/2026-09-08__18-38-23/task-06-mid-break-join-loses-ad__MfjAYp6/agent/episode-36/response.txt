@@ -1,0 +1,10 @@
+{
+  "analysis": "The incomplete trailing avail case still returns an empty array, as expected by the existing test.\n\nNow let me also verify the normal polling case still works correctly.",
+  "plan": "Test the normal polling case and the stable opportunityId case.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test-normal.mjs << 'EOF'\nimport { detectAvails } from '/app/packages/data-plane/dist/avails.js';\n\n// Normal polling - CUE-OUT and CUE-IN both in window\nconst before = [\n  '#EXTM3U',\n  '#EXT-X-VERSION:3',\n  '#EXT-X-TARGETDURATION:6',\n  '#EXT-X-MEDIA-SEQUENCE:100',\n  '#EXTINF:6.000,',\n  's100.ts',\n  '#EXT-X-CUE-OUT:30',\n  '#EXTINF:6.000,',\n  'slate.ts',\n  '#EXT-X-CUE-IN',\n].join('\\n');\n\nconst after = [\n  '#EXTM3U',\n  '#EXT-X-VERSION:3',\n  '#EXT-X-TARGETDURATION:6',\n  '#EXT-X-MEDIA-SEQUENCE:101',\n  '#EXT-X-CUE-OUT:30',\n  '#EXTINF:6.000,',\n  'slate.ts',\n  '#EXT-X-CUE-IN',\n].join('\\n');\n\nconst a = detectAvails(before, 'ch')[0];\nconst b = detectAvails(after, 'ch')[0];\nconsole.log('Before opportunityId:', a.opportunityId);\nconsole.log('After opportunityId:', b.opportunityId);\nconsole.log('Stable:', a.opportunityId === b.opportunityId);\nEOF\nnode /tmp/test-normal.mjs\n",
+      "duration": 1.0
+    }
+  ]
+}

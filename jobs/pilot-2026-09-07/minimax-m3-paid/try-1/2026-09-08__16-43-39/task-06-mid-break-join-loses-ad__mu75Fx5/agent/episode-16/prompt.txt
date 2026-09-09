@@ -1,0 +1,115 @@
+New Terminal Output:
+
+8b0f29f00026:/app# cat packages/data-plane/src/origin-slice4.test.ts
+import { describe, it, expect } from "vitest";
+
+import { OriginClient, parseOriginMap } from "./origin.js";
+import { absolutizeManifest } from "./origin-rewrite.js";
+
+describe("parseOriginMap", () => {
+  it("parses a JSON channel→url map", () => {
+    expect(parseOriginMap('{"channel_yoga":"https://forge/hls/u/delivery.m3u8"}')).toEqual({
+      channel_yoga: "https://forge/hls/u/delivery.m3u8",
+    });
+  });
+  it("is empty on missing or bad input", () => {
+    expect(parseOriginMap(undefined)).toEqual({});
+    expect(parseOriginMap("not json")).toEqual({});
+  });
+});
+
+describe("OriginClient.originUrlFor", () => {
+  it("uses the per-channel origin map verbatim when present", () => {
+    const c = new OriginClient({
+      baseUrl: "http://fixture:8080",
+      originMap: { channel_yoga: "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8" },
+    });
+    expect(c.originUrlFor("channel_yoga")).toBe(
+      "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8",
+    );
+  });
+  it("falls back to base/channel/variant for unmapped channels", () => {
+    const c = new OriginClient({ baseUrl: "http://fixture:8080", originMap: {} });
+    expect(c.originUrlFor("channel_food", "index")).toBe("http://fixture:8080/channel_food/index.m3u8");
+  });
+});
+
+describe("absolutizeManifest", () => {
+  const origin = "https://forge.ventunotech.com/hls/a11e5310/delivery.m3u8";
+
+  it("rewrites relative segment URIs to absolute origin URLs", () => {
+    const body = ["#EXTM3U", "#EXTINF:2.000,", "index0.ts", "#EXTINF:2.000,", "index1.ts"].join("\n");
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index0.ts");
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/index1.ts");
+    expect(out).toContain("#EXTINF:2.000,"); // tags untouched
+  });
+
+  it("leaves already-absolute URIs and ad segments alone", () => {
+    const body = ["#EXTINF:2,", "https://cdn/x.ts", "#EXTINF:2,", "/v1/segments/cr_1/000.ts"].join("\n");
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain("https://cdn/x.ts");
+    // a rooted path resolves against the origin host (expected) — the stitcher inserts ad segments
+    // AFTER this step, so real ad segments are never passed through here.
+    expect(out).toContain("https://forge.ventunotech.com/v1/segments/cr_1/000.ts");
+  });
+
+  it("absolutizes URI= attributes on tags", () => {
+    const body = '#EXT-X-MAP:URI="init.mp4"\n#EXTINF:2,\nseg.m4s';
+    const out = absolutizeManifest(body, origin);
+    expect(out).toContain('URI="https://forge.ventunotech.com/hls/a11e5310/init.mp4"');
+    expect(out).toContain("https://forge.ventunotech.com/hls/a11e5310/seg.m4s");
+  });
+});
+8b0f29f00026:/app# cat packages/data-plane/src/origin.test.ts
+import { describe, it, expect, vi } from "vitest";
+import { OriginClient } from "./origin.js";
+
+function okResponse(body: string) {
+  return { ok: true, status: 200, text: async () => body } as unknown as Response;
+}
+
+describe("OriginClient (PRD §8, §42)", () => {
+  it("fetches and caches within the TTL", async () => {
+    const fetchImpl = vi.fn(async () => okResponse("#EXTM3U\n"));
+    const client = new OriginClient({ baseUrl: "http://origin", ttlMs: 1000, fetchImpl });
+
+    const a = await client.fetchMediaPlaylist("ch");
+    const b = await client.fetchMediaPlaylist("ch");
+
+    expect(a).toMatchObject({ fromCache: false, stale: false });
+    expect(b).toMatchObject({ fromCache: true, stale: false });
+    expect(fetchImpl).toHaveBeenCalledTimes(1); // second call served from cache
+  });
+
+  it("serves the last-good copy when the origin fails (stale)", async () => {
+    let call = 0;
+    const fetchImpl = vi.fn(async () => {
+      call += 1;
+      if (call === 1) return okResponse("#EXTM3U\nfresh\n");
+      throw new Error("origin down");
+    });
+    const client = new OriginClient({ baseUrl: "http://origin", ttlMs: 0, fetchImpl });
+
+    const first = await client.fetchMediaPlaylist("ch");
+    const second = await client.fetchMediaPlaylist("ch"); // ttl 0 forces refetch → fails
+
+    expect(first.stale).toBe(false);
+    expect(second).toMatchObject({ body: "#EXTM3U\nfresh\n", stale: true });
+  });
+
+  it("throws when the origin fails and nothing is cached", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("origin down");
+    });
+    const client = new OriginClient({ baseUrl: "http://origin", fetchImpl });
+    await expect(client.fetchMediaPlaylist("ch")).rejects.toThrow("origin down");
+  });
+
+  it("treats a non-200 as a failure", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 404, text: async () => "" }) as unknown as Response);
+    const client = new OriginClient({ baseUrl: "http://origin", fetchImpl });
+    await expect(client.fetchMediaPlaylist("ch")).rejects.toThrow(/404/);
+  });
+});
+8b0f29f00026:/app#

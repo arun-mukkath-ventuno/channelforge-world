@@ -1,0 +1,68 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat > /tmp/test-bug.mjs << 'EOF'
+> import { detectAvails } from '/app/packages/data-plane/dist/avails.js';
+>
+> // Scenario 1: Session was polling, CUE-OUT and CUE-IN both in window
+> const before = [
+>   '#EXTM3U',
+>   '#EXT-X-VERSION:3',
+>   '#EXT-X-TARGETDURATION:6',
+>   '#EXT-X-MEDIA-SEQUENCE:100',
+>   '#EXTINF:6.000,',
+>   'segment100.ts',
+>   '#EXT-X-CUE-OUT:30',
+>   '#EXTINF:6.000,',
+>   'slate001.ts',
+>   '#EXTINF:6.000,',
+>   'slate002.ts',
+>   '#EXT-X-CUE-IN',
+>   '#EXTINF:6.000,',
+>   'segment105.ts',
+> ].join('\n');
+>
+> console.log('=== Scenario 1: Normal polling (CUE-OUT and CUE-IN in window) ===');
+> const a1 = detectAvails(before, 'channel_food');
+> console.log('Avails:', JSON.stringify(a1, null, 2));
+>
+> // Scenario 2: Late tune-in - CUE-OUT scrolled out, CUE-IN still in window
+> const late = [
+>   '#EXTM3U',
+>   '#EXT-X-VERSION:3',
+>   '#EXT-X-TARGETDURATION:6',
+>   '#EXT-X-MEDIA-SEQUENCE:103',
+>   '#EXTINF:6.000,',
+>   'slate001.ts',
+>   '#EXTINF:6.000,',
+>   'slate002.ts',
+>   '#EXTINF:6.000,',
+>   'slate003.ts',
+>   '#EXT-X-CUE-IN',
+>   '#EXTINF:6.000,',
+>   'segment106.ts',
+> ].join('\n');
+>
+> console.log('\n=== Scenario 2: Late tune-in (CUE-OUT scrolled out, CUE-IN in window) ===');
+> const a2 = detectAvails(late, 'channel_food');
+> console.log('Avails:', JSON.stringify(a2, null, 2));
+> console.log('Expected: should detect an avail, but got:', a2.length);
+> EOF
+e337ca9acc5b:/app# node /tmp/test-bug.mjs
+=== Scenario 1: Normal polling (CUE-OUT and CUE-IN in window) ===
+Avails: [
+  {
+    "opportunityId": "opp_channel_food_101",
+    "channelId": "channel_food",
+    "duration": 30,
+    "declaredDuration": 30,
+    "measuredDuration": 12,
+    "startSequence": 101,
+    "startLine": 6,
+    "endLine": 11
+  }
+]
+
+=== Scenario 2: Late tune-in (CUE-OUT scrolled out, CUE-IN in window) ===
+Avails: []
+Expected: should detect an avail, but got: 0
+e337ca9acc5b:/app#

@@ -1,0 +1,27 @@
+New Terminal Output:
+
+cbccd910d082:/app# diff <(cat packages/data-plane/src/avails.ts) <(cat packages/data-plane/dist/avails.js) | head -20
+--- /dev/fd/63
++++ /dev/fd/62
+@@ -5,125 +5,88 @@
+ // of the avail's first segment. Determinism matters: every viewer's data-plane
+ // request and the decisioning path must agree on the same opportunity id for a
+ // given break without coordinating, so the cached pod is found on the hot path.
+-
+ import { parseMarkerLine } from "@ssai/core";
+-
+-export interface Avail {
+-  opportunityId: string;
+-  channelId: string;
+-  /** The producer's stable break id, from the CUE-OUT's accompanying DATERANGE ID (ChannelForge
+-   *  threads its break_id there). Undefined when the origin carried no DATERANGE ID. This is what
+-   *  lets ChannelForge reconcile a delivery back to the exact planned break (its opportunityId,
+-   *  by contrast, is a media-sequence-derived id independent of the producer). */
+-  externalBreakId?: string;
+-  /** Break duration: the marker's declared duration, or the summed segment time. */
+-  duration: number;
+-  /** Declared duration from the marker, if it carried a valid one. */
+cbccd910d082:/app# grep -n 'blockBreakId = undefined' packages/data-plane/src/avails.ts
+111:      blockBreakId = undefined;
+124:      blockBreakId = undefined;
+cbccd910d082:/app#

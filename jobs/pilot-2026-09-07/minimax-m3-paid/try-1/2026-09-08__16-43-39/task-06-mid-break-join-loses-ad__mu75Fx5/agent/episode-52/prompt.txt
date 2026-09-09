@@ -1,0 +1,24 @@
+New Terminal Output:
+
+8b0f29f00026:/app# sed -n '180,230p' packages/data-plane/src/avails.ts
+      // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+      mediaSequence += 1;
+      blockBreakId = undefined;
+      // If no CUE-OUT is open and we have not yet started an orphan, the first
+      // visible segment after a (possibly missing) CUE-OUT may be inside an
+      // in-progress break whose start marker has scrolled off. Anchor a
+      // synthetic avail on its EXTINF line.
+      if (!open && !orphan && i > 0) {
+        orphan = {
+          startLine: i - 1,
+          startSequence: mediaSequence - 1,
+          measuredDuration: 0,
+          ...(lastPdt === undefined ? {} : { pdt: lastPdt }),
+        };
+      }
+    }
+  }
+
+  return avails;
+}
+8b0f29f00026:/app#

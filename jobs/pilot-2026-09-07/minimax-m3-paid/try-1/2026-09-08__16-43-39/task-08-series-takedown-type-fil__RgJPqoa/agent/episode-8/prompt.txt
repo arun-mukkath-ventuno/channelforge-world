@@ -1,0 +1,110 @@
+New Terminal Output:
+
+root@63cfd5c67291:/app# cat app/services/asset_eligibility.py
+"""Composite asset eligibility (PRD 3.0 §9.4): metadata + rights, per distribution agreement.
+
+Composes the pure metadata engine (``eligibility.evaluate_metadata``) with the pure rights engine
+(``rights_engine.evaluate``) over the policies that apply to the asset for a given agreement. This
+is what makes the same asset eligible for one agreement and ineligible for another (§8.4, §9.5).
+Later slices fold caption/QC/rendition dimensions into the same result shape.
+"""
+
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timedelta
+
+from sqlalchemy.orm import Session
+
+from app.clock import now_utc
+from app.models import Asset, DistributionAgreement, EligibilityVerdict
+from app.repositories import rights as rights_repo
+from app.services import captions as caption_svc
+from app.services import qc as qc_svc
+from app.services import rights_engine
+from app.services.eligibility import (
+    DEFAULT_PROFILE,
+    EligibilityResult,
+    Reason,
+    ValidationProfile,
+    evaluate_metadata,
+)
+
+# Reference air window for a general (not event-specific) eligibility check. Territory/partner
+# rights decisions are time-independent, so a nominal window keyed on the asset's duration is
+# sufficient; event-specific evaluation passes its own window (§8.2).
+_DEFAULT_AIR_SECONDS = 3600.0
+
+
+def evaluate_asset(
+    db: Session,
+    *,
+    org_id: uuid.UUID,
+    asset: Asset,
+    agreement: DistributionAgreement | None = None,
+    now: datetime | None = None,
+    profile: ValidationProfile = DEFAULT_PROFILE,
+) -> EligibilityResult:
+    now = now or now_utc()
+    reasons: list[Reason] = list(evaluate_metadata(asset, profile).reasons)
+
+    # An active emergency takedown blocks the asset absolutely, before any policy check (§8.3).
+    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+    if takedown is not None:
+        reasons.append(Reason(
+            code="rights_takedown", field="rights", severity="error",
+            message="Asset is under an active emergency takedown.",
+        ))
+
+    # Caption dimension (§9.4): only enforced when the profile requires it.
+    if profile.require_captions and not caption_svc.has_usable_caption(
+        db, org_id=org_id, asset_id=asset.id
+    ):
+        reasons.append(Reason(
+            code="missing_captions", field="captions", severity="error",
+            message="No QC-passing caption track is available.",
+        ))
+
+    # Technical QC dimension (§9.1/§9.4): media that failed compatibility blocks; an operator
+    # override (§9.5) clears it. Editorial is already covered by the metadata check above; rights
+    # by the engine below; caption by the requirement above.
+    tech_state, _ = qc_svc.technical_effective(db, org_id=org_id, asset=asset, now=now)
+    if tech_state == "failed":
+        reasons.append(Reason(
+            code="technical_qc_failed", field="technical", severity="error",
+            message="Source media failed technical QC.",
+        ))
+    elif tech_state == "warning":
+        reasons.append(Reason(
+            code="technical_qc_warning", field="technical", severity="warning",
+            message="Source media passed technical QC with warnings.",
+        ))
+
+    air_start = now
+    air_end = now + timedelta(seconds=asset.duration_seconds or _DEFAULT_AIR_SECONDS)
+    ctx = rights_engine.RightsContext(
+        air_start=air_start,
+        air_end=air_end,
+        territory=agreement.territory if agreement else None,
+        partner=agreement.partner if agreement else None,
+        language=asset.language,
+    )
+    policies = rights_repo.resolve_applicable(
+        db,
+        org_id=org_id,
+        asset=asset,
+        channel_id=agreement.channel_id if agreement else None,
+        agreement_id=agreement.id if agreement else None,
+    )
+    decision = rights_engine.evaluate(policies, ctx, asset=asset)
+    for rr in decision.reasons:
+        reasons.append(Reason(code=rr.code, field="rights", severity="error", message=rr.message))
+
+    if any(r.severity == "error" for r in reasons):
+        verdict = EligibilityVerdict.INELIGIBLE
+    elif reasons:
+        verdict = EligibilityVerdict.ELIGIBLE_WITH_WARNINGS
+    else:
+        verdict = EligibilityVerdict.ELIGIBLE
+    return EligibilityResult(verdict, reasons)
+root@63cfd5c67291:/app#

@@ -1,0 +1,30 @@
+New Terminal Output:
+
+root@b168bc56cd63:/app# grep -rn "active_takedown_for_asset\|scope_type.*asset.*scope_id\|RightsTakedown" app/ --include="*.py" | grep -v __pycache__
+app/models/__init__.py:53:    RightsTakedown,
+app/models/__init__.py:118:    "RightsTakedown",
+app/models/rights.py:95:class RightsTakedown(UUIDMixin, TimestampMixin, Base):
+app/services/rights_takedown.py:21:from app.models import DistributionAgreement, RightsTakedown
+app/services/rights_takedown.py:77:) -> tuple[RightsTakedown, AffectedSummary]:
+app/services/rights_takedown.py:111:) -> RightsTakedown:
+app/services/schedules.py:705:    if rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset) is not None:
+app/services/asset_eligibility.py:49:    takedown = rights_repo.active_takedown_for_asset(db, org_id=org_id, asset=asset)
+app/repositories/rights.py:16:    RightsTakedown,
+app/repositories/rights.py:131:def create_takedown(db: Session, **fields) -> RightsTakedown:
+app/repositories/rights.py:132:    takedown = RightsTakedown(**fields)
+app/repositories/rights.py:140:) -> RightsTakedown | None:
+app/repositories/rights.py:142:        select(RightsTakedown).where(
+app/repositories/rights.py:143:            RightsTakedown.id == takedown_id, RightsTakedown.organization_id == org_id
+app/repositories/rights.py:148:def list_active_takedowns(db: Session, org_id: uuid.UUID) -> list[RightsTakedown]:
+app/repositories/rights.py:151:            select(RightsTakedown)
+app/repositories/rights.py:153:                RightsTakedown.organization_id == org_id,
+app/repositories/rights.py:154:                RightsTakedown.status == "active",
+app/repositories/rights.py:156:            .order_by(RightsTakedown.created_at.desc())
+app/repositories/rights.py:161:def active_takedown_for_asset(
+app/repositories/rights.py:163:) -> RightsTakedown | None:
+app/repositories/rights.py:169:        select(RightsTakedown).where(
+app/repositories/rights.py:170:            RightsTakedown.organization_id == org_id,
+app/repositories/rights.py:171:            RightsTakedown.status == "active",
+app/repositories/rights.py:172:            RightsTakedown.scope_type == "asset",
+app/repositories/rights.py:173:            RightsTakedown.scope_id.in_(scope_ids),
+root@b168bc56cd63:/app#

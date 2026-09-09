@@ -1,0 +1,68 @@
+New Terminal Output:
+
+26306d2ed51a:/app#
+/app/.next/server/chunks/_1-2nkqw._.js.map:{"version":3,"sources":["../../../src/app/api/fast/ads/current/route.ts","../../../src/lib/ssai.ts","../../../node_mo
+dules/.pnpm/next%4016.3.3_%40babel%2Bcore%407.29.7_%40types%2Bnode%4020.19.43_react-dom%4019.2.8_react%4019.2.8__react%4019.2.8/node_modules/next/src/build/temp
+lates/app-route.ts"],"sourcesContent":["// GET /api/fast/ads/current?channel=<id>\n// Real SCTE-35 ad-break state for a channel: fetches the channel's live medi
+a\n// playlist server-side (no CORS needed there), parses the SCTE avails the\n// ChannelForge packager signals, and returns the current/next break with absolut
+e\n// timing. Powers the AD-BREAK flag, the playout timeline's ad segment, and the\n// operator SCTE/SSAI column — real, not the mid-roll estimate. ~8s cache.\n
+import { NextRequest } from \"next/server\";\nimport { getChannelDefs } from \"@/lib/channel-config-store\";\nimport { parseScteAvails, type ScteAvail } from \"
+@/lib/ssai\";\n\nexport const dynamic = \"force-dynamic\";\n\ntype AdState = {\n  channelId: number;\n  serverNow: number;\n  source: \"scte\" | \"none\";\n  in
+Break: boolean;\n  breakStart: number | null;\n  breakEnd: number | null;\n  durationSec: number | null;\n  nextBreakStart: number | null;\n  avails: ScteAvail[
+];\n};\n\nconst cache = new Map<number, { at: number; data: AdState }>();\nconst TTL = 8_000;\n\nasync function fetchText(url: string): Promise<string | null> {
+\n  try {\n    const r = await fetch(url, { cache: \"no-store\", signal: AbortSignal.timeout(5_000) });\n    if (!r.ok) return null;\n    return await r.text();
+\n  } catch {\n    return null;\n  }\n}\n\n// Resolve the first variant media-playlist URI from a master playlist.\nfunction firstVariant(masterUrl: string, mas
+ter: string): string | null {\n  const lines = master.split(\"\\n\").map((l) => l.trim());\n  for (let i = 0; i < lines.length; i++) {\n    if (lines[i].startsW
+ith(\"#EXT-X-STREAM-INF\")) {\n      const uri = lines[i + 1];\n      if (uri && !uri.startsWith(\"#\")) return new URL(uri, masterUrl).toString();\n    }\n  }\
+n  // Not a master (already a media playlist) → use it directly.\n  return null;\n}\n\nasync function av4Channel(hlsUrl: string): Promise<ScteAvail[] | null> {\
+n  const master = await fetchText(hlsUrl);\n  if (master == null) return null;\n  let mediaText = master;\n  let mediaUrl = hlsUrl;\n  const variant = firstVari
+ant(hlsUrl, master);\n  if (variant) {\n    const v = await fetchText(variant);\n    if (v == null) return null;\n    mediaText = v;\n    mediaUrl = variant;\n
+ }\n  void mediaUrl;\n  return parseScteAvails(mediaText);\n}\n\nexport async function GET(req: NextRequest) {\n  const id = Number(new URL(req.url).searchParam
+s.get(\"channel\"));\n  if (!Number.isFinite(id)) return Response.json({ error: \"bad channel\" }, { status: 400 });\n\n  const now = Date.now();\n  const hit =
+ cache.get(id);\n  if (hit && now - hit.at < TTL) return Response.json({ ...hit.data, serverNow: now });\n\n  const defs = await getChannelDefs();\n  const def
+= defs.find((d) => d.id === id);\n  if (!def) return Response.json({ error: \"not found\" }, { status: 404 });\n\n  const avails = def.hlsUrl ? await av4Channel
+(def.hlsUrl) : null;\n  let data: AdState;\n  if (avails == null) {\n    data = { channelId: id, serverNow: now, source: \"none\", inBreak: false, breakStart: n
+ull, breakEnd: null, durationSec: null, nextBreakStart: null, avails: [] };\n  } else {\n    const active = avails.find((a) => now >= a.start && now < a.end);\n
+    const upcoming = avails.filter((a) => a.start > now).sort((a, b) => a.start - b.start)[0];\n    data = {\n      channelId: id,\n      serverNow: now,\n
+ source: \"scte\",\n      inBreak: !!active,\n      breakStart: active ? active.start : null,\n      breakEnd: active ? active.end : null,\n      durationSec: a
+ctive ? active.durationSec : null,\n      nextBreakStart: upcoming ? upcoming.start : null,\n      avails,\n    };\n  }\n  cache.set(id, { at: now, data });\n
+return Response.json(data);\n}\n","// SSAI (server-side ad insertion) client — the AD leg of the Stream Telemetry Blueprint.\n//\n// For channels with an `ssaiC
+hannel`, the player requests a session from the ad server, plays the\n// returned stitched `playback_url` (ChannelForge content + spliced ads), and fires per-ad
+ quartile\n// beacons. This is SEPARATE from the audience telemetry in `telemetry-store` / `/api/fast/events`\n// (concurrents, QoE) — that stays untouched; ad
+events go to the SSAI's `/v1/events`.\n\nexport const SSAI_BASE = (\n  process.env.NEXT_PUBLIC_SSAI_BASE || \"https://ssai.ventunotech.com\"\n).replace(/\\/$/,
+\"\");\n\nexport interface SsaiSession {\n  sessionId: string;\n  playbackUrl: string;\n}\n\n/** Create a playback session and get the stitched manifest URL for
+ an SSAI channel. */\nexport async function createSsaiSession(ssaiChannel: string): Promise<SsaiSession | null> {\n  try {\n    cons
+[... output limited to 10000 bytes; 72 interior bytes omitted ...]
+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
+GAAK,EAAK,YAAY,MAK9C","ignoreList":[12,13,14,17,19,20,21,22,23,24,25,26,27,28,29,30,31,32,35,36]}
+26306d2ed51a:/app#

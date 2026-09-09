@@ -1,0 +1,10 @@
+{
+  "analysis": "All tests look good. Let me now do a final verification:\n\n1. The fix is in `packages/data-plane/src/avails.ts`\n2. The compiled output is in `packages/data-plane/dist/avails.js`\n3. All existing tests pass\n4. The bug scenario (late mid-break viewer) is now fixed\n5. Edge cases are handled correctly\n\nThe fix is minimal and targeted at the actual defect:\n- Detects avails when CUE-OUT has scrolled off but CUE-IN is present\n- Uses DATERANGE ID for stable opportunityIds when available\n- Preserves all existing behavior for normal cases\n- Doesn't change how ads are detected or decided for the common case\n- Doesn't disable or bypass ad decisioning\n\nLet me also re-run the data-plane tests one more time to be absolutely sure.",
+  "plan": "Final verification.",
+  "commands": [
+    {
+      "keystrokes": "cd /app/packages/data-plane && npm test 2>&1 | tail -15\n",
+      "duration": 15.0
+    }
+  ]
+}

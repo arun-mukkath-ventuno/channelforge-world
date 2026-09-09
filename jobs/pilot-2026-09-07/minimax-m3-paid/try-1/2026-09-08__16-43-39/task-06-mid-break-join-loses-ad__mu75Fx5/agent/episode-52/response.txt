@@ -1,0 +1,10 @@
+{
+  "analysis": "I see the issue. The orphan creation logic doesn't track whether we've seen a CUE-IN. Let me trace through the scenarios more carefully:\n\nScenario: Normal manifest with break + post-break content\n```\nMEDIA-SEQUENCE:100\nseg100.ts        <- orphan created here (URI line, no open avail)\nseg101.ts        <- orphan continues (URI line, orphan exists)\nCUE-OUT          <- orphan = null, open = { ... }\nseg102.ts        <- open avail, not orphan\nCUE-IN           <- avails.push, open = null\nseg103.ts        <- URI line, no open avail, no orphan -> NEW ORPHAN CREATED!\n```\n\nSo after CUE-IN, we'd create a new orphan. If there's another CUE-IN later (multiple avails), we'd add another bogus avail.\n\nAlso, for the early test (CUE-OUT before any segment), we'd create orphan first which gets cleared when CUE-OUT arrives. Good.\n\nThe bug: we need to NOT create orphan after we've seen CUE-IN for the current \"session\". Or more precisely: don't create orphan after the break is clearly over.\n\nActually wait, the test for \"detects multiple avails in one window\" expects:\n```\nconst avails = detectAvails(m, \"ch\");\nexpect(avails.map((a) => a.opportunityId)).toEqual([\"opp_ch_0\", \"opp_ch_2\"]);\n```\n\nFor the multi-avail test:\n```\nMEDIA-SEQUENCE:0\nCUE-OUT:30      <- no orphan creation here (marker, not URI)\na.ts            <- URI line, open avail, not orphan\nCUE-IN          <- avail closed\nb.ts            <- URI line, no open avail, no orphan -> NEW ORPHAN CREATED!\nCUE-OUT:15      <- orphan = null, open = new avail\nc.ts            <- inside new avail\nCUE-IN          <- avail closed\n```\n\nThe orphan created between CUE-IN and the next CUE-OUT would be closed when the next CUE-OUT arrives (orphan = null, open = new avail). So no avail is incorrectly detected. But the orphan IS being created (and discarded), which is wasteful but not wrong.\n\nLet me run the existing tests to see if they still pass.",
+  "plan": "Run tests to make sure existing tests still pass.",
+  "commands": [
+    {
+      "keystrokes": "cd packages/data-plane && npm test 2>&1 | tail -30\n",
+      "duration": 15.0
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "analysis": "All existing avails tests pass. Now let me write a quick test to reproduce the bug scenario. Let me create a test file to verify my hypothesis about the bug.",
+  "plan": "Let me create a small test script to reproduce the bug. I'll use the existing avails.ts to verify the back-to-back scenario.",
+  "commands": [
+    {
+      "keystrokes": "cat > /tmp/test-bug.ts << 'EOF'\nimport { detectAvails } from \"./packages/data-plane/src/avails.js\";\n\n// Back-to-back breaks: CUE-IN immediately followed by CUE-OUT, no segments between.\n// Both breaks have DATERANGE IDs in the typical ChannelForge order (CUE-OUT then DATERANGE).\nconst manifest = `#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:6\n#EXT-X-MEDIA-SEQUENCE:0\n#EXTINF:6.000,\ncontent-0.ts\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID=\"BRK-1\",PLANNED-DURATION=30,SCTE35-OUT=0xFC\n#EXTINF:6.000,\nseg1-1.ts\n#EXTINF:6.000,\nseg1-2.ts\n#EXTINF:6.000,\nseg1-3.ts\n#EXTINF:6.000,\nseg1-4.ts\n#EXTINF:6.000,\nseg1-5.ts\n#EXT-X-CUE-IN\n#EXT-X-CUE-OUT:30\n#EXT-X-DATERANGE:ID=\"BRK-2\",PLANNED-DURATION=30,SCTE35-OUT=0xFC\n#EXTINF:6.000,\nseg2-1.ts\n#EXTINF:6.000,\nseg2-2.ts\n#EXTINF:6.000,\nseg2-3.ts\n#EXTINF:6.000,\nseg2-4.ts\n#EXTINF:6.000,\nseg2-5.ts\n#EXT-X-CUE-IN`;\n\nconst avails = detectAvails(manifest, \"channel_test\");\nconsole.log(JSON.stringify(avails, null, 2));\nconsole.log(\"\\nExpected:\");\nconsole.log(\"avails[0].externalBreakId === 'BRK-1'\");\nconsole.log(\"avails[1].externalBreakId === 'BRK-2'\");\nconsole.log(\"\\nActual:\");\nconsole.log(\"avails[0].externalBreakId:\", avails[0]?.externalBreakId);\nconsole.log(\"avails[1].externalBreakId:\", avails[1]?.externalBreakId);\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cd /app && npx tsx /tmp/test-bug.ts\n",
+      "duration": 5.0
+    }
+  ]
+}

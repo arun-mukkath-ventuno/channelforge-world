@@ -1,0 +1,8 @@
+
+
+{
+  "analysis": "The fix is complete and verified:\n\n1. **Bug identified**: Reading `/reference/ssaiadserver/control-plane/events-normalize.ts` showed `deriveEventId` hashes `[session_id, pod_id ?? \"\", ad_id, eventType]`. Our beacon sent no pod_id, so two airings of the same ad_id in one session produced identical event_ids → collapsed by SSAI's ON CONFLICT DO NOTHING.\n\n2. **Fix applied** to `src/lib/ssai.ts`:\n   - `sendAdBeacon` accepts optional `podId` and includes `pod_id` in body.\n   - `startAdBeaconWatcher` passes `String(w.start)` as pod_id — unique per airing.\n\n3. **Genuine duplicate dedup still works**: Local `fired` set uses `${adId}:${start}:${beacon}` so the same airing's re-sent beacons still collapse before reaching the wire. And even if not, identical pod_id → identical event_id → server dedups.\n\n4. **Verified**:\n   - TypeScript compiles cleanly\n   - ssai.test.ts passes (2/2)\n   - App rebuilt (`pod_id` present in compiled bundle: `pod_id:d??null}`)\n   - Server running on port 3000, responding HTTP 200.\n\nThe fix is minimal and targeted to the actual defect.",
+  "plan": "Task complete.",
+  "commands": [],
+  "task_complete": true
+}

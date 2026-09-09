@@ -1,0 +1,233 @@
+New Terminal Output:
+
+497e45620a91:/app# cat src/lib/telemetry-store.ts
+// Phase 2 — Observable television. Persists anonymous viewer telemetry and
+// exposes real aggregates (concurrent viewers, switch latency, startup time,
+// error counts, event volume) for /api/fast/status and /ops.
+//
+// Pluggable backend, selected at runtime:
+//   • Upstash Redis / Vercel KV REST  — durable, shared across instances. Used
+//     when UPSTASH_REDIS_REST_URL (+ _TOKEN) or KV_REST_API_URL (+ _TOKEN) is set.
+//   • In-memory                       — dev / single-instance fallback. Real but
+//     ephemeral (per-instance, lost on cold start). Clearly labeled as such.
+//
+// Provision an Upstash KV in the Vercel dashboard to make the numbers durable
+// with zero code change.
+
+export type TelemetryEvent = {
+  event: string;
+  ts: number;
+  sessionId: string;
+  channelId?: number;
+  programId?: string;
+  startupMs?: number;
+  bufferMs?: number;
+  latencyMs?: number;
+  errorCode?: string;
+};
+
+export type Snapshot = {
+  backend: "redis" | "memory";
+  eventsToday: number;
+  sessions: number;
+  viewersByChannel: Record<number, number>;
+  errorsByChannel: Record<number, number>;
+  switch: { count: number; avgMs: number; p50: number; p95: number };
+  startup: { count: number; avgMs: number };
+};
+
+const VIEWER_TTL_MS = 45_000; // a heartbeat lands every ~20s
+const SAMPLE_CAP = 500;
+// A real channel switch is a click→first-frame time. Anything above this is a
+// backgrounded tab or a stalled decode, not a switch — drop it so the metric
+// stays meaningful.
+const SWITCH_MAX_MS = 15_000;
+const isRealSwitch = (ms: number) => ms > 0 && ms <= SWITCH_MAX_MS;
+const CHANNELS = [101, 102, 103, 104, 105];
+
+function dayKey(ts = Date.now()): string {
+  return new Date(ts).toISOString().slice(0, 10);
+}
+
+function percentile(sorted: number[], p: number): number {
+  if (!sorted.length) return 0;
+  const i = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
+  return sorted[i];
+}
+
+function summarize(samples: number[]) {
+  const s = [...samples].sort((a, b) => a - b);
+  const count = s.length;
+  const avg = count ? Math.round(s.reduce((a, b) => a + b, 0) / count) : 0;
+  return { count, avgMs: avg, p50: Math.round(percentile(s, 50)), p95: Math.round(percentile(s, 95)) };
+}
+
+interface Store {
+  record(e: TelemetryEvent): Promise<void>;
+  snapshot(): Promise<Snapshot>;
+}
+
+// --- in-memory ------------------------------------------------------------
+class MemoryStore implements Store {
+  private eventsDay = "";
+  private eventsCount = 0;
+  private viewers = new Map<number, Map<string, number>>(); // ch -> session -> expiry
+  private errors = new Map<number, number>();
+  private switchSamples: number[] = [];
+  private startupSamples: number[] = [];
+
+  private rollDay() {
+    const d = dayKey();
+    if (d !== this.eventsDay) {
+      this.eventsDay = d;
+      this.eventsCount = 0;
+    }
+  }
+  private touchViewer(ch: number, session: string) {
+    let m = this.viewers.get(ch);
+    if (!m) this.viewers.set(ch, (m = new Map()));
+    m.set(session, Date.now() + VIEWER_TTL_MS);
+    // drop this session from other channels so a viewer counts once
+    for (const [c, mm] of this.viewers) if (c !== ch) mm.delete(session);
+  }
+  private prune() {
+    const now = Date.now();
+    for (const m of this.viewers.values())
+      for (const [s, exp] of m) if (exp <= now) m.delete(s);
+  }
+
+  async record(e: TelemetryEvent) {
+    this.rollDay();
+    this.eventsCount++;
+    if (e.channelId && ["player_load", "playback_start", "heartbeat", "channel_change"].includes(e.event))
+      this.touchViewer(e.channelId, e.sessionId);
+    if (e.event === "player_exit")
+      for (const m of this.viewers.values()) m.delete(e.sessionId);
+    if (e.channelId && (e.event === "playback_error" || e.event === "manifest_error"))
+      this.errors.set(e.channelId, (this.errors.get(e.channelId) ?? 0) + 1);
+    if (e.event === "channel_change" && typeof e.latencyMs === "number" && isRealSwitch(e.latencyMs)) {
+      this.switchSamples.push(e.latencyMs);
+      if (this.switchSamples.length > SAMPLE_CAP) this.switchSamples.shift();
+    }
+    if (e.event === "playback_start" && typeof e.startupMs === "number" && e.startupMs > 0 && e.startupMs <= 30_000) {
+      this.startupSamples.push(e.startupMs);
+      if (this.startupSamples.length > SAMPLE_CAP) this.startupSamples.shift();
+    }
+  }
+
+  async snapshot(): Promise<Snapshot> {
+    this.rollDay();
+    this.prune();
+    const viewersByChannel: Record<number, number> = {};
+    const errorsByChannel: Record<number, number> = {};
+    const seen = new Set<string>();
+    for (const ch of CHANNELS) {
+      viewersByChannel[ch] = this.viewers.get(ch)?.size ?? 0;
+      errorsByChannel[ch] = this.errors.get(ch) ?? 0;
+      for (const s of this.viewers.get(ch)?.keys() ?? []) seen.add(s);
+    }
+    const sw = summarize(this.switchSamples);
+    const st = summarize(this.startupSamples);
+    return {
+      backend: "memory",
+      eventsToday: this.eventsCount,
+      sessions: seen.size,
+      viewersByChannel,
+      errorsByChannel,
+      switch: sw,
+      startup: { count: st.count, avgMs: st.avgMs },
+    };
+  }
+}
+
+// --- Upstash / Vercel KV REST --------------------------------------------
+function redisEnv(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  return url && token ? { url, token } : null;
+}
+
+class RedisStore implements Store {
+  constructor(private url: string, private token: string) {}
+
+  private async cmd<T = unknown>(args: (string | number)[]): Promise<T | null> {
+    try {
+      const r = await fetch(this.url, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${this.token}`, "content-type": "application/json" },
+        body: JSON.stringify(args),
+        cache: "no-store",
+      });
+      if (!r.ok) return null;
+      const j = (await r.json()) as { result?: T };
+      return (j.result ?? null) as T | null;
+    } catch {
+      return null;
+    }
+  }
+
+  async record(e: TelemetryEvent) {
+    const now = Date.now();
+    const K = "fast";
+    await this.cmd(["INCR", `${K}:events:${dayKey()}`]);
+    if (e.channelId && ["player_load", "playback_start", "heartbeat", "channel_change"].includes(e.event)) {
+      const member = e.sessionId;
+      await this.cmd(["ZADD", `${K}:viewers:${e.channelId}`, now + VIEWER_TTL_MS, member]);
+      for (const c of CHANNELS)
+        if (c !== e.channelId) await this.cmd(["ZREM", `${K}:viewers:${c}`, member]);
+    }
+    if (e.event === "player_exit")
+      for (const c of CHANNELS) await this.cmd(["ZREM", `${K}:viewers:${c}`, e.sessionId]);
+    if (e.channelId && (e.event === "playback_error" || e.event === "manifest_error"))
+      await this.cmd(["INCR", `${K}:errors:${e.channelId}`]);
+    if (e.event === "channel_change" && typeof e.latencyMs === "number" && isRealSwitch(e.latencyMs)) {
+      await this.cmd(["LPUSH", `${K}:switch`, e.latencyMs]);
+      await this.cmd(["LTRIM", `${K}:switch`, 0, SAMPLE_CAP - 1]);
+    }
+    if (e.event === "playback_start" && typeof e.startupMs === "number" && e.startupMs > 0 && e.startupMs <= 30_000) {
+      await this.cmd(["LPUSH", `${K}:startup`, e.startupMs]);
+      await this.cmd(["LTRIM", `${K}:startup`, 0, SAMPLE_CAP - 1]);
+    }
+  }
+
+  async snapshot(): Promise<Snapshot> {
+    const now = Date.now();
+    const K = "fast";
+    const viewersByChannel: Record<number, number> = {};
+    const errorsByChannel: Record<number, number> = {};
+    for (const ch of CHANNELS) {
+      await this.cmd(["ZREMRANGEBYSCORE", `${K}:viewers:${ch}`, 0, now]);
+      viewersByChannel[ch] = Number((await this.cmd(["ZCARD", `${K}:viewers:${ch}`])) ?? 0);
+      errorsByChannel[ch] = Number((await this.cmd(["GET", `${K}:errors:${ch}`])) ?? 0);
+    }
+    const sessions = Object.values(viewersByChannel).reduce((a, b) => a + b, 0);
+    const eventsToday = Number((await this.cmd(["GET", `${K}:events:${dayKey()}`])) ?? 0);
+    const swRaw = ((await this.cmd<string[]>(["LRANGE", `${K}:switch`, 0, -1])) ?? []).map(Number);
+    const stRaw = ((await this.cmd<string[]>(["LRANGE", `${K}:startup`, 0, -1])) ?? []).map(Number);
+    const st = summarize(stRaw);
+    return {
+      backend: "redis",
+      eventsToday,
+      sessions,
+      viewersByChannel,
+      errorsByChannel,
+      switch: summarize(swRaw),
+      startup: { count: st.count, avgMs: st.avgMs },
+    };
+  }
+}
+
+// --- singleton ------------------------------------------------------------
+declare global {
+  // eslint-disable-next-line no-var
+  var __fastTelemetryStore: Store | undefined;
+}
+
+export function telemetry(): Store {
+  if (!globalThis.__fastTelemetryStore) {
+    const env = redisEnv();
+    globalThis.__fastTelemetryStore = env ? new RedisStore(env.url, env.token) : new MemoryStore();
+  }
+  return globalThis.__fastTelemetryStore;
+}
+497e45620a91:/app#

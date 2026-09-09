@@ -1,0 +1,133 @@
+New Terminal Output:
+
+root@b168bc56cd63:/app# cat app/services/eligibility.py
+"""Delivery eligibility engine (PRD 3.0 §9.4).
+
+For an asset (+ a validation profile) compute ``eligible`` / ``eligible_with_warnings`` /
+``ineligible`` with machine-readable reasons. Phase A Slice 1 is **metadata-only** — it judges
+editorial completeness. Later slices compose media QC, captions, rights, and rendition
+availability into the same result shape (§9.4), and a per-agreement profile makes the same asset
+eligible for one agreement and ineligible for another (§9.5).
+
+The engine is a pure function of (asset, profile): no I/O, deterministic, so it is reused
+identically at import, schedule validation, and distributor eligibility.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from app.models import Asset
+from app.models.enums import EligibilityVerdict
+
+
+@dataclass(frozen=True)
+class Reason:
+    """A machine-readable eligibility finding."""
+
+    code: str
+    field: str
+    severity: str  # "error" (→ ineligible) | "warning" (→ eligible_with_warnings)
+    message: str
+
+
+@dataclass(frozen=True)
+class EligibilityResult:
+    verdict: EligibilityVerdict
+    reasons: list[Reason]
+
+
+@dataclass(frozen=True)
+class ValidationProfile:
+    """Which editorial fields a distributor/output requires vs recommends (§7.2 validation profile).
+
+    ``required`` fields make an asset ineligible when absent; ``recommended`` fields downgrade it
+    to eligible-with-warnings. ``episode_required`` fields apply only to episodic content.
+    """
+
+    name: str = "default"
+    required: tuple[str, ...] = ("title", "genre", "rating")
+    recommended: tuple[str, ...] = ("short_description", "original_air_date")
+    episode_required: tuple[str, ...] = ("episode_number",)
+    episode_types: tuple[str, ...] = ("episode",)
+    # Distributors that mandate captions set this; the composite engine then requires a QC-passing
+    # caption track (checked in asset_eligibility, which has DB access). Default off.
+    require_captions: bool = False
+
+
+DEFAULT_PROFILE = ValidationProfile()
+
+# Content types that carry no editorial guide obligations (structural/interstitial media).
+_NON_EDITORIAL_TYPES = frozenset({"bumper", "filler", "slate", "promo", "sponsor_spot"})
+
+
+def _is_present(asset: Asset, field_name: str) -> bool:
+    """True if the field holds a value. `series` accepts the canonical FK or the legacy string."""
+    if field_name == "series":
+        return asset.series_id is not None or bool(asset.series)
+    value = getattr(asset, field_name, None)
+    if value is None:
+        return False
+    if isinstance(value, str):
+        return value.strip() != ""
+    return True
+
+
+_FIELD_LABELS = {
+    "title": "title",
+    "genre": "genre",
+    "rating": "rating",
+    "short_description": "short description",
+    "original_air_date": "original air date",
+    "episode_number": "episode number",
+    "series": "series",
+}
+
+
+def _label(field_name: str) -> str:
+    return _FIELD_LABELS.get(field_name, field_name.replace("_", " "))
+
+
+def evaluate_metadata(
+    asset: Asset, profile: ValidationProfile = DEFAULT_PROFILE
+) -> EligibilityResult:
+    """Metadata-completeness eligibility for an asset under a validation profile (§9.4)."""
+    reasons: list[Reason] = []
+
+    # Interstitial/structural media is not held to editorial completeness.
+    if asset.content_type in _NON_EDITORIAL_TYPES:
+        return EligibilityResult(EligibilityVerdict.ELIGIBLE, reasons)
+
+    required = list(profile.required)
+    if asset.content_type in profile.episode_types:
+        required += list(profile.episode_required)
+
+    for field_name in required:
+        if not _is_present(asset, field_name):
+            reasons.append(
+                Reason(
+                    code="missing_required_metadata",
+                    field=field_name,
+                    severity="error",
+                    message=f"Required {_label(field_name)} is missing.",
+                )
+            )
+    for field_name in profile.recommended:
+        if not _is_present(asset, field_name):
+            reasons.append(
+                Reason(
+                    code="missing_recommended_metadata",
+                    field=field_name,
+                    severity="warning",
+                    message=f"Recommended {_label(field_name)} is missing.",
+                )
+            )
+
+    if any(r.severity == "error" for r in reasons):
+        verdict = EligibilityVerdict.INELIGIBLE
+    elif reasons:
+        verdict = EligibilityVerdict.ELIGIBLE_WITH_WARNINGS
+    else:
+        verdict = EligibilityVerdict.ELIGIBLE
+    return EligibilityResult(verdict, reasons)
+root@b168bc56cd63:/app#

@@ -1,0 +1,6 @@
+{
+  "analysis": "All 29 tests pass. The fix is in place:\n\n1. **Source code fixed:** `packages/data-plane/src/avails.ts` now detects avails when CUE-OUT has scrolled off but CUE-IN is present (the late-mid-break viewer case).\n\n2. **Compiled output updated:** `packages/data-plane/dist/avails.js` is rebuilt with the fix.\n\n3. **All existing tests pass** - the fix preserves all existing behavior:\n   - Normal CUE-OUT...CUE-IN avails: unchanged\n   - Incomplete trailing avails (CUE-OUT without CUE-IN): still ignored\n   - Multiple avails in one window: still detected correctly\n   - DATERANGE handling: still works correctly\n\n4. **Bug scenario verified fixed:** Late mid-break viewers now get an avail detected, the decider will be called, and an ad will be shown for the rest of the break.\n\nThe fix is minimal (~50 lines added), targeted at the actual defect, and doesn't change how ads are detected or decided for the common case.\n\nNo services are currently running, so no restart is needed. The compiled output is ready for when the service is started (either by the verifier or by other tooling).",
+  "plan": "Task is complete.",
+  "commands": [],
+  "task_complete": true
+}

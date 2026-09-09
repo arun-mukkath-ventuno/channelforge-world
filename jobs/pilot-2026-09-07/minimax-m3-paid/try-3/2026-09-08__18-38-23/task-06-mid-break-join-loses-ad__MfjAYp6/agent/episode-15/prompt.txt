@@ -1,0 +1,144 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat /app/packages/data-plane/src/origin.ts
+// ChannelForge origin client (PRD §8, §42, §48). Fetches the origin media
+// playlist with a short TTL cache (a live playlist changes every segment) and
+// serves the last-good copy if the origin briefly fails, so playback survives
+// an origin blip rather than stalling.
+
+export interface OriginResult {
+  body: string;
+  fromCache: boolean;
+  /** True when the origin failed and a previously cached copy was served. */
+  stale: boolean;
+}
+
+export interface OriginClientOptions {
+  baseUrl?: string;
+  /** Cache TTL in ms. A live media playlist rolls ~every target duration. */
+  ttlMs?: number;
+  /** Build the media-playlist URL for a channel/variant. */
+  urlFor?: (channel: string, variant: string) => string;
+  /**
+   * Per-channel media-playlist URL, e.g. a real ChannelForge origin
+   * `{channel: "https://forge…/hls/{uuid}/delivery.m3u8"}`. A channel present here is
+   * fetched verbatim (its URL is the full media playlist); channels absent fall back to the
+   * `{baseUrl}/{channel}/{variant}.m3u8` convention. Defaults from CHANNELFORGE_ORIGIN_MAP (JSON).
+   */
+  originMap?: Record<string, string>;
+  fetchImpl?: typeof fetch;
+  timeoutMs?: number;
+}
+
+/** Parse the CHANNELFORGE_ORIGIN_MAP env (JSON object) into a channel→url map. */
+export function parseOriginMap(raw: string | undefined): Record<string, string> {
+  if (!raw) return {};
+  try {
+    const v = JSON.parse(raw);
+    return v && typeof v === "object" ? (v as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+interface CacheEntry {
+  body: string;
+  at: number;
+}
+
+export class OriginClient {
+  private readonly cache = new Map<string, CacheEntry>();
+  private readonly baseUrl: string;
+  private readonly ttlMs: number;
+  private readonly timeoutMs: number;
+  private readonly fetchImpl: typeof fetch;
+  private readonly originMap: Record<string, string>;
+  private readonly urlFor: (channel: string, variant: string) => string;
+
+  constructor(opts: OriginClientOptions = {}) {
+    this.baseUrl = (opts.baseUrl ?? process.env.CHANNELFORGE_ORIGIN_URL ?? "http://localhost:8080").replace(/\/$/, "");
+    this.ttlMs = opts.ttlMs ?? 2000;
+    this.timeoutMs = opts.timeoutMs ?? 3000;
+    this.fetchImpl = opts.fetchImpl ?? fetch;
+    this.originMap = opts.originMap ?? parseOriginMap(process.env.CHANNELFORGE_ORIGIN_MAP);
+    this.urlFor =
+      opts.urlFor ??
+      ((channel, variant) => this.originMap[channel] ?? `${this.baseUrl}/${channel}/${variant}.m3u8`);
+  }
+
+  /** The resolved origin media-playlist URL for a channel — also the base for absolutizing
+   * the origin's relative segment URIs (so a real external origin's content stays fetchable). */
+  originUrlFor(channel: string, variant = "index"): string {
+    return this.urlFor(channel, variant);
+  }
+
+  async fetchMediaPlaylist(channel: string, variant = "index"): Promise<OriginResult> {
+    const url = this.urlFor(channel, variant);
+    const now = Date.now();
+    const hit = this.cache.get(url);
+
+    if (hit && now - hit.at < this.ttlMs) {
+      return { body: hit.body, fromCache: true, stale: false };
+    }
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+      let body: string;
+      try {
+        const res = await this.fetchImpl(url, { signal: controller.signal });
+        if (!res.ok) throw new Error(`origin responded ${res.status}`);
+        body = await res.text();
+      } finally {
+        clearTimeout(timer);
+      }
+      this.cache.set(url, { body, at: now });
+      return { body, fromCache: false, stale: false };
+    } catch (err) {
+      // Origin failed — serve last-good if we have it (PRD §42).
+      if (hit) return { body: hit.body, fromCache: true, stale: true };
+      throw err;
+    }
+  }
+}
+e337ca9acc5b:/app# cat /app/packages/data-plane/src/origin-rewrite.ts
+// Absolutize an origin media playlist's RELATIVE URIs against the origin playlist URL.
+//
+// When the SSAI wraps a real EXTERNAL ChannelForge origin, the stitched manifest is served from
+// the SSAI host — so an origin's relative content URI like `index0.ts` would otherwise resolve
+// against the SSAI (`…/v1/hls/{token}/{channel}/index0.ts`) and 404. Rewriting content URIs to
+// absolute origin URLs (`https://forge…/hls/{uuid}/index0.ts`) lets the player pull content
+// straight from ChannelForge, while ad segments the stitcher inserts stay absolute SSAI paths.
+// For the co-located fixture origin (relative URIs that already resolve) this is a harmless no-op
+// difference, so it's safe to apply unconditionally.
+
+function absolutize(uri: string, base: URL): string {
+  const t = uri.trim();
+  if (!t || /^https?:\/\//i.test(t)) return uri; // already absolute
+  try {
+    return new URL(t, base).toString();
+  } catch {
+    return uri;
+  }
+}
+
+export function absolutizeManifest(body: string, originUrl: string): string {
+  let base: URL;
+  try {
+    base = new URL(originUrl);
+  } catch {
+    return body; // non-absolute origin (e.g. fixture http://host/...) still parses; bad input → passthrough
+  }
+  return body
+    .split("\n")
+    .map((line) => {
+      const t = line.trim();
+      if (!t) return line;
+      // A bare segment URI line (not a tag).
+      if (!t.startsWith("#")) return absolutize(line, base);
+      // Tags that carry a URI="..." attribute (EXT-X-MAP, EXT-X-KEY, …).
+      return line.replace(/URI="([^"]+)"/g, (_m, u) => `URI="${absolutize(u, base)}"`);
+    })
+    .join("\n");
+}
+e337ca9acc5b:/app#

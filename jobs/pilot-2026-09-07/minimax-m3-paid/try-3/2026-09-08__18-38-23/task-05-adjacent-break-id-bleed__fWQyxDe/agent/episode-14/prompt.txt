@@ -1,0 +1,94 @@
+New Terminal Output:
+
+cbd3d522fcae:/app# cat packages/data-plane/src/origin-rewrite.ts
+// Absolutize an origin media playlist's RELATIVE URIs against the origin playlist URL.
+//
+// When the SSAI wraps a real EXTERNAL ChannelForge origin, the stitched manifest is served from
+// the SSAI host — so an origin's relative content URI like `index0.ts` would otherwise resolve
+// against the SSAI (`…/v1/hls/{token}/{channel}/index0.ts`) and 404. Rewriting content URIs to
+// absolute origin URLs (`https://forge…/hls/{uuid}/index0.ts`) lets the player pull content
+// straight from ChannelForge, while ad segments the stitcher inserts stay absolute SSAI paths.
+// For the co-located fixture origin (relative URIs that already resolve) this is a harmless no-op
+// difference, so it's safe to apply unconditionally.
+
+function absolutize(uri: string, base: URL): string {
+  const t = uri.trim();
+  if (!t || /^https?:\/\//i.test(t)) return uri; // already absolute
+  try {
+    return new URL(t, base).toString();
+  } catch {
+    return uri;
+  }
+}
+
+export function absolutizeManifest(body: string, originUrl: string): string {
+  let base: URL;
+  try {
+    base = new URL(originUrl);
+  } catch {
+    return body; // non-absolute origin (e.g. fixture http://host/...) still parses; bad input → passthrough
+  }
+  return body
+    .split("\n")
+    .map((line) => {
+      const t = line.trim();
+      if (!t) return line;
+      // A bare segment URI line (not a tag).
+      if (!t.startsWith("#")) return absolutize(line, base);
+      // Tags that carry a URI="..." attribute (EXT-X-MAP, EXT-X-KEY, …).
+      return line.replace(/URI="([^"]+)"/g, (_m, u) => `URI="${absolutize(u, base)}"`);
+    })
+    .join("\n");
+}
+cbd3d522fcae:/app# cat packages/data-plane/src/origin.test.ts
+import { describe, it, expect, vi } from "vitest";
+import { OriginClient } from "./origin.js";
+
+function okResponse(body: string) {
+  return { ok: true, status: 200, text: async () => body } as unknown as Response;
+}
+
+describe("OriginClient (PRD §8, §42)", () => {
+  it("fetches and caches within the TTL", async () => {
+    const fetchImpl = vi.fn(async () => okResponse("#EXTM3U\n"));
+    const client = new OriginClient({ baseUrl: "http://origin", ttlMs: 1000, fetchImpl });
+
+    const a = await client.fetchMediaPlaylist("ch");
+    const b = await client.fetchMediaPlaylist("ch");
+
+    expect(a).toMatchObject({ fromCache: false, stale: false });
+    expect(b).toMatchObject({ fromCache: true, stale: false });
+    expect(fetchImpl).toHaveBeenCalledTimes(1); // second call served from cache
+  });
+
+  it("serves the last-good copy when the origin fails (stale)", async () => {
+    let call = 0;
+    const fetchImpl = vi.fn(async () => {
+      call += 1;
+      if (call === 1) return okResponse("#EXTM3U\nfresh\n");
+      throw new Error("origin down");
+    });
+    const client = new OriginClient({ baseUrl: "http://origin", ttlMs: 0, fetchImpl });
+
+    const first = await client.fetchMediaPlaylist("ch");
+    const second = await client.fetchMediaPlaylist("ch"); // ttl 0 forces refetch → fails
+
+    expect(first.stale).toBe(false);
+    expect(second).toMatchObject({ body: "#EXTM3U\nfresh\n", stale: true });
+  });
+
+  it("throws when the origin fails and nothing is cached", async () => {
+    const fetchImpl = vi.fn(async () => {
+      throw new Error("origin down");
+    });
+    const client = new OriginClient({ baseUrl: "http://origin", fetchImpl });
+    await expect(client.fetchMediaPlaylist("ch")).rejects.toThrow("origin down");
+  });
+
+  it("treats a non-200 as a failure", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: false, status: 404, text: async () => "" }) as unknown as Response);
+    const client = new OriginClient({ baseUrl: "http://origin", fetchImpl });
+    await expect(client.fetchMediaPlaylist("ch")).rejects.toThrow(/404/);
+  });
+});
+cbd3d522fcae:/app#

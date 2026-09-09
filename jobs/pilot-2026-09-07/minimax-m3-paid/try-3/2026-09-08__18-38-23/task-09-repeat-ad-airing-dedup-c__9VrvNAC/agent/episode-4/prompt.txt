@@ -1,0 +1,42 @@
+New Terminal Output:
+
+497e45620a91:/app# cat src/app/api/fast/events/route.ts
+import { NextResponse } from "next/server";
+import { telemetry, TelemetryEvent } from "@/lib/telemetry-store";
+
+export const dynamic = "force-dynamic";
+
+// Anonymous viewer telemetry sink. Persists to the telemetry store (Phase 2).
+// No PII is accepted or stored — only an anonymous session id and playback metrics.
+type Incoming = Partial<TelemetryEvent> & { event?: string };
+
+export async function POST(req: Request) {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "bad_json" }, { status: 400 });
+  }
+  const items: Incoming[] = Array.isArray(body) ? body : [body];
+  const store = telemetry();
+
+  let accepted = 0;
+  for (const e of items) {
+    if (!e || typeof e.event !== "string") continue;
+    accepted++;
+    await store.record({
+      event: e.event,
+      ts: typeof e.ts === "number" ? e.ts : Date.now(),
+      sessionId: typeof e.sessionId === "string" ? e.sessionId : "anon",
+      channelId: typeof e.channelId === "number" ? e.channelId : undefined,
+      programId: typeof e.programId === "string" ? e.programId : undefined,
+      startupMs: typeof e.startupMs === "number" ? e.startupMs : undefined,
+      bufferMs: typeof e.bufferMs === "number" ? e.bufferMs : undefined,
+      latencyMs: typeof e.latencyMs === "number" ? e.latencyMs : undefined,
+      errorCode: typeof e.errorCode === "string" ? e.errorCode : undefined,
+    });
+  }
+
+  return NextResponse.json({ ok: true, accepted });
+}
+497e45620a91:/app#

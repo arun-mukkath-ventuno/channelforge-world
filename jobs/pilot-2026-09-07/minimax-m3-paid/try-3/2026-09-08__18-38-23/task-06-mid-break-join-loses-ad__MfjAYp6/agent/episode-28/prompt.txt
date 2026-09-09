@@ -1,0 +1,167 @@
+New Terminal Output:
+
+e337ca9acc5b:/app# cat > /tmp/fix-avails.py << 'PYEOF'
+> import re
+>
+r> with open('/app/packages/data-plane/src/avails.ts', 'r') as f:
+>     content = f.read()
+     endLine: i,>
+> # The original code we want to replace
+> old_code = '''  let mediaSequence = 0;
+>   let lastPdt: string | undefined;
+>   // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+>   // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+>   // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+>   let blockBreakId: string | undefined;
+>   const avails: Avail[] = [];
+>
+>   // Pending avail state while we walk from CUE-OUT to CUE-IN.
+>   let open: {
+>     startLine: number;
+>     startSequence: number;
+>     declaredDuration?: number;
+>     measuredDuration: number;
+>     pdt?: string;
+>     externalBreakId?: string;
+>   } | null = null;'''
+>
+> new_code = '''  let mediaSequence = 0;
+>   // MEDIA-SEQUENCE at the start of the playlist window — used as the avail's startSequence
+>   // when a CUE-OUT has scrolled out of the window (late tune-in / reconnect mid-break) and we
+>   // only see the CUE-IN. Without this, sessions joining mid-break never trigger an ad decision.
+>   let windowStartSequence = 0;
+>   let lastPdt: string | undefined;
+>   // The DATERANGE ID seen in the current segment's tag block, cleared at each segment boundary so
+>   // one break's id never leaks onto the next. ChannelForge emits the CUE-OUT and its DATERANGE-OUT
+>   // in the same block (CUE-OUT first), so this pairs them whichever order a producer uses.
+>   let blockBreakId: string | undefined;
+>   const avails: Avail[] = [];
+>
+u>   // Pending avail state while we walk from CUE-OUT to CUE-IN.
+>   let open: {
+>     startLine: number;
+>     startSequence: number;
+>     declaredDuration?: number;
+>     measuredDuration: number;
+>     pdt?: string;
+en) open.measure>     externalBreakId?: string;
+r;
+      els>   } | null = null;
+>   // Measured duration since the last CUE-IN (or since the start of the window). Used to build
+>   // an avail when a CUE-IN appears without a preceding CUE-OUT in the window.
+>   let measuredSinceLastCueIn = 0;
+>   // Line index just after the last CUE-IN (or 0 if none yet). The startLine for a late-tune-in
+>   // avail — the stitcher replaces from this line up to the CUE-IN.
+>   let lastCueInLine = 0;'''
+>
+> content = content.replace(old_code, new_code)
+>
+> # Replace the MEDIA_SEQUENCE handling
+> old_seq = '''    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+>     if (seqMatch) {
+>       mediaSequence = Number(seqMatch[1]);
+>       continue;
+>     }'''
+>
+> new_seq = '''    const seqMatch = trimmed.match(MEDIA_SEQUENCE);
+>     if (seqMatch) {
+>       mediaSequence = Number(seqMatch[1]);
+>       windowStartSequence = mediaSequence;
+>       measuredSinceLastCueIn = 0;
+>       continue;
+>     }'''
+>
+> content = content.replace(old_seq, new_seq)
+>
+> # Replace the CUE-IN handling
+> old_cue_in = '''    if (marker?.kind === "cue_in" && open) {
+>       const declared = open.declaredDuration;
+>       avails.push({
+>         opportunityId: `opp_${channelId}_${open.startSequence}`,
+>         channelId,
+>         ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>         duration: declared ?? open.measuredDuration,
+>         ...(declared === undefined ? {} : { declaredDuration: declared }),
+>         measuredDuration: open.measuredDuration,
+>         startSequence: open.startSequence,
+>         ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>         startLine: open.startLine,
+>         endLine: i,
+>       });
+>       open = null;
+>       continue;
+>     }'''
+>
+> new_cue_in = '''    if (marker?.kind === "cue_in") {
+>       if (open) {
+>         const declared = open.declaredDuration;
+>         avails.push({
+>           opportunityId: `opp_${channelId}_${open.startSequence}`,
+>           channelId,
+>           ...(open.externalBreakId === undefined ? {} : { externalBreakId: open.externalBreakId }),
+>           duration: declared ?? open.measuredDuration,
+>           ...(declared === undefined ? {} : { declaredDuration: declared }),
+>           measuredDuration: open.measuredDuration,
+>           startSequence: open.startSequence,
+>           ...(open.pdt === undefined ? {} : { programDateTime: open.pdt }),
+>           startLine: open.startLine,
+>           endLine: i,
+>         });
+>         open = null;
+>       } else if (measuredSinceLastCueIn > 0) {
+>         // Late tune-in / reconnect mid-break: CUE-OUT scrolled out of the window, but a CUE-IN
+>         // is present. Build an avail from the segments between the last CUE-IN (or window
+>         // start) and this CUE-IN so the session gets an ad decision for the remaining break.
+>         avails.push({
+>           opportunityId: `opp_${channelId}_${windowStartSequence}`,
+>           channelId,
+>           duration: measuredSinceLastCueIn,
+>           measuredDuration: measuredSinceLastCueIn,
+>           startSequence: windowStartSequence,
+>           startLine: lastCueInLine,
+>           endLine: i,
+>         });
+>       }
+>       measuredSinceLastCueIn = 0;
+>       lastCueInLine = i + 1;
+>       continue;
+>     }'''
+>
+> content = content.replace(old_cue_in, new_cue_in)
+>
+> # Replace the EXTINF handling to also track measuredSinceLastCueIn
+> old_extinf = '''    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) open.measuredDuration += segDur;
+>       // The URI line follows; advance the sequence when we consume it below.
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>     }'''
+>
+> new_extinf = '''    // Count segments (an #EXTINF followed by a URI advances the media sequence).
+>     const infMatch = trimmed.match(EXTINF);
+>     if (infMatch) {
+>       const segDur = Number(infMatch[1]);
+>       if (open) open.measuredDuration += segDur;
+>       else measuredSinceLastCueIn += segDur;
+>       // The URI line follows; advance the sequence when we consume it below.
+>     } else if (trimmed.length > 0 && !trimmed.startsWith("#")) {
+>       // A media segment URI line — the tag block ended, so a DATERANGE id does not carry over.
+>       mediaSequence += 1;
+>       blockBreakId = undefined;
+>     }'''
+>
+> content = content.replace(old_extinf, new_extinf)
+>
+> with open('/app/packages/data-plane/src/avails.ts', 'w') as f:
+>     f.write(content)
+>
+> print('Done')
+> PYEOF
+e337ca9acc5b:/app# python3 /tmp/fix-avails.py
+bash: python3: command not found
+e337ca9acc5b:/app#

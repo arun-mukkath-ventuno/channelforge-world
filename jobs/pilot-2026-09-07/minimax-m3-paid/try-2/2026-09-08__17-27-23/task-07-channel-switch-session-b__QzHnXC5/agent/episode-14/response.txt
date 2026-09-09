@@ -1,0 +1,12 @@
+
+
+{
+  "analysis": "Now I understand the bug clearly. In `ensureSession`, when the session already exists, the `ON CONFLICT (id) DO NOTHING` clause prevents updating the channel_id. This means when the viewer switches channels and the integration sends a new ad-decision request with the same session id but a different channel, the session's recorded channel_id stays at the original one.\n\nThe fix is to update the channel_id (and last_activity_at) when the session already exists. The fix needs to be in the `ON CONFLICT` clause to do an UPDATE rather than DO NOTHING.\n\nLet me verify by looking at any other place this may interact.",
+  "plan": "Now let me make the fix to ensureSession. The fix is to use ON CONFLICT (id) DO UPDATE SET channel_id, last_activity_at instead of DO NOTHING.",
+  "commands": [
+    {
+      "keystrokes": "cat packages/persistence/src/db.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

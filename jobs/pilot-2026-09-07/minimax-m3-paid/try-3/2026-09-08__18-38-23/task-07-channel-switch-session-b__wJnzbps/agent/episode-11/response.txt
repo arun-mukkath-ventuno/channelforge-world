@@ -1,0 +1,10 @@
+{
+  "analysis": "I can see the bug clearly now. In `ensureSession`, when the session already exists (ON CONFLICT DO NOTHING), the channel_id is not updated. So when a session switches channels and calls ensureSession with a new channelId, the session record keeps the old channel. Let me see the rest of the file to understand the full flow.",
+  "plan": "Look at the rest of the file to understand the context.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '220,280p' packages/control-plane/src/server.ts\n",
+      "duration": 0.1
+    }
+  ]
+}

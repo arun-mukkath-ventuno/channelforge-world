@@ -1,0 +1,6 @@
+{
+  "analysis": "The Next.js service is running and responding. My fix is complete:\n\n## Summary\n\n**Root Cause**: The SSAI service deduplicates ad events using a hash of `[session_id, pod_id, ad_id, eventType]`. When the same creative (same `ad_id`) plays twice in the same session with no `pod_id`, both airings produce the same hash, so the second airing's events are incorrectly collapsed as duplicates of the first.\n\n**Fix in `/app/src/lib/ssai.ts`**:\n1. Modified `sendAdBeacon` to accept an `opportunityId` parameter (the ad window's start time)\n2. Generate a unique `event_id` that includes the `opportunityId`\n3. Include `opportunity_id` in the beacon body\n\nThe SSAI service's `deriveEventId` function uses `raw.event_id` directly if provided, bypassing the hash-based dedup. This ensures:\n- Two different airings of the same creative → different `event_id` → both recorded\n- Genuine duplicate re-sends (e.g., after manifest refresh) → same `event_id` (same start time) → still dedup correctly\n\nThe service has been restarted and is running on port 3000.",
+  "plan": "Task is complete.",
+  "commands": [],
+  "task_complete": true
+}

@@ -1,0 +1,33 @@
+New Terminal Output:
+
+8b0f29f00026:/app# head -10 packages/data-plane/src/avails.ts
+// Avail detection over an origin media playlist (PRD §9, §22, §41).
+//
+// Walks the playlist, finds each CUE-OUT…CUE-IN region, and assigns a
+// *deterministic* opportunity id derived from the channel + the media sequence
+// of the avail's first segment. Determinism matters: every viewer's data-plane
+// request and the decisioning path must agree on the same opportunity id for a
+// given break without coordinating, so the cached pod is found on the hot path.
+//
+// A session whose *first* manifest request for a given break lands after the
+// break has already been playing for a while may receive a manifest whose
+8b0f29f00026:/app# cd packages/data-plane && npm test 2>&1 | tail -30
+
+> @ssai/data-plane@0.1.0 test
+> vitest run
+
+
+ RUN  v2.1.9 /app/packages/data-plane
+
+ ✓ src/avails.test.ts (10 tests) 5ms
+ ✓ src/media.test.ts (5 tests) 4ms
+ ✓ src/origin-slice4.test.ts (7 tests) 3ms
+ ✓ src/stitch.test.ts (3 tests) 2ms
+ ✓ src/origin.test.ts (4 tests) 4ms
+
+ Test Files  5 passed (5)
+      Tests  29 passed (29)
+   Start at  11:39:15
+   Duration  604ms (transform 83ms, setup 0ms, collect 112ms, tests 18ms, environment 1ms, prepare 142ms)
+
+8b0f29f00026:/app/packages/data-plane#

@@ -1,0 +1,35 @@
+New Terminal Output:
+
+root@984e432f213a:/app# python3 -c "
+> import re
+> with open('app/repositories/rights.py', 'r') as f:
+>     content = f.read()
+> # Remove the empty line left after removing the scope_type line
+> content = content.replace('            RightsTakedown.status == \"active\",\n\n            RightsTakedown.scope_id.in_(scope_ids),', '            RightsTakedo
+wn.status == \"active\",\n            RightsTakedown.scope_id.in_(scope_ids),')
+> with open('app/repositories/rights.py', 'w') as f:
+>     f.write(content)
+> "
+root@984e432f213a:/app# sed -n '160,180p' app/repositories/rights.py
+
+def active_takedown_for_asset(
+    db: Session, *, org_id: uuid.UUID, asset: Asset
+) -> RightsTakedown | None:
+    """An active takedown covering this asset, if any."""
+    scope_ids = [asset.id]
+    if asset.series_id is not None:
+        scope_ids.append(asset.series_id)
+    return db.scalar(
+        select(RightsTakedown).where(
+            RightsTakedown.organization_id == org_id,
+            RightsTakedown.status == "active",
+            RightsTakedown.scope_id.in_(scope_ids),
+        )
+    )
+
+
+def _covered_asset_ids(
+    db: Session, *, org_id: uuid.UUID, scope_type: str, scope_id: uuid.UUID
+) -> list[uuid.UUID]:
+    if scope_type == "asset":
+root@984e432f213a:/app#

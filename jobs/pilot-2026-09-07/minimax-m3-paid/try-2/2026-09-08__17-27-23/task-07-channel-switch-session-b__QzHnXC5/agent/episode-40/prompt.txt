@@ -1,0 +1,47 @@
+New Terminal Output:
+
+840252e8a3ed:/app# node -e "
+> const base = 'http://localhost:4000';
+> (async () => {
+>   const r1 = await fetch(base + '/v1/sessions', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({channel_id:'channel_news'})
+});
+>   const j1 = await r1.json();
+>   console.log('Session created:', j1.session_id, 'on', j1.channel_id);
+>
+>   const r2 = await fetch(base + '/v1/sessions/' + j1.session_id);
+>   const j2 = await r2.json();
+>   console.log('Session after creation:', j2.channelId);
+>
+>   const r3 = await fetch(base + '/v1/ad-decision', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({session_id: j1.session_i
+d, channel_id: 'channel_food', opportunity_id: 'opp_test_1', duration: 30})});
+>   const j3 = await r3.json();
+>   console.log('Ad decision response status:', r3.status, 'channelId in resp:', j3.session?.channelId || j3.session?.channel_id || 'n/a');
+>
+>   const r4 = await fetch(base + '/v1/sessions/' + j1.session_id);
+>   const j4 = await r4.json();
+>   console.log('Session after channel switch:', j4.channelId);
+>   console.log('PASS' + (j4.channelId === 'channel_food' ? '!' : ' (FAIL - expected channel_food)'));
+> })();
+> " 2>&1 | grep -v '"level"'
+{"level":30,"time":1788869012651,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-9","req":{"method":"POST","url":"/v1/sessions","host":"localhost:4000","remot
+eAddress":"127.0.0.1","remotePort":52946},"msg":"incoming request"}
+{"level":30,"time":1788869012661,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-9","res":{"statusCode":200},"responseTime":9.981958000003942,"msg":"request c
+ompleted"}
+Session created: sess_42d1d9d9-7c3a-4601-9e1a-15a1d66894b2 on channel_news
+{"level":30,"time":1788869012666,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-a","req":{"method":"GET","url":"/v1/sessions/sess_42d1d9d9-7c3a-4601-9e1a-15a
+1d66894b2","host":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":52958},"msg":"incoming request"}
+{"level":30,"time":1788869012666,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-a","res":{"statusCode":401},"responseTime":0.19670900001074187,"msg":"request
+ completed"}
+Session after creation: undefined
+{"level":30,"time":1788869012670,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-b","req":{"method":"POST","url":"/v1/ad-decision","host":"localhost:4000","re
+moteAddress":"127.0.0.1","remotePort":52946},"msg":"incoming request"}
+{"level":30,"time":1788869012684,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-b","res":{"statusCode":200},"responseTime":13.877166999998735,"msg":"request
+completed"}
+Ad decision response status: 200 channelId in resp: n/a
+{"level":30,"time":1788869012687,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-c","req":{"method":"GET","url":"/v1/sessions/sess_42d1d9d9-7c3a-4601-9e1a-15a
+1d66894b2","host":"localhost:4000","remoteAddress":"127.0.0.1","remotePort":52958},"msg":"incoming request"}
+{"level":30,"time":1788869012687,"pid":1579,"hostname":"840252e8a3ed","reqId":"req-c","res":{"statusCode":401},"responseTime":0.21766599999682512,"msg":"request
+ completed"}
+Session after channel switch: undefined
+PASS (FAIL - expected channel_food)
+840252e8a3ed:/app#

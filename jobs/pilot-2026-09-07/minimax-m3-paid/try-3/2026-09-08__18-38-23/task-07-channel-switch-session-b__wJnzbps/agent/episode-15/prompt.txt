@@ -1,0 +1,133 @@
+New Terminal Output:
+
+53f0dc87b88f:/app# cat packages/persistence/src/analytics.test.ts
+import { describe, it, expect, beforeEach } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, resolve } from "node:path";
+import { newDb } from "pg-mem";
+import type { Queryable } from "./db.js";
+import { getAnalytics } from "./analytics.js";
+import { insertChannel } from "./repositories/channels.js";
+import { insertCampaign } from "./repositories/campaigns.js";
+import { insertCreative } from "./repositories/creatives.js";
+import { ensureSession } from "./repositories/sessions.js";
+import { upsertOpportunity } from "./repositories/opportunities.js";
+import { saveDecision } from "./repositories/decisions.js";
+import { appendEvent } from "./repositories/events.js";
+import type { AdDecision, AdOpportunity } from "@ssai/core";
+
+const here = dirname(fileURLToPath(import.meta.url));
+const MIG_DIR = resolve(here, "../../../migrations");
+const SCHEMA = readdirSync(MIG_DIR)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(join(MIG_DIR, f), "utf8"))
+  .join("\n");
+
+function freshDb(): Queryable {
+  const mem = newDb();
+  mem.public.none(SCHEMA);
+  const { Pool } = mem.adapters.createPg();
+  return new Pool() as unknown as Queryable;
+}
+
+const OPP: AdOpportunity = {
+  opportunityId: "opp_1",
+  channelId: "channel_food",
+  breakStart: "2026-08-29T12:15:00Z",
+  breakDuration: 60,
+  source: "cue_out",
+  signalType: "cue_out",
+};
+
+// A partially-filled break: 30s ad + 30s slate.
+const DECISION: AdDecision = {
+  opportunityId: "opp_1",
+  sessionId: "s1",
+  channelId: "channel_food",
+  breakDuration: 60,
+  eligible: [],
+  rejected: [],
+  pod: [
+    { type: "ad", creativeId: "a1", campaignId: "c1", duration: 30, position: 0, startOffset: 0, endOffset: 30 },
+    { type: "slate", duration: 30, position: 1, startOffset: 30, endOffset: 60 },
+  ],
+  adSeconds: 30,
+  slateSeconds: 30,
+};
+
+let db: Queryable;
+beforeEach(async () => {
+  db = freshDb();
+  await insertChannel(db, { id: "channel_food", name: "FAST Food", originUrl: "http://origin/food" });
+  await insertCampaign(db, {
+    id: "c1",
+    advertiser: "Brand",
+    startDate: "2026-01-01T00:00:00Z",
+    endDate: "2026-12-31T00:00:00Z",
+  });
+  await insertCreative(db, { id: "a1", campaignId: "c1", name: "a1", duration: 30 });
+  await ensureSession(db, { id: "s1", channelId: "channel_food" });
+  await upsertOpportunity(db, OPP);
+  await saveDecision(db, {
+    decisionId: "dec_1",
+    podId: "pod_1",
+    decision: DECISION,
+    requestedAt: "2026-08-29T12:15:00Z",
+    completedAt: "2026-08-29T12:15:00Z",
+  });
+});
+
+describe("getAnalytics (PRD §31, §32)", () => {
+  it("computes fill from delivered pods", async () => {
+    const a = await getAnalytics(db);
+    expect(a.fill.adSeconds).toBe(30);
+    expect(a.fill.slateSeconds).toBe(30);
+    expect(a.fill.durationFillRate).toBeCloseTo(0.5);
+    expect(a.fill.slateRate).toBeCloseTo(0.5);
+    // One break, partially filled → opportunity fill rate 1.0 (it contained ≥1 ad).
+    expect(a.fill.opportunityFillRate).toBeCloseTo(1);
+  });
+
+  it("classifies breaks filled / partial / unfilled", async () => {
+    const a = await getAnalytics(db);
+    expect(a.opportunities.totalBreaks).toBe(1);
+    expect(a.opportunities.partiallyFilledBreaks).toBe(1);
+    expect(a.opportunities.filledBreaks).toBe(0);
+    expect(a.opportunities.unfilledBreaks).toBe(0);
+    expect(a.opportunities.totalOpportunities).toBe(1);
+    expect(a.opportunities.totalOpportunitySeconds).toBe(60);
+  });
+
+  it("counts ad lifecycle events and completion rate", async () => {
+    await appendEvent(db, { eventId: "e1", eventType: "ad_impression", sessionId: "s1", adId: "a1" });
+    await appendEvent(db, { eventId: "e2", eventType: "ad_start", sessionId: "s1", adId: "a1" });
+    await appendEvent(db, { eventId: "e3", eventType: "ad_midpoint", sessionId: "s1", adId: "a1" });
+    await appendEvent(db, { eventId: "e4", eventType: "ad_complete", sessionId: "s1", adId: "a1" });
+
+    const a = await getAnalytics(db);
+    expect(a.advertising.impressions).toBe(1);
+    expect(a.advertising.starts).toBe(1);
+    expect(a.advertising.midpoint).toBe(1);
+    expect(a.advertising.completes).toBe(1);
+    expect(a.advertising.completionRate).toBeCloseTo(1);
+  });
+
+  it("reports the impression↔completion gap (PRD §27): started but did not complete", async () => {
+    await appendEvent(db, { eventId: "e1", eventType: "ad_start", sessionId: "s1", adId: "a1" });
+    // viewer left — no ad_complete
+    const a = await getAnalytics(db);
+    expect(a.advertising.starts).toBe(1);
+    expect(a.advertising.completes).toBe(0);
+    expect(a.advertising.completionRate).toBe(0);
+  });
+
+  it("reports streaming session metrics", async () => {
+    const a = await getAnalytics(db);
+    expect(a.streaming.totalSessions).toBe(1);
+    expect(a.streaming.activeSessions).toBe(1);
+    expect(a.streaming.sessionsByChannel).toEqual([{ channelId: "channel_food", sessions: 1 }]);
+  });
+});
+53f0dc87b88f:/app#

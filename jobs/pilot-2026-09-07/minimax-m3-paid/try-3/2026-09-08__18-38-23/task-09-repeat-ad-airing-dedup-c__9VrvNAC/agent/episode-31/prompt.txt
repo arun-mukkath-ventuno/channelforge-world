@@ -1,0 +1,45 @@
+New Terminal Output:
+
+497e45620a91:/app# npx vitest run 2>&1 | tail -40
+Caused by: Error: Failed to load url @/lib/manifest-probe (resolved id: @/lib/manifest-probe) in /app/src/lib/manifest-probe.test.ts. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  src/lib/telemetry-store.test.ts [ src/lib/telemetry-store.test.ts ]
+Error: Cannot find package '@/lib/telemetry-store' imported from '/app/src/lib/telemetry-store.test.ts'
+ ❯ src/lib/telemetry-store.test.ts:2:1
+      1| import { describe, it, expect, beforeEach } from "vitest";
+      2| import { telemetry, type TelemetryEvent } from "@/lib/telemetry-store";
+       | ^
+      3|
+      4| // Fresh in-memory store per test.
+
+Caused by: Error: Failed to load url @/lib/telemetry-store (resolved id: @/lib/telemetry-store) in /app/src/lib/telemetry-store.test.ts. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  src/app/api/fast/routes.test.ts [ src/app/api/fast/routes.test.ts ]
+Error: Cannot find package '@/app/api/fast/channels/[id]/route' imported from '/app/src/app/api/fast/routes.test.ts'
+ ❯ src/app/api/fast/routes.test.ts:7:1
+      5| import { fileURLToPath } from "url";
+      6|
+      7| import { GET as channelById } from "@/app/api/fast/channels/[id]/route…
+       | ^
+      8| import { GET as hlsGet, OPTIONS as hlsOptions } from "@/app/api/fast/h…
+      9| import { POST as eventsPost } from "@/app/api/fast/events/route";
+
+Caused by: Error: Failed to load url @/app/api/fast/channels/[id]/route (resolved id: @/app/api/fast/channels/[id]/route) in /app/src/app/api/fast/routes.test.t
+s. Does the file exist?
+ ❯ loadAndTransform node_modules/.pnpm/vite@7.3.6_@types+node@20.19.43_jiti@2.7.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/config.js:22739:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+ Test Files  10 failed | 1 passed (11)
+      Tests  2 passed (2)
+   Start at  13:25:04
+   Duration  1.52s (transform 176ms, setup 0ms, collect 21ms, tests 5ms, environment 1ms, prepare 422ms)
+
+497e45620a91:/app#
