@@ -141,6 +141,13 @@ instead of fixing the bug).
   real findings (context windows, OpenRouter billing/rate-limit quirks, dead free-tier slugs,
   laguna's tool-calling incompatibility, deepseek's non-convergent loops).
 - [`docs/mvp-scope.md`](mvp-scope.md) — the 5-phase plan to an MVP benchmark, not yet executed.
+- [`docs/task-idea-rubric.md`](task-idea-rubric.md) — standalone task-idea evaluation rubric
+  (3-stage gate, `/40` scoring, 6 design patterns, domain-knowledge ceiling test), distilled from
+  horizon's rubric layers and grounded in this repo's own task-05/task-09 build histories plus
+  external literature (Agentic Benchmark Checklist, SWE-bench contamination findings).
+- [`docs/harbor-task-eval-rubric.md`](harbor-task-eval-rubric.md) — standalone build-quality rubric
+  for a *built* Harbor task (12 hard gates, `/100` scoring across 8 areas, adversarial probe log).
+  Score every task against this before it counts as calibrated.
 - [`docs/pilot-dashboard-2026-09-07.html`](pilot-dashboard-2026-09-07.html) — standalone HTML
   dashboard over the 62-trial pilot sweep (open directly in a browser).
 

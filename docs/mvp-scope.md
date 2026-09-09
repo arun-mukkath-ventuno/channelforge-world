@@ -121,46 +121,14 @@ but this needs an explicit decision before Phase 4 starts, not an assumption bak
 
 ### Task-idea rubric
 
-Distilled from `horizon`'s two rubric layers (`docs-for-agent/task-idea-evaluation-workflow.md`'s
-13-criterion `/65` idea rubric, and `workflow/task-idea-to-task-instruction-workflow/decision-
-model.md`'s more mature 17-criterion `/85` version + hard gates), genericized off Ventuno/Horizon-
-specific terminology. Lighter than porting either wholesale; keeps the parts that are product-
-agnostic and drops the parts that are tool-specific (Argus flags, Bespoke review, Horizon CLI).
+**Full rubric now lives in [`docs/task-idea-rubric.md`](task-idea-rubric.md)** — a standalone,
+fillable doc covering the 3-stage gate process (rubric score → desk evaluation → repo probe), the
+8-criterion `/40` scoring table, the domain-knowledge ceiling test, the 6 structural design
+patterns, hard gates, and worked examples from `tasks/task-05-*`/`tasks/task-09-*`. This section is
+now just the pointer; don't duplicate the rubric content here as it evolves.
 
-**Score each candidate idea 1 (absent) – 5 (exemplary) on:**
-
-| Criterion | What it's asking |
-|---|---|
-| Realism | Is this a genuine defect/requirement shape, not an invented puzzle? |
-| Discovery depth | Does solving it require tracing across multiple files/services, not one obvious spot? |
-| Shortcut resistance | Would a noop, a hardcoded constant, or a schema-only hack score 0 against the grader? |
-| Domain-knowledge ceiling | Could an experienced engineer with *zero* knowledge of this codebase solve it from general knowledge alone? (If yes → drop or revise; genuine SQL-parameterization/idempotency-guard/null-check-shaped fixes always score too high here.) |
-| Grader strength | Is it verifiable programmatically (HTTP/DB/CLI/test), not something needing an LLM judge for anything that's otherwise checkable? |
-| Buildability | Does the infra it needs already exist in the vendored repos / current world, buildable without new upstream features? |
-| Bounded session | Solvable inside one Harbor agent timeout window — not a multi-session, long-horizon task? |
-| Novelty | Not a near-duplicate of an existing `tasks/` or `archive/old/tasks/` task (same observable problem + same root cause + same fix shape + same grader discriminator = reject as duplicate)? |
-
-**Threshold to proceed to build: ≥ 28/40.** (Deliberately lighter than horizon's 52/65 — this MVP
-is calibrating its own bar as it goes; tighten once a few tasks have gone through Phase 4 and the
-threshold's real predictive value is known.)
-
-**Pattern check (pick at least one)** — the 6 structural task-design patterns from horizon's
-`docs-internal/task-design-patterns.md`, product-agnostic difficulty *mechanisms*: Find-it-Easy-
-Fix-it-Hard, Plausible Trap, Invisible Constraint, Necessary-But-Not-Sufficient, Specification
-Reader, Iceberg. An idea that doesn't map to any of these is probably too flat (single obvious fix,
-no real discriminator between models).
-
-**Hard gates (binary, all must hold before building)** — adapted from horizon's `G1-G12` checklist
-and `docs/world-blueprint-assessment.md`'s anti-gaming checks:
-- No leaked bug markers in the eventual instruction text ("bug", "TODO", "FIXME", or anything that
-  points at the fix).
-- Grader/hidden test data isolated from agent-writable paths (this repo's existing write-boundary
-  convention — see `docs/PROJECT-SUMMARY.md`'s guardrail: agent may only touch application source,
-  never Dockerfiles/compose/task infra).
-- Deterministic reset (same broken state every run — no flaky verifier, no un-seeded randomness).
-- No PII/credentials anywhere in fixtures.
-- Instructions never name the exact file/line — navigation signal only (service/port names are
-  fine, implementation hints are not).
+Threshold to proceed to build: **≥ 28/40**, no critical flags, at least one pattern identified, all
+hard gates checked — see the doc for the full process.
 
 ## 4. Task creation and 10-trial calibration
 
@@ -170,11 +138,14 @@ Once an idea clears the Phase 3 rubric, build it following the real Harbor layou
 `tests/test.sh`, optionally `setup/regression.patch` if the regression is applied as a patch rather
 than baked into the Dockerfile (task-08's pattern).
 
-**Build-quality bar before calibration starts** — same checks every task-05..09 already went
-through, made explicit here as a checklist:
+**Build-quality bar before calibration starts**: score the built task against
+[`docs/harbor-task-eval-rubric.md`](harbor-task-eval-rubric.md) — the standalone `/100` build
+rubric (12 hard gates, 8 scored areas, adversarial probe log, mutation tests, worked examples from
+task-05/task-09's real hardening passes). Minimum bar: **≥ 80/100, no hard-gate failures**. Quick
+summary of what that doc requires:
 1. `harbor run -a nop` → `task_success: 0.0` (broken state is genuinely broken).
-2. `harbor run -a oracle` → `task_success: 1.0`, **run 3×** (horizon's reproducibility check —
-   catches flaky verifiers before they cost calibration trials).
+2. `harbor run -a oracle` → `task_success: 1.0`, **run 3×** (catches flaky verifiers before they
+   cost calibration trials).
 3. At least one adversarial probe (a plausible *wrong* fix — partial, hardcoded, wrong boundary
    condition) confirmed to score 0. Today's pilot surfaced two real examples worth using as
    worked references for what this catches: `deepseek-v4-flash-0731`'s task-05 near-miss (correct
@@ -265,8 +236,11 @@ and decide a refresh cadence before committing, since labs ship monthly.
 - `docs/model-providers.md` — provider/model operational findings (Phase 2), keep appending real
   findings here the way today's session did.
 - `docs/fast-world-bench.md` — the T1-T10 idea catalogue (Phase 3 backlog).
-- This doc's task-idea rubric (Phase 3) — apply to both the T1-T10 catalogue and (per the open
-  question above) retroactively to `tasks/task-05-*`..`task-09-*`.
+- `docs/task-idea-rubric.md` — the standalone idea-evaluation rubric (Phase 3) — apply to both the
+  T1-T10 catalogue and (per the open question above) retroactively to `tasks/task-05-*`..
+  `task-09-*`.
+- `docs/harbor-task-eval-rubric.md` — the standalone build-quality rubric (Phase 4) — score every
+  task against this before it's treated as calibrated.
 - `tasks/task-05-*` .. `task-09-*` — the real Harbor task layout template for Phase 4.
 - New: `scripts/summarize-runs.py` (Phase 5, planned since the POC pilot, not yet built).
 - `docs/mvp-leaderboard-roster.md` — model roster starting point for Phase 5.

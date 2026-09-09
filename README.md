@@ -37,6 +37,10 @@ implementation; Notion is the plan.
   with real findings (context windows, provider quirks, dead slugs, failure modes).
 - [`docs/mvp-scope.md`](docs/mvp-scope.md) — the 5-phase plan to an MVP benchmark (not yet
   executed).
+- [`docs/task-idea-rubric.md`](docs/task-idea-rubric.md) — standalone task-idea evaluation rubric
+  (score before building).
+- [`docs/harbor-task-eval-rubric.md`](docs/harbor-task-eval-rubric.md) — standalone build-quality
+  rubric for a built Harbor task (score before calibrating).
 - [`docs/pilot-dashboard-2026-09-07.html`](docs/pilot-dashboard-2026-09-07.html) — standalone HTML
   dashboard over a 62-trial pilot sweep (4 models × 5 tasks × 3 tries); open directly in a browser.
 
