@@ -1,300 +1,416 @@
-# Building the ChannelForge World single Docker image
+# ChannelForge World MVP: single-image build and distribution
 
-Audience: the DevOps engineer building the distributable artifact. This doc is self-contained —
-it does not assume you already have any of the source repos checked out, or that you're working
-from inside any particular orchestration repo's directory tree. Every path below is either an
-explicit `git clone` + pinned commit, or an asset that this doc names by its own repo + path.
+> **Status: draft for team review.** This document defines the Phase 1 MVP artifact. The
+> implementation under `world/image/` does not exist yet.
 
-## 0. The four repos and their pins
+## 1. Goal
 
-| Repo | URL | Pinned commit | Role |
-|---|---|---|---|
-| ChannelForge | `https://github.com/subbu-murugan/channelforge.git` | `b46733b45c719aa5cb111c89ba5d50f25989a0ff` | Schedule + playout API (`apps/api`) **and** its own operator web frontend (`apps/web`) |
-| ssaiadserver | `https://github.com/subbu-murugan/ssaiadserver.git` | `f9e20b71c466926c653a371f1d2c493de5140caf` | SSAI ad server: control-plane + data-plane |
-| fast-world-tv | `https://github.com/subbu-murugan/fast-world-tv.git` | `61b73c12b3a0f64327007046ef5891559d32ae24` | Public FAST viewer (Next.js) |
-| channelforge-world | `https://github.com/arun-mukkath-ventuno/channelforge-world.git` | `28761787fea30a32e177f8bf2378b9dfb7a4aec2` | The orchestration layer: integration glue patches, `world.conf`, image build files, eval tasks. This is where everything in §4–§6 below physically lives. |
+Build the complete ChannelForge World as one portable Linux Docker image for external teams.
+The current multi-container Compose topology remains the development and integration reference;
+it is not the distributable artifact.
 
-Bump a pin only by changing the corresponding row above (and, in the orchestration repo, the
-matching `PINNED_COMMIT_<SERVICE>` file) — never by tracking a moving branch. Fetch each repo
-deterministically:
+The MVP image must:
 
-```bash
-git clone <repo-url> <dest>
-cd <dest> && git checkout <pinned-commit>
-# or, without a full clone:
-git archive --remote=<repo-url> <pinned-commit> | tar -x -C <dest>
-```
+- contain all ChannelForge, ssaiadserver, and fast-world-tv services, including the ChannelForge
+  operator frontend;
+- contain two PostgreSQL instances and two Redis instances;
+- start every required API, worker, store, UI, origin, and stub automatically from one
+  `docker run`;
+- ship with deterministic sample data already loaded into both PostgreSQL databases;
+- ship with local programme, ad, and slate media sufficient to produce a raw ChannelForge HLS
+  stream and a separately-addressable SSAI-stitched stream;
+- retain writable application source for the evaluated agent;
+- require an explicit, service-specific restart command after an agent edits source;
+- make no runtime request to a live external service; and
+- contain no task verifier, Oracle solution, API credential, production secret, or private
+  customer data.
 
-## 1. What "the image" means here
+The likely publication target is Google Artifact Registry. Registry project, repository,
+authentication, retention, and external-team access are deliberately deferred until the image
+works and passes the acceptance gate in this document.
 
-The natural dev/CI topology is one container per service (a ChannelForge API, a ChannelForge
-web frontend, a scheduler, ssai-control, ssai-data, fast-web, plus Postgres ×2 and Redis ×2 —
-10 containers). That's the right shape for local development. It is **not** the shape of the
-distributable artifact.
+This MVP decision supersedes the POC-era architecture language in `AGENTS.md` that says the world
+has four services and must not use supervisord. Update those governing instructions as a separate,
+reviewed change before implementing `world/image/`; documentation of the new target does not by
+itself waive repository guardrails.
 
-The distributable artifact is **one image**, modeled on the packaging pattern of a prior
-single-image world built by this same team:
-`us-central1-docker.pkg.dev/apex-485220/polara-ventuno/ventuno-world:0.2.0`
-(`sha256:508b2d66087d1046c36dae895ce186efed35cc072ed878b0b8a3fc643d438b0c`). That image's own
-tech stack (PHP/Apache/MySQL/Solr/RabbitMQ, an entirely different product) has nothing in
-common with ChannelForge World's (Python/Node/Next.js/React) — it is cited for its **packaging
-pattern only**, not as a code or architecture reference:
+## 2. Source and provenance
 
-- `supervisord` as PID 1.
-- Every process — data stores included — is a `[program:...]` block in one `.conf` file, not a
-  separate container.
-- `priority=` orders startup into tiers (stores first, gated app services next, dependents last).
-- Hard dependencies are gated with a `wait-for-*.sh` wrapper around the real command.
-- Everything talks over `127.0.0.1:<port>`, not container/service DNS names.
-- Optional/on-demand pieces are a `[group:...]` left stopped by default.
+The image is assembled from four repositories:
 
-§4 below is the full worked mapping of that pattern onto all 10 ChannelForge World services.
-
-## 2. Scope correction: the ChannelForge frontend is part of the bundle
-
-An earlier draft of this doc only covered the ChannelForge **API**. That was incomplete.
-ChannelForge ships two apps, both under the ChannelForge repo pinned above:
-
-- `apps/api` — the FastAPI control plane (Python 3.12).
-- `apps/web` — a Vite/React 18 SPA (`channelforge-web`), the operator UI. Its own
-  `apps/web/Dockerfile` states the intended production shape directly: *"Production build is
-  served behind nginx"* — i.e. `npm run build` to static assets, then served, not `vite dev`.
-  In dev it proxies `/api`, `/health`, and `/hls` to the API and to nginx (see
-  `apps/web/vite.config.ts`); in the single image, that proxying job moves to a static file
-  server / nginx layer serving the built assets and reverse-proxying those same three path
-  prefixes to `127.0.0.1:8000` (API) and wherever HLS is served (see §4's note on the HLS gap).
-
-So the bundle is **10 processes**, not 8: ChannelForge API, ChannelForge web (built + served
-statically), ChannelForge scheduler, ChannelForge's Postgres + Redis, ssai-control, ssai-data,
-ssaiadserver's Postgres + Redis, fast-web.
-
-## 3. Prerequisites
-
-- Docker with BuildKit (`docker buildx`), amd64 build capability. Build on Apple Silicon with
-  `--platform linux/amd64` (or a remote amd64 builder) — cross-arch local runs work under
-  emulation for inspection but are not a substitute for an amd64 validation build.
-- Registry auth for wherever this gets pushed (mirror `ventuno-world`'s registry:
-  `us-central1-docker.pkg.dev/apex-485220/polara-ventuno/`, or a project-specific path — confirm
-  the exact path with the team before the first push).
-- Read access to the 3 pinned application repos in §0, at those exact commits.
-- The orchestration repo (`channelforge-world`, §0) checked out at its pinned commit — it holds
-  the two integration glue patches, the eval tasks, and (once built per this doc) the
-  `world/image/` build files themselves.
-
-## 4. Architecture: the supervisord layout
-
-### Port map (127.0.0.1, no container/service DNS names)
-
-| Service | Source | Loopback port |
+| Repository | Pin source | Content used |
 |---|---|---|
-| ChannelForge Postgres | — | `5432` |
-| ChannelForge Redis | — | `6379` |
-| ChannelForge API | `channelforge/apps/api` | `8000` |
-| ChannelForge web (built, served statically) | `channelforge/apps/web` | `5173` (internal only — see nginx note below) |
-| ChannelForge scheduler | `channelforge/apps/api` (`python -m app.jobs.scheduler`) | — (no port) |
-| ssaiadserver Postgres | — | `5433` (5432 taken) |
-| ssaiadserver Redis | — | `6380` (6379 taken) |
-| ssai-control | `ssaiadserver` | `4000` |
-| ssai-data | `ssaiadserver` | `4010` |
-| fast-web | `fast-world-tv` | `3000` |
-| **nginx (front door)** | new, this doc | `80` — externally exposed; serves the built ChannelForge web SPA and reverse-proxies `/api`, `/health` → `127.0.0.1:8000` (mirrors `apps/web/vite.config.ts`'s dev-time proxy map, moved to nginx for production) |
+| ChannelForge | `PINNED_COMMIT_CHANNELFORGE` | `apps/api`, `apps/web`, `packages` |
+| ssaiadserver | `PINNED_COMMIT_SSAIADSERVER` | packages, migrations, web assets |
+| fast-world-tv | `PINNED_COMMIT_FASTWORLDTV` | Next.js viewer |
+| channelforge-world | the release commit | packaging, restart scripts, fixtures, task environments |
 
-Every env var that today points at a compose/container hostname (`DATABASE_URL`, `REDIS_URL`,
-`CF_ORIGIN_BASE_URL`, `CF_SSAI_ADSERVER_BASE_URL`, `CHANNELFORGE_ORIGIN_URL`,
-`DATA_PLANE_PUBLIC_URL`, `CONTROL_PLANE_URL`, `FAST_HLS_10x`, `VITE_API_PROXY`, `VITE_HLS_PROXY`)
-gets rewritten to `http://127.0.0.1:<port>` per this table — a mechanical rewrite, no
-application code changes, since every one of these was already externalized as an env var.
+The three application pins are files in the repository root and are the only authoritative pin
+values. Do not duplicate literal SHAs in this document or the Dockerfile. A release manifest must
+record all four resolved commits plus the final image digest.
 
-### Startup tiers (priority=)
+`scripts/vendor-source.sh` currently vendors ChannelForge's API and shared packages but not
+`apps/web`. Phase 1 must extend it to vendor the operator frontend at the same ChannelForge pin.
+No build may read a moving branch.
 
-```
-10  postgres, redis, ssai-postgres, ssai-redis          # stores, no dependencies
-20  main (ChannelForge API)      -- gated: wait-for.sh 127.0.0.1:5432 127.0.0.1:6379
-20  ssai-control                  -- gated: wait-for.sh 127.0.0.1:5433 127.0.0.1:6380
-25  scheduler                     -- gated: same as main
-25  ssai-data                     -- gated: wait-for.sh 127.0.0.1:4000 127.0.0.1:8000
-30  fast-web                      -- gated: wait-for.sh 127.0.0.1:4010
-30  nginx (front door + built ChannelForge web SPA) -- gated: wait-for.sh 127.0.0.1:8000
-```
+The two old world glue patches are retired. Current upstream code provides
+`CHANNELFORGE_ORIGIN_MAP` on the SSAI side and `CF_SSAI_BASE_URL` plus admin credentials on the
+ChannelForge side. Do not restore the obsolete patches or their obsolete environment variables.
 
-Same tiering approach `ventuno-world`'s `world.conf` uses (stores at priority 10, gated app
-services next, dependent frontends last) — the pattern is cited, not the content.
+### Latest-upstream audit (2026-09-09)
 
-### Gating script
+The world pins remain unchanged while this document is drafted. A read-only fetch found these
+new commits on upstream `main`:
 
-```bash
-#!/usr/bin/env bash
-# wait-for.sh <host:port> [<host:port> ...] -- <command...>
-set -euo pipefail
-while [[ "$1" != "--" ]]; do
-  hostport="$1"; shift
-  until (echo > "/dev/tcp/${hostport%%:*}/${hostport##*:}") 2>/dev/null; do sleep 1; done
-done
-shift
-exec "$@"
-```
+| Repository | World pin | Fetched `origin/main` | Commits ahead | Relevant change |
+|---|---|---|---:|---|
+| ChannelForge | `cdbf80b` | `4f181f2` | 5 | real break barker, widened HLS window, current FAST-first UI/docs |
+| ssaiadserver | `24c21d4` | `eea3fec` | 14 | live-edge avail detection/holdback, loop-to-fill, creative/admin work, contract tests |
+| fast-world-tv | `09193c2` | `4400ffa` | 3 | working text/plain beacons and origin-timeline-aligned break markers |
 
-### Postgres and Redis as supervised processes, not base images
+These changes are directly relevant to a locally playable world. Before building the MVP image,
+re-pin all three repositories in one reviewed change and re-run retained task Oracle/no-op checks.
+Do not build an unrecorded mixture of pinned and latest source. Several Phase 3 task ideas describe
+defects the new commits may already fix, so the task backlog must also be re-evaluated after the
+re-pin.
 
-Both Postgres instances and both Redis instances get installed into the shared image filesystem
-(`postgresql-16`, `redis-server`) and run as `[program:]` blocks on the loopback ports above,
-rather than pulled as separate `postgres`/`redis` container images. Each `PGDATA` stays off any
-Docker-`VOLUME`-declared path — `docker commit`/image-layer capture never sees inside a declared
-volume, which matters doubly once §6's baked sample data depends on that same layer-capture
-mechanism.
+## 3. Development topology and packaged topology
 
-### Restart verbs
+### Development
 
-The three existing agent-facing restart scripts (ChannelForge API, ssaiadserver, fast-web —
-maintained in the orchestration repo's `scripts/`) don't change: they're already daemon-agnostic
-PID-file scripts. They become the `command=` of their `[program:]` blocks; `autorestart=true`
-replaces their current "loop forever in `--foreground` mode" duty. A new fourth restart verb
-covers the ChannelForge web frontend (rebuild the Vite SPA + tell nginx to pick up the new static
-assets — `nginx -s reload` is sufficient, no process restart needed since nginx just serves files
-off disk).
+`world/docker-compose.yaml` is the source-of-truth integration topology used while developing:
 
-## 5. Build pipeline
+- ChannelForge: API, scheduler, PostgreSQL, Redis;
+- ssaiadserver: control plane, data plane, PostgreSQL, Redis; and
+- fast-world-tv: viewer.
 
-Multi-stage Dockerfile (maintained in the orchestration repo as `world/image/Dockerfile`):
+The latest upstream production shapes also include services omitted from the POC world:
+ChannelForge's MinIO, media worker, playout worker, and HLS edge, plus ssaiadserver's creative
+worker and object store. They are required for an MVP image that produces playable streams rather
+than merely healthy APIs.
 
-1. **Fetch stage** — `git archive` (or clone+checkout) each of the 3 application repos at the
-   pinned commits in §0.
-2. **ChannelForge API stage** — copy `apps/api` + `packages`, apply the
-   `channelforge-ssai-base-url.patch` glue patch (adds `CF_SSAI_ADSERVER_BASE_URL` wiring —
-   maintained in the orchestration repo's `world/patches/`), `pip install`.
-3. **ChannelForge web stage** — copy `apps/web`, `npm install`, `npm run build` → static assets
-   in `apps/web/dist`. No patch needed — the SPA already reads its API base URL from env at
-   build/serve time.
-4. **ssaiadserver stage** — copy all packages, apply `ssaiadserver-manifest-template.patch`
-   (adds `CHANNELFORGE_MANIFEST_PATH_TEMPLATE` — also in `world/patches/`), `npm install && npm
-   run build`. One built tree serves both `ssai-control` and `ssai-data` (`SSAI_SERVICE` env var
-   selects at runtime).
-5. **fast-world-tv stage** — `pnpm install --frozen-lockfile && pnpm build`.
-6. **Sample-data stage** — see §6.
-7. **Final stage** — base image with Python 3.12, Node 22, `patch`, `bash`, `postgresql-16`,
-   `redis-server`, `nginx`, `supervisor` all present. `COPY --from=` each built tree, the two
-   Postgres data directories (§6), the nginx config serving the ChannelForge web `dist/` and
-   reverse-proxying `/api`+`/health`, the restart scripts, `wait-for.sh`, and `world.conf` to
-   `/etc/supervisor/conf.d/`. `EXPOSE 80 4000 4010 3000` (everything else stays loopback-only).
-   `CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]`.
+The ChannelForge operator frontend is not currently in that Compose file, but it is required in
+the MVP image. Its pinned source is `apps/web`; its production build is static and is served by
+nginx.
 
-Expect this image to be large — a single base with 3 language runtimes plus 2 databases is
-comparable in kind to `ventuno-world:0.2.0`'s 8.9GB (PHP+Node+MySQL+Solr+RabbitMQ); a similar
-order of magnitude here is expected, not a build mistake.
+### Distribution
 
-## 6. Baked sample data (future work, scope this in now)
+The distributable image co-locates the topology in one container. Supervisord is PID 1 and owns
+the long-running processes. All service-to-service communication uses `127.0.0.1`; no Compose DNS
+names remain in runtime configuration.
 
-The orchestration repo already has a working, smaller-scale version of this: `scripts/
-bake-fixture-db.sh` boots a throwaway stack, runs migrations, runs `scripts/seed_fixture.py`
-(the "Yoga & You" fixture), then `docker commit`s the seeded Postgres *container* into a
-standalone tagged image (`channelforge-world-db:yoga-and-you`) — reset becomes "recreate from
-that image," not "run a seed script at trial time."
+This monolithic runtime is an intentional distribution constraint. It does not replace Compose
+as the preferred local-development architecture.
 
-For the single image, this folds directly into the multi-stage build instead of a post-hoc
-`docker commit`: add a **sample-data stage** that starts Postgres transiently inside the build
-(`initdb`, start, `alembic upgrade head`, run the seed script, stop cleanly), and the final stage
-`COPY --from=` that stage's populated `PGDATA` directory straight into the image layer — the same
-off-VOLUME-path `PGDATA` location already required for `docker commit` capture (§4) makes this
-work as a plain Dockerfile `COPY` too, no `docker commit` step needed at all. This is a genuine
-increase in scope from the current fixture (which is ChannelForge-only) once "derived sample
-data" needs to span ssaiadserver's Postgres as well — plan for a second such stage
-(`ssai-sample-data`) seeding `ssai-postgres`'s `PGDATA` the same way, gated on ssaiadserver's own
-migrations (`vendor/ssaiadserver/migrations` in the orchestration repo, or fetched directly from
-the ssaiadserver repo per §0).
+## 4. Runtime process and port map
 
-This section is intentionally a plan, not a finished pipeline — "derived sample data" (exact
-shape, source, and whether it spans both databases or just ChannelForge's) is still to be
-specified; revise this section once that's decided rather than treating it as build-ready today.
+Every program below starts automatically. “No port” means a continuously running worker, not an
+optional or manually started component.
 
-## 7. Versioning & tagging
+| Priority | Supervisor program | Internal port | Readiness dependency |
+|---:|---|---:|---|
+| 10 | ChannelForge PostgreSQL | 5432 | none |
+| 10 | ChannelForge Redis | 6379 | none |
+| 10 | SSAI PostgreSQL | 5433 | none |
+| 10 | SSAI Redis | 6380 | none |
+| 10 | MinIO object storage | 9000; console 9001 | none |
+| 10 | local integration stub/collector | 9080 | none |
+| 20 | ChannelForge API | 8000 | CF PostgreSQL, Redis, MinIO |
+| 20 | SSAI control plane and admin UI | 4000 | SSAI PostgreSQL, Redis, MinIO |
+| 25 | ChannelForge scheduler | no port | CF PostgreSQL and Redis |
+| 25 | ChannelForge media worker | no port | CF PostgreSQL, Redis, MinIO |
+| 25 | ChannelForge playout worker | no port | CF API, PostgreSQL, Redis, MinIO |
+| 25 | SSAI creative worker | no port | SSAI PostgreSQL and MinIO |
+| 30 | SSAI data plane | 4010 | SSAI control plane, Redis, MinIO, Forge origin |
+| 30 | nginx: ChannelForge UI + raw HLS edge | 8080 | ChannelForge API and playout worker |
+| 40 | fast-world-tv | 3000 | Forge edge and both SSAI planes |
 
-Mirror `ventuno-world`'s scheme: semver tag on the image (`channelforge-world:0.1.0`), bumped on:
+Nginx serves the built `apps/web/dist` directory, proxies same-origin `/api` and `/health` requests
+to `127.0.0.1:8000`, and serves the playout worker's HLS directory under `/hls`. Unlike the POC
+world, the MVP must include the playout worker and edge so this route produces real local bytes.
 
-- any pinned-commit change in §0 (patch bump for a routine re-pin; minor if it required
-  re-validating an eval task)
-- any glue-patch change in `world/patches/` (minor — integration contract shift)
-- any new/changed eval task (minor)
-- any baked sample-data change (minor — changes what a reset stack contains)
-- any packaging-only change to `world/image/`/`world.conf` with no behavior change (patch)
+Use non-default host ports so the world can run alongside ordinary development services:
 
-The commit table in §0 remains the real provenance record for "what code is in this tag"; the
-image tag is a convenience pointer, not a substitute — carry both in release notes.
+| Host port | Published surface | Example |
+|---:|---|---|
+| 18080 | ChannelForge UI, API proxy, EPG, raw HLS | `http://localhost:18080/hls/<output>/delivery.m3u8` |
+| 14000 | SSAI control plane and admin UI | `http://localhost:14000/admin` |
+| 14010 | SSAI stitched HLS and media | `http://localhost:14010/v1/hls/<token>/<channel>/index.m3u8` |
+| 13000 | FAST World viewer | `http://localhost:13000/fast-world/live` |
+| 19001 | MinIO console, diagnostics only | `http://localhost:19001` |
 
-## 8. Push to the registry
+These are default `docker run -p` mappings, not hardcoded application listen ports. An external
+team may remap them. PostgreSQL, Redis, the ChannelForge API, MinIO's S3 port, and the local stub
+remain unexposed by default.
 
-```bash
-docker buildx build --platform linux/amd64 \
-  -f world/image/Dockerfile \
-  -t <registry-path>/channelforge-world:<version> \
-  --push .
-```
+## 5. Runtime configuration
 
-Confirm `<registry-path>` and tag-immutability policy with the team before the first push —
-once an eval task has been validated against a given tag and shared externally, that tag must
-not be silently overwritten.
+Every Compose or production hostname is rewritten to loopback. At minimum this includes:
 
-## 9. Pre-publish validation gate
+- both `DATABASE_URL` values;
+- both `REDIS_URL` values;
+- `CF_SSAI_BASE_URL`;
+- `CHANNELFORGE_ORIGIN_URL` and, when available, `CHANNELFORGE_ORIGIN_MAP`;
+- `CONTROL_PLANE_URL` and `DATA_PLANE_PUBLIC_URL`; and
+- `FAST_HLS_101` through `FAST_HLS_105`.
 
-1. `docker run` the built image standalone; `supervisorctl status` shows all 10 `[program:]`
-   entries `RUNNING` together (joint boot, not tested individually).
-2. From outside the container: `:80/` serves the ChannelForge web SPA and `:80/api/...` reaches
-   the API through nginx; `:4000/v1/channels`; `:4010`; `:3000/api/fast/channels`.
-3. Run every eval task's Harbor validation (`harbor run -a oracle` → `task_success: 1.0`,
-   `harbor run -a nop` → `0.0`) against the new image tag — a packaging-only change still needs
-   this, since the point is proving packaging didn't break anything.
-4. `docker history`/`dive` the final image — confirm no eval task's hidden-verifier content
-   (`tests/`, `solution/`) leaked into a layer.
-5. If §6 sample data is in scope for this tag: confirm a fresh container boots with the seeded
-   data present and queryable (not just that the build succeeded).
+The final configuration must contain no `forge.ventunotech.com`, `ssai.ventunotech.com`, Vercel,
+Upstash, public test-stream, or other live-service fallback. Missing environment variables must
+not silently reactivate an upstream hardcoded production URL.
 
-## 10. Rollback
+Runtime secrets use sealed-world fixture values only. No model-provider key belongs inside the
+image: Harbor supplies LLM credentials to the agent harness from the run server.
 
-Tags are immutable once published (§8) — rollback means pointing consumers at the previous tag,
-never re-pushing over an existing one. Keep at least the last 3 tagged versions in the registry.
+Distinguish internal service URLs from URLs returned to a browser. Internal calls use native
+loopback ports such as `127.0.0.1:4000` and `127.0.0.1:4010`. Browser-visible playback URLs use the
+configured world host and published defaults such as `localhost:14000` and `localhost:14010`.
+Provide one runtime public-host setting so a remote team can replace `localhost` without rebuilding
+the image. It must never default to a Ventuno production hostname.
 
-## 11. Troubleshooting appendix
+The standalone smoke-test mode publishes the high host ports above. Evaluation mode must support
+blocked external egress while preserving loopback communication among the co-located services.
 
-- **A `[program:]` won't start**: `supervisorctl status`, then
-  `/var/log/supervisor/<program>.err.log` inside the container.
-- **`patch: command not found` / `bash: command not found`**: both already-hit issues on Alpine/
-  slim base images in this project's history — the final stage needs both installed explicitly.
-- **Two Postgres / two Redis instances on one loopback**: they can't share default ports — this
-  is why §4 moves `ssai-postgres`/`ssai-redis` to `5433`/`6380`.
-- **`wait-for.sh` gate never releases**: usually a leftover container/compose-DNS hostname in an
-  env var that §4's port-map rewrite missed — grep the final `world.conf` for any bare hostname.
-- **nginx serves a stale SPA build**: the ChannelForge web restart verb must rebuild
-  (`npm run build`) before `nginx -s reload`, not just reload — reload alone re-reads nginx
-  config, not the static files it's pointed at (which don't change path, only content).
-- **Baked sample data missing after a fresh `docker run`**: check `PGDATA` wasn't accidentally
-  left on a path Docker treats as a `VOLUME` in the final stage's base image — same failure mode
-  already documented for the compose-world fixture bake.
-- **Cross-arch build on Apple Silicon**: always pass `--platform linux/amd64` for the real build;
-  an unqualified local run under emulation is for inspection only.
+### Observed external integrations
 
-## 12. Reference: ventuno-world:0.2.0's packaging pattern, annotated
+The upstream applications contain integrations that can make external calls. Most ChannelForge
+integrations are opt-in and remain dormant when their credentials or destination configuration are
+blank. FAST World requires extra care because some missing environment variables currently fall
+back to Ventuno production URLs. The image must override those defaults explicitly; absence of a
+setting is not an acceptable isolation mechanism.
 
-Retrieved by inspecting the image loaded in Docker Desktop
-(`sha256:508b2d66087d1046c36dae895ce186efed35cc072ed878b0b8a3fc643d438b0c`,
-`us-central1-docker.pkg.dev/apex-485220/polara-ventuno/ventuno-world:0.2.0`):
+| Application | External capability present upstream | MVP disposition |
+|---|---|---|
+| ChannelForge | YouTube and Google OAuth/APIs | credentials absent and integration disabled |
+| ChannelForge | Google Drive and Dropbox import | credentials absent and integration disabled |
+| ChannelForge | S3-compatible object storage | point exclusively to the in-container MinIO service |
+| ChannelForge | SFTP import/export | disabled; add a local fixture server only when a task requires it |
+| ChannelForge | RTMP, RTMPS, and SRT push destinations | use origin-only delivery; no public push destination |
+| ChannelForge | SMTP, Slack, and generic webhooks | disabled or pointed exclusively at a local sink/collector |
+| ChannelForge | production SSAI service | point exclusively to the in-container SSAI control plane |
+| ssaiadserver | ChannelForge origin playlists and EPG | point exclusively to the local Forge HLS edge |
+| ssaiadserver | S3-compatible creative storage | point exclusively to the in-container MinIO service |
+| ssaiadserver | VAST tag and wrapper retrieval | use the deterministic local VAST stub; reject unknown hosts |
+| ssaiadserver | third-party impression and tracking beacons | send only to the local beacon collector |
+| fast-world-tv | ChannelForge HLS and EPG | use explicit local Forge URLs, including every seeded channel |
+| fast-world-tv | SSAI session, stream, and event endpoints | use explicit local SSAI URLs |
+| fast-world-tv | Upstash/Vercel KV | use its supported in-memory fallback; no Upstash credentials |
+| fast-world-tv | poster, artwork, and other browser-fetched media | serve deterministic assets locally; no remote image URL |
 
-```bash
-docker inspect <digest>
-docker run --rm --entrypoint cat <image> /etc/supervisor/supervisord.conf
-docker run --rm --entrypoint sh <image> -c "cat /etc/supervisor/conf.d/*.conf"
-```
+This inventory describes capabilities in the upstream repositories, not services that the MVP is
+expected to contact. The release configuration enables only local equivalents. Any newly found
+integration is release-blocking until it is explicitly disabled, redirected to a deterministic
+local service, or added to this table with a tested rationale.
 
-Structure (a completely different product — PHP/Apache/MySQL/Solr/RabbitMQ — the pattern is
-what's being cited, not the content):
+### External-service replacements
 
-- `[supervisord]`: `nodaemon=true`, root, one logfile.
-- Tier 10: `mysql` (`mysqld_safe`), `memcached` — no dependencies.
-- Tier 15: `solr`, `cdn` (nginx), `mailpit`.
-- Tier 20: `apache` — gated by a `wait-for-mysql.sh` wrapper.
-- Tier 25: `ottweb` (Node SSR) — after `apache`.
-- Tier 30: `[group:crons]` — four `supercronic` cron programs, autostarted.
-- Tier 40–50: `[group:start-upload]` (RabbitMQ + a Python worker) and a Node `builder` — present
-  and autostarted in this particular build, but structurally the "optional pipeline" slot to
-  reuse later for anything we want off-by-default (e.g. a future `playout-worker`/object-storage
-  tier — tracked as a known gap in the orchestration repo's `docs/ecosystem.md`).
-- Every inter-service URL in every `environment=` line is `127.0.0.1:<port>` — confirms this
-  doc's port-map approach (§4) is the established pattern, not invented for this doc.
+| Upstream capability | MVP behavior |
+|---|---|
+| S3/object storage | one local MinIO process with separate ChannelForge and SSAI buckets |
+| ChannelForge origin | real local playout worker + nginx HLS edge |
+| SSAI origin dependency | `CHANNELFORGE_ORIGIN_MAP` points only to local Forge media playlists |
+| FAST World HLS/EPG/SSAI defaults | explicit local URLs; never production fallback values |
+| FAST World Upstash/Vercel KV | supported in-memory fallback, or a local adapter if persistence is required |
+| VAST tags and tracking beacons | local deterministic VAST endpoint + beacon collector on port 9080 |
+| generic webhooks/Slack | disabled unless pointed at the local HTTP collector |
+| SMTP alerts | disabled by blank configuration; add a local SMTP sink only if an MVP task exercises email |
+| YouTube, Google Drive, Dropbox | credentials absent and integrations disabled; no OAuth/API attempt |
+| RTMP/SRT destinations | seeded channel runs origin-only; add a local sink only for a task that evaluates push output |
+
+The local integration stub must expose a health endpoint and log deterministic requests for hidden
+verification. It must not proxy unknown URLs. A fallback that reaches the public internet after a
+local miss is prohibited.
+
+## 6. Build layout
+
+Create `world/image/Dockerfile` as a multi-stage Linux/amd64 build:
+
+1. **Source stage** — consume the three locally vendored, pinned source trees. Network fetching
+   source inside the Dockerfile is not the provenance mechanism.
+2. **ChannelForge API stage** — install `apps/api` and shared packages using Python 3.12.
+3. **ChannelForge web stage** — install and build `apps/web`; preserve the complete writable
+   source tree as well as the generated `dist` assets.
+4. **SSAI stage** — install and build all required Node packages once; the runtime environment
+   selects control-plane or data-plane behavior.
+5. **Worker/media stage** — install ChannelForge's media and playout workers plus FFmpeg; include
+   deterministic programme, fallback/barker, ad, and slate source media.
+6. **FAST web stage** — install with the pinned pnpm lockfile and run the production build using
+   local world endpoints rather than its hardcoded production defaults.
+7. **ChannelForge data stage** — initialize PostgreSQL, apply Alembic migrations, and load the
+   approved ChannelForge sample fixture.
+8. **SSAI data stage** — initialize the second PostgreSQL cluster, apply SSAI migrations, and run
+   the persistence package's idempotent seed.
+9. **Object-data stage** — initialize local MinIO buckets and load normalized programme media plus
+   prepared ad/slate HLS objects whose keys match the two database fixtures.
+10. **Final runtime stage** — install only the runtime/build tools needed for agent edits and
+   explicit restarts, then copy application trees, built outputs, seeded database directories,
+   seeded object data, supervisor configuration, nginx configuration, stub service, and lifecycle
+   scripts.
+
+The final base needs Python 3.12, Node 22, PostgreSQL 16, Redis 7, MinIO, nginx, supervisor, FFmpeg,
+bash, patch, curl, and any media/build libraries required by the three pinned applications. Use a
+Debian-family base unless implementation evidence demonstrates that mixing the required runtimes
+and database packages on another base is simpler and equally reproducible.
+
+Do not declare either PostgreSQL data directory as a Docker `VOLUME`. Image layers and
+`docker commit` do not capture changes under a declared volume. The two database clusters must
+also have distinct data directories, ports, Unix-socket directories, and log files.
+
+## 7. Required preloaded data
+
+Both PostgreSQL databases are preloaded during the image build. Seeding at first container start
+is not the MVP contract: a fresh container must already contain the baseline data.
+
+### ChannelForge database
+
+Use `scripts/seed_fixture.py` as the starting implementation for the synthetic **Yoga & You**
+tenant. It currently produces:
+
+- 1 organization and owner;
+- 30 assets across 6 collections;
+- 4 programming blocks;
+- 1 channel;
+- 1 published schedule with 113 events; and
+- as-run entries for the elapsed portion of the schedule.
+
+The seed combines API-level creation for validated application objects with direct ORM inserts
+only where the sealed world lacks a real ingest pipeline. Before MVP release, remove the remaining
+claim that some titles are production-derived or replace those titles with fully synthetic
+equivalents. The release fixture must contain no customer-derived data or PII.
+
+The current fixture's storage rows point at objects that do not exist. The MVP seed must instead
+reference deterministic, synthetic media placed in local MinIO. At least one seeded channel must
+be configured for origin-only delivery, have a published rolling schedule and valid distribution
+state, and be desired-running at boot so the supervised playout worker emits HLS without a manual
+API call. Its fallback media and ad-break barker must also resolve locally.
+
+### SSAI database
+
+Use `vendor/ssaiadserver/packages/persistence/src/seed.ts` through its supported seed command.
+It idempotently creates five demo channels plus campaigns and 15/30/60-second creatives.
+
+The SSAI campaign dates are currently fixed to calendar year 2026 and its origin URLs use an old
+hostname/path shape. Phase 1 must make the sample inventory calendar-stable and rewrite origins to
+valid in-world URLs. The seeded ChannelForge and SSAI channel identities must either be aligned for
+an end-to-end demo or their intentionally separate roles must be stated in the release README.
+
+Rows alone are insufficient: generate fully synthetic ad and slate source clips during the build,
+run them through the real creative-worker preparation path, and preload their HLS objects into the
+SSAI MinIO bucket. At least one seeded SSAI channel must map to the running local Forge media
+playlist and return a manifest containing locally served ad or slate segments.
+
+### Time and reset determinism
+
+The existing ChannelForge fixture calls the wall clock and creates a rolling 24-hour schedule.
+Baking it unchanged would make a distributed image stale shortly after it was built. Before the
+fixture counts as MVP-ready, choose and implement one deterministic rule:
+
+- build against a documented fixed world epoch and run the world against that virtual time; or
+- rebase only time-dependent fixture rows through one deterministic world-reset operation.
+
+Whichever rule is chosen, two fresh containers from the same image must expose equivalent sample
+state, and the sample must still be usable after the image has been stored and downloaded later.
+No task may depend on unseeded randomness or the host's current date.
+
+## 8. Process ownership and restart contract
+
+Supervisord must detect and restart unexpected service exits. It therefore needs to supervise the
+actual long-running process, not an immortal wrapper whose child can die unnoticed.
+
+The evaluated agent still receives exactly one named restart verb per editable service:
+
+- `restart-api`;
+- `restart-cf-web`;
+- `restart-media-worker`;
+- `restart-playout-worker`;
+- `restart-ssai-control`;
+- `restart-ssai-data`;
+- `restart-ssai-creative-worker`; and
+- `restart-fast-web`.
+
+Each command rebuilds when its language/runtime requires it and asks supervisor to restart only
+the corresponding program. There is no alternate restart path and no file watcher. A failure from
+the named command is surfaced as a failure; scripts must not fall back to starting an unmanaged
+duplicate process.
+
+The scheduler is not independently agent-editable in current tasks. If a future task needs it,
+that task must explicitly add one canonical scheduler restart verb rather than overloading
+`restart-api`. Data stores, nginx, MinIO, and the stub service are world infrastructure and are not
+agent restart targets unless a future task explicitly makes one writable.
+
+## 9. Harbor compatibility
+
+Harbor's service must still be named `main`. The installed Harbor 0.22.0 Docker provider merges a
+compose overlay that changes `main.command` to `sh -c "sleep infinity"`; consequently, the final
+image's `CMD` alone does not prove services run during a trial.
+
+Phase 1 and Phase 2 must jointly validate the task environment's bootstrap path. Acceptable
+solutions preserve Harbor's shell attachment while starting supervisor explicitly through one
+tested task-environment mechanism. Do not document a solution until a real Oracle/no-op run proves
+it.
+
+Application source is writable inside the trial. The base image must not contain task-specific
+regressions. A task-specific child image applies only its declared regression to only its declared
+writable source trees.
+
+## 10. Tagging and future publication
+
+Use semantic image tags such as `channelforge-world:0.1.0` plus an immutable digest. Increment the
+version for source re-pins, fixture changes, runtime changes, or changes that alter task behavior.
+
+The publication implementation is deferred, but it must eventually provide:
+
+- an immutable Google Artifact Registry reference;
+- access instructions for external teams;
+- the release manifest with all source commits and image digest;
+- supported host architecture and minimum resource requirements; and
+- rollback instructions that select an earlier immutable tag or digest rather than overwriting a
+  published release.
+
+## 11. Acceptance gate
+
+A candidate image is not publishable until all of the following pass:
+
+1. A clean Linux/amd64 build succeeds from the pinned inputs.
+2. `docker run` boots with supervisord as PID 1 and every required program remains `RUNNING`.
+3. ChannelForge UI, ChannelForge API, SSAI control, SSAI data, and FAST viewer health checks pass.
+4. Scheduler, media worker, playout worker, creative worker, MinIO, nginx, and the local stub all
+   remain running after startup.
+5. Both PostgreSQL databases contain their expected migrations and exact sample-data inventory.
+6. Local MinIO contains every programme, fallback, ad, and slate object referenced by seeded rows.
+7. Two fresh containers expose equivalent seeded state without executing an external seed step.
+8. Seeded rights, campaign dates, schedules, and origins remain usable at the documented world
+   time.
+9. The raw Forge media playlist and its segments are continuously playable through host port
+   `18080`.
+10. A session created through host port `14000` yields an SSAI manifest on `14010` whose content,
+    ad, and slate segment URLs all resolve locally.
+11. FAST World on `13000` plays the local stitched session and reads the local EPG without any
+    production URL in its browser or server request log.
+12. Each agent-facing restart verb rebuilds/restarts the intended service and no other service.
+13. Unexpectedly killing a supervised service causes supervisor to recover it without creating a
+   duplicate.
+14. Runtime external egress is blocked in the evaluation configuration, while positive checks
+    prove all required loopback calls still work.
+15. A DNS/HTTP capture of the smoke test contains no request to a public hostname; VAST, beacon,
+    webhook, storage, origin, EPG, telemetry, and playback requests terminate inside the world.
+16. `docker history` and a layer inspection confirm no `tasks/*/tests`, `tasks/*/solution`, `.env`,
+    job transcript, API key, or private fixture input exists in any final layer.
+17. Every retained POC task passes a real Harbor Oracle run and fails a real no-op run against the
+    packaged image.
+18. A fresh run server can pull or load the artifact and complete the smoke test without access to
+    the three source repositories.
+
+## 12. First implementation sequence
+
+1. Decide the coordinated three-repo re-pin and revalidate retained tasks.
+2. Extend vendoring to include `apps/web`, both ChannelForge workers, and all SSAI worker/runtime
+   packages; verify application builds independently.
+3. Create the final base, supervisor configuration, nginx/HLS edge, MinIO, and local stub without
+   sample data.
+4. Prove every process autostarts and replace all production/public endpoints with local ones.
+5. Create synthetic programme media, adapt the ChannelForge fixture, and prove raw HLS playback.
+6. Create synthetic ad/slate media, bake the SSAI fixture, and prove stitched HLS playback.
+7. Wire FAST World to local EPG/origin/SSAI endpoints and prove browser playback.
+8. Add task-environment bootstrap compatible with Harbor's command override.
+9. Run the full acceptance gate, including outbound-call capture.
+10. Decide and document Google Artifact Registry publication.

@@ -16,12 +16,13 @@ parallel workstream:
 
 ## 1. Docker setup
 
-**Decision (per team direction): single distributable image**, modeled on `ventuno-world:0.2.0`'s
-*packaging pattern* — not its code or architecture (that product is PHP/Apache/MySQL/Solr/
-RabbitMQ; this one is Python/Node/Next.js/React and shares nothing tech-stack-wise). What's being
-reused is the pattern: supervisord as PID 1, tiered `priority=` startup with `wait-for-*.sh`
-gating, all inter-service traffic rewired to `127.0.0.1:<port>` (no container DNS names), optional
-`[group:]` blocks.
+**Decision (per team direction): single distributable image**, required so the complete world can
+be delivered to external teams as one artifact (most likely through Google Artifact Registry;
+publication details are deferred). It is modeled on `ventuno-world:0.2.0`'s *packaging pattern* —
+not its code or architecture (that product is PHP/Apache/MySQL/Solr/RabbitMQ; this one is
+Python/Node/Next.js/React and shares nothing tech-stack-wise). What's being reused is the pattern:
+supervisord as PID 1, tiered `priority=` startup with `wait-for-*.sh` gating, all inter-service
+traffic rewired to `127.0.0.1:<port>` (no container DNS names), optional `[group:]` blocks.
 
 **Current reality vs. the plan** — this is not yet built:
 - **Today**: 4 separate per-service Dockerfiles (`world/app`, `world/db`, `world/fastweb`,
@@ -36,9 +37,16 @@ gating, all inter-service traffic rewired to `127.0.0.1:<port>` (no container DN
   Already fully specced, not yet executed. Expect the built image to be **large** (doc's own
   estimate: comparable to `ventuno-world:0.2.0`'s 8.9GB) — a real infra cost to plan around, not a
   surprise to discover later.
-- Baking sample/fixture data into the image (extending the existing `bake-fixture-db.sh` /
-  `scripts/seed_fixture.py` pattern as a `COPY --from=` build stage) is explicitly future work
-  inside that same doc — sequence it after the base single-image build works, not before.
+- The image **must include the ChannelForge operator frontend and preloaded sample data in both
+  PostgreSQL databases**. Extend the existing `scripts/seed_fixture.py` pattern for ChannelForge
+  and ssaiadserver's idempotent persistence seed as build stages. Implement this after the
+  process-only single image boots, but before Phase 1 is complete; it is required MVP scope, not
+  deferred fixture work.
+- Every required store, API, worker, UI, raw HLS origin, SSAI stitcher, and local integration stub
+  starts automatically. The world publishes its UI/raw/stitched streams on collision-resistant
+  host ports, and all application traffic terminates inside the world. Public origins, VAST tags,
+  beacon collectors, cloud storage, OAuth providers, and telemetry stores must be replaced by
+  local services/fallbacks or explicitly disabled so no runtime path silently calls production.
 
 **Known tension, noted not resolved here**: `docs/world-blueprint-assessment.md` (external review)
 recommends the opposite — "one versioned world release = several service images + Compose
@@ -62,6 +70,8 @@ A Linux server with SSH access, running:
   dimension, which is out of scope here (model variance only).
 - **World**: the single distributable image from Phase 1 once it exists; until then, the current
   multi-container `world/docker-compose.yaml` stack is what tasks actually build on.
+- **Run-server procedure**: `docs/mvp-run-server.md` defines the initial Linux host baseline,
+  pinned Harbor setup, secrets handling, task-control sequence, and base calibration model.
 - **LLM access via API** — real operational findings from today's pilot, worth carrying forward
   as run-book knowledge rather than rediscovering per session:
   - `OPENROUTER_API_KEY` alone reaches most major labs' models with one key — the pragmatic
@@ -250,6 +260,7 @@ and decide a refresh cadence before committing, since labs ship monthly.
 ## Critical files
 
 - `docs/devops-single-image.md` — the single-image build spec (Phase 1), not yet executed.
+- `docs/mvp-run-server.md` — the run-server and base-model setup draft (Phase 2).
 - `world/image/Dockerfile` (new, Phase 1) — the actual single-image build target.
 - `docs/model-providers.md` — provider/model operational findings (Phase 2), keep appending real
   findings here the way today's session did.
