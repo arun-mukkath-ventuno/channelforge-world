@@ -31,6 +31,14 @@ implementation; Notion is the plan.
 - [`docs/fixture-and-scheduler.md`](docs/fixture-and-scheduler.md) — the Yoga & You synthetic
   tenant, the scheduler-sweep live-vs-baked decision, and a real `docker commit`/`VOLUME` gotcha
   that broke the first bake attempt.
+- [`docs/ecosystem.md`](docs/ecosystem.md) — task-05..09 write-ups: build, hardening passes, and
+  real-agent trajectory findings.
+- [`docs/model-providers.md`](docs/model-providers.md) — every model tried against this world,
+  with real findings (context windows, provider quirks, dead slugs, failure modes).
+- [`docs/mvp-scope.md`](docs/mvp-scope.md) — the 5-phase plan to an MVP benchmark (not yet
+  executed).
+- [`docs/pilot-dashboard-2026-09-07.html`](docs/pilot-dashboard-2026-09-07.html) — standalone HTML
+  dashboard over a 62-trial pilot sweep (4 models × 5 tasks × 3 tries); open directly in a browser.
 
 ## Architecture
 
@@ -92,6 +100,11 @@ See [`docs/workflow.md`](docs/workflow.md) for how to author the next one.
 - task-01 is fully validated through real Harbor (0.22.0): `harbor run -a oracle` scores
   `task_success: 1.0`; `harbor run -a nop` scores `task_success: 0.0`. See
   [`docs/harbor-install.md`](docs/harbor-install.md) for exact commands.
+- Five more tasks (task-05..09) are built, hardened, and have been run through a 62-trial pilot
+  sweep across 4 models. See [`docs/PROJECT-SUMMARY.md`](docs/PROJECT-SUMMARY.md) for the current
+  headline findings and open threads (task-06's universal 0/12 failure not yet root-caused,
+  whether task-05..09 count toward the MVP's 10-task target, and a known grader blind spot) —
+  that doc is the one to read first in a fresh session.
 - The "Yoga & You" synthetic tenant is built and baked (`channelforge-world-db:yoga-and-you`):
   30 assets, 6 collections, 1 published schedule (113 events), 58 as-run entries — verified through
   the real API, not just raw SQL. The scheduler now runs live (its own compose service) rather than

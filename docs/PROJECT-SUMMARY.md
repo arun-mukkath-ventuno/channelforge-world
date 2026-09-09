@@ -1,7 +1,7 @@
 # Project summary — read this first in a new session
 
 Bootstrap doc for picking this project back up with no prior context. This is a snapshot as of
-2026-08-31 — treat it as a starting map, not the source of truth; verify against the files it
+2026-09-09 — treat it as a starting map, not the source of truth; verify against the files it
 points to (especially `README.md`, `AGENTS.md`, `docs/how-it-works.md`) if anything looks stale.
 
 ## What this project is
@@ -24,15 +24,45 @@ the implementation.
   0.0`; a real agent (`terminus-2` + `gpt-5.6-luna`) also scored `1.0`, independently finding the
   same one-line bug as the reference fix (~47–52s, ~$0.0034/trial). This is the proof the whole
   model works end to end, not a plan for it to work.
+- **Five more tasks exist and are hardened**: `tasks/task-05-adjacent-break-id-bleed` through
+  `tasks/task-09-repeat-ad-airing-dedup-collision`, built on a refreshed world (see 2026-09-05
+  entry below). Each validated `nop → 0.0` / `oracle → 1.0` and hardened against at least one real
+  reward-hack or scoping gap found by actually attacking the grader (see `docs/ecosystem.md`).
+- **A 62-trial pilot sweep across 4 models × 5 tasks × 3 tries is done and analyzed** —
+  `jobs/pilot-2026-09-07/` (data, committed) + `docs/pilot-dashboard-2026-09-07.html` (standalone
+  HTML dashboard: success rate/turns/cost/tokens/grader breakdown, open directly in a browser, no
+  server needed). Headline findings:
+  - **task-06 is a universal floor**: 0/12 across every model tested, including the strongest
+    (`gpt-6-astra`) — not yet root-caused. Check whether this is a genuine hard task or a
+    spec/grader problem before it goes into the full benchmark.
+  - **task-05 splits cleanly by model**: `gpt-6-astra` 3/3, every other model 0/9 combined — a
+    real capability boundary, not noise.
+  - **task-07/08/09 sit near ceiling for every model** (26/29 passes) — not discriminating at this
+    model tier.
+  - **The grader has a known blind spot**: `policy_compliance`/`side_effect_safety` are 1.0 on
+    every one of 60 graded trials, and `correct_diagnosis` == `task_success` on every row — the
+    reward signal is effectively pass/fail dressed as four metrics (see "Reward signal is partly
+    fake" below — same root cause, now confirmed at scale).
+  - `poolside/laguna-s-2.1` (both free and paid) was dropped from the roster: the free-tier slug
+    (`minimax-m3:free` too) went dead mid-project, and the paid version hit a genuine structural
+    tool-calling format bug on at least one task (kept emitting Hermes/Llama-style `<tool_call>`
+    XML instead of the JSON `commands` field the parser expects — 200+ identical retries, zero
+    progress). See `docs/model-providers.md` for full findings on every model tried.
+- **`docs/mvp-scope.md`** lays out the 5-phase path to an MVP benchmark (Docker single-image
+  build, task run environment, task-idea rubric, task creation + 10-trial calibration, final
+  benchmark) — written, not yet executed. Open question inside it, not yet decided: do task-05..09
+  count toward the MVP's 10-task target, or are they superseded by a fresh batch designed against
+  the rubric in that doc?
 - The **"Yoga & You" synthetic tenant** is built and baked into a Postgres image
   (`channelforge-world-db:yoga-and-you`): 30 assets, 6 collections, 1 published schedule (113
   events), 58 as-run entries, verified through the real API. The **scheduler runs live** (its own
   compose service, ChannelForge's real reconciliation loop) rather than having output faked —
   judged safe because its network-touching sweeps all require `channel.state == "running"`, which
   nothing in this world (no live playout-worker) ever reaches. See `docs/fixture-and-scheduler.md`.
-- Only task-01 exists. No per-task DB fixture/anomaly baking is wired yet — proven mechanism,
-  just not required by task-01 (its verifier is the pre-existing pytest suite, not live Postgres
-  state).
+- No per-task DB fixture/anomaly baking is wired yet — proven mechanism, just not required by any
+  task so far (verifiers are pytest-suite-based, not live Postgres state).
+- **2026-09-05**: world refreshed to latest upstream ChannelForge, old glue patches retired,
+  task-01..04 (an earlier, now-superseded task set) archived in favor of task-05..09.
 
 ## Known gaps (real, open — not cosmetic)
 
@@ -105,14 +135,32 @@ instead of fixing the bug).
   scheduler live-vs-baked decision, the `docker commit`/`VOLUME` gotcha in full.
 - [`docs/horizon-format-migration.md`](horizon-format-migration.md) — whether a Horizon-platform
   task migrates to plain Harbor (yes, verified — see `~/Work/ventuno-labs/horizon-test/`).
+- [`docs/ecosystem.md`](ecosystem.md) — task-05..09 write-ups: build, hardening passes, and
+  real-agent trajectory findings for each.
+- [`docs/model-providers.md`](model-providers.md) — every model tried against this world, with
+  real findings (context windows, OpenRouter billing/rate-limit quirks, dead free-tier slugs,
+  laguna's tool-calling incompatibility, deepseek's non-convergent loops).
+- [`docs/mvp-scope.md`](mvp-scope.md) — the 5-phase plan to an MVP benchmark, not yet executed.
+- [`docs/pilot-dashboard-2026-09-07.html`](pilot-dashboard-2026-09-07.html) — standalone HTML
+  dashboard over the 62-trial pilot sweep (open directly in a browser).
 
-## Open thread, not yet resolved
+## Open threads, not yet resolved
 
-A devops/in-house division-of-labor question for the next MVP items was under discussion but not
-decided as of the last session: dummy CDN files done in-house; the full services ecosystem and a
-single-image no-network build handed to devops, backed by detailed documentation from this side.
-No plan was confirmed and no action was taken — if this resumes, it needs a fresh decision, not an
-assumed default.
+- A devops/in-house division-of-labor question for the next MVP items was under discussion but not
+  decided as of the 2026-08-31 session: dummy CDN files done in-house; the full services ecosystem
+  and a single-image no-network build handed to devops, backed by detailed documentation from this
+  side. No plan was confirmed and no action was taken — if this resumes, it needs a fresh
+  decision, not an assumed default.
+- **task-06 root cause**: 0/12 pass rate across every model in the pilot, including the strongest
+  one tested. Next concrete step is reading a `gpt-6-astra` task-06 trajectory to determine if
+  this is a genuine hard task or a spec/grader problem — not yet done.
+- **task-05..09 vs. the MVP's 10-task target**: do these five tasks count toward the target, or
+  does the MVP need a fresh batch built against `docs/mvp-scope.md`'s distilled rubric? Flagged in
+  that doc, not decided.
+- **Grader blind spot**: `policy_compliance`/`side_effect_safety` are hardcoded/always-1.0 in
+  effect (see "Reward signal is partly fake" above) — confirmed at scale by the pilot (60/60
+  trials). Needs either a real discriminating check or should be dropped rather than implying
+  coverage it doesn't have. Not yet actioned.
 
 ## Sibling project (unrelated, do not conflate)
 
