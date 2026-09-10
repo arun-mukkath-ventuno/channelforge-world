@@ -243,24 +243,15 @@ shouldn't be the reference solution.
 | D. Task is neither trivial nor impossible for the intended agent and batch | 2 |
 | **Subtotal** | **10** |
 
-Calibration evidence table (≥ 8 runs required before this area can score above minimum — this repo's Phase 4 process runs 10 by default against the pinned `openai/gpt-5.6-luna`). Neither pass rate nor solve time is estimated up front — both are simply what the 10 runs produce:
+Calibration evidence table (≥ 8 runs required before this area can score above minimum — this repo's Phase 4 process runs 10 by default against the pinned `openai/gpt-5.6-luna`):
 
-| Run | Model | Result | Turns | Wall time | Failure reason |
-|---|---|---|---|---|---|
-| 1 | | | | | |
-| 2 | | | | | |
-| ... | | | | | |
+| Run | Model | Result | Turns | Failure reason |
+|---|---|---|---|---|
+| 1 | | | | |
+| 2 | | | | |
+| ... | | | | |
 
 **Pass rate:** ___ / N. **Target: 0.1–0.6** (`docs/mvp-scope.md`'s band).
-
-**Solve time:** report the range and median wall time across all N runs (pass or fail) — read as a
-description of the task, not a gate. A task that's uniformly quick (a couple of minutes) or
-uniformly long (double-digit minutes, high turn counts) isn't wrong by itself, but it's worth
-naming in the write-up, and a wide spread across runs is itself a signal worth investigating (per
-the pilot's own finding: `gemini-3.5-flash-lite*`'s 255-turn/~16-min outlier on task-08 scored
-`task_success: 1.0` just as cleanly as every other run on that task, while `openai/gpt-5.6-luna`
-solved the same task in 7-13 turns every time — same pass/fail outcome, very different cost, a gap
-that turn count and pass rate alone don't surface).
 
 ### Area 8 — Submission hygiene — 5 points
 
