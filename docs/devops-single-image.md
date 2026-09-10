@@ -74,6 +74,19 @@ Do not build an unrecorded mixture of pinned and latest source. Several Phase 3 
 defects the new commits may already fix, so the task backlog must also be re-evaluated after the
 re-pin.
 
+This audit is a dated snapshot, not a standing guarantee — it can go stale between drafting and
+the actual re-pin. Re-run it (a read-only `git fetch` + `git log` diff against each pin, same as
+above) immediately before executing the re-pin in §12 step 1, not solely on the strength of this
+recorded date.
+
+**The five POC tasks (`task-05`..`task-09`) are archived, not migrated.** They were built,
+hardened, and piloted against the pre-MVP four/nine-service Compose topology and the pins in
+effect at the time. Re-pinning or moving to the single-image architecture invalidates the
+assumptions either could depend on (e.g. `task-05`'s defect is documented as living in pristine
+upstream source, not an injected patch — a future upstream fix silently removes it). Phase 1's
+task backlog is a fresh set built against the re-pinned, single-image world; none of the POC tasks
+carry forward, and none need re-validation under the new architecture.
+
 ## 3. Development topology and packaged topology
 
 ### Development
@@ -170,6 +183,25 @@ the image. It must never default to a Ventuno production hostname.
 The standalone smoke-test mode publishes the high host ports above. Evaluation mode must support
 blocked external egress while preserving loopback communication among the co-located services.
 
+### Write boundary in a shared filesystem
+
+Discoverability is part of what a task evaluates: the agent is handed a problem, not a codebase,
+and must determine which of the three application source trees actually needs the fix. The agent
+therefore needs read (and, for the tree it identifies, write) access spanning all three source
+trees inside the one container — this is a deliberate widening from the current per-service
+Compose model, not an oversight.
+
+What must stay off-limits regardless: a task's `tests/`, `solution/`, and `environment/`
+directories, supervisor and nginx configuration, and both PostgreSQL data directories. In the
+current multi-container model these are enforced by not being present in the agent's container at
+all. A single shared filesystem removes that enforcement for free — it has to be built explicitly:
+protected paths owned by root (or a dedicated service user) with no write bit for the user the
+agent's shell runs as. **Do not assume the reference single-image precedent (`ventuno-world`,
+§2 provenance note below) demonstrates this** — its application trees are uniformly owned by one
+user (`www-data`) with no differentiated protection, because it is not itself a per-task graded
+artifact. That ownership pattern is not safe to copy wholesale here; the permission scheme for
+excluded paths needs its own design pass before Phase 1 build work starts.
+
 ### Observed external integrations
 
 The upstream applications contain integrations that can make external calls. Most ChannelForge
@@ -255,6 +287,23 @@ Do not declare either PostgreSQL data directory as a Docker `VOLUME`. Image laye
 `docker commit` do not capture changes under a declared volume. The two database clusters must
 also have distinct data directories, ports, Unix-socket directories, and log files.
 
+### Child image per task
+
+The distributed artifact from this Dockerfile is pristine, task-agnostic: pinned source, seeded
+databases, no task-specific content baked in — the same separation of concerns as today's shared
+`world/app/Dockerfile`/`world/db/Dockerfile` (AGENTS.md rule 4). Each task builds its own child
+image `FROM` this base and applies its `setup/regression.patch` as a build-time step, the same
+shape as today's per-task `environment/Dockerfile`, just against a much richer base.
+
+This raises one question the ten stages above must each answer explicitly: which of them are
+reusable, final base layers, and which have to re-run inside a task's child build when its patch
+touches source those stages already consumed? A patch to `apps/api` is cheap to apply after the
+fact; a patch to something `apps/web`'s stage 3 already compiled to `dist`, or a schema change a
+task needs that stage 7's migrations already ran, is not — the child build needs to re-trigger the
+affected downstream stage(s), not just layer a source patch on top of their already-baked output.
+Mark each of the ten stages above as "safe to patch after" or "must be re-run by the child build"
+before implementation starts.
+
 ## 7. Required preloaded data
 
 Both PostgreSQL databases are preloaded during the image build. Seeding at first container start
@@ -337,11 +386,44 @@ that task must explicitly add one canonical scheduler restart verb rather than o
 `restart-api`. Data stores, nginx, MinIO, and the stub service are world infrastructure and are not
 agent restart targets unless a future task explicitly makes one writable.
 
+Supervisord has no native `depends_on` — a program's `priority` number only orders *start attempts*,
+not readiness. The reference single-image precedent (`ventuno-world`, §9) handles this with an
+explicit wrapper (`wait-for-mysql.sh`) blocking Apache's start until MySQL answers, rather than
+relying on priority ordering alone; it also exposes bare `supervisorctl` rather than per-service
+restart scripts. This repo's guardrail (AGENTS.md rule 2: exactly one named restart verb per
+service, never a generic fallback) is stricter and should be kept — but each restart verb still
+needs its own explicit readiness guard for whatever it depends on, the same way `wait-for-mysql.sh`
+does, rather than assuming supervisord's priority table enforces it.
+
 ## 9. Harbor compatibility
 
-Harbor's service must still be named `main`. The installed Harbor 0.22.0 Docker provider merges a
-compose overlay that changes `main.command` to `sh -c "sleep infinity"`; consequently, the final
-image's `CMD` alone does not prove services run during a trial.
+**Reference precedent, verified 2026-09-10:** `ventuno-world:0.2.0`
+(`sha256:508b2d66087d1046c36dae895ce186efed35cc072ed878b0b8a3fc643d438b0c`), a real single-image
+world built for Horizon (a platform on top of Harbor), was inspected directly. Its `ENTRYPOINT` is
+the stock, transparent `docker-php-entrypoint` (`exec "$@"`); its `CMD` is
+`/usr/bin/supervisord -c /etc/supervisor/supervisord.conf`. Run with a bare `docker run` and no
+command override, supervisord started as PID 1 and all 14 supervised programs (MySQL, Memcached,
+Solr, Apache/PHP, RabbitMQ, four cron jobs, a Node SSR service, a builder, nginx, mailpit) reached
+`RUNNING` within 15 seconds, confirmed via `supervisorctl status`.
+
+This image has **no defense against a `command:` override** — nothing in it (no `ENTRYPOINT`
+trick, no wrapper) would survive being wrapped in a compose service that had its `command`
+rewritten the way Harbor's local Docker provider rewrites a `main` service's command to
+`sh -c "sleep infinity"`. It works here because it is evidently run as a standalone container,
+not through Harbor's compose-based `main`-service build/overlay path.
+
+**Action item, before any of §6's stages are implemented:** confirm with whoever owns the Horizon
+harness whether this world is run through Harbor's `docker` environment provider (the same
+compose-overlay mechanism this repo currently uses, which *would* still hit the `sleep infinity`
+override problem) or through a different integration that treats the image as opaque. That answer
+determines whether channelforge-world's image can copy this pattern as-is, or still needs its own
+resolution for Harbor's compose `main`-service constraint (e.g. an `ENTRYPOINT` that ignores an
+appended `CMD` override — unverified here, and untested against Harbor's actual overlay behavior).
+
+Until that's confirmed, build and smoke-test a throwaway supervisord-only image (no application
+stages, just the process-management skeleton) against Harbor's real `docker` environment provider
+*first* — this is a single point of failure for the entire MVP image, not a detail to resolve
+along the way while stages 1–10 of §6 are being built.
 
 Phase 1 and Phase 2 must jointly validate the task environment's bootstrap path. Acceptable
 solutions preserve Harbor's shell attachment while starting supervisor explicitly through one
@@ -390,27 +472,40 @@ A candidate image is not publishable until all of the following pass:
 13. Unexpectedly killing a supervised service causes supervisor to recover it without creating a
    duplicate.
 14. Runtime external egress is blocked in the evaluation configuration, while positive checks
-    prove all required loopback calls still work.
+    prove all required loopback calls still work. **This depends on closing this repo's currently
+    open `network_mode="no-network"` gap** (not yet enforced under the local Docker provider — no
+    egress-control sidecar wired up, per `docs/harbor-install.md`/AGENTS.md); that closure is
+    scoped as its own tracked step in §12, not assumed here.
 15. A DNS/HTTP capture of the smoke test contains no request to a public hostname; VAST, beacon,
     webhook, storage, origin, EPG, telemetry, and playback requests terminate inside the world.
 16. `docker history` and a layer inspection confirm no `tasks/*/tests`, `tasks/*/solution`, `.env`,
     job transcript, API key, or private fixture input exists in any final layer.
-17. Every retained POC task passes a real Harbor Oracle run and fails a real no-op run against the
-    packaged image.
+17. Every Phase 1 task, built fresh against the re-pinned single-image world, passes a real Harbor
+    Oracle run and fails a real no-op run against the packaged image. (The five POC tasks are
+    archived, not retained — see §2's provenance note.)
 18. A fresh run server can pull or load the artifact and complete the smoke test without access to
     the three source repositories.
 
 ## 12. First implementation sequence
 
-1. Decide the coordinated three-repo re-pin and revalidate retained tasks.
-2. Extend vendoring to include `apps/web`, both ChannelForge workers, and all SSAI worker/runtime
+1. Re-run the upstream audit (§2.1) to confirm it hasn't gone stale, then decide and execute the
+   coordinated three-repo re-pin. No POC task revalidation is needed — they're archived (§2).
+2. Build and smoke-test a throwaway supervisord-only image against Harbor's real `docker`
+   environment provider, resolving §9's open command-override question, before any application
+   stages are added. Do not proceed to step 3 until this passes for real, not simulated.
+3. Extend vendoring to include `apps/web`, both ChannelForge workers, and all SSAI worker/runtime
    packages; verify application builds independently.
-3. Create the final base, supervisor configuration, nginx/HLS edge, MinIO, and local stub without
-   sample data.
-4. Prove every process autostarts and replace all production/public endpoints with local ones.
-5. Create synthetic programme media, adapt the ChannelForge fixture, and prove raw HLS playback.
-6. Create synthetic ad/slate media, bake the SSAI fixture, and prove stitched HLS playback.
-7. Wire FAST World to local EPG/origin/SSAI endpoints and prove browser playback.
-8. Add task-environment bootstrap compatible with Harbor's command override.
-9. Run the full acceptance gate, including outbound-call capture.
-10. Decide and document Google Artifact Registry publication.
+4. Create the final base, supervisor configuration, nginx/HLS edge, MinIO, and local stub without
+   sample data. Design and implement the write-boundary permission scheme (§5) at this stage —
+   before any task-specific child images depend on it.
+5. Prove every process autostarts and replace all production/public endpoints with local ones.
+6. Create synthetic programme media, adapt the ChannelForge fixture, and prove raw HLS playback.
+7. Create synthetic ad/slate media, bake the SSAI fixture, and prove stitched HLS playback.
+8. Wire FAST World to local EPG/origin/SSAI endpoints and prove browser playback.
+9. Close the `network_mode="no-network"` gap (egress-control sidecar, or an environment provider
+   that natively supports it) as its own scoped work item — a prerequisite for acceptance gate
+   items 14–15, not a byproduct of the stages above.
+10. Prototype the child-image-per-task build (§6) against one representative Phase 1 task idea,
+    confirming which base stages survive a source patch unchanged and which must re-run.
+11. Run the full acceptance gate, including outbound-call capture.
+12. Decide and document Google Artifact Registry publication.
