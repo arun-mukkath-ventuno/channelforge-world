@@ -123,11 +123,11 @@ but this needs an explicit decision before Phase 4 starts, not an assumption bak
 
 **Full rubric now lives in [`docs/task-idea-rubric.md`](task-idea-rubric.md)** — a standalone,
 fillable doc covering the 3-stage gate process (rubric score → desk evaluation → repo probe), the
-8-criterion `/40` scoring table, the domain-knowledge ceiling test, the 6 structural design
+9-criterion `/45` scoring table, the domain-knowledge ceiling test, the 6 structural design
 patterns, hard gates, and worked examples from `tasks/task-05-*`/`tasks/task-09-*`. This section is
 now just the pointer; don't duplicate the rubric content here as it evolves.
 
-Threshold to proceed to build: **≥ 28/40**, no critical flags, at least one pattern identified, all
+Threshold to proceed to build: **≥ 32/45**, no critical flags, at least one pattern identified, all
 hard gates checked — see the doc for the full process.
 
 ## 4. Task creation and 10-trial calibration
@@ -254,7 +254,7 @@ and decide a refresh cadence before committing, since labs ship monthly.
   leaked into a layer.
 - Phase 2: a fresh server following this doc's spec can run `harbor run -a oracle` on an existing
   task end-to-end with no manual intervention beyond the documented setup steps.
-- Phase 3: every candidate that proceeds to Phase 4 has a filled-out rubric score (≥28/40), at
+- Phase 3: every candidate that proceeds to Phase 4 has a filled-out rubric score (≥32/45), at
   least one matched design pattern, and all 5 hard gates checked.
 - Phase 4: each of the 10 tasks has its `nop`→0/`oracle`→1×3/adversarial-probe→0 checklist done,
   and a 10-trial `gpt-5.6-luna` run landing in the 0.1-0.6 band (or an explicit, documented

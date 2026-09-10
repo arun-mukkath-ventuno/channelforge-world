@@ -46,11 +46,13 @@ Score each criterion below 1 (absent) – 5 (exemplary) against the idea descrip
 | **Buildability** | Does the infra it needs already exist in the vendored repos / current world, buildable without new upstream features? | Needs a feature or service that doesn't exist yet | Everything needed is already in `vendor/`/the world image |
 | **Bounded session** | Solvable inside one Harbor agent timeout window — not a multi-session, long-horizon task? | Plausibly needs iterative exploration across many long sessions | Clearly closeable in one bounded session |
 | **Novelty** | Not a near-duplicate of an existing `tasks/` (or archived) task? | Same observable problem + same root cause + same fix shape + same grader discriminator as an existing task | Materially distinct on at least one of those four dimensions |
+| **Predicted difficulty** | Judging from the idea alone, will a competent agent find this a *quick* solve, or does it look genuinely hard to get right? A task worth building should not look like a quick solve. | Fix looks like one obvious change with no real trap — a capable agent would nail it on the first attempt | A plausible wrong fix jumps to mind immediately, and it's genuinely unclear whether a capable agent would notice what's wrong with it |
 
-**Threshold to proceed to Stage 2: ≥ 28/40.** (Deliberately lighter than horizon's 52/65 — this
-project is calibrating its own bar as tasks go through the pipeline; tighten once several tasks
-have gone through Stage 3 and the threshold's real predictive value against build-time collapse is
-known — see `docs/harbor-task-eval-rubric.md`'s "Idea→build quality signal.")
+**Threshold to proceed to Stage 2: ≥ 32/45.** (Proportionally equivalent to the original ≥ 28/40 —
+deliberately lighter than horizon's 52/65, since this project is calibrating its own bar as tasks
+go through the pipeline; tighten once several tasks have gone through Stage 3 and the threshold's
+real predictive value against build-time collapse is known — see
+`docs/harbor-task-eval-rubric.md`'s "Idea→build quality signal.")
 
 **Flag immediately, regardless of total score, if:**
 - Domain-knowledge ceiling scores < 3 — task will score above the target band regardless of grader
@@ -58,6 +60,12 @@ known — see `docs/harbor-task-eval-rubric.md`'s "Idea→build quality signal."
   check in this whole rubric).
 - Buildability scores < 3 — infrastructure is missing, this is greenfield work in disguise.
 - Bounded session scores < 3 — scope is too large for a single agent session.
+- **Predicted difficulty scores < 3 — the idea looks like a quick solve.** This is a judgment call,
+  not a measurement (real pass rate only exists after `docs/harbor-task-eval-rubric.md`'s ≥8-run
+  calibration), but an idea that already looks easy from the description alone is not worth the
+  build effort — don't spend Stage 2/3 time on it. If Stage 3's probe later disagrees (the
+  tempting-wrong-fix analysis in probe items 4-5 turns out sharper or flatter than expected),
+  that's a legitimate reason to revise this score, not a rubric failure.
 
 ### Stage 2 — Desk evaluation
 
@@ -112,7 +120,7 @@ layer and will land as a flat 0/1 pass-or-fail with no real gradient.
 
 ### Stage 3 — Repo probe
 
-Prerequisites: Stage 1 passed (≥ 28/40, no critical flags), Stage 2 passed, vendored source
+Prerequisites: Stage 1 passed (≥ 32/45, no critical flags), Stage 2 passed, vendored source
 available (`scripts/vendor-source.sh`), idea description in hand.
 
 Work through each section and produce a probe report:
@@ -132,18 +140,33 @@ Work through each section and produce a probe report:
    invisible constraint or second failure mode the agent must discover, and where it's discoverable.
 6. **Change-size estimate** — how many files, how many lines? Proportional to the intended
    difficulty label?
-7. **Oracle sketch** — what does `solution/solve.sh` patch, and how? What must it not break? Can it
+7. **Predicted difficulty & solve time** — grounded in items 4-5, give an explicit upfront call:
+   is this a *quick solve* (a capable agent gets it right first try, little real gradient) or a
+   *hard solve* (the tempting wrong fix is genuinely tempting — plausible enough that a competent
+   agent would ship it without noticing what's missing)? State which. Then estimate where this
+   idea would plausibly land if it were run 10 times today: **below 0.1** (too hard — the correct
+   fix requires an insight nothing in the codebase actually supports), **0.1-0.6** (the target
+   band), or **above 0.6** (too easy — the tempting wrong fix isn't tempting enough, most agents
+   would just get it right). This is a judgment call from reading the code, not a measurement —
+   the only way to actually know is `docs/harbor-task-eval-rubric.md`'s real ≥8-run calibration
+   after the task is built. Record the call here anyway: if the build-stage calibration lands far
+   outside this prediction, that gap is itself useful signal (it means the probe misjudged
+   something concrete about the tempting-wrong-fix gap), worth a sentence in the task's write-up in
+   `docs/ecosystem.md` either way.
+8. **Oracle sketch** — what does `solution/solve.sh` patch, and how? What must it not break? Can it
    apply idempotently?
-8. **Grader sketch** — sketch the tests: what does each assert, which wrong implementation does
+9. **Grader sketch** — sketch the tests: what does each assert, which wrong implementation does
    each catch, are all offline-runnable (no external network — the whole world is meant to run
    sealed)?
-9. **Offline confirmation** — confirm the grader can run fully offline. Flag anything that would
-   need an external HTTP call, external API, or service not in the world image.
-10. **Verdict** — Build / Needs more work / Drop. If "Needs more work," name exactly what's missing.
+10. **Offline confirmation** — confirm the grader can run fully offline. Flag anything that would
+    need an external HTTP call, external API, or service not in the world image.
+11. **Verdict** — Build / Needs more work / Drop. If "Needs more work," name exactly what's missing.
     If "Drop," name the blocking reason.
 
 **Pass condition: verdict is "Build," infrastructure confirmed, grader sketch has ≥ 2 independent
-discriminating checks, change size is proportional to the intended difficulty.**
+discriminating checks, change size is proportional to the intended difficulty, and the predicted
+difficulty (item 7) is "hard solve" landing in or near the 0.1-0.6 band — not a predicted quick
+solve.**
 
 ## The six structural patterns
 

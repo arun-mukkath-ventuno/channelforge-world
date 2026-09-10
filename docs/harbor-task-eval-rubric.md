@@ -278,7 +278,7 @@ Area 8 — Submission hygiene:              ___ /  5
 ───────────────────────────────────────────────────
 TOTAL:                                    ___ / 100   (≥ 80 to calibrate)
 
-Idea score was: ___ / 40  (docs/task-idea-rubric.md)
+Idea score was: ___ / 45  (docs/task-idea-rubric.md)
 ```
 
 ## Part 3 — Idea→build quality signal
