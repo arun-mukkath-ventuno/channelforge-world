@@ -15,9 +15,11 @@ Sizes are rough (S ≈ hours, M ≈ 1-2 days, L ≈ 3+ days) — recalibrate aft
 ## Critical path
 
 **T2 (Harbor command-override resolution) gates everything from T4 onward** — do it first,
-regardless of where it falls in the spec's own step numbering. T9 (network egress) and T10
-(child-image-per-task prototype) can run in parallel with T5-T8 once T4 lands, rather than waiting
-in line behind T8.
+regardless of where it falls in the spec's own step numbering. T9 (network egress), T10
+(child-image-per-task prototype), T13 (DB seeding), T14 (integration stubs), and T15 (MinIO/CDN
+assets) can all run in parallel with T5-T8 once T4 lands — T6.4/T7.3's playback proofs are the
+only points where the media/fixture work (T13, T15) and the integration-stub work (T14.2 for the
+SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 blocks T5-T8 directly.
 
 ## Tasks
 
@@ -79,8 +81,8 @@ in line behind T8.
   real local MinIO objects. *Size: M. Depends on: T5.2, T6.1. Blocks: T6.4.*
 - [ ] **T6.3** — Decide and implement the time/reset-determinism rule (fixed epoch vs. deterministic
   reset op). *Size: M. Blocks: T6.2.*
-- [ ] **T6.4** — Prove raw HLS playback through host port `18080`. *Size: S. Depends on: T6.2, T6.3.
-  Blocks: Step 7.*
+- [ ] **T6.4** — Prove raw HLS playback through host port `18080`. *Size: S. Depends on: T6.2, T6.3,
+  T15.2. Blocks: Step 7.*
 
 ### Step 7 — SSAI fixture
 
@@ -88,8 +90,8 @@ in line behind T8.
   *Size: M. Depends on: T3.3, T6.4. Blocks: T7.3.*
 - [ ] **T7.2** — Bake the SSAI seed (persistence package's seed command); rewrite calendar dates and
   origin hostnames. *Size: M. Depends on: T5.2, T7.1. Blocks: T7.3.*
-- [ ] **T7.3** — Prove stitched HLS playback through `14000`/`14010`. *Size: S. Depends on: T7.2.
-  Blocks: Step 8.*
+- [ ] **T7.3** — Prove stitched HLS playback through `14000`/`14010`. *Size: S. Depends on: T7.2,
+  T15.3, T14.2. Blocks: Step 8.*
 
 ### Step 8 — FAST World
 
@@ -118,10 +120,62 @@ in line behind T8.
 - [ ] **T10.4** — Validate `oracle`/`nop` against the prototype task. *Size: S. Depends on: T10.3.
   Blocks: Step 11.*
 
+### Step 13 — DB seeding (cross-cutting: ChannelForge + SSAI)
+
+- [ ] **T13.1** — Apply ChannelForge's Alembic migrations as a baked build stage (spec §6 stage 7).
+  *Size: S. Depends on: T4.2. Blocks: T6.2.*
+- [ ] **T13.2** — Apply SSAI's migrations as a baked build stage (spec §6 stage 8). *Size: S. Depends
+  on: T4.2. Blocks: T7.2.*
+- [ ] **T13.3** — Verify two fresh containers from the same image expose byte-identical seeded state
+  in both databases, with no external seed step executed at first boot (acceptance gate #7). *Size:
+  S. Depends on: T6.2, T7.2.*
+- [ ] **T13.4** — Confirm the baked fixture contains no customer-derived data or PII — remove or
+  replace any titles still claimed as production-derived (spec §7). *Size: S. Depends on: T6.2.*
+
+### Step 14 — External integration stubs / local replacements
+
+Every capability in spec §5's integration table needs an explicit disposition — stubbed, disabled,
+or redirected — not left to fall out of other steps incidentally.
+
+- [ ] **T14.1** — Build the local integration stub service itself: health endpoint, deterministic
+  request logging, refuses to proxy unknown URLs, on port 9080 (spec §5). *Size: M. Depends on:
+  T4.4. Blocks: T14.2, T14.3.*
+- [ ] **T14.2** — Point ssaiadserver's VAST tag/wrapper retrieval at a deterministic local VAST stub;
+  reject unknown hosts. *Size: S. Depends on: T14.1.*
+- [ ] **T14.3** — Point ssaiadserver's impression/tracking beacons and any generic webhook/Slack
+  calls at the local beacon/webhook collector only. *Size: S. Depends on: T14.1.*
+- [ ] **T14.4** — Disable (or confirm blank credentials for) ChannelForge's YouTube/Google OAuth,
+  Google Drive/Dropbox import, SFTP import/export, RTMP/RTMPS/SRT push destinations, and SMTP
+  alerts — each must stay dormant with no destination configured. *Size: M. Depends on: T5.2.*
+- [ ] **T14.5** — Confirm FAST World's Upstash/Vercel KV integration uses its supported in-memory (or
+  local adapter) fallback, never a production default, for every missing environment variable.
+  *Size: S. Depends on: T8.1.*
+- [ ] **T14.6** — Walk spec §5's full integration table line by line against the built image; any
+  newly found live integration is release-blocking until stubbed, redirected, or disabled. *Size: S.
+  Depends on: T14.1-T14.5. Blocks: T9.3, Step 11 (acceptance gate #15).*
+
+### Step 15 — MinIO CDN + seeded static assets (media, images, other static content)
+
+- [ ] **T15.1** — Stand up MinIO with separate ChannelForge and SSAI buckets. *Size: S. Depends on:
+  T4.4. Blocks: T15.2, T15.3, T15.4.*
+- [ ] **T15.2** — Load normalized programme media into ChannelForge's MinIO bucket, with keys
+  matching the seeded DB rows exactly. *Size: M. Depends on: T15.1, T6.1, T6.2. Blocks: T6.4.*
+- [ ] **T15.3** — Load prepared ad/slate HLS objects into SSAI's MinIO bucket, with keys matching the
+  seeded SSAI rows exactly. *Size: M. Depends on: T15.1, T7.1, T7.2. Blocks: T7.3.*
+- [ ] **T15.4** — Create and seed deterministic poster/artwork/other browser-fetched image assets for
+  FAST World — no remote image URL anywhere in the served pages (spec §5). *Size: M. Depends on:
+  T15.1. Blocks: T8.1.*
+- [ ] **T15.5** — Wire nginx/the CDN edge to serve MinIO-backed static assets locally (poster/
+  artwork and any other browser-fetched static content); confirm no fallback to a remote host.
+  *Size: S. Depends on: T15.4, T4.3.*
+- [ ] **T15.6** — Verify every MinIO object referenced by a seeded DB row actually exists — no
+  dangling storage references (acceptance gate #6). *Size: S. Depends on: T15.2, T15.3, T15.4.
+  Blocks: Step 11.*
+
 ### Step 11 — acceptance gate
 
 - [ ] **T11.1** — Run all 18 acceptance-gate checks (spec §11) end to end. *Size: L. Depends on:
-  Steps 5-10 complete. Blocks: T11.2.*
+  Steps 5-10, 13-15 complete. Blocks: T11.2.*
 - [ ] **T11.2** — Fix any failures found and re-run until all 18 pass. *Size: depends on findings.
   Depends on: T11.1. Blocks: Step 12.*
 
