@@ -40,7 +40,7 @@ The image is assembled from four repositories:
 
 | Repository | Pin source | Content used |
 |---|---|---|
-| ChannelForge | `PINNED_COMMIT_CHANNELFORGE` | `apps/api`, `apps/web`, `packages` |
+| ChannelForge | `PINNED_COMMIT_CHANNELFORGE` | `apps/api`, `apps/web`, `packages`, `services/media-worker`, `services/playout-worker` |
 | ssaiadserver | `PINNED_COMMIT_SSAIADSERVER` | packages, migrations, web assets |
 | fast-world-tv | `PINNED_COMMIT_FASTWORLDTV` | Next.js viewer |
 | channelforge-world | the release commit | packaging, restart scripts, fixtures, task environments |
@@ -57,9 +57,13 @@ on `world` directly — not as local patches in this repo. The re-pin audit belo
 against `origin/world` (after periodically merging `main` into `world` to pull in upstream fixes),
 not `origin/main`.
 
-`scripts/vendor-source.sh` currently vendors ChannelForge's API and shared packages but not
-`apps/web`. Phase 1 must extend it to vendor the operator frontend at the same ChannelForge pin.
-No build may read a moving branch.
+**Resolved 2026-09-11 (T3.1-T3.4).** `scripts/vendor-source.sh` now also vendors `apps/web`,
+`services/media-worker`, and `services/playout-worker` from ChannelForge (all previously missing);
+`packages/creative-worker` from ssaiadserver was already covered by the existing `packages`
+wildcard copy. All four verified to build independently at the current pins — see
+`docs/world-image-task-tracker.md` T3.1-T3.4 for build evidence. Note for Step 4's base image:
+ssaiadserver's own `docker/Dockerfile` installs `ffmpeg`/`ffprobe` for the creative-worker; the
+single-image `Dockerfile` needs the same system package. No build may read a moving branch.
 
 The two old world glue patches are retired. Current upstream code provides
 `CHANNELFORGE_ORIGIN_MAP` on the SSAI side and `CF_SSAI_BASE_URL` plus admin credentials on the

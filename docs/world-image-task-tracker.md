@@ -66,14 +66,28 @@ SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 block
 
 ### Step 3 — vendoring extension
 
-- [ ] **T3.1** — Extend `vendor-source.sh` to pull ChannelForge's `apps/web`. *Size: S. Depends on:
-  T1.2. Blocks: T3.4.*
-- [ ] **T3.2** — Extend vendoring/build to include ChannelForge's media + playout workers. *Size: M.
-  Depends on: T1.2. Blocks: T3.4.*
-- [ ] **T3.3** — Extend vendoring/build to include SSAI's creative worker and remaining runtime
-  packages. *Size: M. Depends on: T1.2. Blocks: T3.4.*
-- [ ] **T3.4** — Verify each newly-vendored app builds independently, outside the monolith, before
-  it's wired into the base. *Size: S. Depends on: T3.1, T3.2, T3.3. Blocks: Step 4.*
+- [x] **T3.1** — Extend `vendor-source.sh` to pull ChannelForge's `apps/web`. *Size: S. Depends on:
+  T1.2. Blocks: T3.4.* — 2026-09-11: added `apps/web` to the ChannelForge `vendor_repo` call. No
+  workspace deps on `packages/` — standalone Vite/React app.
+- [x] **T3.2** — Extend vendoring/build to include ChannelForge's media + playout workers. *Size: M.
+  Depends on: T1.2. Blocks: T3.4.* — 2026-09-11: added `services/media-worker` and
+  `services/playout-worker` to the ChannelForge `vendor_repo` call. Both are Python packages that
+  depend on `packages/media-engine` (already vendored) and, for playout-worker, `apps/api`
+  (already vendored) — no other new paths needed.
+- [x] **T3.3** — Extend vendoring/build to include SSAI's creative worker and remaining runtime
+  packages. *Size: M. Depends on: T1.2. Blocks: T3.4.* — 2026-09-11: already satisfied by the
+  existing `packages` wildcard copy (`packages/creative-worker` was already landing in `vendor/`)
+  — no script change needed. Found a real build-stage note for Step 4: ssaiadserver's own
+  `docker/Dockerfile` installs `ffmpeg`/`ffprobe` for the creative-worker — the real single-image
+  `Dockerfile` needs the same system package.
+- [x] **T3.4** — Verify each newly-vendored app builds independently, outside the monolith, before
+  it's wired into the base. *Size: S. Depends on: T3.1, T3.2, T3.3. Blocks: Step 4.* — 2026-09-11:
+  all 4 build clean at the new pins: `apps/web` (`npm install && npm run build`, standalone),
+  `services/playout-worker` and `services/media-worker` (each built via its own real `Dockerfile`
+  from the `channelforge` repo root, exactly as it will run in production), `packages/creative-worker`
+  (`tsc --build` via the ssaiadserver npm workspace). All throwaway Docker images removed after
+  verification; an incidental `package-lock.json` lockfile drift from `npm install` in ssaiadserver
+  was reverted (not an intended change).
 
 ### Step 4 — final base + write boundary
 

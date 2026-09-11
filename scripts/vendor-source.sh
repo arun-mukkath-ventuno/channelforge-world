@@ -2,10 +2,12 @@
 # Pulls pinned snapshots of the three ecosystem repos into vendor/ (gitignored — these are
 # derived artifacts, not source of truth):
 #
-#   vendor/apps/api, vendor/packages   ChannelForge, from ../channelforge (unchanged layout —
+#   vendor/apps/{api,web}, vendor/packages, vendor/services/{media,playout}-worker
+#                                      ChannelForge, from ../channelforge (unchanged layout —
 #                                      existing task-01 and world/app/Dockerfile COPY these paths
 #                                      directly, so ChannelForge keeps its original top-level spot)
-#   vendor/ssaiadserver/               packages + docker + migrations, from ../ssaiadserver
+#   vendor/ssaiadserver/               packages (incl. creative-worker) + docker + migrations,
+#                                      from ../ssaiadserver
 #   vendor/fastworldtv/                src + public, from ../fast-world-tv
 #
 # Each is pinned by its own PINNED_COMMIT_<SERVICE> file and pulled with `git archive` — never a
@@ -36,7 +38,8 @@ vendor_repo() {
 }
 
 vendor_repo "ChannelForge" CHANNELFORGE_REPO "$ROOT/../channelforge" \
-  PINNED_COMMIT_CHANNELFORGE "$ROOT/vendor" apps/api packages
+  PINNED_COMMIT_CHANNELFORGE "$ROOT/vendor" apps/api apps/web packages \
+  services/media-worker services/playout-worker
 
 vendor_repo "ssaiadserver" SSAIADSERVER_REPO "$ROOT/../ssaiadserver" \
   PINNED_COMMIT_SSAIADSERVER "$ROOT/vendor/ssaiadserver" packages docker migrations package.json package-lock.json tsconfig.json tsconfig.base.json
