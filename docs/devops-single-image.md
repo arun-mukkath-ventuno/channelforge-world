@@ -49,6 +49,14 @@ The three application pins are files in the repository root and are the only aut
 values. Do not duplicate literal SHAs in this document or the Dockerfile. A release manifest must
 record all four resolved commits plus the final image digest.
 
+**Pinning policy (as of 2026-09-11): pins track each source repo's `world` branch, not `main`.**
+Each of the three source repos carries a long-lived `world` branch with blueprint/world-specific
+commits (virtual clock, canonical world event envelope, seed-deterministic ids, env-driven URLs,
+offline eval topology) layered on top of upstream `main`. All future POC/world-specific fixes land
+on `world` directly — not as local patches in this repo. The re-pin audit below fetches and diffs
+against `origin/world` (after periodically merging `main` into `world` to pull in upstream fixes),
+not `origin/main`.
+
 `scripts/vendor-source.sh` currently vendors ChannelForge's API and shared packages but not
 `apps/web`. Phase 1 must extend it to vendor the operator frontend at the same ChannelForge pin.
 No build may read a moving branch.
@@ -57,7 +65,34 @@ The two old world glue patches are retired. Current upstream code provides
 `CHANNELFORGE_ORIGIN_MAP` on the SSAI side and `CF_SSAI_BASE_URL` plus admin credentials on the
 ChannelForge side. Do not restore the obsolete patches or their obsolete environment variables.
 
-### Latest-upstream audit (2026-09-09)
+### Latest-upstream audit (2026-09-11 — `main` merged into `world`, pins now track `world`)
+
+Superseded the 2026-09-09 snapshot below (T1.1/T1.2). Each repo's `main`-only commits that had
+accumulated ahead of the old pin were merged into that repo's `world` branch, `world` was pushed
+to origin, and the pins were re-pointed to the new `world` HEAD:
+
+| Repository | Old pin (on `main`) | `main`-only commits merged in | New pin (`world` HEAD, post-merge) |
+|---|---|---:|---|
+| ChannelForge | `cdbf80b` | 9 (through `4f181f2`) | `bf56501` |
+| ssaiadserver | `24c21d4` | 20 (through `eea3fec`), 2 conflicts hand-resolved | `8fccc2e` |
+| fast-world-tv | `09193c2` | 11 (through `4400ffa`), 1 conflict hand-resolved | `52491a6` |
+
+Conflict resolutions: ssaiadserver's `packages/core/src/index.ts` kept both branches' new exports
+(`world-clock.js`/`world-event.js` from `world`, `opportunity-id.js` from `main`); its
+`packages/control-plane/src/server.ts` kept `world`'s `emitWorldEvent` call alongside `main`'s
+enriched `slots`/`opportunity_id` response fields — both changes are additive, not competing.
+fast-world-tv's `src/app/layout.tsx` kept `world`'s env-driven `siteBaseUrl()` (the point of that
+blueprint item) but took `main`'s accurate "four channels" copy — `world`'s "five channels" text
+was stale from before a channel was retired (current `channels.ts` has 4 channels, 101–104).
+
+`vendor/` was regenerated against the new pins via `scripts/vendor-source.sh` with no errors.
+
+Going forward, re-run this audit as: `git fetch origin` in each source repo, then
+`git log --oneline world..main` to see what upstream work hasn't been merged into `world` yet,
+merge it in, push, and re-pin — same shape as before, just against `world` instead of `main`.
+
+<details>
+<summary>Superseded 2026-09-09 audit (pinned against <code>main</code>, before the <code>world</code>-branch policy)</summary>
 
 The world pins remain unchanged while this document is drafted. A read-only fetch found these
 new commits on upstream `main`:
@@ -74,10 +109,7 @@ Do not build an unrecorded mixture of pinned and latest source. Several Phase 3 
 defects the new commits may already fix, so the task backlog must also be re-evaluated after the
 re-pin.
 
-This audit is a dated snapshot, not a standing guarantee — it can go stale between drafting and
-the actual re-pin. Re-run it (a read-only `git fetch` + `git log` diff against each pin, same as
-above) immediately before executing the re-pin in §12 step 1, not solely on the strength of this
-recorded date.
+</details>
 
 **The five POC tasks (`task-05`..`task-09`) are archived, not migrated.** They were built,
 hardened, and piloted against the pre-MVP four/nine-service Compose topology and the pins in

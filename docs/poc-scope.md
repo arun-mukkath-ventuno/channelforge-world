@@ -29,6 +29,14 @@ Decisions locked so far:
 
 ## Step 1 — Refresh the world to current upstream
 
+> **Correction (2026-09-11):** the `3c5599a`/`3ce4632`/`6d09506` targets named below were
+> superseded before this step actually ran — the real 2026-09-05 re-pin landed on ChannelForge
+> `cdbf80b`, ssaiadserver `24c21d4`, fast-world-tv `09193c2` (see `docs/ecosystem.md`). Those pins
+> have since moved again: each repo's `main` was merged into its `world` branch and the pins now
+> track `world` (see `docs/devops-single-image.md` §2), landing on ChannelForge `bf56501`,
+> ssaiadserver `8fccc2e`, fast-world-tv `52491a6`. The steps below are left as-written for
+> historical record of what was planned at the time.
+
 **2026-09-05 rescope**: all three repos moved again since the plan above was first written —
 46/11/17 commits ahead of the *original* pins now, not the 43/10/11 the 2026-09-03 status note
 recorded. Current HEADs: ChannelForge `3c5599a`, ssaiadserver `3ce4632`, fast-world-tv `6d09506`.

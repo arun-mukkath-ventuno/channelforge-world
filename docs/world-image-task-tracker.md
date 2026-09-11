@@ -25,10 +25,14 @@ SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 block
 
 ### Step 1 — re-pin
 
-- [ ] **T1.1** — Re-run the upstream audit (`docs/devops-single-image.md` §2.1 fetch-diff) to
-  confirm it hasn't gone stale. *Size: S. Blocks: T1.2.*
-- [ ] **T1.2** — Execute the coordinated three-repo re-pin (update the 3 `PINNED_COMMIT_*` files,
-  regenerate `vendor/`). *Size: S. Depends on: T1.1. Blocks: T1.3, Step 3.*
+- [x] **T1.1** — Re-run the upstream audit (`docs/devops-single-image.md` §2.1 fetch-diff) to
+  confirm it hasn't gone stale. *Size: S. Blocks: T1.2.* — 2026-09-11: superseded by a policy
+  change (pins now track each repo's `world` branch, not `main`) — see updated §2.
+- [x] **T1.2** — Execute the coordinated three-repo re-pin (update the 3 `PINNED_COMMIT_*` files,
+  regenerate `vendor/`). *Size: S. Depends on: T1.1. Blocks: T1.3, Step 3.* — 2026-09-11: merged
+  `main` into `world` in all 3 source repos (2 conflicts hand-resolved in ssaiadserver, 1 in
+  fast-world-tv), pushed, re-pointed `PINNED_COMMIT_*` to the new `world` HEADs (ChannelForge
+  `bf56501`, ssaiadserver `8fccc2e`, fast-world-tv `52491a6`), regenerated `vendor/` clean.
 - [ ] **T1.3** — Re-check the T1-T10 idea catalogue (`docs/fast-world-bench.md`) against the
   re-pinned source — confirm none of those defects were fixed upstream. *Size: S. Depends on: T1.2.*
 
