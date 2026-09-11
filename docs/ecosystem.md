@@ -373,6 +373,14 @@ small needs a bug that spans more files/callers to reach 30+ turns, not a vaguer
 
 ## The POC-2 model roster's first real task: task-05 (FW-001 revisited)
 
+**Archived 2026-09-11** to `archive/old/tasks/task-05-adjacent-break-id-bleed/`, alongside
+task-06..09 below — the task-idea pipeline is moving to the rubric-gated process in
+`docs/task-idea-rubric.md` (idea → Stage 1-3 → build), and these five POC-era tasks predate that
+process. Not re-verified against the 2026-09-11 `world`-branch re-pin as part of this move (unlike
+the task-01..04 archive, which was preceded by a real `harbor run` check) — treat their `oracle`/
+`nop` results below as accurate as of the 2026-09-05 pins they were built and last verified against,
+not as a current claim. Re-verify before reviving any of them as a Stage-3-probed idea.
+
 `tasks/task-05-adjacent-break-id-bleed` is the first task authored against the 2026-09-05 refresh
 (`docs/poc-scope.md` Step 2), targeting FW-001's problem area ("alternate CUE-OUT syntax losing
 `break_id` correlation") — but not FW-001's literal seeded defect. Investigation found the
@@ -427,6 +435,45 @@ self-verification against the exact stated symptom), not task or grader defects 
 task quality. Full evaluation matrix (more models/attempts) deferred to the pilot phase
 (`docs/poc-scope.md` Step 4); these two runs were exploratory confirmation that the task
 discriminates.
+
+## Three undocumented tasks in the set: task-06, task-07, task-08
+
+These three were built and landed alongside task-05/09 but never got a write-up in this doc —
+closing that gap now, as part of archiving all five (see the task-05 section above for the archive
+note and caveat shared by all of task-05..09).
+
+**`tasks/task-06-mid-break-join-loses-ad-pod`** (`archive/old/tasks/task-06-mid-break-join-loses-ad-pod/`)
+— single-repo (`ssaiadserver`) bugfix task: a session whose first manifest request for a given break
+lands mid-break (a fresh tune-in, a reconnect, or a slow-polling client) never gets an ad for the
+remainder of that break, even though the break was correctly scheduled and ad-filled for sessions
+that were already polling before it started. A session that had already been decided a pod for the
+break earlier, then reconnects, also doesn't get it back. Framed as a partner bug report in
+`instruction.md`, with explicit guardrails against the two easy-but-wrong shortcuts (changing how
+ads are detected/decided for the common case, or disabling/bypassing decisioning to make the
+symptom disappear).
+
+**`tasks/task-07-channel-switch-session-bleed`** (`archive/old/tasks/task-07-channel-switch-session-bleed/`)
+— single-repo (`ssaiadserver`) bugfix task: a multi-channel-per-session integration keeps one
+session id across a channel switch (rather than starting a new session), and every ad decision/
+opportunity/event after the switch is correctly tagged with the new channel — but the session
+record's own recorded channel never moves off the first channel it ever saw, so any report keyed
+off the session's own channel is wrong for the rest of its life. Explicitly scoped to *not* touch
+how decisions/opportunities/events are themselves attributed (already correct) and does not require
+a full channel-change history, just the session's current channel reflecting the most recent one.
+
+**`tasks/task-08-series-takedown-type-filter-bug`** (`archive/old/tasks/task-08-series-takedown-type-filter-bug/`)
+— single-repo (ChannelForge `apps/api`) bugfix task: an active, series-scoped emergency takedown
+fails to block the series' own member episodes, even though asset-scoped takedowns block correctly
+and placing/previewing/lifting a series-scoped takedown all work and correctly report it as active.
+Uses a `setup/regression.patch` (unlike task-06/07, which have no `setup/` — the defect is already
+present in pristine vendored source for those two) — meaning task-08 follows the reversible-
+regression shape (task-01's pattern), while task-06/07 follow the missing-behavior shape (task-02's
+pattern).
+
+None of the three has a recorded `oracle`/`nop` verification result in this doc — unlike task-05/09,
+no grader-hardening or real-agent-run notes were ever written up for them, which is itself worth
+flagging rather than silently implying they got the same scrutiny. Re-verify from scratch (not just
+re-run) if any is revived as a Stage-3-probed idea.
 
 ## The fifth task, completing the set: task-09 (FW-006)
 

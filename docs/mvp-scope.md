@@ -111,13 +111,25 @@ A Linux server with SSH access, running:
 directories under `tasks/` today. This is the starting backlog for Phase 3/4, not a finished task
 set.
 
-**Open question, not resolved here**: the POC's existing 5 tasks (`tasks/task-05-*` ..
-`tasks/task-09-*`) already exist, are hardened, and have real trajectory data (`docs/ecosystem.md`,
-`docs/model-providers.md`). Does the MVP's "10 tasks" reuse those 5 (re-scored against the rubric
-below, since they predate it) and add 5 new ones from the T1–T10 catalogue, or does it start fresh?
-Recommend reusing task-05..09 where they pass the rubric retroactively — re-running the idea rubric
-against an already-built task is cheap compared to designing five brand-new ones from scratch —
-but this needs an explicit decision before Phase 4 starts, not an assumption baked in here.
+**Open question — updated 2026-09-11, still not fully resolved**: the POC's 5 tasks
+(`tasks/task-05-*` .. `tasks/task-09-*`) had real trajectory data (`docs/ecosystem.md`,
+`docs/model-providers.md`) but predate the rubric-gated idea pipeline (`docs/task-idea-rubric.md`).
+**Archived** to `archive/old/tasks/task-0{5,6,7,8,9}-*/` — moved out of the default `tasks/` sweep
+as a starting-fresh decision for *where new build work begins* (Phase 3's T1-T10 catalogue is now
+the active idea backlog, not this set), not a verdict on whether any of the five would pass the
+rubric. None were re-verified (`harbor run -a oracle`/`-a nop`) against the 2026-09-11 `world`-branch
+re-pin before archiving — see `docs/ecosystem.md`'s task-05 section for the full caveat. The reuse
+question from the original note below is therefore still open in substance: if one of these five is
+worth reviving, treat it as a candidate idea and run it through Stages 1-3
+(`docs/task-idea-rubric.md`) fresh, the same as any T1-T10 catalogue entry — not as a shortcut around
+the gate just because it was already built once.
+
+Original note, kept for history: does the MVP's "10 tasks" reuse those 5 (re-scored against the
+rubric below, since they predate it) and add 5 new ones from the T1–T10 catalogue, or does it start
+fresh? Recommend reusing task-05..09 where they pass the rubric retroactively — re-running the idea
+rubric against an already-built task is cheap compared to designing five brand-new ones from
+scratch — but this needs an explicit decision before Phase 4 starts, not an assumption baked in
+here.
 
 ### Task-idea rubric
 
