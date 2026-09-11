@@ -51,6 +51,15 @@ the whole collection/channel/schedule structure) is purpose-built for this fixtu
 wasn't imported wholesale — it was too operationally messy for a sealed fixture (live `running`
 state, 24,188 real schedule events, unrelated craft-video content mixed into the same library).
 
+**Update 2026-09-11 — the "no customer-derived data" policy above is superseded.** The team has
+since supplied a properly sanitized real ChannelForge DB dump
+(`assets/db/channelforge-world-20260911.dump`, "freshly re-normalized yoga" among its 48 tables)
+and, per explicit direction, sanitized real data is now acceptable for the release fixture — not
+just fully synthetic content. See `docs/devops-single-image.md` §7 for the full policy and the
+restore command. This section's account of `seed_fixture.py`'s from-scratch approach stays
+accurate as history; it's just no longer the only, or necessarily the final, path to the release
+fixture.
+
 ### Reproducing it
 
 ```bash

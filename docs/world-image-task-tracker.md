@@ -155,7 +155,11 @@ SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 block
 
 - [ ] **T6.1** — Create synthetic programme media. *Size: M. Depends on: T4.3, T4.4. Blocks: T6.4.*
 - [ ] **T6.2** — Adapt `scripts/seed_fixture.py` to bake at build time, with storage rows pointing at
-  real local MinIO objects. *Size: M. Depends on: T5.2, T6.1. Blocks: T6.4.*
+  real local MinIO objects. *Size: M. Depends on: T5.2, T6.1. Blocks: T6.4.* — 2026-09-11: policy
+  update (see `docs/devops-single-image.md` §7) — the team's sanitized real DB dump
+  (`assets/db/channelforge-world-20260911.dump`) is now an acceptable starting point instead of
+  `scripts/seed_fixture.py`'s from-scratch generation; still needs schema-vs-Alembic-head
+  confirmation (T13.1) and the storage-row remap below either way.
 - [ ] **T6.3** — Decide and implement the time/reset-determinism rule (fixed epoch vs. deterministic
   reset op). *Size: M. Blocks: T6.2.*
 - [ ] **T6.4** — Prove raw HLS playback through host port `18080`. *Size: S. Depends on: T6.2, T6.3,
@@ -206,8 +210,13 @@ SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 block
 - [ ] **T13.3** — Verify two fresh containers from the same image expose byte-identical seeded state
   in both databases, with no external seed step executed at first boot (acceptance gate #7). *Size:
   S. Depends on: T6.2, T7.2.*
-- [ ] **T13.4** — Confirm the baked fixture contains no customer-derived data or PII — remove or
-  replace any titles still claimed as production-derived (spec §7). *Size: S. Depends on: T6.2.*
+- [ ] **T13.4** — Confirm the baked fixture contains no PII or live credentials/secrets (spec §7,
+  policy revised 2026-09-11 — sanitized real data is acceptable, "no customer-derived data" is no
+  longer the bar). For the team's dump specifically: confirm the claimed sanitization actually
+  holds in the baked image (spot-check `users.email`/`password_hash`, `storage_connections`,
+  `destinations`, `youtube_connections`, `webhook_endpoints.secret`,
+  `organizations.alert_emails`) rather than trusting the team's report alone. *Size: S. Depends
+  on: T6.2.*
 
 ### Step 14 — External integration stubs / local replacements
 

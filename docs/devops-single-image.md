@@ -454,9 +454,33 @@ tenant. It currently produces:
 - as-run entries for the elapsed portion of the schedule.
 
 The seed combines API-level creation for validated application objects with direct ORM inserts
-only where the sealed world lacks a real ingest pipeline. Before MVP release, remove the remaining
-claim that some titles are production-derived or replace those titles with fully synthetic
-equivalents. The release fixture must contain no customer-derived data or PII.
+only where the sealed world lacks a real ingest pipeline.
+
+**Policy revised 2026-09-11: sanitized real data is acceptable, not just fully synthetic.** The
+original rule here was "the release fixture must contain no customer-derived data or PII" —
+full stop, sanitization of secrets/PII was explicitly called insufficient (see the retired
+`docs/fixture-and-scheduler.md` provenance note this superseded, which treated the real "Ventuno
+Yoga" pilot org's 10 real asset titles as a defect to remove before release). Per explicit
+direction, this is now relaxed: a properly sanitized real database dump — secrets, tokens, PII,
+and stale alert noise stripped, verified zero real values remain — is acceptable content for the
+release fixture. It does not need to be regenerated as synthetic-from-scratch.
+
+The team supplied `assets/db/channelforge-world-20260911.dump` (pg_restore custom format, 48
+tables with data: assets, media_versions — "freshly re-normalized yoga" — channels,
+schedule_events/versions, epg_*, as_run_entries, organizations, users) with this sanitization
+already applied: `sessions`/`password_reset_tokens` wiped; `users.email`/`password_hash`
+replaced with synthetic values; `storage_connections` keys, `destinations` RTMP/stream keys,
+`youtube_connections` tokens, `webhook_endpoints.secret`, and `organizations.alert_emails`
+redacted or cleared; 27 stale `normalization_failed` alerts resolved. Restore with:
+```
+createdb channelforge_world
+pg_restore --no-owner -d channelforge_world channelforge-world-20260911.dump
+```
+This becomes the starting point for T6.2 (baking the ChannelForge fixture at build time) instead
+of `scripts/seed_fixture.py`'s from-scratch synthetic generation — confirm the restored schema
+matches the current Alembic head (T13.1) before wiring it in, and still close the storage-row gap
+below (its rows point at real object keys that need remapping to local MinIO, same requirement
+as before, just against real rows instead of synthetic ones).
 
 The current fixture's storage rows point at objects that do not exist. The MVP seed must instead
 reference deterministic, synthetic media placed in local MinIO. At least one seeded channel must
