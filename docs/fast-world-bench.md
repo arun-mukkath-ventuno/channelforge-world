@@ -186,6 +186,36 @@ spread across repos, languages, and task types (fix / feature / debug-from-sympt
 | 9 | **Caddy preflight 401** *(infra reasoning)* — bare `respond @options` loses to the catch-all `handle {}`; make OPTIONS a `handle` block ordered first | ssai `Caddyfile` / infra | debug | OPTIONS on events path → 204; normal request still authenticates | Hard/niche (0.2) |
 | 10 | **EPG break-extended timings** — published XMLTV programme stop times must reflect break-extended aired duration, staying DTD-conformant | CF api `epg` / Py | fix | XMLTV boundaries match expected extended times + validates against DTD | Med-Hard (0.35) |
 
+### Re-check against the re-pinned `world`-branch source (2026-09-11, T1.3)
+
+Since `main` was merged into each repo's `world` branch (T1.1/T1.2), re-verified whether each
+task's underlying defect still exists in current source, since these are `break.patch`-style
+tasks (a real fix is intentionally reverted at build time, so finding the fix present in current
+source is the *expected*, healthy state — it confirms there's something real to revert):
+
+**T1-T9: fix confirmed present in current source** — `avails.ts:142-161` (T1's live-edge
+completion), `origin-rewrite.ts:48-61` (T2's `holdBackManifest`), `pod.ts:85-106` (T3's
+`loopToFill`), `cue_schedule.py:73-86` + `ffmpeg.py:143,254,337` (T4's dual markers + widened HLS
+window), `schedules.py:405-412` + `reconciliation.py` (T5's break-id format + matching),
+`adapters/ssai.py:23-24,60-61,101,129` (T6's macro allowlist), `ssai.ts:43-55` +
+`server.ts:91-97` (T7's text/plain beacon fix — this file was one of T1.2's 2 hand-resolved
+merge conflicts; the parser survived intact), `ads/current/route.ts:19,100-104` (T8's
+`originNow` reckoning), `Caddyfile:20-28` (T9's `handle @options` ordering). **Before trusting
+any of these for Phase 3 task authoring, actually test that the task's `break.patch` still
+applies cleanly and reverts the fix as designed — this was a source-inspection check, not a
+patch-apply test.**
+
+**T10: still genuinely unfixed, no revert possible.** `apps/api/app/services/epg.py`'s own
+docstring says the break-extended resolver "land[s] later"; grepped `services/` for
+`aired_end`/`break_extended`/`extended_end` — zero hits, `EpgProgramme.end` is used as-is with no
+break-duration adjustment anywhere. There is nothing to revert here — re-scope T10 as a
+build-from-scratch feature task, not a fix/break-patch task, when it's authored.
+
+Side note for whoever authors T5: `schedules.py:465,543` references a `world_ids.break_id_prefix`
+helper that looks like it may already partially consolidate break-id generation as part of the
+`world` blueprint work — check it doesn't duplicate T5's literal `f"{id_prefix}-{avail_index:04d}"`
+inline format at `schedules.py:317` before authoring.
+
 ### Alternate bench (swap-ins if any calibrate out of band)
 
 - Copy-mode FLV codec-tag remux bug (CF, real yoga #61).

@@ -33,20 +33,36 @@ SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 block
   `main` into `world` in all 3 source repos (2 conflicts hand-resolved in ssaiadserver, 1 in
   fast-world-tv), pushed, re-pointed `PINNED_COMMIT_*` to the new `world` HEADs (ChannelForge
   `bf56501`, ssaiadserver `8fccc2e`, fast-world-tv `52491a6`), regenerated `vendor/` clean.
-- [ ] **T1.3** — Re-check the T1-T10 idea catalogue (`docs/fast-world-bench.md`) against the
-  re-pinned source — confirm none of those defects were fixed upstream. *Size: S. Depends on: T1.2.*
+- [x] **T1.3** — Re-check the T1-T10 idea catalogue (`docs/fast-world-bench.md`) against the
+  re-pinned source — confirm none of those defects were fixed upstream. *Size: S. Depends on:
+  T1.2.* — 2026-09-11: T1-T9's fixes are all present in current source (expected/healthy for
+  `break.patch`-style tasks — still needs an actual patch-apply test before Phase 3 authoring,
+  not just source inspection). T10 has no fix at all — genuinely unfixed, re-scope as a
+  build-from-scratch feature task rather than a break-patch fix task. See `docs/fast-world-bench.md`
+  §"Re-check against the re-pinned world-branch source".
 
 ### Step 2 — Harbor command-override resolution (gating — do first, real risk)
 
-- [ ] **T2.1** — Ask the Horizon harness owner whether `ventuno-world` runs through Harbor's
-  `docker` environment provider or a different integration. *Size: S. Blocks: T2.3.*
-- [ ] **T2.2** — Build a throwaway supervisord-only image — no application stages, just the
-  process-management skeleton. *Size: S. Blocks: T2.3.*
-- [ ] **T2.3** — Run that throwaway image as a real Harbor `main` service (`harbor run -a oracle`/
+- [x] **T2.1** — Ask the Horizon harness owner whether `ventuno-world` runs through Harbor's
+  `docker` environment provider or a different integration. *Size: S. Blocks: T2.3.* —
+  2026-09-11: confirmed — it runs through Harbor's `docker` environment provider (the same
+  compose-overlay mechanism this repo uses). The `sleep infinity` command-override risk
+  documented in `docs/devops-single-image.md` §9 is real, not hypothetical.
+- [x] **T2.2** — Build a throwaway supervisord-only image — no application stages, just the
+  process-management skeleton. *Size: S. Blocks: T2.3.* — 2026-09-11: Ubuntu 24.04 + `supervisor`
+  + 2 dummy heartbeat programs, built in scratch (not committed — genuinely throwaway).
+- [x] **T2.3** — Run that throwaway image as a real Harbor `main` service (`harbor run -a oracle`/
   `-a nop`) and confirm supervisord survives (or doesn't) Harbor's `sleep infinity` command
-  override. *Size: M. Depends on: T2.1, T2.2. Blocks: everything in T4+.*
-- [ ] **T2.4** — If T2.3 fails, implement and re-verify a fix (`ENTRYPOINT`-based or otherwise).
-  *Size: M. Depends on: T2.3. Blocks: everything in T4+.*
+  override. *Size: M. Depends on: T2.1, T2.2. Blocks: everything in T4+.* — 2026-09-11: **fails**
+  with a bare `CMD supervisord ...` — verified via `harbor task start-env -i`, PID 1 was `sh -c
+  "sleep infinity"`, supervisord never started. Confirms the risk from §9 is real.
+- [x] **T2.4** — If T2.3 fails, implement and re-verify a fix (`ENTRYPOINT`-based or otherwise).
+  *Size: M. Depends on: T2.3. Blocks: everything in T4+.* — 2026-09-11: fixed with an
+  `ENTRYPOINT` script that ignores `"$@"` and unconditionally execs supervisord — re-verified via
+  the same `harbor task start-env -i` path: supervisord is PID 1, both dummy programs `RUNNING`
+  per `supervisorctl status`, Harbor's shell attachment still works. Pattern documented in
+  `docs/devops-single-image.md` §9 for reuse in the real `Dockerfile` (§6). **Step 2 fully
+  closed — Step 4+ is unblocked.**
 
 ### Step 3 — vendoring extension
 

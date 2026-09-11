@@ -444,23 +444,41 @@ rewritten the way Harbor's local Docker provider rewrites a `main` service's com
 `sh -c "sleep infinity"`. It works here because it is evidently run as a standalone container,
 not through Harbor's compose-based `main`-service build/overlay path.
 
-**Action item, before any of §6's stages are implemented:** confirm with whoever owns the Horizon
-harness whether this world is run through Harbor's `docker` environment provider (the same
-compose-overlay mechanism this repo currently uses, which *would* still hit the `sleep infinity`
-override problem) or through a different integration that treats the image as opaque. That answer
-determines whether channelforge-world's image can copy this pattern as-is, or still needs its own
-resolution for Harbor's compose `main`-service constraint (e.g. an `ENTRYPOINT` that ignores an
-appended `CMD` override — unverified here, and untested against Harbor's actual overlay behavior).
+**Resolved 2026-09-11 (T2.1-T2.4).** Confirmed with the Horizon harness owner: `ventuno-world`
+does run through Harbor's `docker` environment provider — the `sleep infinity` override problem
+above is real, not hypothetical, for this world too.
 
-Until that's confirmed, build and smoke-test a throwaway supervisord-only image (no application
-stages, just the process-management skeleton) against Harbor's real `docker` environment provider
-*first* — this is a single point of failure for the entire MVP image, not a detail to resolve
-along the way while stages 1–10 of §6 are being built.
+Built and smoke-tested a throwaway supervisord-only image (Ubuntu 24.04 + `supervisor` + two
+dummy heartbeat programs, no application stages) against Harbor's real `docker` environment
+provider via `harbor task start-env -p <task-dir> -i`, which builds the environment through
+Harbor's actual compose-overlay path (the same one a real task run uses):
 
-Phase 1 and Phase 2 must jointly validate the task environment's bootstrap path. Acceptable
-solutions preserve Harbor's shell attachment while starting supervisor explicitly through one
-tested task-environment mechanism. Do not document a solution until a real Oracle/no-op run proves
-it.
+- **Naive baseline (bare `CMD supervisord ...`, matching `ventuno-world`'s pattern) fails exactly
+  as predicted.** `ps aux` inside the running `main` container showed PID 1 as `sh -c "sleep
+  infinity"` — supervisord never started at all: no `/var/run/supervisor.sock`, no supervised
+  programs, nothing. Harbor's compose overlay fully replaces the image's `CMD`.
+- **Fix: an `ENTRYPOINT` script that ignores its arguments and unconditionally execs
+  supervisord**, e.g.:
+  ```dockerfile
+  COPY start-supervisord.sh /usr/local/bin/start-supervisord.sh
+  ENTRYPOINT ["/usr/local/bin/start-supervisord.sh"]
+  ```
+  ```bash
+  #!/bin/bash
+  # Deliberately ignores "$@" — Harbor appends sleep-infinity args here.
+  exec /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+  ```
+  Because Harbor's compose overlay only overrides the service's `command:` (→ Docker `CMD`), not
+  `ENTRYPOINT`, and this entrypoint never references `"$@"`, the appended `sleep infinity` args
+  are silently discarded and supervisord always becomes the container's real PID 1 — verified:
+  `ps aux` showed `supervisord` as PID 1, `supervisorctl status` reported both dummy programs
+  `RUNNING`, and their heartbeat log files were actively being written. Harbor's own interactive
+  shell attachment (`docker exec`-based, not dependent on what PID 1 is) still worked normally
+  against this container throughout the test — confirming the fix doesn't trade away shell access.
+
+**Adopt this `ENTRYPOINT`-ignores-args pattern for the real single-image `Dockerfile`** (§6) —
+do not reuse `ventuno-world`'s bare-`CMD` pattern as-is, it does not survive Harbor's actual
+overlay behavior.
 
 Application source is writable inside the trial. The base image must not contain task-specific
 regressions. A task-specific child image applies only its declared regression to only its declared
