@@ -91,15 +91,39 @@ SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 block
 
 ### Step 4 — final base + write boundary
 
-- [ ] **T4.1** — Design the write-boundary permission scheme (owners/users, which paths are
-  protected — spec §5). *Size: M. Depends on: T2.4. Blocks: T4.2, everything in Step 10.*
-- [ ] **T4.2** — Build the supervisor config for all ~14 programs, tiered by `priority=`. *Size: M.
-  Depends on: T2.4, T4.1. Blocks: T4.5, Step 5.*
-- [ ] **T4.3** — Build the nginx/HLS edge config. *Size: M. Depends on: T2.4. Blocks: Step 6.*
-- [ ] **T4.4** — Integrate MinIO + the local integration stub, no sample data yet. *Size: M. Depends
-  on: T2.4. Blocks: Step 6, 7.*
-- [ ] **T4.5** — Implement per-service `wait-for-*.sh` readiness guards (spec §8) — supervisord's
-  `priority` alone doesn't order readiness. *Size: M. Depends on: T4.2. Blocks: Step 5.*
+- [x] **T4.1** — Design the write-boundary permission scheme (owners/users, which paths are
+  protected — spec §5). *Size: M. Depends on: T2.4. Blocks: T4.2, everything in Step 10.* —
+  2026-09-11: built (`worldagent` user, agent-writable trees mode 755, protected config mode
+  750) but confirmed **not real enforcement today** — Harbor 0.22.0's docker provider has no
+  `task.toml` field to default agent execs to a non-root user and no capability-dropping either
+  (verified by reading `harbor/environments/base.py`/`docker.py` directly, then confirmed twice
+  empirically: plain `docker exec` and a real `harbor task start-env -i` both show `whoami` →
+  root, root can write `/etc/supervisor`; `--user worldagent` explicitly *does* enforce it
+  correctly). Kept as structural/advisory per explicit direction — see
+  `docs/devops-single-image.md` §5 for the full writeup. The real gap is now tracked there,
+  same treatment as T9's no-network gap.
+- [x] **T4.2** — Build the supervisor config for all ~14 programs, tiered by `priority=`. *Size: M.
+  Depends on: T2.4, T4.1. Blocks: T4.5, Step 5.* — 2026-09-11: `world/image/supervisord.conf`,
+  13/14 reach `RUNNING` (verified via both plain `docker run` and real `harbor task
+  start-env -i`); the 14th (ChannelForge media worker) is a genuine upstream gap
+  (`NotImplementedError` skeleton), left `autostart=false` rather than patched — see
+  `docs/devops-single-image.md` §4.
+- [x] **T4.3** — Build the nginx/HLS edge config. *Size: M. Depends on: T2.4. Blocks: Step 6.* —
+  2026-09-11: `world/image/nginx.conf` — serves `apps/web/dist`, proxies `/api`+`/health` to
+  `127.0.0.1:8000`, serves the playout worker's `CF_HLS_ROOT` under `/hls`. Verified `/health`
+  proxies correctly.
+- [x] **T4.4** — Integrate MinIO + the local integration stub, no sample data yet. *Size: M. Depends
+  on: T2.4. Blocks: Step 6, 7.* — 2026-09-11: MinIO verified healthy
+  (`/minio/health/live` → 200); local stub (`world/image/stub/stub_server.py`, pure-stdlib
+  Python) verified — `/health` → `{"status": "ok"}`, a test POST logged deterministically to
+  `/var/log/local-stub/requests.log` and acknowledged locally, no outbound calls of its own. No
+  bucket contents yet, as scoped — that's Step 15.
+- [x] **T4.5** — Implement per-service `wait-for-*.sh` readiness guards (spec §8) — supervisord's
+  `priority` alone doesn't order readiness. *Size: M. Depends on: T4.2. Blocks: Step 5.* —
+  2026-09-11: one generic `world/image/wait-for-tcp.sh <host> <port> [timeout]` rather than one
+  script per dependency (every dependency here is "can I open a TCP connection"); each program's
+  `command=` chains the specific calls it needs before `exec`ing the real process. **Step 4 fully
+  closed — Step 5 (autostart + local endpoints) is unblocked.**
 
 ### Step 5 — autostart + local endpoints
 

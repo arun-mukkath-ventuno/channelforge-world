@@ -178,6 +178,43 @@ Nginx serves the built `apps/web/dist` directory, proxies same-origin `/api` and
 to `127.0.0.1:8000`, and serves the playout worker's HLS directory under `/hls`. Unlike the POC
 world, the MVP must include the playout worker and edge so this route produces real local bytes.
 
+**Resolved 2026-09-11 (T4.2-T4.5).** `world/image/Dockerfile` builds a single Ubuntu 24.04 image
+running all of the above under `world/image/supervisord.conf`, verified reaching this state both
+via a plain `docker run` and via a real `harbor task start-env -i` run (the same empirical method
+as T2.3/T2.4, confirming the T2.4 `ENTRYPOINT`-ignores-args fix still holds through this much
+larger build):
+
+- **13 of 14 programs reach `RUNNING`.** The 14th, ChannelForge's media worker, is a genuine
+  upstream gap, not a config bug: `services/media-worker/worker/run.py` unconditionally raises
+  `NotImplementedError` (its own docstring: "this runner is where the queued/polled job loop will
+  live once the background-job framework is chosen"). Per AGENTS.md rule 4 (base image stays
+  pristine, no upstream patches baked in here), it's left `autostart=false` rather than patched to
+  fake an implementation — flip it once ChannelForge implements the real loop upstream.
+- **Readiness guards (T4.5)**: one generic `world/image/wait-for-tcp.sh <host> <port> [timeout]`
+  rather than one script per dependency edge — every dependency in this world is "can I open a
+  TCP connection," so a parameterized script is the same guard with less duplication; each
+  program's `command=` chains the calls it needs (e.g. `cf-playout-worker` waits on the API,
+  PostgreSQL, Redis, and MinIO in sequence) before `exec`ing the real process.
+- **The SSAI creative worker has no daemon entrypoint upstream** (its `package.json` only exposes
+  one-shot CLI commands — `prepare-creative`, `prepare-slate`, `process-pending`) — supervised via
+  a small polling wrapper (`world/image/restart/loop-ssai-creative-worker.sh`, `process-pending`
+  every 10s) rather than one of the CLI commands directly.
+- **Restart verbs** live in `world/image/restart/` and are symlinked to `/usr/local/bin/restart-*`
+  matching §8's exact 8 names; each now just asks supervisord to restart its one named program
+  (`supervisorctl restart <program>`), rebuilding first for the TypeScript/Next.js services — the
+  PID-file/foreground-loop mechanics in `scripts/restart-*.sh` were for the pre-Step-4
+  one-process-per-container Compose topology and are unrelated to this file set.
+- **MinIO and the local integration stub (T4.4)** both verified live: `curl
+  localhost:9000/minio/health/live` → 200; `curl localhost:9080/health` → `{"status": "ok"}`, and a
+  test `POST` was logged deterministically to `/var/log/local-stub/requests.log` (method, path,
+  headers, body, timestamp) and acknowledged locally — the stub is pure-stdlib Python
+  (`world/image/stub/stub_server.py`), makes no outbound call of its own, so "never proxies
+  unknown URLs" holds by construction. No sample data/bucket contents yet — that's Step 15.
+- This is a **first working cut, not yet the full 10-stage cacheable build** from §6 — everything
+  installs into one Ubuntu 24.04 base sequentially rather than being split into per-app stages
+  copied forward with `COPY --from`. Splitting for build-cache/size is a documented follow-up, not
+  required for T4.1-T4.5.
+
 Use non-default host ports so the world can run alongside ordinary development services:
 
 | Host port | Published surface | Example |
@@ -237,6 +274,39 @@ agent's shell runs as. **Do not assume the reference single-image precedent (`ve
 user (`www-data`) with no differentiated protection, because it is not itself a per-task graded
 artifact. That ownership pattern is not safe to copy wholesale here; the permission scheme for
 excluded paths needs its own design pass before Phase 1 build work starts.
+
+**Resolved 2026-09-11 (T4.1) — built, but confirmed NOT real enforcement today, by code
+inspection and two independent empirical tests.** `world/image/Dockerfile` creates a `worldagent`
+user (uid 2000) owning the agent-writable source trees (`/app`, `/web`, `/media-worker`,
+`/playout-worker`, `/packages`, `/ssai`, `/fastweb`, mode 755) and leaves `/etc/supervisor`,
+`/etc/nginx`, and `/opt/local-stub` root-owned at mode 750 (both PostgreSQL data directories are
+already `postgres`-owned at initdb's own mode 0700, which already excludes `worldagent` — they are
+deliberately *not* re-chowned to root, since that would break postgres's own refusal to run
+against a data directory it doesn't own).
+
+This only works if the agent's shell actually execs as `worldagent`, not root. Inspecting Harbor
+0.22.0's installed `docker` environment provider source directly (not assumed) shows it cannot,
+today: `docker exec` only receives a `-u <user>` flag when `environment.default_user` is set
+(`harbor/environments/base.py`), and `default_user` is hardcoded to `None` at init with **no
+`task.toml` field anywhere that sets it** — it's only settable by an agent implementation calling
+`with_default_user(...)` itself, which this repo doesn't control. The docker provider also has no
+`task.toml`-level capability-dropping (no `cap_drop`/`security_opt` handling at all — the same
+"isolation feature not actually wired up yet" pattern as T9's `network_mode="no-network"` gap).
+
+Confirmed empirically, twice: a plain `docker exec` into the built image, and a real
+`harbor task start-env -i` run through Harbor's actual compose-overlay path, both show `whoami` →
+`root`, and root can freely `touch` a file inside `/etc/supervisor` despite its mode-750
+ownership. Passing `--user worldagent` explicitly *does* enforce the boundary correctly (write to
+`/app` succeeds, write to `/etc/supervisor` fails with `Permission denied`) — the scheme itself is
+correctly built, it just has no way to become the *default* exec user under Harbor today.
+
+**Disposition (per explicit direction): keep this as structural/advisory only.** It documents
+intent and becomes real enforcement for free the moment Harbor gains a way to default agent execs
+to a non-root user — no further work needed on this repo's side then. Closing the actual gap
+(a `task.toml` exec-user field, or default-user wiring in Harbor's docker provider) is Harbor's
+own scope, not something `world/image/Dockerfile` can route around alone — track it the same way
+as T9's no-network gap: a real, separate, currently-open risk against the "agent can't touch
+supervisor/nginx config or database internals" guarantee, not a solved problem.
 
 ### Observed external integrations
 
