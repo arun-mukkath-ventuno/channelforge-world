@@ -170,7 +170,10 @@ SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 block
 - [ ] **T7.1** — Create synthetic ad/slate media, run it through the real creative-worker prep path.
   *Size: M. Depends on: T3.3, T6.4. Blocks: T7.3.*
 - [ ] **T7.2** — Bake the SSAI seed (persistence package's seed command); rewrite calendar dates and
-  origin hostnames. *Size: M. Depends on: T5.2, T7.1. Blocks: T7.3.*
+  origin hostnames. *Size: M. Depends on: T5.2, T7.1. Blocks: T7.3.* — 2026-09-11: the team's
+  sanitized SSAI dump (`assets/db/ssai-world-20260911.dump`) is now an alternative starting point
+  to the seed script — see `docs/devops-single-image.md` §7. Calendar-date and origin-hostname
+  rewriting is still required regardless of which path is used; the dump carries both unchanged.
 - [ ] **T7.3** — Prove stitched HLS playback through `14000`/`14010`. *Size: S. Depends on: T7.2,
   T15.3, T14.2. Blocks: Step 8.*
 

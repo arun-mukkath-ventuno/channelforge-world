@@ -490,13 +490,30 @@ API call. Its fallback media and ad-break barker must also resolve locally.
 
 ### SSAI database
 
-Use `vendor/ssaiadserver/packages/persistence/src/seed.ts` through its supported seed command.
-It idempotently creates five demo channels plus campaigns and 15/30/60-second creatives.
+**Updated 2026-09-11: the team supplied a sanitized real SSAI DB dump**
+(`assets/db/ssai-world-20260911.dump`, 95 KB, 16 tables) as an alternative to
+`vendor/ssaiadserver/packages/persistence/src/seed.ts`'s from-scratch idempotent seed (which
+still works and remains valid — five demo channels plus campaigns and 15/30/60-second creatives).
+Restore with:
+```
+createdb ssai_world
+pg_restore --no-owner -d ssai_world ssai-world-20260911.dump
+```
+Sanitization applied: `playback_sessions.user_id`/`anonymous_id`/`ip_hash`/`user_agent` redacted
+(NULLs preserved), `events.payload` cleared to `{}`, verified zero real values remain. No secrets
+were in the DB to begin with — the shared session-signing secret lives in env/config, not the
+database. Under the same 2026-09-11 policy revision as the ChannelForge dump (sanitized real data
+is acceptable), this is a usable starting point for T7.2.
 
-The SSAI campaign dates are currently fixed to calendar year 2026 and its origin URLs use an old
-hostname/path shape. Phase 1 must make the sample inventory calendar-stable and rewrite origins to
-valid in-world URLs. The seeded ChannelForge and SSAI channel identities must either be aligned for
-an end-to-end demo or their intentionally separate roles must be stated in the release README.
+The SSAI campaign dates are currently fixed to calendar year 2026 (carried through unchanged in
+the dump) and `channels.origin_url`/`vast_tag_url` use real production hostnames
+(`forge.ventunotech.com`, real VAST endpoints — not sensitive, but still need rewriting to
+in-world URLs per this doc's existing requirement, unaffected by the sanitization). Phase 1 must
+make the sample inventory calendar-stable and rewrite those origins to valid in-world URLs
+regardless of which seed path (script or dump) is used. The seeded ChannelForge and SSAI channel
+identities must either be aligned for an end-to-end demo or their intentionally separate roles
+must be stated in the release README. The dump's runtime tables (events/sessions/pods/decisions)
+reflect mostly test/probe traffic — fine to keep or truncate at bake time, whichever is simpler.
 
 Rows alone are insufficient: generate fully synthetic ad and slate source clips during the build,
 run them through the real creative-worker preparation path, and preload their HLS objects into the
