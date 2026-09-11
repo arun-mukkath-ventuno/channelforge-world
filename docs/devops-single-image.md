@@ -244,6 +244,32 @@ The final configuration must contain no `forge.ventunotech.com`, `ssai.ventunote
 Upstash, public test-stream, or other live-service fallback. Missing environment variables must
 not silently reactivate an upstream hardcoded production URL.
 
+**Resolved 2026-09-11 (T5.1-T5.2).** T5.1 re-confirmed T4.2's 13/14-`RUNNING` result holds after
+the env var changes below. T5.2 closed a real, **pre-existing** gap, not just a new-build
+concern: neither `world/docker-compose.yaml` nor any prior world config actually set
+`FORGE_HLS_BASE`, `FAST_EPG_10N`, `NEXT_PUBLIC_SSAI_BASE`, or `NEXT_PUBLIC_SITE_URL` — each
+defaults to a real production hostname upstream (`forge.ventunotech.com`, `ssai.ventunotech.com`,
+`fast-world-tv.vercel.app` — `fast-world-tv/src/lib/channels.ts`, `ssai.ts`, `site.ts`) and was
+leaking silently in today's dev topology too. `world/image/supervisord.conf` now sets all of
+these, plus the `SESSION_SECRET`/`ENCRYPTION_KEY`/`CF_SSAI_BASE_URL`/`CF_SSAI_ADMIN_*` (cf-api,
+cf-scheduler) and `SESSION_SIGNING_SECRET`/`ADMIN_*`/`CREATIVE_STORE_ROOT` (ssai-control,
+ssai-data) that `world/docker-compose.yaml` already had but the single image didn't yet.
+`CF_ORIGIN_BASE_URL` and `CHANNELFORGE_ORIGIN_URL` were also corrected to point at the real local
+nginx HLS edge (`http://127.0.0.1:8080/hls`) — the old value was a documented placeholder from
+before this world had a real playout-worker/edge (§9's precedent note); now that one exists
+(T4.2-T4.3), the placeholder was actively wrong to keep.
+
+**Real finding worth flagging for anyone touching fast-world-tv's env config later:**
+`NEXT_PUBLIC_*` variables are inlined into the Next.js client bundle at **build** time, not read
+at runtime — a supervisord `environment=` line on the `fast-web` program is too late for them (it
+only reaches `pnpm start`, after `pnpm build` already ran). `NEXT_PUBLIC_SITE_URL` and
+`NEXT_PUBLIC_SSAI_BASE` are instead set as persistent Dockerfile-level `ENV` (before the `pnpm
+build` stage) in `world/image/Dockerfile` — this also covers `restart-fast-web.sh`'s later
+agent-triggered rebuild for free, since a Dockerfile `ENV` is part of every `docker exec` session
+in the container, not just the main process. Verified by grepping the built `.next/static`
+bundle: `NEXT_PUBLIC_SSAI_BASE` correctly inlined as `http://localhost:14000`; the one remaining
+`ventunotech.com` string is a benign admin-form placeholder example, not a call target.
+
 Runtime secrets use sealed-world fixture values only. No model-provider key belongs inside the
 image: Harbor supplies LLM credentials to the agent harness from the run server.
 

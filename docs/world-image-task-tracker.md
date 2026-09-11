@@ -127,10 +127,29 @@ SSAI VAST path) actually gate the streaming steps; nothing else in T13-T15 block
 
 ### Step 5 — autostart + local endpoints
 
-- [ ] **T5.1** — Prove every process reaches `RUNNING` via `supervisorctl status`. *Size: S. Depends
-  on: T4.5. Blocks: T5.2.*
-- [ ] **T5.2** — Rewrite every production/public endpoint default to its local equivalent (spec §5's
-  integration table). *Size: M. Depends on: T5.1. Blocks: Step 6, 7, 8.*
+- [x] **T5.1** — Prove every process reaches `RUNNING` via `supervisorctl status`. *Size: S. Depends
+  on: T4.5. Blocks: T5.2.* — 2026-09-11: re-confirmed after T5.2's env var changes — same 13/14
+  `RUNNING` + 1 intentionally `STOPPED` result as T4.2, still holds.
+- [x] **T5.2** — Rewrite every production/public endpoint default to its local equivalent (spec §5's
+  integration table). *Size: M. Depends on: T5.1. Blocks: Step 6, 7, 8.* — 2026-09-11: closed a
+  real, **pre-existing** gap — confirmed neither `world/docker-compose.yaml` nor any prior world
+  config actually set `FORGE_HLS_BASE`, `FAST_EPG_10N`, `NEXT_PUBLIC_SSAI_BASE`, or
+  `NEXT_PUBLIC_SITE_URL`, so these were leaking to real production hostnames
+  (`forge.ventunotech.com`, `ssai.ventunotech.com`, `fast-world-tv.vercel.app`) even in today's
+  dev topology, not just a new-build concern. Also added the missing `SESSION_SECRET`/
+  `ENCRYPTION_KEY`/`CF_SSAI_BASE_URL`/`CF_SSAI_ADMIN_*` (cf-api, cf-scheduler) and
+  `SESSION_SIGNING_SECRET`/`ADMIN_*`/`CREATIVE_STORE_ROOT` (ssai-control/ssai-data) that
+  `world/docker-compose.yaml` already had but `world/image/supervisord.conf` didn't yet.
+  Corrected `CF_ORIGIN_BASE_URL` and `CHANNELFORGE_ORIGIN_URL` to point at the real local nginx
+  HLS edge (`http://127.0.0.1:8080/hls`) now that one exists, instead of the pre-Step-4
+  placeholder that pointed at `main` itself. **Real finding**: `NEXT_PUBLIC_*` vars are inlined
+  into the Next.js client bundle at *build* time, so a supervisord runtime `environment=` line
+  alone is too late for them — added `NEXT_PUBLIC_SITE_URL`/`NEXT_PUBLIC_SSAI_BASE` as
+  Dockerfile-level `ENV` (before `pnpm build`) instead, verified by grepping the built
+  `.next/static` bundle: 0 leaked production hostnames as an actual runtime default (the one
+  `ventunotech.com` hit left is a benign admin-form placeholder string, not a call target),
+  `NEXT_PUBLIC_SSAI_BASE` confirmed correctly inlined as `http://localhost:14000`. Re-verified
+  T5.1's RUNNING state holds after all changes.
 
 ### Step 6 — ChannelForge fixture
 

@@ -65,6 +65,18 @@ COPY vendor/ssaiadserver/migrations ./migrations
 RUN npm install && npm run build
 
 # ── fast-world-tv (stage 6) ──────────────────────────────────────────────────────────────────
+# NEXT_PUBLIC_SITE_URL/NEXT_PUBLIC_SSAI_BASE default to real production hostnames upstream
+# (fast-world-tv.vercel.app, ssai.ventunotech.com — src/lib/site.ts, src/lib/ssai.ts) if unset.
+# Next.js inlines NEXT_PUBLIC_* vars into the client bundle at build time, so this has to be a
+# persistent image-level ENV set before `pnpm build`, not just a supervisord runtime env (see
+# world/image/supervisord.conf's fast-web program for the full explanation) — it also means this
+# same ENV is what restart-fast-web.sh's later `pnpm build` sees on an agent-triggered rebuild,
+# since a persistent Dockerfile ENV is part of every docker exec session too, not just the main
+# process. Browser-visible values (host-published ports, not internal 127.0.0.1 ones) per
+# docs/devops-single-image.md's internal-vs-browser-visible-URL distinction.
+ENV NEXT_PUBLIC_SITE_URL="http://localhost:13000" \
+    NEXT_PUBLIC_SSAI_BASE="http://localhost:14000"
+
 WORKDIR /fastweb
 RUN corepack prepare pnpm@9.12.0 --activate
 COPY vendor/fastworldtv/package.json vendor/fastworldtv/pnpm-lock.yaml ./
@@ -92,6 +104,9 @@ RUN mkdir -p /var/lib/redis/cf /var/lib/redis/ssai /var/run/redis \
 # ── MinIO data root + local stub ─────────────────────────────────────────────────────────────
 RUN mkdir -p /var/lib/minio/data /var/log/local-stub
 COPY world/image/stub/stub_server.py /opt/local-stub/stub_server.py
+
+# ── SSAI creative store (CREATIVE_STORE_ROOT) ───────────────────────────────────────────────
+RUN mkdir -p /data/creatives
 
 # ── Supervisor, nginx, entrypoint, readiness guards, restart verbs ──────────────────────────
 COPY world/image/supervisord.conf /etc/supervisor/supervisord.conf
